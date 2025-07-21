@@ -524,10 +524,11 @@ export default function LebenslaufPreview() {
                             </div>
                           </div>
                         )}
-                          
-                          if (hasBisTranslation) {
-                            console.log(`🎯 Found BIS translation for "${aufgabe}":`, bisTranslatorResults[aufgabe]);
-                          }
+                         
+                         // Log BIS translation if found
+                         if (hasBisTranslation) {
+                           console.log(`🎯 Found BIS translation for "${aufgabe}":`, bisTranslatorResults[aufgabe]);
+                         }
                         
                         {!isBisTranslatorActive && (
                           <div className="flex items-center space-x-1">
