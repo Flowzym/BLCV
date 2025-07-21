@@ -415,6 +415,8 @@ export default function LebenslaufPreview() {
                                 updateExperienceTasksOrder(exp.id, newTasks);
                               }}
                               tag="div"
+                            >
+                              {exp.aufgabenbereiche.map((aufgabe, i) => (
                                 <React.Fragment key={`${exp.id}-${i}`}>
                                   <div 
                                     data-id={`${exp.id}-${i}`}
