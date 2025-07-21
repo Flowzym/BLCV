@@ -276,10 +276,10 @@ export default function AiHelpPanel() {
       for (const task of bisTranslator.selectedTasks) {
         console.log(`DEBUG: Processing task: "${task}"`);
         try {
-          const suggestions = await generateBisSuggestions([task], bisModel, aiHelpSettings.bisPrompt);
-          console.log(`DEBUG: Got suggestions for "${task}":`, suggestions);
-          if (suggestions && suggestions.length > 0) {
-            results[task] = suggestions;
+          const taskSpecificResult = await generateBisSuggestions([task], bisModel, aiHelpSettings.bisPrompt);
+          console.log(`DEBUG: Got suggestions for "${task}":`, taskSpecificResult);
+          if (taskSpecificResult && taskSpecificResult[task] && taskSpecificResult[task].length > 0) {
+            results[task] = taskSpecificResult[task];
           }
         } catch (error) {
           console.error(`DEBUG: Error translating task "${task}":`, error);

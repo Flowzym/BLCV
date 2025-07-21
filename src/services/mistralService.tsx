@@ -2,7 +2,7 @@ async function generateBisSuggestions(
   tasksToTranslate: string[],
   config: KIModelSettings,
   bisPrompt: string
-): Promise<string[]> {
+): Promise<Record<string, string[]>> {
   console.log('DEBUG: generateBisSuggestions called with tasks:', tasksToTranslate);
   console.log('DEBUG: Using model:', config.model);
   console.log('DEBUG: BIS prompt length:', bisPrompt.length);
