@@ -361,38 +361,6 @@ export default function LebenslaufPreview() {
                     {/* Erweiterte Inhalte nur bei ausgeklapptem Zustand */}
                     {isCardExpanded && (
                       <>
-                        {/* Floating Button in der oberen rechten Ecke der Card */}
-                        {isSelected && (
-                          <div className="absolute top-2 right-2">
-                            {isEmptyExperience(exp) ? (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  selectExperience('');
-                                  deleteExperience(exp.id);
-                                }}
-                                className="w-8 h-8 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-colors duration-200 shadow-md"
-                                title="Leeren Eintrag abbrechen"
-                                aria-label="Leeren Eintrag abbrechen"
-                              >
-                                <CircleOff className="h-4 w-4" />
-                              </button>
-                            ) : (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  selectExperience('');
-                                }}
-                                className="w-8 h-8 bg-green-500 hover:bg-green-600 text-white rounded-full flex items-center justify-center transition-colors duration-200 shadow-md"
-                                title="Bearbeitung beenden"
-                                aria-label="Bearbeitung beenden"
-                              >
-                                <Check className="h-4 w-4" />
-                              </button>
-                            )}
-                          </div>
-                        )}
-
                         {/* Weitere Angaben */}
                         {exp.zusatzangaben && (
                           <div className="mb-1 border-t pt-0.5 border-gray-100">
@@ -589,38 +557,6 @@ export default function LebenslaufPreview() {
                     {/* Erweiterte Inhalte nur bei ausgeklapptem Zustand */}
                     {isCardExpanded && (
                       <>
-                        {/* Floating Button in der oberen rechten Ecke der Card */}
-                        {selectedEducationId === edu.id && (
-                          <div className="absolute top-2 right-2">
-                            {isEmptyEducation(edu) ? (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  selectEducation('');
-                                  deleteEducation(edu.id);
-                                }}
-                                className="w-8 h-8 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center transition-colors duration-200 shadow-md"
-                                title="Leeren Eintrag abbrechen"
-                                aria-label="Leeren Eintrag abbrechen"
-                              >
-                                <CircleOff className="h-4 w-4" />
-                              </button>
-                            ) : (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  selectEducation('');
-                                }}
-                                className="w-8 h-8 bg-green-500 hover:bg-green-600 text-white rounded-full flex items-center justify-center transition-colors duration-200 shadow-md"
-                                title="Bearbeitung beenden"
-                                aria-label="Bearbeitung beenden"
-                              >
-                                <Check className="h-4 w-4" />
-                              </button>
-                            )}
-                          </div>
-                        )}
-
                         {/* Institution */}
                         <div className="mb-0.5">
                           <EditablePreviewText
