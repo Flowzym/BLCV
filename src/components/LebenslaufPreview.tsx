@@ -423,8 +423,8 @@ export default function LebenslaufPreview() {
                                   data-id={`${exp.id}-${i}`}
                                   className={`grid gap-x-2 items-start group cursor-move py-0.5 ${
                                     isBisTranslatorActive
-                                      ? 'grid-cols-[auto_1fr_200px_auto]' // BIS-Modus aktiv: Checkbox/Punkt, Text, BIS-Vorschlag, Buttons
-                                      : 'grid-cols-[auto_1fr_auto]'       // BIS-Modus inaktiv: Checkbox/Punkt, Text, Buttons
+                                      ? 'grid-cols-[min-content_1fr_200px_auto]' // Wenn BIS-Modus aktiv: Checkbox/Punkt, Tätigkeits-Text, BIS-Vorschlag, Hover-Buttons
+                                      : 'grid-cols-[min-content_1fr_auto]'     // Wenn BIS-Modus inaktiv: Checkbox/Punkt, Tätigkeits-Text, Hover-Buttons (BIS-Spalte entfällt)
                                   }`}
                                 >
                                   {/* Aufzählungspunkt oder Checkbox je nach BIS-Modus */}
@@ -454,41 +454,44 @@ export default function LebenslaufPreview() {
                                     />
                                   </div>
                                   
-                                  {/* BIS-Übersetzung direkt neben der Tätigkeit - nur wenn BIS-Modus aktiv und Erfahrung ausgewählt */}
-                                  {isBisTranslatorActive && bisTranslatorResults[aufgabe] && bisTranslatorResults[aufgabe].length > 0 ? (
-                                    <div className="flex items-start space-x-1 group/bis">
-                                      <span className="text-green-500 text-sm">→</span>
-                                      <span className="text-sm text-green-700 leading-none">
-                                        {bisTranslatorResults[aufgabe][0]}
-                                      </span>
-                                      
-                                      {/* BIS Action Buttons */}
-                                      <div className="opacity-0 group-hover/bis:opacity-100 transition-opacity duration-200 flex items-center space-x-1">
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            updateExperienceTask(exp.id, i, bisTranslatorResults[aufgabe][0]);
-                                          }}
-                                          className="p-0.5 hover:bg-green-100 rounded transition-colors duration-200"
-                                          title="Tätigkeit durch BIS-Kompetenz ersetzen"
-                                        >
-                                          <Edit className="h-3 w-3 text-green-600" />
-                                        </button>
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            addExperienceTask(exp.id, bisTranslatorResults[aufgabe][0]);
-                                          }}
-                                          className="p-0.5 hover:bg-green-100 rounded transition-colors duration-200"
-                                          title="BIS-Kompetenz als neue Tätigkeit hinzufügen"
-                                        >
-                                          <Plus className="h-3 w-3 text-green-600" />
-                                        </button>
+                                  {/* Spalte 3 (optional): BIS-Übersetzung - nur rendern wenn BIS-Modus aktiv */}
+                                  {isBisTranslatorActive ? (
+                                    bisTranslatorResults[aufgabe] && bisTranslatorResults[aufgabe].length > 0 ? (
+                                      <div className="flex items-start space-x-1 group/bis">
+                                        <span className="text-green-500 text-sm">→</span>
+                                        <span className="text-sm text-green-700 leading-none">
+                                          {bisTranslatorResults[aufgabe][0]}
+                                        </span>
+                                        
+                                        {/* BIS Action Buttons */}
+                                        <div className="opacity-0 group-hover/bis:opacity-100 transition-opacity duration-200 flex items-center space-x-1">
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              updateExperienceTask(exp.id, i, bisTranslatorResults[aufgabe][0]);
+                                            }}
+                                            className="p-0.5 hover:bg-green-100 rounded transition-colors duration-200"
+                                            title="Tätigkeit durch BIS-Kompetenz ersetzen"
+                                          >
+                                            <Edit className="h-3 w-3 text-green-600" />
+                                          </button>
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              addExperienceTask(exp.id, bisTranslatorResults[aufgabe][0]);
+                                            }}
+                                            className="p-0.5 hover:bg-green-100 rounded transition-colors duration-200"
+                                            title="BIS-Kompetenz als neue Tätigkeit hinzufügen"
+                                          >
+                                            <Plus className="h-3 w-3 text-green-600" />
+                                          </button>
+                                        </div>
                                       </div>
-                                    </div>
-                                  ) : (
-                                    <div></div>
-                                  )}
+                                    ) : (
+                                      // Leeres div rendern, um die Grid-Struktur aufrechtzuerhalten, wenn BIS aktiv ist, aber keine Ergebnisse vorliegen
+                                      <div></div>
+                                    )
+                                  ) : null}
                                   
                                   {/* Hover-Buttons für Tätigkeiten */}
                                   <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center space-x-1">
