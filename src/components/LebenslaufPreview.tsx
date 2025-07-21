@@ -441,7 +441,7 @@ export default function LebenslaufPreview() {
                                 <div 
                                   key={`${exp.id}-${i}`}
                                   data-id={`${exp.id}-${i}`}
-                                  className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] gap-x-2 items-start group cursor-move py-0.5"
+                                  className="grid grid-cols-[auto_1fr_200px_auto] gap-x-2 items-start group cursor-move py-0.5"
                                 >
                                   {/* Aufzählungspunkt oder Checkbox je nach BIS-Modus */}
                                   {isBisTranslatorActive && multiSelectedExperienceIds.includes(exp.id) ? (
@@ -472,7 +472,7 @@ export default function LebenslaufPreview() {
                                   
                                   {/* BIS-Übersetzung direkt neben der Tätigkeit - nur wenn BIS-Modus aktiv und Erfahrung ausgewählt */}
                                   {isBisTranslatorActive && multiSelectedExperienceIds.includes(exp.id) && bisTranslatorResults[aufgabe] && bisTranslatorResults[aufgabe].length > 0 ? (
-                                    <div className="flex items-center space-x-1 flex-shrink-0 group/bis">
+                                    <div className="flex items-start space-x-1 group/bis">
                                       <span className="text-green-500 text-sm">→</span>
                                       <span className="text-sm text-green-700 leading-none">
                                         {bisTranslatorResults[aufgabe][0]}
@@ -507,7 +507,7 @@ export default function LebenslaufPreview() {
                                   )}
                                   
                                   {/* Hover-Buttons für Tätigkeiten */}
-                                  <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center space-x-1 flex-shrink-0">
+                                  <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center space-x-1">
                                     <button
                                       onClick={(e) => {
                                         e.stopPropagation();
