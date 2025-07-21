@@ -85,6 +85,7 @@ interface GenderState {
 }
 
 export default function AiHelpPanel() {
+  const lebenslaufContext = useLebenslauf();
   const { 
     berufserfahrung, 
     selectedExperienceId, 
@@ -97,7 +98,7 @@ export default function AiHelpPanel() {
     selectedBisTasks,
     toggleBisTaskSelection,
     setBisTranslatorResults
-  } = useLebenslauf();
+  } = lebenslaufContext;
   
   // Load all models and AI help settings
   const [allModels, setAllModels] = useState<KIModelSettings[]>([]);
@@ -353,10 +354,10 @@ export default function AiHelpPanel() {
 
   const clearResults = () => {
     // Clear context results
-    setBisTranslatorResults({});
+    lebenslaufContext.setBisTranslatorResults({});
     // Clear all selected tasks
-    selectedBisTasks.forEach(task => {
-      toggleBisTaskSelection(task);
+    lebenslaufContext.selectedBisTasks.forEach(task => {
+      lebenslaufContext.toggleBisTaskSelection(task);
     });
   };
 
@@ -596,7 +597,7 @@ export default function AiHelpPanel() {
               )}
 
               {/* Results */}
-              {Object.keys(bisTranslatorResults).length > 0 && (
+              {Object.keys(lebenslaufContext.bisTranslatorResults || {}).length > 0 && (
                 <div className="border rounded-lg p-3 bg-green-50">
                   <div className="flex items-center justify-between mb-2">
                     <h4 className="font-medium text-green-800">BIS-Kompetenzen:</h4>
@@ -609,7 +610,7 @@ export default function AiHelpPanel() {
                     </button>
                   </div>
                   <div className="space-y-1">
-                    {Object.entries(bisTranslatorResults).map(([originalTask, translations]) => (
+                    {Object.entries(lebenslaufContext.bisTranslatorResults || {}).map(([originalTask, translations]) => (
                       <div key={originalTask} className="mb-3">
                         <div className="text-xs text-gray-600 mb-1 font-medium">
                           {originalTask}:
