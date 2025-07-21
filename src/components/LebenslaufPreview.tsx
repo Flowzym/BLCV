@@ -471,7 +471,7 @@ export default function LebenslaufPreview() {
                                   </div>
                                   
                                   {/* BIS-Übersetzung direkt neben der Tätigkeit - nur wenn BIS-Modus aktiv und Erfahrung ausgewählt */}
-                                  {isBisTranslatorActive && multiSelectedExperienceIds.includes(exp.id) && bisTranslatorResults[aufgabe] && bisTranslatorResults[aufgabe].length > 0 && (
+                                  {isBisTranslatorActive && multiSelectedExperienceIds.includes(exp.id) && bisTranslatorResults[aufgabe] && bisTranslatorResults[aufgabe].length > 0 ? (
                                     <div className="flex items-center space-x-1 flex-shrink-0 group/bis">
                                       <span className="text-green-500 text-sm">→</span>
                                       <span className="text-sm text-green-700 leading-none">
