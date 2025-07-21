@@ -515,31 +515,45 @@ export default function LebenslaufPreview() {
                             <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
                             BIS-Kompetenzen
                           </h4>
-                          {Object.keys(bisTranslatorResults).length > 0 ? (
-                            <div className="space-y-2">
-                              {Object.entries(bisTranslatorResults).map(([originalTask, translations]) => (
-                                <div key={originalTask} className="mb-3">
-                                  <div className="text-xs text-gray-600 mb-1 font-medium">
-                                    {originalTask}:
+                          <div className="space-y-0">
+                            {exp.aufgabenbereiche && exp.aufgabenbereiche.map((aufgabe, i) => (
+                              <div key={`${exp.id}-bis-result-${i}`} className="py-0.5">
+                                {bisTranslatorResults[aufgabe] && bisTranslatorResults[aufgabe].length > 0 ? (
+                                  <div>
+                                    <div className="text-xs text-gray-600 font-medium mb-1">
+                                      {aufgabe}:
+                                    </div>
+                                    <div className="space-y-0.5">
+                                      {bisTranslatorResults[aufgabe].map((translation, index) => (
+                                        <div key={index} className="text-sm text-green-700 leading-relaxed flex items-start">
+                                          <span className="text-green-500 mr-2 flex-shrink-0 leading-none">•</span>
+                                          <span>{translation}</span>
+                                        </div>
+                                      ))}
+                                    </div>
                                   </div>
-                                  <div className="space-y-1">
-                                    {translations.map((translation, index) => (
-                                      <div key={index} className="text-sm text-green-700 leading-relaxed flex items-start">
-                                        <span className="text-green-500 mr-2 flex-shrink-0 leading-none">•</span>
-                                        <span>{translation}</span>
-                                      </div>
-                                    ))}
+                                ) : (
+                                  <div className="text-xs text-gray-500 italic">
+                                    {aufgabe}: Keine Übersetzung
                                   </div>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <div className="text-xs text-gray-500 italic">
-                              Keine BIS-Übersetzung verfügbar.
-                              <br />
-                              Wählen Sie Tätigkeiten aus und starten Sie die Übersetzung im KI-Assistenten.
-                            </div>
-                          )}
+                                )}
+                              </div>
+                            ))}
+                            {/* Fallback-Nachricht, falls keine Tätigkeiten vorhanden sind */}
+                            {(!exp.aufgabenbereiche || exp.aufgabenbereiche.length === 0) && (
+                              <div className="text-xs text-gray-500 italic">
+                                Keine Tätigkeiten für diese Erfahrung.
+                              </div>
+                            )}
+                            {/* Fallback-Nachricht, falls Tätigkeiten vorhanden, aber keine Übersetzungen */}
+                            {Object.keys(bisTranslatorResults).length === 0 && exp.aufgabenbereiche && exp.aufgabenbereiche.length > 0 && (
+                              <div className="text-xs text-gray-500 italic mt-2">
+                                Keine BIS-Übersetzung verfügbar.
+                                <br />
+                                Wählen Sie Tätigkeiten aus und starten Sie die Übersetzung im KI-Assistenten.
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     ) : (
