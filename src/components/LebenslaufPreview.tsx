@@ -1,944 +1,519 @@
-import React, { useMemo, useState } from 'react';
-import { Trash2, Plus, FileText, Star, X, ToggleLeft, ToggleRight, Edit, Check, CircleOff } from 'lucide-react';
-import { ReactSortable } from 'react-sortablejs';
+import React, { useState, useEffect } from 'react';
+import { 
+  User, 
+  Briefcase, 
+  GraduationCap, 
+  Calendar, 
+  MapPin, 
+  Phone, 
+  Mail, 
+  Globe,
+  CheckSquare,
+  Square,
+  Eye,
+  EyeOff,
+  Download,
+  FileText,
+  Copy,
+  Check
+} from 'lucide-react';
 import { useLebenslauf } from './LebenslaufContext';
-import EditablePreviewText from './EditablePreviewText';
-import TabNavigation from './layout/TabNavigation';
+import { formatZeitraum } from '../utils/dateUtils';
 
 type PreviewTab = 'gesamt' | 'berufserfahrung' | 'ausbildung' | 'fachkompetenzen' | 'softskills';
 
 export default function LebenslaufPreview() {
-  const containerStyle = {
-    backgroundColor: 'white',
-    padding: '1.5rem',
-    borderRadius: '0.5rem',
-    boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
-    border: '1px solid #e5e7eb'
-  };
-
   const { 
+    personalData, 
     berufserfahrung, 
     ausbildung,
-    selectExperience, 
     selectedExperienceId,
+    selectedEducationId,
     multiSelectedExperienceIds,
     toggleMultiExperienceSelection,
-    deleteExperience,
-    selectEducation,
-    selectedEducationId,
-    deleteEducation,
-    updateEducationField,
-    updateExperienceTask,
-    updateExperienceTasksOrder,
-    addExperienceTask,
-    updateExperienceField,
-    favoriteTasks,
-    toggleFavoriteTask,
-    isBisTranslatorActive,
-    setIsBisTranslatorActive,
-    selectedBisTasks,
-    toggleBisTaskSelection,
+    previewTab,
+    setPreviewTabWithSync,
     bisTranslatorResults
   } = useLebenslauf();
-  
-  console.log('🔍 LebenslaufPreview - bisTranslatorResults:', bisTranslatorResults);
-  console.log('🔍 LebenslaufPreview - isBisTranslatorActive:', isBisTranslatorActive);
 
-  // Verwende den synchronisierten Preview-Tab aus dem Context
-  const { previewTab, setPreviewTabWithSync } = useLebenslauf();
+  const [copied, setCopied] = useState(false);
+  const [showEmptyFields, setShowEmptyFields] = useState(false);
 
-  const [newTaskInputs, setNewTaskInputs] = useState<Record<string, string>>({});
-  const [showAllExpanded, setShowAllExpanded] = useState(false);
-  const [showMoreSuggestions, setShowMoreSuggestions] = useState<string | null>(null);
+  // Helper function to check if a field has content
+  const hasContent = (value: any): boolean => {
+    if (Array.isArray(value)) return value.length > 0;
+    if (typeof value === 'string') return value.trim().length > 0;
+    if (typeof value === 'boolean') return value;
+    return value != null;
+  };
 
-  const previewTabs = [
-    { id: 'gesamt', label: 'Gesamt' },
-    { id: 'berufserfahrung', label: 'Berufserfahrung' },
-    { id: 'ausbildung', label: 'Ausbildung' },
-    { id: 'fachkompetenzen', label: 'Fachkompetenzen' },
-    { id: 'softskills', label: 'Soft Skills' }
+  // Helper function to format arrays
+  const formatArray = (arr: string[] | undefined, separator: string = ', '): string => {
+    return Array.isArray(arr) ? arr.join(separator) : '';
+  };
+
+  // Generate preview content based on active tab
+  const generatePreviewContent = (): string => {
+    const sections: string[] = [];
+
+    if (previewTab === 'gesamt' || previewTab === 'berufserfahrung') {
+      // Personal Data Section
+      if (hasContent(personalData?.vorname) || hasContent(personalData?.nachname) || showEmptyFields) {
+        const personalSection: string[] = [];
+        
+        if (hasContent(personalData?.titel)) {
+          personalSection.push(`Titel: ${personalData.titel}`);
+        }
+        
+        const fullName = [personalData?.vorname, personalData?.nachname].filter(Boolean).join(' ');
+        if (fullName || showEmptyFields) {
+          personalSection.push(`Name: ${fullName || '[Name]'}`);
+        }
+        
+        if (hasContent(personalData?.telefon) || showEmptyFields) {
+          const phone = personalData?.telefonVorwahl && personalData?.telefon 
+            ? `${personalData.telefonVorwahl} ${personalData.telefon}`
+            : personalData?.telefon || '[Telefon]';
+          personalSection.push(`Telefon: ${phone}`);
+        }
+        
+        if (hasContent(personalData?.email) || showEmptyFields) {
+          personalSection.push(`E-Mail: ${personalData?.email || '[E-Mail]'}`);
+        }
+        
+        if (hasContent(personalData?.adresse) || hasContent(personalData?.plz) || hasContent(personalData?.ort) || showEmptyFields) {
+          const address = [personalData?.adresse, personalData?.plz, personalData?.ort].filter(Boolean).join(', ');
+          personalSection.push(`Adresse: ${address || '[Adresse]'}`);
+        }
+        
+        if (hasContent(personalData?.geburtsdatum) || showEmptyFields) {
+          personalSection.push(`Geburtsdatum: ${personalData?.geburtsdatum || '[Geburtsdatum]'}`);
+        }
+        
+        if (personalSection.length > 0) {
+          sections.push(`PERSÖNLICHE DATEN\n${personalSection.join('\n')}`);
+        }
+      }
+
+      // Experience Section
+      if (berufserfahrung.length > 0 || showEmptyFields) {
+        const experienceSection: string[] = [];
+        
+        berufserfahrung.forEach((exp, index) => {
+          const expLines: string[] = [];
+          
+          const zeitraum = formatZeitraum(
+            exp.startMonth,
+            exp.startYear,
+            exp.endMonth,
+            exp.endYear,
+            exp.isCurrent
+          );
+          
+          if (zeitraum || showEmptyFields) {
+            expLines.push(`Zeitraum: ${zeitraum || '[Zeitraum]'}`);
+          }
+          
+          if (hasContent(exp.companies) || showEmptyFields) {
+            expLines.push(`Unternehmen: ${formatArray(exp.companies) || '[Unternehmen]'}`);
+          }
+          
+          if (hasContent(exp.position) || showEmptyFields) {
+            expLines.push(`Position: ${formatArray(exp.position) || '[Position]'}`);
+          }
+          
+          if (hasContent(exp.aufgabenbereiche) || showEmptyFields) {
+            expLines.push(`Tätigkeiten: ${formatArray(exp.aufgabenbereiche) || '[Tätigkeiten]'}`);
+          }
+          
+          if (hasContent(exp.zusatzangaben)) {
+            expLines.push(`Zusatzangaben: ${exp.zusatzangaben}`);
+          }
+          
+          if (expLines.length > 0) {
+            experienceSection.push(`Berufserfahrung ${index + 1}:\n${expLines.join('\n')}`);
+          }
+        });
+        
+        if (experienceSection.length > 0) {
+          sections.push(`BERUFSERFAHRUNG\n${experienceSection.join('\n\n')}`);
+        }
+      }
+    }
+
+    if (previewTab === 'gesamt' || previewTab === 'ausbildung') {
+      // Education Section
+      if (ausbildung.length > 0 || showEmptyFields) {
+        const educationSection: string[] = [];
+        
+        ausbildung.forEach((edu, index) => {
+          const eduLines: string[] = [];
+          
+          const zeitraum = formatZeitraum(
+            edu.startMonth,
+            edu.startYear,
+            edu.endMonth,
+            edu.endYear,
+            edu.isCurrent
+          );
+          
+          if (zeitraum || showEmptyFields) {
+            eduLines.push(`Zeitraum: ${zeitraum || '[Zeitraum]'}`);
+          }
+          
+          if (hasContent(edu.institution) || showEmptyFields) {
+            eduLines.push(`Institution: ${formatArray(edu.institution) || '[Institution]'}`);
+          }
+          
+          if (hasContent(edu.ausbildungsart) || showEmptyFields) {
+            eduLines.push(`Ausbildungsart: ${formatArray(edu.ausbildungsart) || '[Ausbildungsart]'}`);
+          }
+          
+          if (hasContent(edu.abschluss) || showEmptyFields) {
+            eduLines.push(`Abschluss: ${formatArray(edu.abschluss) || '[Abschluss]'}`);
+          }
+          
+          if (hasContent(edu.zusatzangaben)) {
+            eduLines.push(`Zusatzangaben: ${edu.zusatzangaben}`);
+          }
+          
+          if (eduLines.length > 0) {
+            educationSection.push(`Ausbildung ${index + 1}:\n${eduLines.join('\n')}`);
+          }
+        });
+        
+        if (educationSection.length > 0) {
+          sections.push(`AUSBILDUNG\n${educationSection.join('\n\n')}`);
+        }
+      }
+    }
+
+    return sections.join('\n\n\n') || 'Keine Daten vorhanden';
+  };
+
+  const handleCopy = async () => {
+    try {
+      const content = generatePreviewContent();
+      await navigator.clipboard.writeText(content);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error('Failed to copy text:', err);
+    }
+  };
+
+  const handleDownload = () => {
+    const content = generatePreviewContent();
+    const element = document.createElement('a');
+    const file = new Blob([content], { type: 'text/plain' });
+    element.href = URL.createObjectURL(file);
+    element.download = 'lebenslauf.txt';
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
+  };
+
+  const tabs: { id: PreviewTab; label: string; icon: React.ReactNode }[] = [
+    { id: 'gesamt', label: 'Gesamt', icon: <FileText className="h-4 w-4" /> },
+    { id: 'berufserfahrung', label: 'Berufserfahrung', icon: <Briefcase className="h-4 w-4" /> },
+    { id: 'ausbildung', label: 'Ausbildung', icon: <GraduationCap className="h-4 w-4" /> },
+    { id: 'fachkompetenzen', label: 'Fachkompetenzen', icon: <User className="h-4 w-4" /> },
+    { id: 'softskills', label: 'Softskills', icon: <User className="h-4 w-4" /> }
   ];
 
-  const sortedErfahrungen = useMemo(() => {
-    console.log('Berufserfahrungen für Vorschau:', berufserfahrung);
-    return [...berufserfahrung].sort((a, b) => {
-      // Neue Einträge ohne Zeitraum kommen immer nach oben
-      const aHasTime = a.startYear && a.startYear.trim();
-      const bHasTime = b.startYear && b.startYear.trim();
-      
-      if (!aHasTime && !bHasTime) return 0;
-      if (!aHasTime) return -1;
-      if (!bHasTime) return 1;
-      
-      const yearA = parseInt(a.startYear || '0', 10);
-      const yearB = parseInt(b.startYear || '0', 10);
-      const monthA = parseInt(a.startMonth || '0', 10);
-      const monthB = parseInt(b.startMonth || '0', 10);
-
-      if (yearA !== yearB) return yearB - yearA;
-      return monthB - monthA;
-    });
-  }, [berufserfahrung]);
-
-  const sortedAusbildungen = useMemo(() => {
-    console.log('Ausbildungen für Vorschau:', ausbildung);
-    return [...ausbildung].sort((a, b) => {
-      // Neue Einträge ohne Zeitraum kommen immer nach oben (neueste zuerst)
-      const aHasTime = a.startYear && a.startYear.trim();
-      const bHasTime = b.startYear && b.startYear.trim();
-      
-      if (!aHasTime && !bHasTime) {
-        // Beide ohne Zeit: neueste zuerst (nach ID sortieren)
-        return b.id.localeCompare(a.id);
-      }
-      if (!aHasTime) return -1;
-      if (!bHasTime) return 1;
-      
-      const yearA = parseInt(a.startYear || '0', 10);
-      const yearB = parseInt(b.startYear || '0', 10);
-      const monthA = parseInt(a.startMonth || '0', 10);
-      const monthB = parseInt(b.startMonth || '0', 10);
-
-      if (yearA !== yearB) return yearB - yearA;
-      return monthB - monthA;
-    });
-  }, [ausbildung]);
-
-  // Hilfsfunktion zum Formatieren einer Liste mit korrekter Interpunktion
-  const formatListWithConjunction = (items: string[]): string => {
-    if (items.length === 0) return '';
-    if (items.length === 1) return `"${items[0]}"`;
-    if (items.length === 2) return `"${items[0]}" & "${items[1]}"`;
-    
-    // Für 3 oder mehr Elemente: "A", "B", "C" & "D"
-    const allButLast = items.slice(0, -1).map(item => `"${item}"`).join(', ');
-    const last = `"${items[items.length - 1]}"`;
-    return `${allButLast} & ${last}`;
-  };
-
-  const formatZeitraum = (
-    startMonth: string | null,
-    startYear: string | null,
-    endMonth: string | null,
-    endYear: string | null,
-    isCurrent: boolean,
-  ) => {
-    const format = (m: string | null | undefined, y: string | null | undefined) => {
-      if (!y) return '';
-      return m ? `${m}.${y}` : y;
-    };
-
-    const start = format(startMonth ?? undefined, startYear ?? undefined);
-    const end = isCurrent ? 'heute' : format(endMonth ?? undefined, endYear ?? undefined);
-
-    if (!start && !end) return '';
-    if (start && end) return `${start} – ${end}`;
-    return start || end;
-  };
-
-  const handleAddTask = (expId: string) => {
-    const newTask = newTaskInputs[expId]?.trim();
-    if (newTask) {
-      addExperienceTask(expId, newTask);
-      setNewTaskInputs(prev => ({ ...prev, [expId]: '' }));
-    }
-  };
-
-  const handleExperienceFieldUpdate = (expId: string, field: string, value: string) => {
-    if (field === 'companies') {
-      // Parse the combined company info string
-      const companies = value.split('//').map(part => part.trim()).filter(Boolean);
-      updateExperienceField(expId, 'companies', companies);
-    } else if (field === 'position') {
-      updateExperienceField(expId, 'position', value.split(' / '));
-    } else if (field === 'zeitraum') {
-      // Zeitraum-Bearbeitung ist komplexer und würde eine spezielle Komponente erfordern
-      // Für diesen Prototyp belassen wir es bei der einfachen Textbearbeitung
-      console.log('Zeitraum bearbeiten:', value);
-    }
-  };
-
-  const handleEducationFieldUpdate = (eduId: string, field: string, value: string) => {
-    if (field === 'institution') {
-      updateEducationField(eduId, 'institution', value.split(', '));
-    } else if (field === 'ausbildungsart') {
-      const parts = value.split(' - ');
-      updateEducationField(eduId, 'ausbildungsart', parts.split(' / '));
-      if (parts.length > 1) {
-        updateEducationField(eduId, 'abschluss', parts.split(' / '));
-      }
-    } else if (field === 'zeitraum') {
-      // Zeitraum-Bearbeitung ist komplexer und würde eine spezielle Komponente erfordern
-      // Für diesen Prototyp belassen wir es bei der einfachen Textbearbeitung
-      console.log('Zeitraum bearbeiten:', value);
-    }
-  };
-
-  const removeTask = (expId: string, taskIndex: number) => {
-    const experience = berufserfahrung.find(exp => exp.id === expId);
-    if (experience && experience.aufgabenbereiche) {
-      const newTasks = experience.aufgabenbereiche.filter((_, index) => index !== taskIndex);
-      updateExperienceField(expId, 'aufgabenbereiche', newTasks);
-    }
-  };
-
-  const toggleTaskFavorite = (task: string) => {
-    toggleFavoriteTask(task);
-  };
-
-  const replaceTask = (expId: string, taskIndex: number, newTask: string) => {
-    updateExperienceTask(expId, taskIndex, newTask);
-  };
-
-  const addTaskAfter = (expId: string, taskIndex: number, newTask: string) => {
-    const experience = berufserfahrung.find(exp => exp.id === expId);
-    if (experience && experience.aufgabenbereiche) {
-      const newTasks = [...experience.aufgabenbereiche];
-      newTasks.splice(taskIndex + 1, 0, newTask);
-      updateExperienceField(expId, 'aufgabenbereiche', newTasks);
-    }
-  };
-
-  const isExpanded = (id: string, type: 'experience' | 'education') => {
-    if (showAllExpanded) return true;
-    return type === 'experience' ? selectedExperienceId === id : selectedEducationId === id;
-  };
-
-  // Hilfsfunktion um zu prüfen ob ein Eintrag leer ist
-  const isEmptyExperience = (exp: any) => {
-    return (!exp.companies || exp.companies.length === 0) && 
-           (!exp.position || exp.position.length === 0) && 
-           (!exp.aufgabenbereiche || exp.aufgabenbereiche.length === 0) &&
-           (!exp.startYear || exp.startYear.trim() === '') &&
-           (!exp.zusatzangaben || exp.zusatzangaben.trim() === '');
-  };
-
-  const isEmptyEducation = (edu: any) => {
-    return (!edu.institution || edu.institution.length === 0) && 
-           (!edu.ausbildungsart || edu.ausbildungsart.length === 0) && 
-           (!edu.abschluss || edu.abschluss.length === 0) &&
-           (!edu.startYear || edu.startYear.trim() === '') &&
-           (!edu.zusatzangaben || edu.zusatzangaben.trim() === '');
-  };
-
   return (
-    <div className="h-full flex flex-col" style={containerStyle}>
-      {/* Header mit Toggle-Button */}
-      <div className="flex items-center justify-between mb-4 flex-shrink-0">
-        <h2 className="text-lg font-semibold text-gray-900 flex items-center">📄 <span className="ml-2">Vorschau</span></h2>
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 h-full flex flex-col">
+      {/* Header */}
+      <div className="flex items-center justify-between p-4 border-b border-gray-200">
+        <div className="flex items-center gap-2">
+          <Eye className="h-6 w-6" style={{ color: '#F29400' }} />
+          <h2 className="text-lg font-semibold text-gray-900">Vorschau</h2>
+        </div>
         <div className="flex items-center space-x-2">
-          <span className="text-sm text-gray-600">
-            {showAllExpanded ? 'Alle ausgeklappt' : 'Nur aktive ausgeklappt'}
-          </span>
           <button
-            onClick={() => setShowAllExpanded(!showAllExpanded)}
-            className="flex items-center text-gray-600 hover:text-gray-800 transition-colors duration-200"
-            title={showAllExpanded ? 'Nur aktive Einträge ausklappen' : 'Alle Einträge ausklappen'}
+            onClick={() => setShowEmptyFields(!showEmptyFields)}
+            className="flex items-center space-x-1 px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded transition-colors duration-200"
+            title={showEmptyFields ? "Leere Felder ausblenden" : "Leere Felder anzeigen"}
           >
-            {showAllExpanded ? (
-              <ToggleRight className="h-6 w-6" style={{ color: '#F29400' }} />
-            ) : (
-              <ToggleLeft className="h-6 w-6" />
-            )}
+            {showEmptyFields ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+            <span>{showEmptyFields ? "Ausblenden" : "Alle zeigen"}</span>
+          </button>
+          <button
+            onClick={handleCopy}
+            className="flex items-center space-x-1 px-2 py-1 text-xs bg-blue-100 hover:bg-blue-200 text-blue-800 rounded transition-colors duration-200"
+          >
+            {copied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+            <span>{copied ? "Kopiert!" : "Kopieren"}</span>
+          </button>
+          <button
+            onClick={handleDownload}
+            className="flex items-center space-x-1 px-2 py-1 text-xs text-white rounded transition-colors duration-200"
+            style={{ backgroundColor: '#F29400' }}
+          >
+            <Download className="h-3 w-3" />
+            <span>Download</span>
           </button>
         </div>
       </div>
 
       {/* Tab Navigation */}
-      <div className="flex-shrink-0 mb-4">
-        <TabNavigation 
-          tabs={previewTabs} 
-          active={previewTab} 
-          onChange={(tabId) => setPreviewTabWithSync(tabId as PreviewTab)} 
-        />
+      <div className="border-b border-gray-200">
+        <nav className="flex space-x-1 px-4">
+          {tabs.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setPreviewTabWithSync(tab.id)}
+              className={`flex items-center gap-2 py-2 px-3 -mb-px border-b-2 text-sm font-medium transition-colors duration-200 ${
+                previewTab === tab.id
+                  ? 'border-orange-500 text-orange-600'
+                  : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+              }`}
+            >
+              {tab.icon}
+              {tab.label}
+            </button>
+          ))}
+        </nav>
       </div>
 
-      {/* Scrollbarer Inhalt */}
-      <div className="flex-1 overflow-y-auto space-y-0">
-        {/* Berufserfahrung - nur anzeigen wenn entsprechender Tab aktiv */}
-        {(previewTab === 'gesamt' || previewTab === 'berufserfahrung') && (
-        <div className="mb-6">
-          <div className="flex items-center justify-between mb-1">
-            <h3 className="font-bold text-xl">Berufserfahrung</h3>
-            <div className="flex items-center space-x-2">
-              <span className="text-sm text-gray-600">
-                {isBisTranslatorActive ? 'BIS-Modus aktiv' : 'BIS-Modus inaktiv'}
-              </span>
-              <button
-                onClick={() => setIsBisTranslatorActive(!isBisTranslatorActive)}
-                className="flex items-center text-gray-600 hover:text-gray-800 transition-colors duration-200"
-                title={isBisTranslatorActive ? 'BIS-Modus deaktivieren' : 'BIS-Modus aktivieren'}
-              >
-                {isBisTranslatorActive ? (
-                  <ToggleRight className="h-6 w-6" style={{ color: '#F29400' }} />
-                ) : (
-                  <ToggleLeft className="h-6 w-6" />
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto">
+        {previewTab === 'berufserfahrung' && (
+          <div className="p-4 space-y-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-medium text-gray-900">
+                Berufserfahrung ({berufserfahrung.length})
+              </h3>
+              <div className="text-xs text-gray-500">
+                {multiSelectedExperienceIds.length > 0 && (
+                  <span>{multiSelectedExperienceIds.length} für KI-Assistent ausgewählt</span>
                 )}
-              </button>
+              </div>
             </div>
-          </div>
-          <div className="space-y-0">
-            {sortedErfahrungen.map((exp, index) => {
-              const isSelected = selectedExperienceId === exp.id;
-              const isCardExpanded = isExpanded(exp.id, 'experience');
-              const isBisSelected = isBisTranslatorActive && multiSelectedExperienceIds.includes(exp.id);
-              
-              return (
-                <div key={exp.id} className="relative">
-                  {/* Horizontale Trennlinie zwischen Karten */}
-                  {index > 0 && (
-                    <div className="w-full h-px bg-gray-200"></div>
-                  )}
+            
+            {berufserfahrung.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <Briefcase className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                <p>Noch keine Berufserfahrung hinzugefügt</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {berufserfahrung.map((exp, index) => {
+                  const isSelected = selectedExperienceId === exp.id;
+                  const isMultiSelected = multiSelectedExperienceIds.includes(exp.id);
                   
-                  <div
-                    onClick={() => selectExperience(exp.id)}
-                    className={`p-2 cursor-pointer transition-all duration-200 hover:bg-gray-100 ${
-                      isSelected ? 'border border-[#F29400] rounded-md bg-gray-50' : 
-                      multiSelectedExperienceIds.includes(exp.id) ? 'border border-blue-300 rounded-md bg-blue-50' : 'bg-white'
-                    }`}
-                  >
-                    {/* BIS-Modus: 2-Spalten Layout */}
-                    {isBisSelected ? (
-                      <div className="grid grid-cols-2 gap-4">
-                        {/* Linke Spalte: Normale Inhalte */}
-                        <div>
-                          {/* Checkbox für Mehrfachauswahl */}
-                          <div className="flex items-start justify-between mb-2">
-                            <div className="flex items-center space-x-2">
-                              <input
-                                type="checkbox"
-                                checked={multiSelectedExperienceIds.includes(exp.id)}
-                                onChange={(e) => {
-                                  e.stopPropagation();
-                                  toggleMultiExperienceSelection(exp.id);
-                                }}
-                                className="w-4 h-4 rounded border-gray-300 focus:outline-none"
-                                style={{ accentColor: '#3B82F6' }}
-                                title="Für BIS-Übersetzung auswählen"
-                              />
-                              <span className="text-xs text-gray-500">BIS-Übersetzung</span>
-                            </div>
-                          </div>
-
-                          <div className="flex justify-between items-start mb-0.5">
-                            {/* Zeitraum */}
-                            <EditablePreviewText
-                              value={formatZeitraum(
-                                exp.startMonth,
-                                exp.startYear,
-                                exp.endMonth,
-                                exp.endYear,
-                                exp.isCurrent,
-                              )}
-                              onSave={(newValue) => handleExperienceFieldUpdate(exp.id, 'zeitraum', newValue)}
-                              className="text-sm text-gray-700"
-                              placeholder="Zeitraum eingeben..."
-                            />
-                          </div>
-
-                          {/* Position */}
-                          <div className="mb-0.5">
-                            <EditablePreviewText
-                              value={Array.isArray(exp.position) ? exp.position.join(' / ') : (exp.position || "")}
-                              onSave={(newValue) => handleExperienceFieldUpdate(exp.id, 'position', newValue)}
-                              className="font-bold text-lg text-gray-900"
-                              placeholder="Position eingeben..."
-                            />
-                          </div>
-
-                          {/* Unternehmen/Ort */}
-                          <div className="mb-0.5">
-                            <EditablePreviewText
-                              value={(() => {
-                                const companiesText = Array.isArray(exp.companies) ? exp.companies.join(' // ') : (exp.companies || "");
-                                const leasingText = exp.leasingCompaniesList && exp.leasingCompaniesList.length > 0 
-                                  ? ` (über ${exp.leasingCompaniesList.join(', ')})`
-                                  : '';
-                                return companiesText + leasingText;
-                              })()}
-                              onSave={(newValue) => handleExperienceFieldUpdate(exp.id, 'companies', newValue)}
-                              className="text-gray-700"
-                              placeholder="Unternehmen eingeben..."
-                            />
-                          </div>
-
-                          {/* Erweiterte Inhalte nur bei ausgeklapptem Zustand */}
-                          {isCardExpanded && (
-                            <>
-                              {/* Weitere Angaben */}
-                              {exp.zusatzangaben && (
-                                <div className="mb-1 border-t pt-0.5 border-gray-100">
-                                  <div className="flex items-start space-x-2">
-                                    <FileText className="h-4 w-4 mt-1 text-gray-400 flex-shrink-0" />
-                                    <EditablePreviewText
-                                      value={exp.zusatzangaben}
-                                      onSave={(newValue) => updateExperienceField(exp.id, 'zusatzangaben', newValue)}
-                                      isTextArea={true}
-                                      placeholder="Weitere Angaben eingeben..."
-                                    />
-                                  </div>
-                                </div>
-                              )}
-
-                              {/* Auflistung Tätigkeiten */}
-                              {Array.isArray(exp.aufgabenbereiche) && exp.aufgabenbereiche.length > 0 && (
-                                <div className="mt-1">
-                                  <ReactSortable
-                                    list={exp.aufgabenbereiche.map((task, index) => ({ id: `${exp.id}-${index}`, content: task || '' }))}
-                                    setList={(newList) => {
-                                      const newTasks = newList.map(item => item.content || '');
-                                      updateExperienceTasksOrder(exp.id, newTasks);
-                                    }}
-                                    tag="div"
-                                    className="space-y-0 text-black ml-6"
-                                  >
-                                    {exp.aufgabenbereiche.map((aufgabe, i) => (
-                                      <div 
-                                        key={`${exp.id}-${i}`}
-                                        data-id={`${exp.id}-${i}`}
-                                        className="flex items-start space-x-2 group cursor-move py-0.5"
-                                      >
-                                        {/* Checkbox für BIS-Auswahl */}
-                                        <input
-                                          type="checkbox"
-                                          checked={selectedBisTasks.includes(aufgabe)}
-                                          onChange={(e) => {
-                                            e.stopPropagation();
-                                            toggleBisTaskSelection(aufgabe);
-                                          }}
-                                          className="w-4 h-4 mr-2 flex-shrink-0 mt-0.5 rounded border-gray-300 focus:outline-none"
-                                          style={{ accentColor: '#3B82F6' }}
-                                          onClick={(e) => e.stopPropagation()}
-                                        />
-                                        
-                                        {/* Aufgabentext */}
-                                        <div className="flex-1 min-w-0 leading-none">
-                                          <EditablePreviewText
-                                            value={aufgabe}
-                                            onSave={(newValue) => updateExperienceTask(exp.id, i, newValue)}
-                                            placeholder="Aufgabe eingeben..."
-                                            className="leading-none"
-                                          />
-                                        </div>
-                                        
-                                        {/* Hover-Buttons für Tätigkeiten */}
-                                        <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center space-x-1 flex-shrink-0 ml-2">
-                                          <button
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              toggleTaskFavorite(aufgabe);
-                                            }}
-                                            className="p-0.5 hover:bg-gray-200 rounded transition-colors duration-200"
-                                            title={favoriteTasks.includes(aufgabe) ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
-                                          >
-                                            <Star 
-                                              className={`h-5 w-5 ${favoriteTasks.includes(aufgabe) ? 'fill-current text-yellow-500' : 'text-gray-400'}`} 
-                                            />
-                                          </button>
-                                          <button
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              removeTask(exp.id, i);
-                                            }}
-                                            className="p-0.5 hover:bg-gray-200 rounded transition-colors duration-200"
-                                            title="Aufgabe löschen"
-                                          >
-                                            <X className="h-5 w-5 text-gray-400 hover:text-red-500" />
-                                          </button>
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </ReactSortable>
-                                </div>
-                              )}
-                              
-                              {/* Neue Aufgabe hinzufügen */}
-                              {selectedExperienceId === exp.id && (
-                                <div className="mt-1 flex items-center space-x-2 ml-6">
-                                  <input
-                                    type="text"
-                                    value={newTaskInputs[exp.id] || ''}
-                                    onChange={(e) => setNewTaskInputs(prev => ({ ...prev, [exp.id]: e.target.value }))}
-                                    onKeyPress={(e) => e.key === 'Enter' && handleAddTask(exp.id)}
-                                    placeholder="Neue Aufgabe hinzufügen..."
-                                    className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-orange-500"
-                                  />
-                                  <button
-                                    onClick={() => handleAddTask(exp.id)}
-                                    disabled={!newTaskInputs[exp.id]?.trim()}
-                                    className="p-1 text-white rounded hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-                                    style={{ backgroundColor: '#F29400' }}
-                                    title="Aufgabe hinzufügen"
-                                  >
-                                    <Plus className="h-4 w-4" />
-                                  </button>
-                                </div>
-                              )}
-                            </>
-                          )}
-                        </div>
-
-                        {/* Rechte Spalte: BIS-Übersetzungsvorschläge */}
-                        <div className="border-l border-gray-200 pl-4">
-                          <h4 className="text-sm font-medium text-green-700 mb-2 flex items-center">
-                            <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
-                            BIS-Kompetenzen
+                  return (
+                    <div
+                      key={exp.id}
+                      className={`border rounded-lg p-4 transition-all duration-200 ${
+                        isSelected 
+                          ? 'border-orange-300 bg-orange-50' 
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => toggleMultiExperienceSelection(exp.id)}
+                            className="text-orange-500 hover:text-orange-600"
+                            title="Für KI-Assistent auswählen"
+                          >
+                            {isMultiSelected ? (
+                              <CheckSquare className="h-5 w-5" />
+                            ) : (
+                              <Square className="h-5 w-5" />
+                            )}
+                          </button>
+                          <h4 className="font-medium text-gray-900">
+                            Berufserfahrung {index + 1}
                           </h4>
-                          {bisTranslatorResults.length > 0 ? (
-                            <div className="space-y-1">
-                              {bisTranslatorResults.map((result, index) => (
-                                <div key={index} className="text-sm text-green-700 leading-relaxed flex items-start">
-                                  <span className="text-green-500 mr-2 flex-shrink-0 leading-none">•</span>
-                                  <span>{result}</span>
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <div className="text-xs text-gray-500 italic">
-                              Keine BIS-Übersetzung verfügbar.
-                              <br />
-                              Wählen Sie Tätigkeiten aus und starten Sie die Übersetzung im KI-Assistenten.
-                            </div>
-                          )}
                         </div>
+                        {isSelected && (
+                          <span className="px-2 py-1 text-xs text-white rounded-full" style={{ backgroundColor: '#F29400' }}>
+                            Bearbeitung
+                          </span>
+                        )}
                       </div>
-                    ) : (
-                      /* Normaler Modus: Einspaltig */
-                      <>
-                        {/* Checkbox für Mehrfachauswahl */}
-                        {isBisTranslatorActive && (
-                          <div className="flex items-start justify-between mb-2">
-                            <div className="flex items-center space-x-2">
-                              <input
-                                type="checkbox"
-                                checked={multiSelectedExperienceIds.includes(exp.id)}
-                                onChange={(e) => {
-                                  e.stopPropagation();
-                                  toggleMultiExperienceSelection(exp.id);
-                                }}
-                                className="w-4 h-4 rounded border-gray-300 focus:outline-none"
-                                style={{ accentColor: '#3B82F6' }}
-                                title="Für BIS-Übersetzung auswählen"
-                              />
-                              <span className="text-xs text-gray-500">BIS-Übersetzung</span>
-                            </div>
+
+                      <div className="space-y-2 text-sm">
+                        {hasContent(formatZeitraum(exp.startMonth, exp.startYear, exp.endMonth, exp.endYear, exp.isCurrent)) && (
+                          <div className="flex items-center gap-2">
+                            <Calendar className="h-4 w-4 text-gray-400" />
+                            <span>{formatZeitraum(exp.startMonth, exp.startYear, exp.endMonth, exp.endYear, exp.isCurrent)}</span>
                           </div>
-                        <>
-                          {/* Log BIS translation if found */}
-                          {hasBisTranslation && console.log(`🎯 Found BIS translation for "${aufgabe}":`, bisTranslatorResults[aufgabe])}
-                        </>
+                        )}
                         
-                        )}
-                         
-                        {!isBisTranslatorActive && (
-                          <div className="flex items-center space-x-1">
-                            {!isSelected && (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  deleteExperience(exp.id);
-                                }}
-                                className="text-gray-500 hover:text-gray-700 p-1 rounded transition-colors duration-200"
-                                title="Berufserfahrung löschen"
-                                aria-label="Berufserfahrung löschen"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
-                            )}
+                        {hasContent(exp.companies) && (
+                          <div className="flex items-center gap-2">
+                            <MapPin className="h-4 w-4 text-gray-400" />
+                            <span>{formatArray(exp.companies)}</span>
                           </div>
                         )}
-
-                        <div className="flex justify-between items-start mb-0.5">
-                          {/* Zeitraum */}
-                          <EditablePreviewText
-                            value={formatZeitraum(
-                              exp.startMonth,
-                              exp.startYear,
-                              exp.endMonth,
-                              exp.endYear,
-                              exp.isCurrent,
-                            )}
-                            onSave={(newValue) => handleExperienceFieldUpdate(exp.id, 'zeitraum', newValue)}
-                            className="text-sm text-gray-700"
-                            placeholder="Zeitraum eingeben..."
-                          />
-                        </div>
-
-                        {/* Position */}
-                        <div className="mb-0.5">
-                          <EditablePreviewText
-                            value={Array.isArray(exp.position) ? exp.position.join(' / ') : (exp.position || "")}
-                            onSave={(newValue) => handleExperienceFieldUpdate(exp.id, 'position', newValue)}
-                            className="font-bold text-lg text-gray-900"
-                            placeholder="Position eingeben..."
-                          />
-                        </div>
-
-                        {/* Unternehmen/Ort */}
-                        <div className="mb-0.5">
-                          <EditablePreviewText
-                            value={(() => {
-                              const companiesText = Array.isArray(exp.companies) ? exp.companies.join(' // ') : (exp.companies || "");
-                              const leasingText = exp.leasingCompaniesList && exp.leasingCompaniesList.length > 0 
-                                ? ` (über ${exp.leasingCompaniesList.join(', ')})`
-                                : '';
-                              return companiesText + leasingText;
-                            })()}
-                            onSave={(newValue) => handleExperienceFieldUpdate(exp.id, 'companies', newValue)}
-                            className="text-gray-700"
-                            placeholder="Unternehmen eingeben..."
-                          />
-                        </div>
-
-                        {/* Erweiterte Inhalte nur bei ausgeklapptem Zustand */}
-                        {isCardExpanded && (
-                          <>
-                            {/* Weitere Angaben */}
-                            {exp.zusatzangaben && (
-                              <div className="mb-1 border-t pt-0.5 border-gray-100">
-                                <div className="flex items-start space-x-2">
-                                  <FileText className="h-4 w-4 mt-1 text-gray-400 flex-shrink-0" />
-                                  <EditablePreviewText
-                                    value={exp.zusatzangaben}
-                                    onSave={(newValue) => updateExperienceField(exp.id, 'zusatzangaben', newValue)}
-                                    isTextArea={true}
-                                    placeholder="Weitere Angaben eingeben..."
-                                  />
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Auflistung Tätigkeiten */}
-                            {Array.isArray(exp.aufgabenbereiche) && exp.aufgabenbereiche.length > 0 && (
-                              <div className="mt-1">
-                                <ReactSortable
-                                  list={exp.aufgabenbereiche.map((task, index) => ({ id: `${exp.id}-${index}`, content: task || '' }))}
-                                  setList={(newList) => {
-                                    const newTasks = newList.map(item => item.content || '');
-                                    updateExperienceTasksOrder(exp.id, newTasks);
-                                  }}
-                                  tag="div"
-                                  className="space-y-0 text-black ml-6"
-                                >
-                                  {exp.aufgabenbereiche.map((aufgabe, i) => (
-                                    <div 
-                                      key={`${exp.id}-${i}`}
-                                      data-id={`${exp.id}-${i}`}
-                                      className="flex items-start space-x-2 group cursor-move py-0.5"
-                                    >
-                                      {/* Aufzählungspunkt oder Checkbox je nach BIS-Modus */}
-                                      {isBisTranslatorActive && multiSelectedExperienceIds.includes(exp.id) ? (
-                                        <input
-                                          type="checkbox"
-                                          checked={selectedBisTasks.includes(aufgabe)}
-                                          onChange={(e) => {
-                                            e.stopPropagation();
-                                            toggleBisTaskSelection(aufgabe);
-                                          }}
-                                         className="w-4 h-4 mr-2 flex-shrink-0 mt-0.5 rounded border-gray-300 focus:outline-none"
-                                         style={{ accentColor: '#3B82F6' }}
-                                          onClick={(e) => e.stopPropagation()}
-                                        />
-                                      ) : (
-                                        <span className="text-black mr-2 flex-shrink-0 leading-none">•</span>
-                                      )}
-                                      
-                                      {/* Aufgabentext */}
-                                      <div className="flex-1 min-w-0 leading-none">
-                                        <EditablePreviewText
-                                          value={aufgabe}
-                                          onSave={(newValue) => updateExperienceTask(exp.id, i, newValue)}
-                                          placeholder="Aufgabe eingeben..."
-                                          className="leading-none"
-                                        />
-                                      </div>
-                                      
-                                      {/* BIS-Übersetzungsvorschlag inline */}
-                                      {bisTranslatorResults[aufgabe] && bisTranslatorResults[aufgabe].length > 0 && (
-                                        <div className="flex items-center space-x-2 ml-2 relative">
-                                          <span className="text-sm text-green-700 bg-green-50 px-2 py-1 rounded border border-green-200">
-                                            {bisTranslatorResults[aufgabe][0]}
-                                          </span>
-                                          
-                                          {/* Action Buttons */}
-                                          <div className="flex items-center space-x-1">
-                                            <button
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                replaceTask(exp.id, i, bisTranslatorResults[aufgabe][0]);
-                                              }}
-                                              className="px-2 py-1 text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 rounded transition-colors duration-200"
-                                              title="Tätigkeit ersetzen"
-                                            >
-                                              Ersetzen
-                                            </button>
-                                            <button
-                                              onClick={(e) => {
-                                                e.stopPropagation();
-                                                addTaskAfter(exp.id, i, bisTranslatorResults[aufgabe][0]);
-                                              }}
-                                              className="px-2 py-1 text-xs bg-green-100 text-green-700 hover:bg-green-200 rounded transition-colors duration-200"
-                                              title="Als neue Tätigkeit hinzufügen"
-                                            >
-                                              Hinzufügen
-                                            </button>
-                                            {bisTranslatorResults[aufgabe].length > 1 && (
-                                              <div className="relative">
-                                                <button
-                                                  onMouseEnter={() => setShowMoreSuggestions(aufgabe)}
-                                                  onMouseLeave={() => setShowMoreSuggestions(null)}
-                                                  className="px-2 py-1 text-xs bg-gray-100 text-gray-700 hover:bg-gray-200 rounded transition-colors duration-200"
-                                                  title="Weitere Vorschläge anzeigen"
-                                                >
-                                                  Mehr ({bisTranslatorResults[aufgabe].length - 1})
-                                                </button>
-                                                
-                                                {/* More suggestions popup */}
-                                                {showMoreSuggestions === aufgabe && (
-                                                  <div 
-                                                    className="absolute top-full right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-2 z-50 min-w-[300px]"
-                                                    onMouseEnter={() => setShowMoreSuggestions(aufgabe)}
-                                                    onMouseLeave={() => setShowMoreSuggestions(null)}
-                                                  >
-                                                    <div className="space-y-2">
-                                                      {bisTranslatorResults[aufgabe].slice(1).map((suggestion, suggestionIndex) => (
-                                                        <div key={suggestionIndex} className="flex items-center justify-between space-x-2 p-2 bg-green-50 rounded border border-green-200">
-                                                          <span className="text-sm text-green-700 flex-1">
-                                                            {suggestion}
-                                                          </span>
-                                                          <div className="flex space-x-1">
-                                                            <button
-                                                              onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                replaceTask(exp.id, i, suggestion);
-                                                                setShowMoreSuggestions(null);
-                                                              }}
-                                                              className="px-2 py-1 text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 rounded transition-colors duration-200"
-                                                              title="Tätigkeit ersetzen"
-                                                            >
-                                                              Ersetzen
-                                                            </button>
-                                                            <button
-                                                              onClick={(e) => {
-                                                                e.stopPropagation();
-                                                                addTaskAfter(exp.id, i, suggestion);
-                                                                setShowMoreSuggestions(null);
-                                                              }}
-                                                              className="px-2 py-1 text-xs bg-green-100 text-green-700 hover:bg-green-200 rounded transition-colors duration-200"
-                                                              title="Als neue Tätigkeit hinzufügen"
-                                                            >
-                                                              Hinzufügen
-                                                            </button>
-                                                          </div>
-                                                        </div>
-                                                      ))}
-                                                    </div>
-                                                  </div>
-                                                )}
+                        
+                        {hasContent(exp.position) && (
+                          <div className="flex items-start gap-2">
+                            <Briefcase className="h-4 w-4 text-gray-400 mt-0.5" />
+                            <span>{formatArray(exp.position)}</span>
+                          </div>
+                        )}
+                        
+                        {hasContent(exp.aufgabenbereiche) && (
+                          <div className="space-y-1">
+                            <div className="flex items-start gap-2">
+                              <User className="h-4 w-4 text-gray-400 mt-0.5" />
+                              <div className="flex-1">
+                                <span className="font-medium text-gray-700">Tätigkeiten:</span>
+                                <ul className="mt-1 space-y-1">
+                                  {exp.aufgabenbereiche.map((aufgabe, aufgabeIndex) => {
+                                    const hasBisTranslation = bisTranslatorResults && bisTranslatorResults[aufgabe];
+                                    
+                                    return (
+                                      <li key={aufgabeIndex} className="text-gray-600">
+                                        <div className="flex items-start gap-1">
+                                          <span className="text-orange-500 mt-1">•</span>
+                                          <div className="flex-1">
+                                            <span>{aufgabe}</span>
+                                            {hasBisTranslation && (
+                                              <div className="mt-1 ml-2 p-2 bg-green-50 border border-green-200 rounded text-xs">
+                                                <div className="font-medium text-green-800 mb-1">BIS-Kompetenzen:</div>
+                                                <ul className="space-y-0.5">
+                                                  {bisTranslatorResults[aufgabe].map((bisKompetenz, bisIndex) => (
+                                                    <li key={bisIndex} className="text-green-700">
+                                                      • {bisKompetenz}
+                                                    </li>
+                                                  ))}
+                                                </ul>
                                               </div>
                                             )}
                                           </div>
                                         </div>
-                                      )}
-                                      
-                                      {/* Hover-Buttons für Tätigkeiten */}
-                                      <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center space-x-1 flex-shrink-0 ml-2">
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            toggleTaskFavorite(aufgabe);
-                                          }}
-                                          className="p-0.5 hover:bg-gray-200 rounded transition-colors duration-200"
-                                          title={favoriteTasks.includes(aufgabe) ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
-                                        >
-                                          <Star 
-                                            className={`h-5 w-5 ${favoriteTasks.includes(aufgabe) ? 'fill-current text-yellow-500' : 'text-gray-400'}`} 
-                                          />
-                                        </button>
-                                        <button
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            removeTask(exp.id, i);
-                                          }}
-                                          className="p-0.5 hover:bg-gray-200 rounded transition-colors duration-200"
-                                          title="Aufgabe löschen"
-                                        >
-                                          <X className="h-5 w-5 text-gray-400 hover:text-red-500" />
-                                        </button>
-                                      </div>
-                                    </div>
-                                  ))}
-                                </ReactSortable>
+                                        {/* Log BIS translation if found */}
+                                        {hasBisTranslation && console.log(`🎯 Found BIS translation for "${aufgabe}":`, bisTranslatorResults[aufgabe])}
+                                      </li>
+                                    );
+                                  })}
+                                </ul>
                               </div>
-                            )}
-                            
-                            {/* Neue Aufgabe hinzufügen */}
-                            {selectedExperienceId === exp.id && (
-                              <div className="mt-1 flex items-center space-x-2 ml-6">
-                                <input
-                                  type="text"
-                                  value={newTaskInputs[exp.id] || ''}
-                                  onChange={(e) => setNewTaskInputs(prev => ({ ...prev, [exp.id]: e.target.value }))}
-                                  onKeyPress={(e) => e.key === 'Enter' && handleAddTask(exp.id)}
-                                  placeholder="Neue Aufgabe hinzufügen..."
-                                  className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-orange-500"
-                                />
-                                <button
-                                  onClick={() => handleAddTask(exp.id)}
-                                  disabled={!newTaskInputs[exp.id]?.trim()}
-                                  className="p-1 text-white rounded hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-                                  style={{ backgroundColor: '#F29400' }}
-                                  title="Aufgabe hinzufügen"
-                                >
-                                  <Plus className="h-4 w-4" />
-                                </button>
-                              </div>
-                            )}
-                          </>
+                            </div>
+                          </div>
                         )}
-                      </>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-            {berufserfahrung.length === 0 && (
-              <div className="border border-dashed border-gray-300 rounded-lg p-4 bg-gray-50 text-gray-500">
-                <p className="italic">
-                  Hier erscheint die Vorschau deines Lebenslaufs …
-                </p>
-              </div>
-            )}
-          </div>
-        </div>
-        )}
-
-        {/* Ausbildung - nur anzeigen wenn entsprechender Tab aktiv */}
-        {(previewTab === 'gesamt' || previewTab === 'ausbildung') && (
-        <div className="mb-6">
-          <h3 className="font-bold text-xl mb-1">Ausbildung</h3>
-          <div className="space-y-0">
-            {sortedAusbildungen.map((edu, index) => {
-              const isSelected = selectedEducationId === edu.id;
-              const isCardExpanded = isExpanded(edu.id, 'education');
-              
-              return (
-                <div key={edu.id} className="relative">
-                  {/* Horizontale Trennlinie zwischen Karten */}
-                  {index > 0 && (
-                    <div className="w-full h-px bg-gray-200"></div>
-                  )}
-                  
-                  <div
-                    onClick={() => selectEducation(edu.id)}
-                    className={`p-2 cursor-pointer transition-all duration-200 hover:bg-gray-100 ${
-                      selectedEducationId === edu.id ? 'border border-[#F29400] rounded-md bg-gray-50' : 'bg-white'
-                    }`}
-                  >
-                    <div className="flex justify-between items-start mb-0.5">
-                      {/* Zeitraum */}
-                      <EditablePreviewText
-                        value={formatZeitraum(
-                          edu.startMonth,
-                          edu.startYear,
-                          edu.endMonth,
-                          edu.endYear,
-                          edu.isCurrent,
-                        )}
-                        onSave={(newValue) => handleEducationFieldUpdate(edu.id, 'zeitraum', newValue)}
-                        className="text-sm text-gray-700"
-                        placeholder="Zeitraum eingeben..."
-                      />
-                      <div className="flex items-center space-x-1">
-                        {selectedEducationId !== edu.id && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              deleteEducation(edu.id);
-                            }}
-                            className="text-gray-500 hover:text-gray-700 p-1 rounded transition-colors duration-200"
-                            title="Ausbildung löschen"
-                            aria-label="Ausbildung löschen"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
+                        
+                        {hasContent(exp.zusatzangaben) && (
+                          <div className="mt-3 p-3 bg-gray-50 rounded border-l-4 border-gray-300">
+                            <span className="text-gray-700 text-sm">{exp.zusatzangaben}</span>
+                          </div>
                         )}
                       </div>
                     </div>
-
-                    {/* Ausbildungsart */}
-                    <div className="mb-0.5">
-                      <EditablePreviewText
-                        value={`${Array.isArray(edu.ausbildungsart) ? edu.ausbildungsart.join(" / ") : (edu.ausbildungsart || "")} - ${Array.isArray(edu.abschluss) ? edu.abschluss.join(" / ") : (edu.abschluss || "")}`}
-                        onSave={(newValue) => handleEducationFieldUpdate(edu.id, 'ausbildungsart', newValue)}
-                        className="font-bold text-lg text-gray-900"
-                        placeholder="Ausbildungsart und Abschluss eingeben..."
-                      />
-                    </div>
-
-                    {/* Erweiterte Inhalte nur bei ausgeklapptem Zustand */}
-                    {isCardExpanded && (
-                      <>
-                        {/* Institution */}
-                        <div className="mb-0.5">
-                          <EditablePreviewText
-                            value={Array.isArray(edu.institution) ? edu.institution.join(', ') : (edu.institution || "")}
-                            onSave={(newValue) => handleEducationFieldUpdate(edu.id, 'institution', newValue)}
-                            className="italic text-gray-500"
-                            placeholder="Institution eingeben..."
-                          />
-                        </div>
-                        
-                        {/* Bearbeitbare Zusatzangaben */}
-                        {edu.zusatzangaben && (
-                          <div className="text-black mt-0.5">
-                            <EditablePreviewText
-                              value={edu.zusatzangaben}
-                              onSave={(newValue) => updateEducationField(edu.id, 'zusatzangaben', newValue)}
-                              isTextArea={true}
-                              placeholder="Zusatzangaben eingeben..."
-                            />
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-            {sortedAusbildungen.length === 0 && (
-              <div className="border border-dashed border-gray-300 rounded-lg p-4 bg-gray-50 text-gray-500">
-                <p className="italic">
-                  Hier erscheint die Vorschau deiner Ausbildung …
-                </p>
+                  );
+                })}
               </div>
             )}
           </div>
-        </div>
         )}
 
-        {/* Fachkompetenzen - Platzhalter */}
-        {(previewTab === 'gesamt' || previewTab === 'fachkompetenzen') && (
-        <div className="mb-6">
-          <h3 className="font-bold text-xl mb-1">Fachkompetenzen</h3>
-          <div className="border border-dashed border-gray-300 rounded-lg p-4 bg-gray-50 text-gray-500">
-            <p className="italic">
-              Fachkompetenzen werden hier angezeigt, sobald sie implementiert sind...
-            </p>
+        {previewTab === 'ausbildung' && (
+          <div className="p-4 space-y-4">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">
+              Ausbildung ({ausbildung.length})
+            </h3>
+            
+            {ausbildung.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <GraduationCap className="h-12 w-12 mx-auto mb-3 text-gray-300" />
+                <p>Noch keine Ausbildung hinzugefügt</p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {ausbildung.map((edu, index) => {
+                  const isSelected = selectedEducationId === edu.id;
+                  
+                  return (
+                    <div
+                      key={edu.id}
+                      className={`border rounded-lg p-4 transition-all duration-200 ${
+                        isSelected 
+                          ? 'border-orange-300 bg-orange-50' 
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <h4 className="font-medium text-gray-900">
+                          Ausbildung {index + 1}
+                        </h4>
+                        {isSelected && (
+                          <span className="px-2 py-1 text-xs text-white rounded-full" style={{ backgroundColor: '#F29400' }}>
+                            Bearbeitung
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="space-y-2 text-sm">
+                        {hasContent(formatZeitraum(edu.startMonth, edu.startYear, edu.endMonth, edu.endYear, edu.isCurrent)) && (
+                          <div className="flex items-center gap-2">
+                            <Calendar className="h-4 w-4 text-gray-400" />
+                            <span>{formatZeitraum(edu.startMonth, edu.startYear, edu.endMonth, edu.endYear, edu.isCurrent)}</span>
+                          </div>
+                        )}
+                        
+                        {hasContent(edu.institution) && (
+                          <div className="flex items-center gap-2">
+                            <MapPin className="h-4 w-4 text-gray-400" />
+                            <span>{formatArray(edu.institution)}</span>
+                          </div>
+                        )}
+                        
+                        {hasContent(edu.ausbildungsart) && (
+                          <div className="flex items-start gap-2">
+                            <GraduationCap className="h-4 w-4 text-gray-400 mt-0.5" />
+                            <span>{formatArray(edu.ausbildungsart)}</span>
+                          </div>
+                        )}
+                        
+                        {hasContent(edu.abschluss) && (
+                          <div className="flex items-start gap-2">
+                            <User className="h-4 w-4 text-gray-400 mt-0.5" />
+                            <span>{formatArray(edu.abschluss)}</span>
+                          </div>
+                        )}
+                        
+                        {hasContent(edu.zusatzangaben) && (
+                          <div className="mt-3 p-3 bg-gray-50 rounded border-l-4 border-gray-300">
+                            <span className="text-gray-700 text-sm">{edu.zusatzangaben}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
-        </div>
         )}
 
-        {/* Soft Skills - Platzhalter */}
-        {(previewTab === 'gesamt' || previewTab === 'softskills') && (
-        <div className="mb-6">
-          <h3 className="font-bold text-xl mb-1">Soft Skills</h3>
-          <div className="border border-dashed border-gray-300 rounded-lg p-4 bg-gray-50 text-gray-500">
-            <p className="italic">
-              Soft Skills werden hier angezeigt, sobald sie implementiert sind...
-            </p>
+        {(previewTab === 'gesamt' || previewTab === 'fachkompetenzen' || previewTab === 'softskills') && (
+          <div className="p-4">
+            <div className="bg-gray-50 rounded-lg p-6 border-2 border-dashed border-gray-300">
+              <div className="text-center">
+                <FileText className="h-12 w-12 mx-auto mb-3 text-gray-400" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  {previewTab === 'gesamt' ? 'Gesamtvorschau' : 
+                   previewTab === 'fachkompetenzen' ? 'Fachkompetenzen' : 'Softskills'}
+                </h3>
+                <p className="text-gray-600 mb-4">
+                  {previewTab === 'gesamt' 
+                    ? 'Hier wird eine formatierte Gesamtansicht Ihres Lebenslaufs angezeigt.'
+                    : `Die ${previewTab}-Sektion wird in einer zukünftigen Version verfügbar sein.`
+                  }
+                </p>
+                <div className="bg-white rounded border p-4 text-left">
+                  <pre className="text-sm text-gray-700 whitespace-pre-wrap font-mono">
+                    {generatePreviewContent()}
+                  </pre>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
         )}
       </div>
     </div>
