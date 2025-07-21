@@ -13,7 +13,7 @@ export default function LebenslaufEditor({
 }) {
   return (
     <LebenslaufProvider>
-      <div className="grid grid-cols-1 lg:grid-cols-[2fr_2fr_1fr] gap-6 relative">
+      <div className="w-full grid grid-cols-1 lg:grid-cols-[2fr_2fr_1fr] gap-6 relative">
         {/* Linke Spalte: Eingabe */}
         <div className="relative">
           <LebenslaufInput />

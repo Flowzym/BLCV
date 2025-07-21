@@ -273,10 +273,10 @@ export default function AiHelpPanel() {
       for (const task of bisTranslator.selectedTasks) {
         console.log(`🔄 Processing task: "${task}"`);
         try {
-          const suggestions = await generateBisSuggestions([task], bisModel, aiHelpSettings.bisPrompt);
+          const suggestions = await generateBisSuggestions(task, bisModel, aiHelpSettings.bisPrompt);
           console.log(`✅ Got suggestions for "${task}":`, suggestions);
-          if (suggestions[task] && suggestions[task].length > 0) {
-            results[task] = suggestions[task];
+          if (suggestions && suggestions.length > 0) {
+            results[task] = suggestions;
           }
         } catch (error) {
           console.error(`❌ Error translating task "${task}":`, error);
@@ -285,10 +285,9 @@ export default function AiHelpPanel() {
       
       console.log('📊 Final results object:', results);
       
-      // Update both local state and context
+      // Update context only
       setBisTranslator(prev => ({
         ...prev,
-        results: Object.values(results).flat(), 
         isTranslating: false
       }));
       
@@ -353,10 +352,6 @@ export default function AiHelpPanel() {
   };
 
   const clearResults = () => {
-    setBisTranslator(prev => ({
-      ...prev,
-      results: []
-    }));
     // Clear context results
     setBisTranslatorResults({});
     // Clear all selected tasks
@@ -601,7 +596,7 @@ export default function AiHelpPanel() {
               )}
 
               {/* Results */}
-              {bisTranslator.results.length > 0 && (
+              {Object.keys(bisTranslatorResults).length > 0 && (
                 <div className="border rounded-lg p-3 bg-green-50">
                   <div className="flex items-center justify-between mb-2">
                     <h4 className="font-medium text-green-800">BIS-Kompetenzen:</h4>
@@ -614,9 +609,19 @@ export default function AiHelpPanel() {
                     </button>
                   </div>
                   <div className="space-y-1">
-                    {bisTranslator.results.map((result, index) => (
-                      <div key={index} className="text-sm text-green-700 leading-relaxed">
-                        {result}
+                    {Object.entries(bisTranslatorResults).map(([originalTask, translations]) => (
+                      <div key={originalTask} className="mb-3">
+                        <div className="text-xs text-gray-600 mb-1 font-medium">
+                          {originalTask}:
+                        </div>
+                        <div className="space-y-1">
+                          {translations.map((translation, index) => (
+                            <div key={index} className="text-sm text-green-700 leading-relaxed flex items-start">
+                              <span className="text-green-500 mr-2 flex-shrink-0 leading-none">•</span>
+                              <span>{translation}</span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     ))}
                   </div>
