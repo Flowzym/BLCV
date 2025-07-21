@@ -37,7 +37,8 @@ export default function LebenslaufPreview() {
     isBisTranslatorActive,
     setIsBisTranslatorActive,
     selectedBisTasks,
-    toggleBisTaskSelection
+    toggleBisTaskSelection,
+    bisTranslatorResults
   } = useLebenslauf();
 
   // Verwende den synchronisierten Preview-Tab aus dem Context
@@ -263,6 +264,7 @@ export default function LebenslaufPreview() {
             {sortedErfahrungen.map((exp, index) => {
               const isSelected = selectedExperienceId === exp.id;
               const isCardExpanded = isExpanded(exp.id, 'experience');
+              const isBisSelected = isBisTranslatorActive && multiSelectedExperienceIds.includes(exp.id);
               
               return (
                 <div key={exp.id} className="relative">
@@ -278,201 +280,411 @@ export default function LebenslaufPreview() {
                       multiSelectedExperienceIds.includes(exp.id) ? 'border border-blue-300 rounded-md bg-blue-50' : 'bg-white'
                     }`}
                   >
-                    {/* Checkbox für Mehrfachauswahl */}
-                    {isBisTranslatorActive && (
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex items-center space-x-2">
-                          <input
-                            type="checkbox"
-                            checked={multiSelectedExperienceIds.includes(exp.id)}
-                            onChange={(e) => {
-                              e.stopPropagation();
-                              toggleMultiExperienceSelection(exp.id);
-                            }}
-                            className="w-4 h-4 rounded border-gray-300 focus:outline-none"
-                            style={{ accentColor: '#3B82F6' }}
-                            title="Für BIS-Übersetzung auswählen"
-                          />
-                          <span className="text-xs text-gray-500">BIS-Übersetzung</span>
+                    {/* BIS-Modus: 2-Spalten Layout */}
+                    {isBisSelected ? (
+                      <div className="grid grid-cols-2 gap-4">
+                        {/* Linke Spalte: Normale Inhalte */}
+                        <div>
+                          {/* Checkbox für Mehrfachauswahl */}
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex items-center space-x-2">
+                              <input
+                                type="checkbox"
+                                checked={multiSelectedExperienceIds.includes(exp.id)}
+                                onChange={(e) => {
+                                  e.stopPropagation();
+                                  toggleMultiExperienceSelection(exp.id);
+                                }}
+                                className="w-4 h-4 rounded border-gray-300 focus:outline-none"
+                                style={{ accentColor: '#3B82F6' }}
+                                title="Für BIS-Übersetzung auswählen"
+                              />
+                              <span className="text-xs text-gray-500">BIS-Übersetzung</span>
+                            </div>
+                          </div>
+
+                          <div className="flex justify-between items-start mb-0.5">
+                            {/* Zeitraum */}
+                            <EditablePreviewText
+                              value={formatZeitraum(
+                                exp.startMonth,
+                                exp.startYear,
+                                exp.endMonth,
+                                exp.endYear,
+                                exp.isCurrent,
+                              )}
+                              onSave={(newValue) => handleExperienceFieldUpdate(exp.id, 'zeitraum', newValue)}
+                              className="text-sm text-gray-700"
+                              placeholder="Zeitraum eingeben..."
+                            />
+                          </div>
+
+                          {/* Position */}
+                          <div className="mb-0.5">
+                            <EditablePreviewText
+                              value={Array.isArray(exp.position) ? exp.position.join(' / ') : (exp.position || "")}
+                              onSave={(newValue) => handleExperienceFieldUpdate(exp.id, 'position', newValue)}
+                              className="font-bold text-lg text-gray-900"
+                              placeholder="Position eingeben..."
+                            />
+                          </div>
+
+                          {/* Unternehmen/Ort */}
+                          <div className="mb-0.5">
+                            <EditablePreviewText
+                              value={(() => {
+                                const companiesText = Array.isArray(exp.companies) ? exp.companies.join(' // ') : (exp.companies || "");
+                                const leasingText = exp.leasingCompaniesList && exp.leasingCompaniesList.length > 0 
+                                  ? ` (über ${exp.leasingCompaniesList.join(', ')})`
+                                  : '';
+                                return companiesText + leasingText;
+                              })()}
+                              onSave={(newValue) => handleExperienceFieldUpdate(exp.id, 'companies', newValue)}
+                              className="text-gray-700"
+                              placeholder="Unternehmen eingeben..."
+                            />
+                          </div>
+
+                          {/* Erweiterte Inhalte nur bei ausgeklapptem Zustand */}
+                          {isCardExpanded && (
+                            <>
+                              {/* Weitere Angaben */}
+                              {exp.zusatzangaben && (
+                                <div className="mb-1 border-t pt-0.5 border-gray-100">
+                                  <div className="flex items-start space-x-2">
+                                    <FileText className="h-4 w-4 mt-1 text-gray-400 flex-shrink-0" />
+                                    <EditablePreviewText
+                                      value={exp.zusatzangaben}
+                                      onSave={(newValue) => updateExperienceField(exp.id, 'zusatzangaben', newValue)}
+                                      isTextArea={true}
+                                      placeholder="Weitere Angaben eingeben..."
+                                    />
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Auflistung Tätigkeiten */}
+                              {Array.isArray(exp.aufgabenbereiche) && exp.aufgabenbereiche.length > 0 && (
+                                <div className="mt-1">
+                                  <ReactSortable
+                                    list={exp.aufgabenbereiche.map((task, index) => ({ id: `${exp.id}-${index}`, content: task || '' }))}
+                                    setList={(newList) => {
+                                      const newTasks = newList.map(item => item.content || '');
+                                      updateExperienceTasksOrder(exp.id, newTasks);
+                                    }}
+                                    tag="div"
+                                    className="space-y-0 text-black ml-6"
+                                  >
+                                    {exp.aufgabenbereiche.map((aufgabe, i) => (
+                                      <div 
+                                        key={`${exp.id}-${i}`}
+                                        data-id={`${exp.id}-${i}`}
+                                        className="flex items-start space-x-2 group cursor-move py-0.5"
+                                      >
+                                        {/* Checkbox für BIS-Auswahl */}
+                                        <input
+                                          type="checkbox"
+                                          checked={selectedBisTasks.includes(aufgabe)}
+                                          onChange={(e) => {
+                                            e.stopPropagation();
+                                            toggleBisTaskSelection(aufgabe);
+                                          }}
+                                          className="w-4 h-4 mr-2 flex-shrink-0 mt-0.5 rounded border-gray-300 focus:outline-none"
+                                          style={{ accentColor: '#3B82F6' }}
+                                          onClick={(e) => e.stopPropagation()}
+                                        />
+                                        
+                                        {/* Aufgabentext */}
+                                        <div className="flex-1 min-w-0 leading-none">
+                                          <EditablePreviewText
+                                            value={aufgabe}
+                                            onSave={(newValue) => updateExperienceTask(exp.id, i, newValue)}
+                                            placeholder="Aufgabe eingeben..."
+                                            className="leading-none"
+                                          />
+                                        </div>
+                                        
+                                        {/* Hover-Buttons für Tätigkeiten */}
+                                        <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center space-x-1 flex-shrink-0 ml-2">
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              toggleTaskFavorite(aufgabe);
+                                            }}
+                                            className="p-0.5 hover:bg-gray-200 rounded transition-colors duration-200"
+                                            title={favoriteTasks.includes(aufgabe) ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
+                                          >
+                                            <Star 
+                                              className={`h-5 w-5 ${favoriteTasks.includes(aufgabe) ? 'fill-current text-yellow-500' : 'text-gray-400'}`} 
+                                            />
+                                          </button>
+                                          <button
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              removeTask(exp.id, i);
+                                            }}
+                                            className="p-0.5 hover:bg-gray-200 rounded transition-colors duration-200"
+                                            title="Aufgabe löschen"
+                                          >
+                                            <X className="h-5 w-5 text-gray-400 hover:text-red-500" />
+                                          </button>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </ReactSortable>
+                                </div>
+                              )}
+                              
+                              {/* Neue Aufgabe hinzufügen */}
+                              {selectedExperienceId === exp.id && (
+                                <div className="mt-1 flex items-center space-x-2 ml-6">
+                                  <input
+                                    type="text"
+                                    value={newTaskInputs[exp.id] || ''}
+                                    onChange={(e) => setNewTaskInputs(prev => ({ ...prev, [exp.id]: e.target.value }))}
+                                    onKeyPress={(e) => e.key === 'Enter' && handleAddTask(exp.id)}
+                                    placeholder="Neue Aufgabe hinzufügen..."
+                                    className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-orange-500"
+                                  />
+                                  <button
+                                    onClick={() => handleAddTask(exp.id)}
+                                    disabled={!newTaskInputs[exp.id]?.trim()}
+                                    className="p-1 text-white rounded hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+                                    style={{ backgroundColor: '#F29400' }}
+                                    title="Aufgabe hinzufügen"
+                                  >
+                                    <Plus className="h-4 w-4" />
+                                  </button>
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </div>
+
+                        {/* Rechte Spalte: BIS-Übersetzungsvorschläge */}
+                        <div className="border-l border-gray-200 pl-4">
+                          <h4 className="text-sm font-medium text-green-700 mb-2 flex items-center">
+                            <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+                            BIS-Kompetenzen
+                          </h4>
+                          {bisTranslatorResults.length > 0 ? (
+                            <div className="space-y-1">
+                              {bisTranslatorResults.map((result, index) => (
+                                <div key={index} className="text-sm text-green-700 leading-relaxed flex items-start">
+                                  <span className="text-green-500 mr-2 flex-shrink-0 leading-none">•</span>
+                                  <span>{result}</span>
+                                </div>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="text-xs text-gray-500 italic">
+                              Keine BIS-Übersetzung verfügbar.
+                              <br />
+                              Wählen Sie Tätigkeiten aus und starten Sie die Übersetzung im KI-Assistenten.
+                            </div>
+                          )}
                         </div>
                       </div>
-                    )}
-                    
-                    {!isBisTranslatorActive && (
-                      <div className="flex items-center space-x-1">
-                        {!isSelected && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              deleteExperience(exp.id);
-                            }}
-                            className="text-gray-500 hover:text-gray-700 p-1 rounded transition-colors duration-200"
-                            title="Berufserfahrung löschen"
-                            aria-label="Berufserfahrung löschen"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        )}
-                      </div>
-                    )}
-
-                    <div className="flex justify-between items-start mb-0.5">
-                      {/* Zeitraum */}
-                      <EditablePreviewText
-                        value={formatZeitraum(
-                          exp.startMonth,
-                          exp.startYear,
-                          exp.endMonth,
-                          exp.endYear,
-                          exp.isCurrent,
-                        )}
-                        onSave={(newValue) => handleExperienceFieldUpdate(exp.id, 'zeitraum', newValue)}
-                        className="text-sm text-gray-700"
-                        placeholder="Zeitraum eingeben..."
-                      />
-                    </div>
-
-                    {/* Position */}
-                    <div className="mb-0.5">
-                      <EditablePreviewText
-                        value={Array.isArray(exp.position) ? exp.position.join(' / ') : (exp.position || "")}
-                        onSave={(newValue) => handleExperienceFieldUpdate(exp.id, 'position', newValue)}
-                        className="font-bold text-lg text-gray-900"
-                        placeholder="Position eingeben..."
-                      />
-                    </div>
-
-                    {/* Unternehmen/Ort */}
-                    <div className="mb-0.5">
-                      <EditablePreviewText
-                        value={(() => {
-                          const companiesText = Array.isArray(exp.companies) ? exp.companies.join(' // ') : (exp.companies || "");
-                          const leasingText = exp.leasingCompaniesList && exp.leasingCompaniesList.length > 0 
-                            ? ` (über ${exp.leasingCompaniesList.join(', ')})`
-                            : '';
-                          return companiesText + leasingText;
-                        })()}
-                        onSave={(newValue) => handleExperienceFieldUpdate(exp.id, 'companies', newValue)}
-                        className="text-gray-700"
-                        placeholder="Unternehmen eingeben..."
-                      />
-                    </div>
-
-                    {/* Erweiterte Inhalte nur bei ausgeklapptem Zustand */}
-                    {isCardExpanded && (
+                    ) : (
+                      /* Normaler Modus: Einspaltig */
                       <>
-                        {/* Weitere Angaben */}
-                        {exp.zusatzangaben && (
-                          <div className="mb-1 border-t pt-0.5 border-gray-100">
-                            <div className="flex items-start space-x-2">
-                              <FileText className="h-4 w-4 mt-1 text-gray-400 flex-shrink-0" />
-                              <EditablePreviewText
-                                value={exp.zusatzangaben}
-                                onSave={(newValue) => updateExperienceField(exp.id, 'zusatzangaben', newValue)}
-                                isTextArea={true}
-                                placeholder="Weitere Angaben eingeben..."
+                        {/* Checkbox für Mehrfachauswahl */}
+                        {isBisTranslatorActive && (
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex items-center space-x-2">
+                              <input
+                                type="checkbox"
+                                checked={multiSelectedExperienceIds.includes(exp.id)}
+                                onChange={(e) => {
+                                  e.stopPropagation();
+                                  toggleMultiExperienceSelection(exp.id);
+                                }}
+                                className="w-4 h-4 rounded border-gray-300 focus:outline-none"
+                                style={{ accentColor: '#3B82F6' }}
+                                title="Für BIS-Übersetzung auswählen"
                               />
+                              <span className="text-xs text-gray-500">BIS-Übersetzung</span>
                             </div>
                           </div>
                         )}
-
-                        {/* Auflistung Tätigkeiten */}
-                        {Array.isArray(exp.aufgabenbereiche) && exp.aufgabenbereiche.length > 0 && (
-                          <div className="mt-1">
-                            <ReactSortable
-                              list={exp.aufgabenbereiche.map((task, index) => ({ id: `${exp.id}-${index}`, content: task || '' }))}
-                              setList={(newList) => {
-                                const newTasks = newList.map(item => item.content || '');
-                                updateExperienceTasksOrder(exp.id, newTasks);
-                              }}
-                              tag="div"
-                              className="space-y-0 text-black ml-6"
-                            >
-                              {exp.aufgabenbereiche.map((aufgabe, i) => (
-                                <div 
-                                  key={`${exp.id}-${i}`}
-                                  data-id={`${exp.id}-${i}`}
-                                  className="flex items-start space-x-2 group cursor-move py-0.5"
-                                >
-                                  {/* Aufzählungspunkt oder Checkbox je nach BIS-Modus */}
-                                  {isBisTranslatorActive && multiSelectedExperienceIds.includes(exp.id) ? (
-                                    <input
-                                      type="checkbox"
-                                      checked={selectedBisTasks.includes(aufgabe)}
-                                      onChange={(e) => {
-                                        e.stopPropagation();
-                                        toggleBisTaskSelection(aufgabe);
-                                      }}
-                                     className="w-4 h-4 mr-2 flex-shrink-0 mt-0.5 rounded border-gray-300 focus:outline-none"
-                                     style={{ accentColor: '#3B82F6' }}
-                                      onClick={(e) => e.stopPropagation()}
-                                    />
-                                  ) : (
-                                    <span className="text-black mr-2 flex-shrink-0 leading-none">•</span>
-                                  )}
-                                  
-                                  {/* Aufgabentext */}
-                                  <div className="flex-1 min-w-0 leading-none">
-                                    <EditablePreviewText
-                                      value={aufgabe}
-                                      onSave={(newValue) => updateExperienceTask(exp.id, i, newValue)}
-                                      placeholder="Aufgabe eingeben..."
-                                      className="leading-none"
-                                    />
-                                  </div>
-                                  
-                                  {/* Hover-Buttons für Tätigkeiten */}
-                                  <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center space-x-1 flex-shrink-0 ml-2">
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        toggleTaskFavorite(aufgabe);
-                                      }}
-                                      className="p-0.5 hover:bg-gray-200 rounded transition-colors duration-200"
-                                      title={favoriteTasks.includes(aufgabe) ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
-                                    >
-                                      <Star 
-                                        className={`h-5 w-5 ${favoriteTasks.includes(aufgabe) ? 'fill-current text-yellow-500' : 'text-gray-400'}`} 
-                                      />
-                                    </button>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        removeTask(exp.id, i);
-                                      }}
-                                      className="p-0.5 hover:bg-gray-200 rounded transition-colors duration-200"
-                                      title="Aufgabe löschen"
-                                    >
-                                      <X className="h-5 w-5 text-gray-400 hover:text-red-500" />
-                                    </button>
-                                  </div>
-                                </div>
-                              ))}
-                            </ReactSortable>
+                        
+                        {!isBisTranslatorActive && (
+                          <div className="flex items-center space-x-1">
+                            {!isSelected && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  deleteExperience(exp.id);
+                                }}
+                                className="text-gray-500 hover:text-gray-700 p-1 rounded transition-colors duration-200"
+                                title="Berufserfahrung löschen"
+                                aria-label="Berufserfahrung löschen"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            )}
                           </div>
                         )}
-                        
-                        {/* Neue Aufgabe hinzufügen */}
-                        {selectedExperienceId === exp.id && (
-                          <div className="mt-1 flex items-center space-x-2 ml-6">
-                            <input
-                              type="text"
-                              value={newTaskInputs[exp.id] || ''}
-                              onChange={(e) => setNewTaskInputs(prev => ({ ...prev, [exp.id]: e.target.value }))}
-                              onKeyPress={(e) => e.key === 'Enter' && handleAddTask(exp.id)}
-                              placeholder="Neue Aufgabe hinzufügen..."
-                              className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-orange-500"
-                            />
-                            <button
-                              onClick={() => handleAddTask(exp.id)}
-                              disabled={!newTaskInputs[exp.id]?.trim()}
-                              className="p-1 text-white rounded hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-                              style={{ backgroundColor: '#F29400' }}
-                              title="Aufgabe hinzufügen"
-                            >
-                              <Plus className="h-4 w-4" />
-                            </button>
-                          </div>
+
+                        <div className="flex justify-between items-start mb-0.5">
+                          {/* Zeitraum */}
+                          <EditablePreviewText
+                            value={formatZeitraum(
+                              exp.startMonth,
+                              exp.startYear,
+                              exp.endMonth,
+                              exp.endYear,
+                              exp.isCurrent,
+                            )}
+                            onSave={(newValue) => handleExperienceFieldUpdate(exp.id, 'zeitraum', newValue)}
+                            className="text-sm text-gray-700"
+                            placeholder="Zeitraum eingeben..."
+                          />
+                        </div>
+
+                        {/* Position */}
+                        <div className="mb-0.5">
+                          <EditablePreviewText
+                            value={Array.isArray(exp.position) ? exp.position.join(' / ') : (exp.position || "")}
+                            onSave={(newValue) => handleExperienceFieldUpdate(exp.id, 'position', newValue)}
+                            className="font-bold text-lg text-gray-900"
+                            placeholder="Position eingeben..."
+                          />
+                        </div>
+
+                        {/* Unternehmen/Ort */}
+                        <div className="mb-0.5">
+                          <EditablePreviewText
+                            value={(() => {
+                              const companiesText = Array.isArray(exp.companies) ? exp.companies.join(' // ') : (exp.companies || "");
+                              const leasingText = exp.leasingCompaniesList && exp.leasingCompaniesList.length > 0 
+                                ? ` (über ${exp.leasingCompaniesList.join(', ')})`
+                                : '';
+                              return companiesText + leasingText;
+                            })()}
+                            onSave={(newValue) => handleExperienceFieldUpdate(exp.id, 'companies', newValue)}
+                            className="text-gray-700"
+                            placeholder="Unternehmen eingeben..."
+                          />
+                        </div>
+
+                        {/* Erweiterte Inhalte nur bei ausgeklapptem Zustand */}
+                        {isCardExpanded && (
+                          <>
+                            {/* Weitere Angaben */}
+                            {exp.zusatzangaben && (
+                              <div className="mb-1 border-t pt-0.5 border-gray-100">
+                                <div className="flex items-start space-x-2">
+                                  <FileText className="h-4 w-4 mt-1 text-gray-400 flex-shrink-0" />
+                                  <EditablePreviewText
+                                    value={exp.zusatzangaben}
+                                    onSave={(newValue) => updateExperienceField(exp.id, 'zusatzangaben', newValue)}
+                                    isTextArea={true}
+                                    placeholder="Weitere Angaben eingeben..."
+                                  />
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Auflistung Tätigkeiten */}
+                            {Array.isArray(exp.aufgabenbereiche) && exp.aufgabenbereiche.length > 0 && (
+                              <div className="mt-1">
+                                <ReactSortable
+                                  list={exp.aufgabenbereiche.map((task, index) => ({ id: `${exp.id}-${index}`, content: task || '' }))}
+                                  setList={(newList) => {
+                                    const newTasks = newList.map(item => item.content || '');
+                                    updateExperienceTasksOrder(exp.id, newTasks);
+                                  }}
+                                  tag="div"
+                                  className="space-y-0 text-black ml-6"
+                                >
+                                  {exp.aufgabenbereiche.map((aufgabe, i) => (
+                                    <div 
+                                      key={`${exp.id}-${i}`}
+                                      data-id={`${exp.id}-${i}`}
+                                      className="flex items-start space-x-2 group cursor-move py-0.5"
+                                    >
+                                      {/* Aufzählungspunkt oder Checkbox je nach BIS-Modus */}
+                                      {isBisTranslatorActive && multiSelectedExperienceIds.includes(exp.id) ? (
+                                        <input
+                                          type="checkbox"
+                                          checked={selectedBisTasks.includes(aufgabe)}
+                                          onChange={(e) => {
+                                            e.stopPropagation();
+                                            toggleBisTaskSelection(aufgabe);
+                                          }}
+                                         className="w-4 h-4 mr-2 flex-shrink-0 mt-0.5 rounded border-gray-300 focus:outline-none"
+                                         style={{ accentColor: '#3B82F6' }}
+                                          onClick={(e) => e.stopPropagation()}
+                                        />
+                                      ) : (
+                                        <span className="text-black mr-2 flex-shrink-0 leading-none">•</span>
+                                      )}
+                                      
+                                      {/* Aufgabentext */}
+                                      <div className="flex-1 min-w-0 leading-none">
+                                        <EditablePreviewText
+                                          value={aufgabe}
+                                          onSave={(newValue) => updateExperienceTask(exp.id, i, newValue)}
+                                          placeholder="Aufgabe eingeben..."
+                                          className="leading-none"
+                                        />
+                                      </div>
+                                      
+                                      {/* Hover-Buttons für Tätigkeiten */}
+                                      <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center space-x-1 flex-shrink-0 ml-2">
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            toggleTaskFavorite(aufgabe);
+                                          }}
+                                          className="p-0.5 hover:bg-gray-200 rounded transition-colors duration-200"
+                                          title={favoriteTasks.includes(aufgabe) ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
+                                        >
+                                          <Star 
+                                            className={`h-5 w-5 ${favoriteTasks.includes(aufgabe) ? 'fill-current text-yellow-500' : 'text-gray-400'}`} 
+                                          />
+                                        </button>
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            removeTask(exp.id, i);
+                                          }}
+                                          className="p-0.5 hover:bg-gray-200 rounded transition-colors duration-200"
+                                          title="Aufgabe löschen"
+                                        >
+                                          <X className="h-5 w-5 text-gray-400 hover:text-red-500" />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </ReactSortable>
+                              </div>
+                            )}
+                            
+                            {/* Neue Aufgabe hinzufügen */}
+                            {selectedExperienceId === exp.id && (
+                              <div className="mt-1 flex items-center space-x-2 ml-6">
+                                <input
+                                  type="text"
+                                  value={newTaskInputs[exp.id] || ''}
+                                  onChange={(e) => setNewTaskInputs(prev => ({ ...prev, [exp.id]: e.target.value }))}
+                                  onKeyPress={(e) => e.key === 'Enter' && handleAddTask(exp.id)}
+                                  placeholder="Neue Aufgabe hinzufügen..."
+                                  className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-orange-500"
+                                />
+                                <button
+                                  onClick={() => handleAddTask(exp.id)}
+                                  disabled={!newTaskInputs[exp.id]?.trim()}
+                                  className="p-1 text-white rounded hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+                                  style={{ backgroundColor: '#F29400' }}
+                                  title="Aufgabe hinzufügen"
+                                >
+                                  <Plus className="h-4 w-4" />
+                                </button>
+                              </div>
+                            )}
+                          </>
                         )}
                       </>
                     )}

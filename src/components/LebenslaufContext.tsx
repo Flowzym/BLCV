@@ -68,6 +68,7 @@ interface LebenslaufContextType {
   favoriteAbschluesse: string[];
   isBisTranslatorActive: boolean;
   selectedBisTasks: string[];
+  bisTranslatorResults: string[];
   previewTab: PreviewTab;
   activeTab: ActiveTab;
   cvSuggestions: any;
@@ -143,6 +144,7 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
   const [favoriteAbschluesse, setFavoriteAbschluesse] = useState<string[]>([]);
   const [isBisTranslatorActive, setIsBisTranslatorActive] = useState<boolean>(false);
   const [selectedBisTasks, setSelectedBisTasks] = useState<string[]>([]);
+  const [bisTranslatorResults, setBisTranslatorResults] = useState<string[]>([]);
   const [previewTab, setPreviewTab] = useState<PreviewTab>('gesamt');
   const [activeTab, setActiveTab] = useState<ActiveTab>('personal');
   const [cvSuggestions, setCvSuggestions] = useState<CVSuggestionConfig>({
@@ -359,6 +361,10 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
     );
   };
 
+  const setBisTranslatorResultsContext = (results: string[]) => {
+    setBisTranslatorResults(results);
+  };
+
   const contextValue: LebenslaufContextType = {
     personalData,
     berufserfahrung,
@@ -374,6 +380,7 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
     favoriteAbschluesse,
     isBisTranslatorActive,
     selectedBisTasks,
+    bisTranslatorResults,
     previewTab,
     activeTab,
     cvSuggestions,
@@ -405,6 +412,7 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
     
     setIsBisTranslatorActive,
     toggleBisTaskSelection,
+    setBisTranslatorResults: setBisTranslatorResultsContext,
     
     setPreviewTab,
     setActiveTab,

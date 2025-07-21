@@ -46,7 +46,8 @@ export default function AiHelpPanel() {
     updatePersonalData,
     personalData,
     selectedBisTasks,
-    toggleBisTaskSelection
+    toggleBisTaskSelection,
+    setBisTranslatorResults
   } = useLebenslauf();
   
   // Load all models and AI help settings
@@ -228,6 +229,10 @@ export default function AiHelpPanel() {
         results: result.split('\n').filter(line => line.trim()),
         isTranslating: false
       }));
+      
+      // Auch im LebenslaufContext speichern für die Vorschau
+      const resultLines = result.split('\n').filter(line => line.trim());
+      setBisTranslatorResults(resultLines);
     } catch (error) {
       console.error('BIS translation failed:', error);
       setBisTranslator(prev => ({ ...prev, isTranslating: false }));
@@ -291,6 +296,8 @@ export default function AiHelpPanel() {
       ...prev,
       results: []
     }));
+    // Auch im LebenslaufContext leeren
+    setBisTranslatorResults([]);
     // Clear all selected tasks
     selectedBisTasks.forEach(task => {
       toggleBisTaskSelection(task);
