@@ -4,6 +4,7 @@ import { ReactSortable } from 'react-sortablejs';
 import { useLebenslauf } from './LebenslaufContext';
 import EditablePreviewText from './EditablePreviewText';
 import TabNavigation from './layout/TabNavigation';
+import { useState } from 'react';
 
 type PreviewTab = 'gesamt' | 'berufserfahrung' | 'ausbildung' | 'fachkompetenzen' | 'softskills';
 
@@ -46,6 +47,7 @@ export default function LebenslaufPreview() {
 
   const [newTaskInputs, setNewTaskInputs] = useState<Record<string, string>>({});
   const [showAllExpanded, setShowAllExpanded] = useState(false);
+  const [showMoreSuggestions, setShowMoreSuggestions] = useState<string | null>(null);
 
   const previewTabs = [
     { id: 'gesamt', label: 'Gesamt' },
@@ -180,6 +182,19 @@ export default function LebenslaufPreview() {
 
   const toggleTaskFavorite = (task: string) => {
     toggleFavoriteTask(task);
+  };
+
+  const replaceTask = (expId: string, taskIndex: number, newTask: string) => {
+    updateExperienceTask(expId, taskIndex, newTask);
+  };
+
+  const addTaskAfter = (expId: string, taskIndex: number, newTask: string) => {
+    const experience = berufserfahrung.find(exp => exp.id === expId);
+    if (experience && experience.aufgabenbereiche) {
+      const newTasks = [...experience.aufgabenbereiche];
+      newTasks.splice(taskIndex + 1, 0, newTask);
+      updateExperienceField(expId, 'aufgabenbereiche', newTasks);
+    }
   };
 
   const isExpanded = (id: string, type: 'experience' | 'education') => {
@@ -630,6 +645,94 @@ export default function LebenslaufPreview() {
                                           className="leading-none"
                                         />
                                       </div>
+                                      
+                                      {/* BIS-Übersetzungsvorschlag inline */}
+                                      {bisTranslatorResults[aufgabe] && bisTranslatorResults[aufgabe].length > 0 && (
+                                        <div className="flex items-center space-x-2 ml-2 relative">
+                                          <span className="text-sm text-green-700 bg-green-50 px-2 py-1 rounded border border-green-200">
+                                            {bisTranslatorResults[aufgabe][0]}
+                                          </span>
+                                          
+                                          {/* Action Buttons */}
+                                          <div className="flex items-center space-x-1">
+                                            <button
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                replaceTask(exp.id, i, bisTranslatorResults[aufgabe][0]);
+                                              }}
+                                              className="px-2 py-1 text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 rounded transition-colors duration-200"
+                                              title="Tätigkeit ersetzen"
+                                            >
+                                              Ersetzen
+                                            </button>
+                                            <button
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                addTaskAfter(exp.id, i, bisTranslatorResults[aufgabe][0]);
+                                              }}
+                                              className="px-2 py-1 text-xs bg-green-100 text-green-700 hover:bg-green-200 rounded transition-colors duration-200"
+                                              title="Als neue Tätigkeit hinzufügen"
+                                            >
+                                              Hinzufügen
+                                            </button>
+                                            {bisTranslatorResults[aufgabe].length > 1 && (
+                                              <div className="relative">
+                                                <button
+                                                  onMouseEnter={() => setShowMoreSuggestions(aufgabe)}
+                                                  onMouseLeave={() => setShowMoreSuggestions(null)}
+                                                  className="px-2 py-1 text-xs bg-gray-100 text-gray-700 hover:bg-gray-200 rounded transition-colors duration-200"
+                                                  title="Weitere Vorschläge anzeigen"
+                                                >
+                                                  Mehr ({bisTranslatorResults[aufgabe].length - 1})
+                                                </button>
+                                                
+                                                {/* More suggestions popup */}
+                                                {showMoreSuggestions === aufgabe && (
+                                                  <div 
+                                                    className="absolute top-full right-0 mt-1 bg-white border border-gray-300 rounded-lg shadow-lg p-2 z-50 min-w-[300px]"
+                                                    onMouseEnter={() => setShowMoreSuggestions(aufgabe)}
+                                                    onMouseLeave={() => setShowMoreSuggestions(null)}
+                                                  >
+                                                    <div className="space-y-2">
+                                                      {bisTranslatorResults[aufgabe].slice(1).map((suggestion, suggestionIndex) => (
+                                                        <div key={suggestionIndex} className="flex items-center justify-between space-x-2 p-2 bg-green-50 rounded border border-green-200">
+                                                          <span className="text-sm text-green-700 flex-1">
+                                                            {suggestion}
+                                                          </span>
+                                                          <div className="flex space-x-1">
+                                                            <button
+                                                              onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                replaceTask(exp.id, i, suggestion);
+                                                                setShowMoreSuggestions(null);
+                                                              }}
+                                                              className="px-2 py-1 text-xs bg-blue-100 text-blue-700 hover:bg-blue-200 rounded transition-colors duration-200"
+                                                              title="Tätigkeit ersetzen"
+                                                            >
+                                                              Ersetzen
+                                                            </button>
+                                                            <button
+                                                              onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                addTaskAfter(exp.id, i, suggestion);
+                                                                setShowMoreSuggestions(null);
+                                                              }}
+                                                              className="px-2 py-1 text-xs bg-green-100 text-green-700 hover:bg-green-200 rounded transition-colors duration-200"
+                                                              title="Als neue Tätigkeit hinzufügen"
+                                                            >
+                                                              Hinzufügen
+                                                            </button>
+                                                          </div>
+                                                        </div>
+                                                      ))}
+                                                    </div>
+                                                  </div>
+                                                )}
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
+                                      )}
                                       
                                       {/* Hover-Buttons für Tätigkeiten */}
                                       <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center space-x-1 flex-shrink-0 ml-2">

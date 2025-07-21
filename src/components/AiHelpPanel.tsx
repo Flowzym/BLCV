@@ -17,7 +17,7 @@ import {
   FileText
 } from 'lucide-react';
 import { useLebenslauf } from './LebenslaufContext';
-import { generateText } from '../services/mistralService';
+import { generateText, generateBisSuggestions } from '../services/mistralService';
 import { loadKIConfigs } from '../services/supabaseService';
 import { KIModelSettings } from '../types/KIModelSettings';
 
@@ -200,39 +200,29 @@ export default function AiHelpPanel() {
 
     setBisTranslator(prev => ({ ...prev, isTranslating: true }));
 
-    // Collect positions from all selected experiences
-    const allPositions = selectedExperiences.reduce((positions, exp) => {
-      if (exp.position && exp.position.length > 0) {
-        exp.position.forEach(pos => {
-          if (!positions.includes(pos)) {
-            positions.push(pos);
-          }
-        });
-      }
-      return positions;
-    }, [] as string[]);
-
-    let positionContext = '';
-    if (allPositions.length > 0) {
-      positionContext = `Für die Position(en): ${allPositions.join(', ')}\n`;
-    }
-
     try {
-      const tasksText = bisTranslator.selectedTasks.join('\n- ');
-      const basePromptWithContext = aiHelpSettings.bisPrompt.replace('{POSITION_CONTEXT}', positionContext);
-      const fullPrompt = `${basePromptWithContext}\n${tasksText}`;
-
-      const result = await generateText(fullPrompt, bisModel);
+      const results: Record<string, string[]> = {};
       
+      // Process each task individually
+      for (const task of bisTranslator.selectedTasks) {
+        try {
+          const suggestions = await generateBisSuggestions(task, bisModel, aiHelpSettings.bisPrompt);
+          if (suggestions.length > 0) {
+            results[task] = suggestions;
+          }
+        } catch (error) {
+          console.error(`Error translating task "${task}":`, error);
+        }
+      }
+      
+      // Update both local state and context
       setBisTranslator(prev => ({
         ...prev,
-        results: result.split('\n').filter(line => line.trim()),
+        results: Object.values(results).flat(),
         isTranslating: false
       }));
       
-      // Auch im LebenslaufContext speichern für die Vorschau
-      const resultLines = result.split('\n').filter(line => line.trim());
-      setBisTranslatorResults(resultLines);
+      setBisTranslatorResults(results);
     } catch (error) {
       console.error('BIS translation failed:', error);
       setBisTranslator(prev => ({ ...prev, isTranslating: false }));
@@ -296,8 +286,8 @@ export default function AiHelpPanel() {
       ...prev,
       results: []
     }));
-    // Auch im LebenslaufContext leeren
-    setBisTranslatorResults([]);
+    // Clear context results
+    setBisTranslatorResults({});
     // Clear all selected tasks
     selectedBisTasks.forEach(task => {
       toggleBisTaskSelection(task);

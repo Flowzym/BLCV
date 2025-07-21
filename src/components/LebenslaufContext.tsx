@@ -68,7 +68,7 @@ interface LebenslaufContextType {
   favoriteAbschluesse: string[];
   isBisTranslatorActive: boolean;
   selectedBisTasks: string[];
-  bisTranslatorResults: string[];
+  bisTranslatorResults: Record<string, string[]>;
   previewTab: PreviewTab;
   activeTab: ActiveTab;
   cvSuggestions: any;
@@ -105,6 +105,7 @@ interface LebenslaufContextType {
   // BIS methods
   setIsBisTranslatorActive: (active: boolean) => void;
   toggleBisTaskSelection: (task: string) => void;
+  setBisTranslatorResults: (results: Record<string, string[]>) => void;
   
   // Preview tab methods
   setPreviewTab: (tab: PreviewTab) => void;
@@ -144,7 +145,7 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
   const [favoriteAbschluesse, setFavoriteAbschluesse] = useState<string[]>([]);
   const [isBisTranslatorActive, setIsBisTranslatorActive] = useState<boolean>(false);
   const [selectedBisTasks, setSelectedBisTasks] = useState<string[]>([]);
-  const [bisTranslatorResults, setBisTranslatorResults] = useState<string[]>([]);
+  const [bisTranslatorResults, setBisTranslatorResults] = useState<Record<string, string[]>>({});
   const [previewTab, setPreviewTab] = useState<PreviewTab>('gesamt');
   const [activeTab, setActiveTab] = useState<ActiveTab>('personal');
   const [cvSuggestions, setCvSuggestions] = useState<CVSuggestionConfig>({
@@ -361,10 +362,6 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
     );
   };
 
-  const setBisTranslatorResultsContext = (results: string[]) => {
-    setBisTranslatorResults(results);
-  };
-
   const contextValue: LebenslaufContextType = {
     personalData,
     berufserfahrung,
@@ -412,7 +409,7 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
     
     setIsBisTranslatorActive,
     toggleBisTaskSelection,
-    setBisTranslatorResults: setBisTranslatorResultsContext,
+    setBisTranslatorResults,
     
     setPreviewTab,
     setActiveTab,
