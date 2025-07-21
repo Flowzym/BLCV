@@ -1,0 +1,362 @@
+import React, { createContext, useContext, useState, ReactNode } from 'react';
+
+// Types
+interface PersonalData {
+  [key: string]: any;
+}
+
+interface Experience {
+  id: string;
+  companies: string[];
+  position: string[];
+  startMonth: string | null;
+  startYear: string | null;
+  endMonth: string | null;
+  endYear: string | null;
+  isCurrent: boolean;
+  aufgabenbereiche: string[];
+  zusatzangaben: string;
+  leasingCompaniesList?: string[];
+}
+
+interface Education {
+  id: string;
+  institution: string[];
+  ausbildungsart: string[];
+  abschluss: string[];
+  startMonth: string | null;
+  startYear: string | null;
+  endMonth: string | null;
+  endYear: string | null;
+  isCurrent: boolean;
+  zusatzangaben: string;
+}
+
+type PreviewTab = 'gesamt' | 'berufserfahrung' | 'ausbildung' | 'fachkompetenzen' | 'softskills';
+type ActiveTab = 'personal' | 'experience' | 'education' | 'skills' | 'softskills';
+
+interface LebenslaufContextType {
+  personalData: PersonalData;
+  berufserfahrung: Experience[];
+  ausbildung: Education[];
+  selectedExperienceId: string;
+  selectedEducationId: string;
+  multiSelectedExperienceIds: string[];
+  favoriteTasks: string[];
+  favoriteCompanies: string[];
+  favoritePositions: string[];
+  favoriteInstitutions: string[];
+  favoriteAusbildungsarten: string[];
+  favoriteAbschluesse: string[];
+  isBisTranslatorActive: boolean;
+  selectedBisTasks: string[];
+  previewTab: PreviewTab;
+  activeTab: ActiveTab;
+  cvSuggestions: any;
+  
+  // Personal data methods
+  updatePersonalData: (data: PersonalData) => void;
+  
+  // Experience methods
+  addExperience: (experience: Partial<Experience>) => void;
+  updateExperience: (id: string, experience: Partial<Experience>) => void;
+  selectExperience: (id: string) => void;
+  toggleMultiExperienceSelection: (id: string) => void;
+  deleteExperience: (id: string) => void;
+  updateExperienceField: (id: string, field: string, value: any) => void;
+  updateExperienceTask: (id: string, taskIndex: number, newTask: string) => void;
+  updateExperienceTasksOrder: (id: string, newTasks: string[]) => void;
+  addExperienceTask: (id: string, task: string) => void;
+  
+  // Education methods
+  addEducation: (education: Partial<Education>) => void;
+  updateEducation: (id: string, education: Partial<Education>) => void;
+  selectEducation: (id: string) => void;
+  deleteEducation: (id: string) => void;
+  updateEducationField: (id: string, field: string, value: any) => void;
+  
+  // Task methods
+  toggleFavoriteTask: (task: string) => void;
+  toggleFavoriteCompany: (company: string) => void;
+  toggleFavoritePosition: (position: string) => void;
+  toggleFavoriteInstitution: (institution: string) => void;
+  toggleFavoriteAusbildungsart: (ausbildungsart: string) => void;
+  toggleFavoriteAbschluss: (abschluss: string) => void;
+  
+  // BIS methods
+  setIsBisTranslatorActive: (active: boolean) => void;
+  toggleBisTaskSelection: (task: string) => void;
+  
+  // Preview tab methods
+  setPreviewTab: (tab: PreviewTab) => void;
+  
+  // Active tab methods
+  setActiveTab: (tab: ActiveTab) => void;
+}
+
+const LebenslaufContext = createContext<LebenslaufContextType | undefined>(undefined);
+
+export function LebenslaufProvider({ children }: { children: ReactNode }) {
+  const [personalData, setPersonalData] = useState<PersonalData>({});
+  const [berufserfahrung, setBerufserfahrung] = useState<Experience[]>([]);
+  const [ausbildung, setAusbildung] = useState<Education[]>([]);
+  const [selectedExperienceId, setSelectedExperienceId] = useState<string>('');
+  const [selectedEducationId, setSelectedEducationId] = useState<string>('');
+  const [multiSelectedExperienceIds, setMultiSelectedExperienceIds] = useState<string[]>([]);
+  const [favoriteTasks, setFavoriteTasks] = useState<string[]>([]);
+  const [favoriteCompanies, setFavoriteCompanies] = useState<string[]>([]);
+  const [favoritePositions, setFavoritePositions] = useState<string[]>([]);
+  const [favoriteInstitutions, setFavoriteInstitutions] = useState<string[]>([]);
+  const [favoriteAusbildungsarten, setFavoriteAusbildungsarten] = useState<string[]>([]);
+  const [favoriteAbschluesse, setFavoriteAbschluesse] = useState<string[]>([]);
+  const [isBisTranslatorActive, setIsBisTranslatorActive] = useState<boolean>(false);
+  const [selectedBisTasks, setSelectedBisTasks] = useState<string[]>([]);
+  const [previewTab, setPreviewTab] = useState<PreviewTab>('gesamt');
+  const [activeTab, setActiveTab] = useState<ActiveTab>('personal');
+  const [cvSuggestions, setCvSuggestions] = useState<any>({});
+
+  // Personal data methods
+  const updatePersonalData = (data: PersonalData) => {
+    setPersonalData(data);
+  };
+
+  // Experience methods
+  const addExperience = (experience: Partial<Experience>) => {
+    const newExperience: Experience = {
+      id: Date.now().toString(),
+      companies: experience.companies || [],
+      position: experience.position || [],
+      startMonth: experience.startMonth || null,
+      startYear: experience.startYear || null,
+      endMonth: experience.endMonth || null,
+      endYear: experience.endYear || null,
+      isCurrent: experience.isCurrent || false,
+      aufgabenbereiche: experience.aufgabenbereiche || [],
+      zusatzangaben: experience.zusatzangaben || '',
+      leasingCompaniesList: experience.leasingCompaniesList || []
+    };
+    setBerufserfahrung(prev => [...prev, newExperience]);
+    setSelectedExperienceId(newExperience.id);
+  };
+
+  const updateExperience = (id: string, experience: Partial<Experience>) => {
+    setBerufserfahrung(prev => prev.map(exp => 
+      exp.id === id ? { ...exp, ...experience } : exp
+    ));
+  };
+
+  const selectExperience = (id: string) => {
+    setSelectedExperienceId(id);
+  };
+
+  const toggleMultiExperienceSelection = (id: string) => {
+    setMultiSelectedExperienceIds(prev => 
+      prev.includes(id) 
+        ? prev.filter(expId => expId !== id)
+        : [...prev, id]
+    );
+  };
+
+  const deleteExperience = (id: string) => {
+    setBerufserfahrung(prev => prev.filter(exp => exp.id !== id));
+    if (selectedExperienceId === id) {
+      setSelectedExperienceId('');
+    }
+    setMultiSelectedExperienceIds(prev => prev.filter(expId => expId !== id));
+  };
+
+  const updateExperienceField = (id: string, field: string, value: any) => {
+    setBerufserfahrung(prev => prev.map(exp => 
+      exp.id === id ? { ...exp, [field]: value } : exp
+    ));
+  };
+
+  const updateExperienceTask = (id: string, taskIndex: number, newTask: string) => {
+    setBerufserfahrung(prev => prev.map(exp => {
+      if (exp.id === id && exp.aufgabenbereiche) {
+        const newTasks = [...exp.aufgabenbereiche];
+        newTasks[taskIndex] = newTask;
+        return { ...exp, aufgabenbereiche: newTasks };
+      }
+      return exp;
+    }));
+  };
+
+  const updateExperienceTasksOrder = (id: string, newTasks: string[]) => {
+    setBerufserfahrung(prev => prev.map(exp => 
+      exp.id === id ? { ...exp, aufgabenbereiche: newTasks } : exp
+    ));
+  };
+
+  const addExperienceTask = (id: string, task: string) => {
+    setBerufserfahrung(prev => prev.map(exp => 
+      exp.id === id 
+        ? { ...exp, aufgabenbereiche: [...(exp.aufgabenbereiche || []), task] }
+        : exp
+    ));
+  };
+
+  // Education methods
+  const addEducation = (education: Partial<Education>) => {
+    const newEducation: Education = {
+      id: Date.now().toString(),
+      institution: education.institution || [],
+      ausbildungsart: education.ausbildungsart || [],
+      abschluss: education.abschluss || [],
+      startMonth: education.startMonth || null,
+      startYear: education.startYear || null,
+      endMonth: education.endMonth || null,
+      endYear: education.endYear || null,
+      isCurrent: education.isCurrent || false,
+      zusatzangaben: education.zusatzangaben || ''
+    };
+    setAusbildung(prev => [...prev, newEducation]);
+    setSelectedEducationId(newEducation.id);
+  };
+
+  const updateEducation = (id: string, education: Partial<Education>) => {
+    setAusbildung(prev => prev.map(edu => 
+      edu.id === id ? { ...edu, ...education } : edu
+    ));
+  };
+
+  const selectEducation = (id: string) => {
+    setSelectedEducationId(id);
+  };
+
+  const deleteEducation = (id: string) => {
+    setAusbildung(prev => prev.filter(edu => edu.id !== id));
+    if (selectedEducationId === id) {
+      setSelectedEducationId('');
+    }
+  };
+
+  const updateEducationField = (id: string, field: string, value: any) => {
+    setAusbildung(prev => prev.map(edu => 
+      edu.id === id ? { ...edu, [field]: value } : edu
+    ));
+  };
+
+  // Task methods
+  const toggleFavoriteTask = (task: string) => {
+    setFavoriteTasks(prev => 
+      prev.includes(task)
+        ? prev.filter(t => t !== task)
+        : [...prev, task]
+    );
+  };
+
+  const toggleFavoriteCompany = (company: string) => {
+    setFavoriteCompanies(prev => 
+      prev.includes(company)
+        ? prev.filter(c => c !== company)
+        : [...prev, company]
+    );
+  };
+
+  const toggleFavoritePosition = (position: string) => {
+    setFavoritePositions(prev => 
+      prev.includes(position)
+        ? prev.filter(p => p !== position)
+        : [...prev, position]
+    );
+  };
+
+  const toggleFavoriteInstitution = (institution: string) => {
+    setFavoriteInstitutions(prev => 
+      prev.includes(institution)
+        ? prev.filter(i => i !== institution)
+        : [...prev, institution]
+    );
+  };
+
+  const toggleFavoriteAusbildungsart = (ausbildungsart: string) => {
+    setFavoriteAusbildungsarten(prev => 
+      prev.includes(ausbildungsart)
+        ? prev.filter(a => a !== ausbildungsart)
+        : [...prev, ausbildungsart]
+    );
+  };
+
+  const toggleFavoriteAbschluss = (abschluss: string) => {
+    setFavoriteAbschluesse(prev => 
+      prev.includes(abschluss)
+        ? prev.filter(a => a !== abschluss)
+        : [...prev, abschluss]
+    );
+  };
+
+  // BIS methods
+  const toggleBisTaskSelection = (task: string) => {
+    setSelectedBisTasks(prev => 
+      prev.includes(task)
+        ? prev.filter(t => t !== task)
+        : [...prev, task]
+    );
+  };
+
+  const contextValue: LebenslaufContextType = {
+    personalData,
+    berufserfahrung,
+    ausbildung,
+    selectedExperienceId,
+    selectedEducationId,
+    multiSelectedExperienceIds,
+    favoriteTasks,
+    favoriteCompanies,
+    favoritePositions,
+    favoriteInstitutions,
+    favoriteAusbildungsarten,
+    favoriteAbschluesse,
+    isBisTranslatorActive,
+    selectedBisTasks,
+    previewTab,
+    activeTab,
+    cvSuggestions,
+    
+    updatePersonalData,
+    
+    addExperience,
+    updateExperience,
+    selectExperience,
+    toggleMultiExperienceSelection,
+    deleteExperience,
+    updateExperienceField,
+    updateExperienceTask,
+    updateExperienceTasksOrder,
+    addExperienceTask,
+    
+    addEducation,
+    updateEducation,
+    selectEducation,
+    deleteEducation,
+    updateEducationField,
+    
+    toggleFavoriteTask,
+    toggleFavoriteCompany,
+    toggleFavoritePosition,
+    toggleFavoriteInstitution,
+    toggleFavoriteAusbildungsart,
+    toggleFavoriteAbschluss,
+    
+    setIsBisTranslatorActive,
+    toggleBisTaskSelection,
+    
+    setPreviewTab,
+    setActiveTab,
+  };
+
+  return (
+    <LebenslaufContext.Provider value={contextValue}>
+      {children}
+    </LebenslaufContext.Provider>
+  );
+}
+
+export function useLebenslauf() {
+  const context = useContext(LebenslaufContext);
+  if (context === undefined) {
+    throw new Error('useLebenslauf must be used within a LebenslaufProvider');
+  }
+  return context;
+}

@@ -1,0 +1,400 @@
+@import url("https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,300;0,400;0,500;0,700;1,400&display=swap");
+@tailwind base;
+@tailwind components;
+@import "./styles/_tags.scss";
+@import "./styles/tailwind.css";
+@tailwind utilities;
+@layer base {
+  body {
+    font-family: "Roboto", sans-serif;
+    background-color: white;
+  }
+}
+
+/* BOLT-UI-ANPASSUNG 2025-01-15: Toolbar nimmt volle Breite des Editor-Blocks ein */
+.toolbar-wrapper {
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+  box-sizing: border-box;
+  background: #fff;
+  border-bottom: 1px solid #e5e7eb;
+  margin-bottom: 24px; /* BOLT-UI-ANPASSUNG 2025-01-15: Abstand zur Editorfläche vergrößert */
+}
+
+/* BOLT-UI-ANPASSUNG 2025-01-15: Toolbar Content - kompakter und effizienter */
+#custom-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 10px 12px;
+  gap: 4px;
+  position: relative;
+}
+
+/* BOLT-UI-ANPASSUNG 2025-01-15: Overflow Popup Styling */
+.overflow-popup {
+  position: absolute;
+  background: white;
+  border: 2px solid #f29400;
+  border-radius: 8px;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  min-width: 220px;
+  max-width: 300px;
+  padding: 8px;
+}
+
+.overflow-popup-content {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: center;
+}
+
+.overflow-popup-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 4px;
+  background: transparent; /* BOLT-UI-ANPASSUNG 2025-01-15: Keine helle Hintergrundfarbe */
+  margin-bottom: 4px;
+}
+
+.overflow-popup-group:last-child {
+  margin-bottom: 0;
+}
+
+/* BOLT-UI-ANPASSUNG 2025-01-15: Mehr-Button Styling */
+.more-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
+  background: #f29400;
+  color: white; /* Keep white for selected */
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 36px;
+  height: 36px;
+}
+
+.more-button:hover {
+  background: #e8850c;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(242, 148, 0, 0.3);
+}
+
+.more-button.active {
+  background: #e8850c;
+  box-shadow: 0 4px 8px rgba(242, 148, 0, 0.3);
+}
+
+/* BOLT-UI-ANPASSUNG 2025-01-15: Zentrierte Container-Struktur */
+.editor-root {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.editor-paper-sheet {
+  max-width: 794px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+/* BOLT-UI-ANPASSUNG 2025-01-15: Quill Editor Styling - A4-Simulation */
+.ql-container {
+  border: none !important;
+  font-family: "Roboto", Arial, sans-serif !important;
+  font-size: 14px !important;
+  line-height: 1.6 !important;
+}
+
+.ql-editor {
+  padding: 64px 72px !important; /* BOLT-UI-ANPASSUNG 2025-01-15: 3cm Ränder für A4 */
+  font-family: "Roboto", Arial, sans-serif !important;
+  font-size: 14px !important;
+  line-height: 1.6 !important;
+  color: #1f2937 !important;
+  min-height: calc(
+    1123px - 128px
+  ) !important; /* BOLT-UI-ANPASSUNG 2025-01-15: A4-Höhe minus Padding */
+  box-sizing: border-box;
+}
+
+.ql-editor.ql-blank::before {
+  font-style: normal !important;
+  color: #9ca3af !important;
+  font-family: "Roboto", Arial, sans-serif !important;
+  left: 72px !important;
+  right: 72px !important;
+  top: 64px !important;
+  content: "" !important; /* BOLT-UI-ANPASSUNG 2025-01-15: Kein Platzhaltertext */
+}
+
+/* BOLT-UI-ANPASSUNG 2025-01-15: Quill's eigene Toolbar komplett ausblenden */
+.ql-toolbar {
+  display: none !important;
+}
+
+/* BOLT-UI-ANPASSUNG 2025-01-15: Content Styles */
+.ql-editor h1,
+.ql-editor h2,
+.ql-editor h3 {
+  font-weight: bold !important;
+  margin-bottom: 0.5em !important;
+  margin-top: 1em !important;
+  line-height: 1.4 !important;
+}
+
+/* BOLT-UI-ANPASSUNG 2025-01-15: Tag Button Specific Overrides */
+.ql-editor h1 {
+  font-size: 1.5em !important;
+}
+
+.ql-editor h2 {
+  font-size: 1.3em !important;
+}
+
+.ql-editor h3 {
+  font-size: 1.1em !important;
+}
+
+.ql-editor p {
+  margin-bottom: 1em !important;
+  line-height: 1.6 !important;
+}
+
+.ql-editor ul,
+.ql-editor ol {
+  margin-bottom: 1em !important;
+  padding-left: 2em !important;
+}
+
+.ql-editor ul li,
+.ql-editor ol li {
+  margin-bottom: 0.5em !important;
+  line-height: 1.6 !important;
+}
+
+.ql-editor blockquote {
+  border-left: 4px solid #f29400 !important;
+  padding-left: 1em !important;
+  margin: 1em 0 !important;
+  font-style: italic !important;
+  background: #fef7ee !important;
+  padding: 1em !important;
+  border-radius: 0 8px 8px 0 !important;
+}
+
+.ql-editor a {
+  color: #f29400 !important;
+  text-decoration: underline !important;
+}
+
+.ql-editor strong {
+  font-weight: bold !important;
+}
+
+.ql-editor em {
+  font-style: italic !important;
+}
+
+.ql-editor u {
+  text-decoration: underline !important;
+}
+
+.ql-editor s {
+  text-decoration: line-through !important;
+}
+
+/* BOLT-UI-ANPASSUNG 2025-01-15: Schriftgrößen-spezifische Styles */
+.ql-size-small {
+  font-size: 0.75em !important;
+}
+
+.ql-size-large {
+  font-size: 1.5em !important;
+}
+
+.ql-size-huge {
+  font-size: 2.5em !important;
+}
+
+/* Custom fonts for Quill */
+.ql-font-serif {
+  font-family: "Times New Roman", serif !important;
+}
+
+.ql-font-monospace {
+  font-family: "Courier New", monospace !important;
+}
+
+.ql-font-Arial {
+  font-family: Arial, sans-serif !important;
+}
+
+.ql-font-Helvetica {
+  font-family: Helvetica, sans-serif !important;
+}
+
+.ql-font-Georgia {
+  font-family: Georgia, serif !important;
+}
+
+.ql-font-Verdana {
+  font-family: Verdana, sans-serif !important;
+}
+
+.ql-font-Tahoma {
+  font-family: Tahoma, sans-serif !important;
+}
+
+/* Custom Quill pickers */
+.ql-color .ql-picker-item,
+.ql-background .ql-picker-item {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+}
+
+.ql-picker.ql-lineheight .ql-picker-label::before,
+.ql-picker.ql-lineheight .ql-picker-item::before,
+.ql-picker.ql-margintop .ql-picker-label::before,
+.ql-picker.ql-margintop .ql-picker-item::before,
+.ql-picker.ql-marginbottom .ql-picker-label::before,
+.ql-picker.ql-marginbottom .ql-picker-item::before {
+  content: attr(data-value);
+}
+
+/* BOLT-UI-ANPASSUNG 2025-01-15: Zeilenabstand-Styles */
+.ql-editor[style*="line-height: 1"] {
+  line-height: 1 !important;
+}
+
+.ql-editor[style*="line-height: 1.15"] {
+  line-height: 1.15 !important;
+}
+
+.ql-editor[style*="line-height: 1.5"] {
+  line-height: 1.5 !important;
+}
+
+.ql-editor[style*="line-height: 2"] {
+  line-height: 2 !important;
+}
+
+/* BOLT-UI-ANPASSUNG 2025-01-15: Mobile Optimierungen */
+@media (max-width: 850px) {
+  .toolbar-wrapper {
+    padding: 0 8px;
+  }
+
+  #custom-toolbar {
+    padding: 8px 12px;
+    gap: 6px;
+  }
+
+  .editor-paper-sheet {
+    max-width: 100%;
+    padding: 0 16px;
+  }
+
+  .ql-editor {
+    padding: 32px 24px !important; /* Smaller margins on tablet */
+  }
+
+  .ql-editor.ql-blank::before {
+    left: 24px !important;
+    right: 24px !important;
+    top: 32px !important;
+  }
+
+  .overflow-popup {
+    right: 8px;
+    max-width: calc(100vw - 32px);
+  }
+}
+
+@media (max-width: 480px) {
+  .toolbar-wrapper {
+    padding: 0 4px;
+  }
+
+  #custom-toolbar {
+    padding: 6px 8px;
+    gap: 4px;
+  }
+
+  .editor-paper-sheet {
+    max-width: 100%;
+    padding: 0 8px;
+  }
+
+  .ql-editor {
+    padding: 24px 16px !important; /* Smaller margins on mobile */
+  }
+
+  .ql-editor.ql-blank::before {
+    left: 16px !important;
+    right: 16px !important;
+    top: 24px !important;
+  }
+
+  .overflow-popup {
+    right: 4px;
+    max-width: calc(100vw - 16px);
+  }
+}
+
+/* BOLT-UI-ANPASSUNG 2025-01-15: Print Styles */
+@media print {
+  #custom-toolbar,
+  .toolbar-wrapper,
+  .overflow-popup {
+    display: none !important;
+  }
+
+  .ql-editor {
+    padding: 0 !important;
+    min-height: auto !important;
+  }
+}
+
+/* BOLT-UI-ANPASSUNG 2025-01-15: Fokus-Management für Editor */
+.profile-input:focus-within,
+.autocomplete-input:focus-within,
+input:focus,
+textarea:focus,
+select:focus,
+button:focus {
+  z-index: 10;
+}
+
+/* Prevent unwanted editor focus */
+.ql-editor {
+  outline: none !important;
+  cursor: text;
+}
+
+.ql-editor:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+/* Prevent focus unless explicitly allowed */
+.ql-container .ql-editor[tabindex="-1"] {
+  cursor: default;
+}
+
+.ql-container .ql-editor[tabindex="-1"]:focus {
+  outline: none !important;
+  cursor: default;
+}

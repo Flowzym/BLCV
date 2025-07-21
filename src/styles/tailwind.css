@@ -1,0 +1,11 @@
+@layer components {
+  .tag-button-favorite {
+    @apply bg-[#efefef] text-gray-700 border border-gray-300 rounded-full;
+  }
+  .tag-button-selected {
+    @apply bg-[#F29400] text-white border border-[#F29400] rounded-full;
+  }
+  .star-icon {
+    @apply w-4 h-4 flex items-center justify-center text-yellow-400;
+  }
+}

@@ -1,0 +1,44 @@
+.tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  background-color: #f29400;
+  color: white;
+  transition: background-color 0.2s;
+}
+
+.tag:hover {
+  background-color: #e8850c;
+}
+
+.tag-icon-button {
+  display: inline-flex;
+  margin-left: 0.25rem;
+  transition:
+    opacity 0.2s,
+    transform 0.1s;
+}
+
+.tag-icon-button:hover {
+  opacity: 0.8;
+}
+
+.tag-icon-button:active {
+  transform: scale(0.9);
+}
+
+.tag-icon {
+  width: 0.75rem;
+  height: 0.75rem;
+}
+.star-icon {
+  display: inline-flex;
+  margin-left: 0.25rem;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+.star-icon:hover {
+  opacity: 0.8;
+}
