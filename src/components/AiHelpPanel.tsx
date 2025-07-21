@@ -21,6 +21,55 @@ import { generateText, generateBisSuggestions } from '../services/mistralService
 import { loadKIConfigs } from '../services/supabaseService';
 import { KIModelSettings } from '../types/KIModelSettings';
 
+// Default prompts for AI help functions
+const DEFAULT_BIS_PROMPT = `Du bist ein Experte für die BIS-Kompetenzen des AMS (Arbeitsmarktservice Österreich). Deine Aufgabe ist es, Tätigkeitsbeschreibungen in die **offiziellen, standardisierten und kurzen BIS-Kompetenzen** zu übersetzen.
+
+Regeln:
+- Verwende **ausschließlich** die offizielle BIS-Terminologie.
+- Sei präzise und verwende die **exakten Fachbegriffe** der BIS-Kompetenzen.
+- Fasse ähnliche Tätigkeiten zu den passendsten BIS-Kompetenzen zusammen.
+- Gib für jede Eingabe **direkt die BIS-Kompetenzen** als Aufzählungspunkte aus.
+- **Format:** "• [BIS-Kompetenzname]" pro Zeile. **Keine zusätzlichen Beschreibungen oder Erklärungen.**
+
+Tätigkeiten:`;
+
+const DEFAULT_GENDER_PROMPTS = {
+  neutral: `Du bist ein Experte für geschlechtsneutrale Sprache im deutschsprachigen Raum.
+
+Wandle die folgenden Berufsbezeichnungen und Tätigkeitsbeschreibungen in geschlechtsneutrale Formulierungen um.
+
+Regeln:
+- Verwende moderne, professionelle geschlechtsneutrale Sprache
+- Nutze Binnen-I, Genderstern (*), Doppelpunkt (:) oder Schrägstrich (/) je nach Kontext
+- Achte auf Lesbarkeit und Professionalität
+- Behalte die ursprüngliche Bedeutung bei
+- Format: Gib nur die umgewandelten Begriffe zurück, einen pro Zeile
+
+Text:`,
+  male: `Du bist ein Experte für deutsche Sprache und Berufsbezeichnungen.
+
+Wandle die folgenden Berufsbezeichnungen und Tätigkeitsbeschreibungen in männliche Formulierungen um.
+
+Regeln:
+- Verwende korrekte männliche Berufsbezeichnungen
+- Achte auf grammatikalische Korrektheit
+- Behalte die ursprüngliche Bedeutung bei
+- Format: Gib nur die umgewandelten Begriffe zurück, einen pro Zeile
+
+Text:`,
+  female: `Du bist ein Experte für deutsche Sprache und Berufsbezeichnungen.
+
+Wandle die folgenden Berufsbezeichnungen und Tätigkeitsbeschreibungen in weibliche Formulierungen um.
+
+Regeln:
+- Verwende korrekte weibliche Berufsbezeichnungen
+- Achte auf grammatikalische Korrektheit
+- Behalte die ursprüngliche Bedeutung bei
+- Format: Gib nur die umgewandelten Begriffe zurück, einen pro Zeile
+
+Text:`
+};
+
 interface BISTranslatorState {
   isActive: boolean;
   selectedTasks: string[];
@@ -55,10 +104,10 @@ export default function AiHelpPanel() {
   const [aiHelpSettings, setAiHelpSettings] = useState({
     bisModelId: '',
     genderModelId: '',
-    bisPrompt: '',
-    genderNeutralPrompt: '',
-    genderMalePrompt: '',
-    genderFemalePrompt: ''
+    bisPrompt: DEFAULT_BIS_PROMPT,
+    genderNeutralPrompt: DEFAULT_GENDER_PROMPTS.neutral,
+    genderMalePrompt: DEFAULT_GENDER_PROMPTS.male,
+    genderFemalePrompt: DEFAULT_GENDER_PROMPTS.female
   });
   
   const [bisTranslator, setBisTranslator] = useState<BISTranslatorState>({
@@ -85,7 +134,15 @@ export default function AiHelpPanel() {
         // Load AI help settings from localStorage
         const savedSettings = localStorage.getItem('aiHelpSettings');
         if (savedSettings) {
-          setAiHelpSettings(JSON.parse(savedSettings));
+          const parsed = JSON.parse(savedSettings);
+          setAiHelpSettings({
+            bisModelId: parsed.bisModelId || '',
+            genderModelId: parsed.genderModelId || '',
+            bisPrompt: parsed.bisPrompt || DEFAULT_BIS_PROMPT,
+            genderNeutralPrompt: parsed.genderNeutralPrompt || DEFAULT_GENDER_PROMPTS.neutral,
+            genderMalePrompt: parsed.genderMalePrompt || DEFAULT_GENDER_PROMPTS.male,
+            genderFemalePrompt: parsed.genderFemalePrompt || DEFAULT_GENDER_PROMPTS.female
+          });
         }
       } catch (err) {
         console.error('Failed to load data:', err);
@@ -216,10 +273,10 @@ export default function AiHelpPanel() {
       for (const task of bisTranslator.selectedTasks) {
         console.log(`🔄 Processing task: "${task}"`);
         try {
-          const suggestions = await generateBisSuggestions(task, bisModel, aiHelpSettings.bisPrompt);
+          const suggestions = await generateBisSuggestions([task], bisModel, aiHelpSettings.bisPrompt);
           console.log(`✅ Got suggestions for "${task}":`, suggestions);
-          if (suggestions.length > 0) {
-            results[task] = suggestions;
+          if (suggestions[task] && suggestions[task].length > 0) {
+            results[task] = suggestions[task];
           }
         } catch (error) {
           console.error(`❌ Error translating task "${task}":`, error);
@@ -231,7 +288,7 @@ export default function AiHelpPanel() {
       // Update both local state and context
       setBisTranslator(prev => ({
         ...prev,
-        results: Object.values(results).flat(),
+        results: Object.values(results).flat(), 
         isTranslating: false
       }));
       
