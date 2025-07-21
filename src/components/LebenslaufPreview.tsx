@@ -328,26 +328,6 @@ export default function LebenslaufPreview() {
                       multiSelectedExperienceIds.includes(exp.id) ? 'border border-blue-300 rounded-md bg-blue-50' : 'bg-white'
                     }`}
                   >
-                    {/* Checkbox für Mehrfachauswahl - immer anzeigen wenn BIS-Modus aktiv */}
-                    {isBisTranslatorActive && (
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex items-center space-x-2">
-                          <input
-                            type="checkbox"
-                            checked={multiSelectedExperienceIds.includes(exp.id)}
-                            onChange={(e) => {
-                              e.stopPropagation();
-                              toggleMultiExperienceSelection(exp.id);
-                            }}
-                            className="w-4 h-4 rounded border-gray-300 focus:outline-none"
-                            style={{ accentColor: '#3B82F6' }}
-                            title="Für BIS-Übersetzung auswählen"
-                          />
-                          <span className="text-xs text-gray-500">BIS-Übersetzung</span>
-                        </div>
-                      </div>
-                    )}
-                    
                     {/* Löschen-Button - nur anzeigen wenn nicht im BIS-Modus und nicht ausgewählt */}
                     {!isBisTranslatorActive && !isSelected && (
                       <div className="flex items-center space-x-1">
@@ -444,7 +424,7 @@ export default function LebenslaufPreview() {
                                   className="grid grid-cols-[auto_1fr_200px_auto] gap-x-2 items-start group cursor-move py-0.5"
                                 >
                                   {/* Aufzählungspunkt oder Checkbox je nach BIS-Modus */}
-                                  {isBisTranslatorActive && multiSelectedExperienceIds.includes(exp.id) ? (
+                                  {isBisTranslatorActive ? (
                                     <input
                                       type="checkbox"
                                       checked={selectedBisTasks.includes(aufgabe)}
@@ -471,7 +451,7 @@ export default function LebenslaufPreview() {
                                   </div>
                                   
                                   {/* BIS-Übersetzung direkt neben der Tätigkeit - nur wenn BIS-Modus aktiv und Erfahrung ausgewählt */}
-                                  {isBisTranslatorActive && multiSelectedExperienceIds.includes(exp.id) && bisTranslatorResults[aufgabe] && bisTranslatorResults[aufgabe].length > 0 ? (
+                                  {isBisTranslatorActive && bisTranslatorResults[aufgabe] && bisTranslatorResults[aufgabe].length > 0 ? (
                                     <div className="flex items-start space-x-1 group/bis">
                                       <span className="text-green-500 text-sm">→</span>
                                       <span className="text-sm text-green-700 leading-none">
