@@ -523,13 +523,13 @@ export default function LebenslaufPreview() {
                               <span className="text-xs text-gray-500">BIS-Übersetzung</span>
                             </div>
                           </div>
+                        // Log BIS translation if found
+                        if (hasBisTranslation) {
+                          console.log(`🎯 Found BIS translation for "${aufgabe}":`, bisTranslatorResults[aufgabe]);
+                        }
+                        
                         )}
                          
-                         // Log BIS translation if found
-                         if (hasBisTranslation) {
-                           console.log(`🎯 Found BIS translation for "${aufgabe}":`, bisTranslatorResults[aufgabe]);
-                         }
-                        
                         {!isBisTranslatorActive && (
                           <div className="flex items-center space-x-1">
                             {!isSelected && (
