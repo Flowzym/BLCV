@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import { loadCVSuggestions, CVSuggestionConfig, ProfileSourceMapping } from '../services/supabaseService';
 
 // Types
 interface PersonalData {
@@ -118,6 +119,16 @@ interface LebenslaufContextType {
 const LebenslaufContext = createContext<LebenslaufContextType | undefined>(undefined);
 
 export function LebenslaufProvider({ children }: { children: ReactNode }) {
+  const [profileSourceMappings] = useState<ProfileSourceMapping[]>(() => {
+    try {
+      const saved = localStorage.getItem('profileSourceMappings');
+      return saved ? JSON.parse(saved) : [];
+    } catch (error) {
+      console.error('Error loading profileSourceMappings:', error);
+      return [];
+    }
+  });
+
   const [personalData, setPersonalData] = useState<PersonalData>({});
   const [berufserfahrung, setBerufserfahrung] = useState<Experience[]>([]);
   const [ausbildung, setAusbildung] = useState<Education[]>([]);
@@ -134,7 +145,26 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
   const [selectedBisTasks, setSelectedBisTasks] = useState<string[]>([]);
   const [previewTab, setPreviewTab] = useState<PreviewTab>('gesamt');
   const [activeTab, setActiveTab] = useState<ActiveTab>('personal');
-  const [cvSuggestions, setCvSuggestions] = useState<any>({});
+  const [cvSuggestions, setCvSuggestions] = useState<CVSuggestionConfig>({
+    companies: [],
+    positions: [],
+    aufgabenbereiche: []
+  });
+
+  // Load CV suggestions from Supabase
+  useEffect(() => {
+    const loadSuggestions = async () => {
+      try {
+        const suggestions = await loadCVSuggestions(profileSourceMappings);
+        setCvSuggestions(suggestions);
+      } catch (error) {
+        console.error('Failed to load CV suggestions:', error);
+        // Keep default empty suggestions on error
+      }
+    };
+
+    loadSuggestions();
+  }, [profileSourceMappings]);
 
   // Tab synchronization methods
   const setActiveTabWithSync = useCallback((tab: ActiveTab) => {

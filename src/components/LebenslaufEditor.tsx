@@ -12,7 +12,7 @@ export default function LebenslaufEditor({
   profileSourceMappings?: ProfileSourceMapping[];
 }) {
   return (
-    <LebenslaufProvider profileSourceMappings={profileSourceMappings}>
+    <LebenslaufProvider>
       <div className="grid grid-cols-1 lg:grid-cols-[2fr_2fr_1fr] gap-6 relative">
         {/* Linke Spalte: Eingabe */}
         <div className="relative">
