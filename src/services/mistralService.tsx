@@ -48,3 +48,5 @@ Gib nur die BIS-Kompetenzen zurück, eine pro Zeile, ohne Aufzählungszeichen od
   console.log('DEBUG: Final results from generateBisSuggestions:', results);
   return results;
 }
+
+export { generateBisSuggestions }
