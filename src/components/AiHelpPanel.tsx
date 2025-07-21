@@ -369,9 +369,9 @@ export default function AiHelpPanel() {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 h-full">
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 h-full">
       {/* Header */}
-      <div className="flex items-center gap-2 mb-6 border-b border-gray-200 pb-4">
+      <div className="flex items-center gap-2 mb-4 border-b border-gray-200 pb-3">
         <Brain className="h-6 w-6" style={{ color: '#F29400' }} />
         <h2 className="text-lg font-semibold text-gray-900">KI-Assistent</h2>
         <Sparkles className="h-4 w-4 text-yellow-500" />
@@ -668,7 +668,7 @@ export default function AiHelpPanel() {
       </div>
       
       {/* Status indicator moved to bottom */}
-      <div className="mt-6 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+      <div className="mt-4 p-2 bg-blue-50 border border-blue-200 rounded-lg">
         <div className="text-sm text-blue-700">
           <div>
             <div>BIS: {getBisModel()?.name || 'Standard-Modell'}</div>

@@ -13,19 +13,19 @@ export default function LebenslaufEditor({
 }) {
   return (
     <LebenslaufProvider>
-      <div className="w-full grid grid-cols-1 lg:grid-cols-[2fr_2fr_1fr] gap-6 relative">
+      <div className="w-full grid grid-cols-1 lg:grid-cols-[2fr_2fr_1fr] gap-6 relative overflow-hidden">
         {/* Linke Spalte: Eingabe */}
-        <div className="relative">
+        <div className="relative min-w-0">
           <LebenslaufInput />
         </div>
 
         {/* Rechte Spalte: Vorschau */}
-        <div>
+        <div className="min-w-0">
           <LebenslaufPreview />
         </div>
 
         {/* Rechte Spalte: KI-Assistent */}
-        <div>
+        <div className="min-w-0">
           <AiHelpPanel />
         </div>
       </div>
