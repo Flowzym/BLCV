@@ -1,5 +1,3 @@
-console.log('DEBUG: callMistral function entered');
-
 import { KIModelSettings } from "../types/KIModelSettings";
 
 async function callMistral(
@@ -12,6 +10,7 @@ async function callMistral(
     );
   }
 
+  console.log('DEBUG: callMistral function entered');
   console.log('DEBUG: API Call - Payload being sent:', JSON.stringify(payload, null, 2));
   console.log('DEBUG: API Call - Endpoint:', config.endpoint);
   console.log('DEBUG: API Call - Model:', config.model);
