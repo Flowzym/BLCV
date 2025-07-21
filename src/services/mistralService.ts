@@ -134,8 +134,39 @@ async function generateBisSuggestions(
   config: KIModelSettings,
   bisPrompt: string
 ): Promise<Record<string, string[]>> {
-  // Placeholder implementation
-  return {};
+  console.log('DEBUG: generateBisSuggestions called with tasks:', tasksToTranslate);
+  console.log('DEBUG: Using model:', config.model);
+  console.log('DEBUG: BIS prompt length:', bisPrompt.length);
+  
+  const results: Record<string, string[]> = {};
+  
+  for (const task of tasksToTranslate) {
+    console.log(`DEBUG: Processing individual task: "${task}"`);
+    
+    const fullPrompt = `${bisPrompt}
+
+Übersetze die folgende Tätigkeit in 3-5 offizielle BIS-Kompetenzen:
+
+${task}
+
+Gib nur die BIS-Kompetenzen zurück, eine pro Zeile, ohne Aufzählungszeichen oder Nummerierung:`;
+
+    console.log('DEBUG: Full prompt being sent to AI:', fullPrompt);
+
+    try {
+      console.log(`DEBUG: About to call generateText for task: "${task}"`);
+      const result = await generateText(fullPrompt, config);
+      console.log(`DEBUG: Result from generateText for task "${task}":`, result);
+      console.log('DEBUG: Raw AI response for task "' + task + '":', JSON.stringify(result, null, 2));
+      console.log('DEBUG: Raw AI response length:', result.length);
+      console.log('DEBUG: Raw AI response first 200 chars:', result.substring(0, 200));
+    } catch (error) {
+      console.error(`DEBUG: Error processing task "${task}":`, error);
+      results[task] = [];
+    }
+  }
+  
+  return results;
 }
 
 export { generateText, editCoverLetter, generateCoverLetter, generateBisSuggestions };
