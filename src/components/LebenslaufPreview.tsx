@@ -515,44 +515,53 @@ export default function LebenslaufPreview() {
                             <span className="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
                             BIS-Kompetenzen
                           </h4>
-                          <div className="space-y-0">
+                          <div className="space-y-0 text-black ml-6">
                             {exp.aufgabenbereiche && exp.aufgabenbereiche.map((aufgabe, i) => (
-                              <div key={`${exp.id}-bis-result-${i}`} className="py-0.5">
+                              <div key={`${exp.id}-bis-result-${i}`} className="flex items-start space-x-2 py-0.5">
+                                {/* Platzhalter für Checkbox-Alignment */}
+                                <span className="w-4 h-4 mr-2 flex-shrink-0 mt-0.5"></span>
+                                
+                                {/* BIS-Vorschlag Container */}
+                                <div className="flex-1 min-w-0">
                                 {bisTranslatorResults[aufgabe] && bisTranslatorResults[aufgabe].length > 0 ? (
-                                  <div>
-                                    <div className="text-xs text-gray-600 font-medium mb-1">
-                                      {aufgabe}:
+                                    <div className="flex items-center justify-between group">
+                                      <div className="text-sm text-green-700 leading-relaxed flex-1">
+                                        <span className="text-green-500 mr-2">→</span>
+                                        <span>{bisTranslatorResults[aufgabe][0]}</span>
+                                      </div>
+                                      
+                                      {/* Action Buttons */}
+                                      <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center space-x-1 ml-2">
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            updateExperienceTask(exp.id, i, bisTranslatorResults[aufgabe][0]);
+                                          }}
+                                          className="p-1 hover:bg-green-100 rounded transition-colors duration-200"
+                                          title="Tätigkeit durch BIS-Kompetenz ersetzen"
+                                        >
+                                          <Edit className="h-4 w-4 text-green-600" />
+                                        </button>
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            addExperienceTask(exp.id, bisTranslatorResults[aufgabe][0]);
+                                          }}
+                                          className="p-1 hover:bg-green-100 rounded transition-colors duration-200"
+                                          title="BIS-Kompetenz als neue Tätigkeit hinzufügen"
+                                        >
+                                          <Plus className="h-4 w-4 text-green-600" />
+                                        </button>
+                                      </div>
                                     </div>
-                                    <div className="space-y-0.5">
-                                      {bisTranslatorResults[aufgabe].map((translation, index) => (
-                                        <div key={index} className="text-sm text-green-700 leading-relaxed flex items-start">
-                                          <span className="text-green-500 mr-2 flex-shrink-0 leading-none">•</span>
-                                          <span>{translation}</span>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </div>
                                 ) : (
-                                  <div className="text-xs text-gray-500 italic">
-                                    {aufgabe}: Keine Übersetzung
+                                  <div className="text-xs text-gray-400 italic leading-relaxed">
+                                    Keine BIS-Übersetzung
                                   </div>
                                 )}
+                                </div>
                               </div>
                             ))}
-                            {/* Fallback-Nachricht, falls keine Tätigkeiten vorhanden sind */}
-                            {(!exp.aufgabenbereiche || exp.aufgabenbereiche.length === 0) && (
-                              <div className="text-xs text-gray-500 italic">
-                                Keine Tätigkeiten für diese Erfahrung.
-                              </div>
-                            )}
-                            {/* Fallback-Nachricht, falls Tätigkeiten vorhanden, aber keine Übersetzungen */}
-                            {Object.keys(bisTranslatorResults).length === 0 && exp.aufgabenbereiche && exp.aufgabenbereiche.length > 0 && (
-                              <div className="text-xs text-gray-500 italic mt-2">
-                                Keine BIS-Übersetzung verfügbar.
-                                <br />
-                                Wählen Sie Tätigkeiten aus und starten Sie die Übersetzung im KI-Assistenten.
-                              </div>
-                            )}
                           </div>
                         </div>
                       </div>
