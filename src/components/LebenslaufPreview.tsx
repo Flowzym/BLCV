@@ -477,10 +477,9 @@ export default function LebenslaufPreview() {
                                   </div>
                                   
                                   {/* BIS-Vorschläge in neuer Zeile unterhalb der Tätigkeit */}
-                                  {isBisTranslatorActive && bisTranslatorResults[aufgabe] && bisTranslatorResults[aufgabe].length > 0 && (
+                                  {isBisTranslatorActive && selectedBisTasks.includes(aufgabe) && bisTranslatorResults[aufgabe] && bisTranslatorResults[aufgabe].length > 0 && (
                                     <div className="ml-6 mt-1 mb-2 text-sm text-green-700">
-                                      <span className="font-medium">BIS-Vorschläge:</span>{' '}
-                                      {bisTranslatorResults[aufgabe].slice(0, 3).join(' // ')}
+                                      {bisTranslatorResults[aufgabe].slice(0, 1).join(' // ')}
                                     </div>
                                   )}
                                 </React.Fragment>
