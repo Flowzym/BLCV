@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import { loadCVSuggestions, CVSuggestionConfig, ProfileSourceMapping } from '../services/supabaseService';
 
 // Types
