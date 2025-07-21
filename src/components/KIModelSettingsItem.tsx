@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { TestTube, RefreshCw } from 'lucide-react';
+import { TestTube, RefreshCw, CheckCircle, XCircle } from 'lucide-react';
 import { KIModelSettings } from '../types/KIModelSettings';
 import {
   Accordion,
@@ -58,6 +58,7 @@ function KIModelSettingsItem({
   removeModel
 }: KIModelSettingsItemProps) {
   const [isTesting, setIsTesting] = useState(false);
+  const [testStatus, setTestStatus] = useState<'idle' | 'success' | 'error'>('idle');
 
   const onModelChange = useCallback(
     (selected: string) => {
@@ -76,6 +77,7 @@ function KIModelSettingsItem({
 
   const testModel = useCallback(async () => {
     setIsTesting(true);
+    setTestStatus('idle');
     try {
       const res = await fetch(model.endpoint, {
         method: 'POST',
@@ -90,12 +92,12 @@ function KIModelSettingsItem({
       });
 
       if (res.ok) {
-        setTestState('success');
+        setTestStatus('success');
       } else {
-        setTestState('error');
+        setTestStatus('error');
       }
     } catch {
-      setTestState('error');
+      setTestStatus('error');
     } finally {
       setIsTesting(false);
     }
@@ -185,14 +187,28 @@ function KIModelSettingsItem({
           </div>
 
           <div className="flex justify-between mt-3">
-            <StyledButton onClick={testModel} disabled={isTesting} className="flex items-center space-x-1 bg-purple-100 text-purple-800 hover:bg-purple-200 disabled:opacity-50">
-              {isTesting ? (
-                <RefreshCw className="h-3 w-3 animate-spin" />
-              ) : (
-                <TestTube className="h-3 w-3" />
+            <div className="flex items-center space-x-2">
+              <StyledButton onClick={testModel} disabled={isTesting} className="flex items-center space-x-1 bg-purple-100 text-purple-800 hover:bg-purple-200 disabled:opacity-50">
+                {isTesting ? (
+                  <RefreshCw className="h-3 w-3 animate-spin" />
+                ) : (
+                  <TestTube className="h-3 w-3" />
+                )}
+                <span>Testen</span>
+              </StyledButton>
+              {testStatus === 'success' && (
+                <div className="flex items-center space-x-1 text-green-600">
+                  <CheckCircle className="h-4 w-4" />
+                  <span className="text-xs">Erfolgreich</span>
+                </div>
               )}
-              <span>Testen</span>
-            </StyledButton>
+              {testStatus === 'error' && (
+                <div className="flex items-center space-x-1 text-red-600">
+                  <XCircle className="h-4 w-4" />
+                  <span className="text-xs">Fehlgeschlagen</span>
+                </div>
+              )}
+            </div>
             <StyledButton onClick={handleSetActive}>Aktivieren</StyledButton>
             <StyledButton variant="destructive" onClick={handleRemove}>🗑️</StyledButton>
           </div>
