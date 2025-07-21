@@ -24,7 +24,7 @@ const LebenslaufInput: React.FC = () => {
     deleteEducation,
     updateEducationField,
     activeTab,
-    setActiveTab,
+    setActiveTabWithSync,
     selectEducation
   } = useLebenslauf();
 
@@ -169,20 +169,20 @@ const LebenslaufInput: React.FC = () => {
   // Auto-switch to experience tab when an experience is selected
   useEffect(() => {
     if (selectedExperienceId) {
-      setActiveTab('experience');
+      setActiveTabWithSync('experience');
     }
-  }, [selectedExperienceId, setActiveTab]);
+  }, [selectedExperienceId, setActiveTabWithSync]);
 
   // Auto-switch to education tab when an education is selected
   useEffect(() => {
     if (selectedEducationId) {
-      setActiveTab('education');
+      setActiveTabWithSync('education');
     }
-  }, [selectedEducationId, setActiveTab]);
+  }, [selectedEducationId, setActiveTabWithSync]);
 
   // Function to handle tab changes
   const handleTabChange = (tabId: TabType) => {
-    setActiveTab(tabId);
+    setActiveTabWithSync(tabId);
   };
 
   // Hilfsfunktion zum Formatieren des Zeitraums

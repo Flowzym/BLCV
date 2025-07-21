@@ -40,9 +40,11 @@ export default function LebenslaufPreview() {
     toggleBisTaskSelection
   } = useLebenslauf();
 
+  // Verwende den synchronisierten Preview-Tab aus dem Context
+  const { previewTab, setPreviewTabWithSync } = useLebenslauf();
+
   const [newTaskInputs, setNewTaskInputs] = useState<Record<string, string>>({});
   const [showAllExpanded, setShowAllExpanded] = useState(false);
-  const [activePreviewTab, setActivePreviewTab] = useState<PreviewTab>('gesamt');
 
   const previewTabs = [
     { id: 'gesamt', label: 'Gesamt' },
@@ -228,15 +230,15 @@ export default function LebenslaufPreview() {
       <div className="flex-shrink-0 mb-4">
         <TabNavigation 
           tabs={previewTabs} 
-          active={activePreviewTab} 
-          onChange={(tabId) => setActivePreviewTab(tabId as PreviewTab)} 
+          active={previewTab} 
+          onChange={(tabId) => setPreviewTabWithSync(tabId as PreviewTab)} 
         />
       </div>
 
       {/* Scrollbarer Inhalt */}
       <div className="flex-1 overflow-y-auto space-y-0">
         {/* Berufserfahrung - nur anzeigen wenn entsprechender Tab aktiv */}
-        {(activePreviewTab === 'gesamt' || activePreviewTab === 'berufserfahrung') && (
+        {(previewTab === 'gesamt' || previewTab === 'berufserfahrung') && (
         <div className="mb-6">
           <div className="flex items-center justify-between mb-1">
             <h3 className="font-bold text-xl">Berufserfahrung</h3>
@@ -522,7 +524,7 @@ export default function LebenslaufPreview() {
         )}
 
         {/* Ausbildung - nur anzeigen wenn entsprechender Tab aktiv */}
-        {(activePreviewTab === 'gesamt' || activePreviewTab === 'ausbildung') && (
+        {(previewTab === 'gesamt' || previewTab === 'ausbildung') && (
         <div className="mb-6">
           <h3 className="font-bold text-xl mb-1">Ausbildung</h3>
           <div className="space-y-0">
@@ -658,7 +660,7 @@ export default function LebenslaufPreview() {
         )}
 
         {/* Fachkompetenzen - Platzhalter */}
-        {(activePreviewTab === 'gesamt' || activePreviewTab === 'fachkompetenzen') && (
+        {(previewTab === 'gesamt' || previewTab === 'fachkompetenzen') && (
         <div className="mb-6">
           <h3 className="font-bold text-xl mb-1">Fachkompetenzen</h3>
           <div className="border border-dashed border-gray-300 rounded-lg p-4 bg-gray-50 text-gray-500">
@@ -670,7 +672,7 @@ export default function LebenslaufPreview() {
         )}
 
         {/* Soft Skills - Platzhalter */}
-        {(activePreviewTab === 'gesamt' || activePreviewTab === 'softskills') && (
+        {(previewTab === 'gesamt' || previewTab === 'softskills') && (
         <div className="mb-6">
           <h3 className="font-bold text-xl mb-1">Soft Skills</h3>
           <div className="border border-dashed border-gray-300 rounded-lg p-4 bg-gray-50 text-gray-500">

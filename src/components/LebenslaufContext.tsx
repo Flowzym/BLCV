@@ -35,6 +35,23 @@ interface Education {
 type PreviewTab = 'gesamt' | 'berufserfahrung' | 'ausbildung' | 'fachkompetenzen' | 'softskills';
 type ActiveTab = 'personal' | 'experience' | 'education' | 'skills' | 'softskills';
 
+// Mapping zwischen Input-Tabs und Preview-Tabs
+const INPUT_TO_PREVIEW_TAB_MAP: Record<ActiveTab, PreviewTab> = {
+  personal: 'gesamt',
+  experience: 'berufserfahrung',
+  education: 'ausbildung',
+  skills: 'fachkompetenzen',
+  softskills: 'softskills'
+};
+
+const PREVIEW_TO_INPUT_TAB_MAP: Record<PreviewTab, ActiveTab> = {
+  gesamt: 'personal',
+  berufserfahrung: 'experience',
+  ausbildung: 'education',
+  fachkompetenzen: 'skills',
+  softskills: 'softskills'
+};
+
 interface LebenslaufContextType {
   personalData: PersonalData;
   berufserfahrung: Experience[];
@@ -92,6 +109,23 @@ interface LebenslaufContextType {
   
   // Active tab methods
   setActiveTab: (tab: ActiveTab) => void;
+  
+  // Tab synchronization methods
+  const setActiveTabWithSync = useCallback((tab: ActiveTab) => {
+    setActiveTab(tab);
+    const correspondingPreviewTab = INPUT_TO_PREVIEW_TAB_MAP[tab];
+    setPreviewTab(correspondingPreviewTab);
+  }, []);
+  
+  const setPreviewTabWithSync = useCallback((tab: PreviewTab) => {
+    setPreviewTab(tab);
+    const correspondingInputTab = PREVIEW_TO_INPUT_TAB_MAP[tab];
+    setActiveTab(correspondingInputTab);
+  }, []);
+  
+  // Tab synchronization methods
+  setActiveTabWithSync: (tab: ActiveTab) => void;
+  setPreviewTabWithSync: (tab: PreviewTab) => void;
 }
 
 const LebenslaufContext = createContext<LebenslaufContextType | undefined>(undefined);
@@ -344,6 +378,9 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
     
     setPreviewTab,
     setActiveTab,
+    
+    setActiveTabWithSync,
+    setPreviewTabWithSync,
   };
 
   return (
