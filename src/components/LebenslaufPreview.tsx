@@ -4,7 +4,6 @@ import { ReactSortable } from 'react-sortablejs';
 import { useLebenslauf } from './LebenslaufContext';
 import EditablePreviewText from './EditablePreviewText';
 import TabNavigation from './layout/TabNavigation';
-import { useState } from 'react';
 
 type PreviewTab = 'gesamt' | 'berufserfahrung' | 'ausbildung' | 'fachkompetenzen' | 'softskills';
 
