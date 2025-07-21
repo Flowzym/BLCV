@@ -111,19 +111,6 @@ interface LebenslaufContextType {
   setActiveTab: (tab: ActiveTab) => void;
   
   // Tab synchronization methods
-  const setActiveTabWithSync = useCallback((tab: ActiveTab) => {
-    setActiveTab(tab);
-    const correspondingPreviewTab = INPUT_TO_PREVIEW_TAB_MAP[tab];
-    setPreviewTab(correspondingPreviewTab);
-  }, []);
-  
-  const setPreviewTabWithSync = useCallback((tab: PreviewTab) => {
-    setPreviewTab(tab);
-    const correspondingInputTab = PREVIEW_TO_INPUT_TAB_MAP[tab];
-    setActiveTab(correspondingInputTab);
-  }, []);
-  
-  // Tab synchronization methods
   setActiveTabWithSync: (tab: ActiveTab) => void;
   setPreviewTabWithSync: (tab: PreviewTab) => void;
 }
@@ -148,6 +135,19 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
   const [previewTab, setPreviewTab] = useState<PreviewTab>('gesamt');
   const [activeTab, setActiveTab] = useState<ActiveTab>('personal');
   const [cvSuggestions, setCvSuggestions] = useState<any>({});
+
+  // Tab synchronization methods
+  const setActiveTabWithSync = useCallback((tab: ActiveTab) => {
+    setActiveTab(tab);
+    const correspondingPreviewTab = INPUT_TO_PREVIEW_TAB_MAP[tab];
+    setPreviewTab(correspondingPreviewTab);
+  }, []);
+  
+  const setPreviewTabWithSync = useCallback((tab: PreviewTab) => {
+    setPreviewTab(tab);
+    const correspondingInputTab = PREVIEW_TO_INPUT_TAB_MAP[tab];
+    setActiveTab(correspondingInputTab);
+  }, []);
 
   // Personal data methods
   const updatePersonalData = (data: PersonalData) => {
