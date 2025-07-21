@@ -57,3 +57,5 @@ Gib nur die BIS-Kompetenzen zurück, eine pro Zeile, ohne Aufzählungszeichen od
 }
 
 export { generateBisSuggestions }
+
+export { generateBisSuggestions }
