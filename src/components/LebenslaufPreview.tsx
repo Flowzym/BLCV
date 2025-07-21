@@ -40,6 +40,9 @@ export default function LebenslaufPreview() {
     toggleBisTaskSelection,
     bisTranslatorResults
   } = useLebenslauf();
+  
+  console.log('🔍 LebenslaufPreview - bisTranslatorResults:', bisTranslatorResults);
+  console.log('🔍 LebenslaufPreview - isBisTranslatorActive:', isBisTranslatorActive);
 
   // Verwende den synchronisierten Preview-Tab aus dem Context
   const { previewTab, setPreviewTabWithSync } = useLebenslauf();
@@ -521,6 +524,10 @@ export default function LebenslaufPreview() {
                             </div>
                           </div>
                         )}
+                          
+                          if (hasBisTranslation) {
+                            console.log(`🎯 Found BIS translation for "${aufgabe}":`, bisTranslatorResults[aufgabe]);
+                          }
                         
                         {!isBisTranslatorActive && (
                           <div className="flex items-center space-x-1">

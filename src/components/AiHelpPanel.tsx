@@ -195,8 +195,17 @@ export default function AiHelpPanel() {
   };
 
   const translateTasks = async () => {
+    console.log('🔄 translateTasks function called');
+    console.log('📊 allModels:', allModels);
+    console.log('⚙️ aiHelpSettings.bisModelId:', aiHelpSettings.bisModelId);
+    console.log('📝 selectedBisTasks:', selectedBisTasks);
+    console.log('🎯 bisTranslator.selectedTasks:', bisTranslator.selectedTasks);
+    
     const bisModel = getBisModel();
+    console.log('🤖 getBisModel() result:', bisModel);
+    
     if (!bisModel || bisTranslator.selectedTasks.length === 0) return;
+    console.log('✅ Passed initial checks, starting translation...');
 
     setBisTranslator(prev => ({ ...prev, isTranslating: true }));
 
@@ -205,15 +214,19 @@ export default function AiHelpPanel() {
       
       // Process each task individually
       for (const task of bisTranslator.selectedTasks) {
+        console.log(`🔄 Processing task: "${task}"`);
         try {
           const suggestions = await generateBisSuggestions(task, bisModel, aiHelpSettings.bisPrompt);
+          console.log(`✅ Got suggestions for "${task}":`, suggestions);
           if (suggestions.length > 0) {
             results[task] = suggestions;
           }
         } catch (error) {
-          console.error(`Error translating task "${task}":`, error);
+          console.error(`❌ Error translating task "${task}":`, error);
         }
       }
+      
+      console.log('📊 Final results object:', results);
       
       // Update both local state and context
       setBisTranslator(prev => ({
@@ -223,8 +236,9 @@ export default function AiHelpPanel() {
       }));
       
       setBisTranslatorResults(results);
+      console.log('✅ Updated context with BIS results');
     } catch (error) {
-      console.error('BIS translation failed:', error);
+      console.error('❌ BIS translation failed:', error);
       setBisTranslator(prev => ({ ...prev, isTranslating: false }));
     }
   };
