@@ -24,7 +24,9 @@ Gib nur die BIS-Kompetenzen zurück, eine pro Zeile, ohne Aufzählungszeichen od
 
     try {
       const result = await generateText(fullPrompt, config);
-      console.log('DEBUG: Raw AI response for task "' + task + '":', result);
+      console.log('DEBUG: Raw AI response for task "' + task + '":', JSON.stringify(result, null, 2));
+      console.log('DEBUG: Raw AI response length:', result.length);
+      console.log('DEBUG: Raw AI response first 200 chars:', result.substring(0, 200));
       
       // Parse the result into individual suggestions
       const suggestions = result
@@ -35,7 +37,12 @@ Gib nur die BIS-Kompetenzen zurück, eine pro Zeile, ohne Aufzählungszeichen od
         .filter(line => line.length > 0) // Stellt sicher, dass die Zeile nach der Bearbeitung nicht leer ist
         .slice(0, 5); // Limit to 5 suggestions
       
-      console.log('DEBUG: Parsed suggestions for task "' + task + '":', suggestions);
+      console.log('DEBUG: Parsed suggestions for task "' + task + '":', JSON.stringify(suggestions, null, 2));
+      console.log('DEBUG: Number of parsed suggestions:', suggestions.length);
+      console.log('DEBUG: Individual suggestions:');
+      suggestions.forEach((suggestion, index) => {
+        console.log(`  [${index}]: "${suggestion}"`);
+      });
       
       if (suggestions.length > 0) {
         results[task] = suggestions;
