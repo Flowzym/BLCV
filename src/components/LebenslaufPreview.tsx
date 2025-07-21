@@ -441,7 +441,7 @@ export default function LebenslaufPreview() {
                                 <div 
                                   key={`${exp.id}-${i}`}
                                   data-id={`${exp.id}-${i}`}
-                                  className="flex items-start space-x-2 group cursor-move py-0.5"
+                                  className="grid grid-cols-[auto_minmax(0,1fr)_auto_auto] gap-x-2 items-start group cursor-move py-0.5"
                                 >
                                   {/* Aufzählungspunkt oder Checkbox je nach BIS-Modus */}
                                   {isBisTranslatorActive && multiSelectedExperienceIds.includes(exp.id) ? (
@@ -452,16 +452,16 @@ export default function LebenslaufPreview() {
                                         e.stopPropagation();
                                         toggleBisTaskSelection(aufgabe);
                                       }}
-                                      className="w-4 h-4 mr-2 flex-shrink-0 mt-0.5 rounded border-gray-300 focus:outline-none"
+                                      className="w-4 h-4 flex-shrink-0 mt-0.5 rounded border-gray-300 focus:outline-none"
                                       style={{ accentColor: '#3B82F6' }}
                                       onClick={(e) => e.stopPropagation()}
                                     />
                                   ) : (
-                                    <span className="text-black mr-2 flex-shrink-0 leading-none">•</span>
+                                    <span className="text-black flex-shrink-0 leading-none">•</span>
                                   )}
                                   
                                   {/* Aufgabentext */}
-                                  <div className="flex-1 min-w-0 leading-none">
+                                  <div className="leading-none">
                                     <EditablePreviewText
                                       value={aufgabe}
                                       onSave={(newValue) => updateExperienceTask(exp.id, i, newValue)}
@@ -472,14 +472,14 @@ export default function LebenslaufPreview() {
                                   
                                   {/* BIS-Übersetzung direkt neben der Tätigkeit - nur wenn BIS-Modus aktiv und Erfahrung ausgewählt */}
                                   {isBisTranslatorActive && multiSelectedExperienceIds.includes(exp.id) && bisTranslatorResults[aufgabe] && bisTranslatorResults[aufgabe].length > 0 && (
-                                    <div className="flex items-center space-x-1 flex-shrink-0 ml-2 group/bis">
+                                    <div className="flex items-center space-x-1 flex-shrink-0 group/bis">
                                       <span className="text-green-500 text-sm">→</span>
                                       <span className="text-sm text-green-700 leading-none">
                                         {bisTranslatorResults[aufgabe][0]}
                                       </span>
                                       
                                       {/* BIS Action Buttons */}
-                                      <div className="opacity-0 group-hover/bis:opacity-100 transition-opacity duration-200 flex items-center space-x-1 ml-1">
+                                      <div className="opacity-0 group-hover/bis:opacity-100 transition-opacity duration-200 flex items-center space-x-1">
                                         <button
                                           onClick={(e) => {
                                             e.stopPropagation();
@@ -502,10 +502,12 @@ export default function LebenslaufPreview() {
                                         </button>
                                       </div>
                                     </div>
+                                  ) : (
+                                    <div></div>
                                   )}
                                   
                                   {/* Hover-Buttons für Tätigkeiten */}
-                                  <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center space-x-1 flex-shrink-0 ml-2">
+                                  <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center space-x-1 flex-shrink-0">
                                     <button
                                       onClick={(e) => {
                                         e.stopPropagation();
