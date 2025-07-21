@@ -10,6 +10,11 @@ async function callMistral(
     );
   }
 
+  console.log('DEBUG: API Call - Payload being sent:', JSON.stringify(payload, null, 2));
+  console.log('DEBUG: API Call - Endpoint:', config.endpoint);
+  console.log('DEBUG: API Call - Model:', config.model);
+  console.log('DEBUG: API Call - API Key (first 10 chars):', config.api_key.substring(0, 10) + '...');
+
   try {
     const res = await fetch(config.endpoint, {
       method: "POST",
@@ -20,16 +25,33 @@ async function callMistral(
       body: JSON.stringify(payload),
     });
 
+    console.log('DEBUG: API Call - Response status:', res.status);
+    console.log('DEBUG: API Call - Response headers:', Object.fromEntries(res.headers.entries()));
+
     if (!res.ok) {
       const text = await res.text();
-      console.warn("Fehler-Antwort:", res.status, text);
+      console.error("DEBUG: API Call - Error response status:", res.status);
+      console.error("DEBUG: API Call - Error response text:", text);
       throw new Error(`KI-Antwort fehlgeschlagen (${res.status})`);
     }
 
     const data = await res.json();
+    console.log('DEBUG: API Call - Full JSON response:', JSON.stringify(data, null, 2));
+    console.log('DEBUG: API Call - Response data structure:', {
+      hasChoices: !!data.choices,
+      choicesLength: data.choices?.length || 0,
+      firstChoiceStructure: data.choices?.[0] ? Object.keys(data.choices[0]) : 'No first choice',
+      messageContent: data.choices?.[0]?.message?.content || 'No content found'
+    });
+
     return data.choices?.[0]?.message?.content ?? "";
   } catch (err) {
-    console.error("API-Aufruffehler:", err);
+    console.error("DEBUG: API Call - Fetch error:", err);
+    console.error("DEBUG: API Call - Error details:", {
+      name: err instanceof Error ? err.name : 'Unknown',
+      message: err instanceof Error ? err.message : String(err),
+      stack: err instanceof Error ? err.stack : 'No stack trace'
+    });
     throw new Error("Verbindung zur KI fehlgeschlagen.");
   }
 }
