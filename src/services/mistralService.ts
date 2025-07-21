@@ -1,3 +1,5 @@
+console.log('DEBUG: callMistral function entered');
+
 import { KIModelSettings } from "../types/KIModelSettings";
 
 async function callMistral(
