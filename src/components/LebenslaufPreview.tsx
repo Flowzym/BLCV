@@ -415,110 +415,73 @@ export default function LebenslaufPreview() {
                                 updateExperienceTasksOrder(exp.id, newTasks);
                               }}
                               tag="div"
-                              className="space-y-0 text-black ml-6"
-                            >
-                              {exp.aufgabenbereiche.map((aufgabe, i) => (
-                                <div 
-                                  key={`${exp.id}-${i}`}
-                                  data-id={`${exp.id}-${i}`}
-                                  className={`grid gap-x-2 items-start group cursor-move py-0.5 ${
-                                    isBisTranslatorActive
-                                      ? 'grid-cols-[min-content_1fr_200px_auto]' // Wenn BIS-Modus aktiv: Checkbox/Punkt, Tätigkeits-Text, BIS-Vorschlag, Hover-Buttons
-                                      : 'grid-cols-[min-content_1fr_auto]'     // Wenn BIS-Modus inaktiv: Checkbox/Punkt, Tätigkeits-Text, Hover-Buttons (BIS-Spalte entfällt)
-                                  }`}
-                                >
-                                  {/* Aufzählungspunkt oder Checkbox je nach BIS-Modus */}
-                                  {isBisTranslatorActive ? (
-                                    <input
-                                      type="checkbox"
-                                      checked={selectedBisTasks.includes(aufgabe)}
-                                      onChange={(e) => {
-                                        e.stopPropagation();
-                                        toggleBisTaskSelection(aufgabe);
-                                      }}
-                                      className="w-4 h-4 flex-shrink-0 mt-0.5 rounded border-gray-300 focus:outline-none"
-                                      style={{ accentColor: '#3B82F6' }}
-                                      onClick={(e) => e.stopPropagation()}
-                                    />
-                                  ) : (
-                                    <span className="text-black flex-shrink-0 leading-none">•</span>
-                                  )}
-                                  
-                                  {/* Aufgabentext */}
-                                  <div className="leading-none">
-                                    <EditablePreviewText
-                                      value={aufgabe}
-                                      onSave={(newValue) => updateExperienceTask(exp.id, i, newValue)}
-                                      placeholder="Aufgabe eingeben..."
-                                      className="leading-none"
-                                    />
-                                  </div>
-                                  
-                                  {/* Spalte 3 (optional): BIS-Übersetzung - nur rendern wenn BIS-Modus aktiv */}
-                                  {isBisTranslatorActive ? (
-                                    bisTranslatorResults[aufgabe] && bisTranslatorResults[aufgabe].length > 0 ? (
-                                      <div className="flex items-start space-x-1 group/bis">
-                                        <span className="text-green-500 text-sm">→</span>
-                                        <span className="text-sm text-green-700 leading-none">
-                                          {bisTranslatorResults[aufgabe][0]}
-                                        </span>
-                                        
-                                        {/* BIS Action Buttons */}
-                                        <div className="opacity-0 group-hover/bis:opacity-100 transition-opacity duration-200 flex items-center space-x-1">
-                                          <button
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              updateExperienceTask(exp.id, i, bisTranslatorResults[aufgabe][0]);
-                                            }}
-                                            className="p-0.5 hover:bg-green-100 rounded transition-colors duration-200"
-                                            title="Tätigkeit durch BIS-Kompetenz ersetzen"
-                                          >
-                                            <Edit className="h-3 w-3 text-green-600" />
-                                          </button>
-                                          <button
-                                            onClick={(e) => {
-                                              e.stopPropagation();
-                                              addExperienceTask(exp.id, bisTranslatorResults[aufgabe][0]);
-                                            }}
-                                            className="p-0.5 hover:bg-green-100 rounded transition-colors duration-200"
-                                            title="BIS-Kompetenz als neue Tätigkeit hinzufügen"
-                                          >
-                                            <Plus className="h-3 w-3 text-green-600" />
-                                          </button>
-                                        </div>
-                                      </div>
-                                    ) : (
-                                      // Leeres div rendern, um die Grid-Struktur aufrechtzuerhalten, wenn BIS aktiv ist, aber keine Ergebnisse vorliegen
-                                      <div></div>
-                                    )
-                                  ) : null}
-                                  
-                                  {/* Hover-Buttons für Tätigkeiten */}
-                                  <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center space-x-1">
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        toggleTaskFavorite(aufgabe);
-                                      }}
-                                      className="p-0.5 hover:bg-gray-200 rounded transition-colors duration-200"
-                                      title={favoriteTasks.includes(aufgabe) ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
-                                    >
-                                      <Star 
-                                        className={`h-5 w-5 ${favoriteTasks.includes(aufgabe) ? 'fill-current text-yellow-500' : 'text-gray-400'}`} 
+                                <React.Fragment key={`${exp.id}-${i}`}>
+                                  <div 
+                                    data-id={`${exp.id}-${i}`}
+                                    className="grid gap-x-2 items-start group cursor-move py-0.5 grid-cols-[min-content_1fr_auto]"
+                                  >
+                                    {/* Aufzählungspunkt oder Checkbox je nach BIS-Modus */}
+                                    {isBisTranslatorActive ? (
+                                      <input
+                                        type="checkbox"
+                                        checked={selectedBisTasks.includes(aufgabe)}
+                                        onChange={(e) => {
+                                          e.stopPropagation();
+                                          toggleBisTaskSelection(aufgabe);
+                                        }}
+                                        className="w-4 h-4 flex-shrink-0 mt-0.5 rounded border-gray-300 focus:outline-none"
+                                        style={{ accentColor: '#3B82F6' }}
+                                        onClick={(e) => e.stopPropagation()}
                                       />
-                                    </button>
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        removeTask(exp.id, i);
-                                      }}
-                                      className="p-0.5 hover:bg-gray-200 rounded transition-colors duration-200"
-                                      title="Aufgabe löschen"
-                                    >
-                                      <X className="h-5 w-5 text-gray-400 hover:text-red-500" />
-                                    </button>
+                                    ) : (
+                                      <span className="text-black flex-shrink-0 leading-none">•</span>
+                                    )}
+                                    
+                                    {/* Aufgabentext */}
+                                    <div className="leading-none">
+                                      <EditablePreviewText
+                                        value={aufgabe}
+                                        onSave={(newValue) => updateExperienceTask(exp.id, i, newValue)}
+                                        placeholder="Aufgabe eingeben..."
+                                        className="leading-none"
+                                      />
+                                    </div>
+                                    
+                                    {/* Hover-Buttons für Tätigkeiten */}
+                                    <div className="opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center space-x-1">
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          toggleTaskFavorite(aufgabe);
+                                        }}
+                                        className="p-0.5 hover:bg-gray-200 rounded transition-colors duration-200"
+                                        title={favoriteTasks.includes(aufgabe) ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}
+                                      >
+                                        <Star 
+                                          className={`h-5 w-5 ${favoriteTasks.includes(aufgabe) ? 'fill-current text-yellow-500' : 'text-gray-400'}`} 
+                                        />
+                                      </button>
+                                      <button
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          removeTask(exp.id, i);
+                                        }}
+                                        className="p-0.5 hover:bg-gray-200 rounded transition-colors duration-200"
+                                        title="Aufgabe löschen"
+                                      >
+                                        <X className="h-5 w-5 text-gray-400 hover:text-red-500" />
+                                      </button>
+                                    </div>
                                   </div>
-                                </div>
+                                  
+                                  {/* BIS-Vorschläge in neuer Zeile unterhalb der Tätigkeit */}
+                                  {isBisTranslatorActive && bisTranslatorResults[aufgabe] && bisTranslatorResults[aufgabe].length > 0 && (
+                                    <div className="ml-6 mt-1 mb-2 text-sm text-green-700">
+                                      <span className="font-medium">BIS-Vorschläge:</span>{' '}
+                                      {bisTranslatorResults[aufgabe].slice(0, 3).join(' // ')}
+                                    </div>
+                                  )}
+                                </React.Fragment>
                               ))}
                             </ReactSortable>
                           </div>
