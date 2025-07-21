@@ -421,7 +421,11 @@ export default function LebenslaufPreview() {
                                 <div 
                                   key={`${exp.id}-${i}`}
                                   data-id={`${exp.id}-${i}`}
-                                  className="grid grid-cols-[auto_1fr_200px_auto] gap-x-2 items-start group cursor-move py-0.5"
+                                  className={`grid gap-x-2 items-start group cursor-move py-0.5 ${
+                                    isBisTranslatorActive
+                                      ? 'grid-cols-[auto_1fr_200px_auto]' // BIS-Modus aktiv: Checkbox/Punkt, Text, BIS-Vorschlag, Buttons
+                                      : 'grid-cols-[auto_1fr_auto]'       // BIS-Modus inaktiv: Checkbox/Punkt, Text, Buttons
+                                  }`}
                                 >
                                   {/* Aufzählungspunkt oder Checkbox je nach BIS-Modus */}
                                   {isBisTranslatorActive ? (
