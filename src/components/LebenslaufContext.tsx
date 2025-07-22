@@ -158,6 +158,45 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
     aufgabenbereiche: []
   });
 
+  // Zeitraum update methods - moved to top to avoid ReferenceError
+  const updateExperienceZeitraum = useCallback((id: string, zeitraumData: {
+    startMonth?: string;
+    startYear?: string;
+    endMonth?: string;
+    endYear?: string;
+    isCurrent?: boolean;
+  }) => {
+    setBerufserfahrung(prev => prev.map(exp => 
+      exp.id === id ? {
+        ...exp,
+        startMonth: zeitraumData.startMonth !== undefined ? zeitraumData.startMonth : exp.startMonth,
+        startYear: zeitraumData.startYear !== undefined ? zeitraumData.startYear : exp.startYear,
+        endMonth: zeitraumData.endMonth !== undefined ? zeitraumData.endMonth : exp.endMonth,
+        endYear: zeitraumData.endYear !== undefined ? zeitraumData.endYear : exp.endYear,
+        isCurrent: zeitraumData.isCurrent !== undefined ? zeitraumData.isCurrent : exp.isCurrent,
+      } : exp
+    ));
+  }, []);
+
+  const updateEducationZeitraum = useCallback((id: string, zeitraumData: {
+    startMonth?: string;
+    startYear?: string;
+    endMonth?: string;
+    endYear?: string;
+    isCurrent?: boolean;
+  }) => {
+    setAusbildung(prev => prev.map(edu => 
+      edu.id === id ? {
+        ...edu,
+        startMonth: zeitraumData.startMonth !== undefined ? zeitraumData.startMonth : edu.startMonth,
+        startYear: zeitraumData.startYear !== undefined ? zeitraumData.startYear : edu.startYear,
+        endMonth: zeitraumData.endMonth !== undefined ? zeitraumData.endMonth : edu.endMonth,
+        endYear: zeitraumData.endYear !== undefined ? zeitraumData.endYear : edu.endYear,
+        isCurrent: zeitraumData.isCurrent !== undefined ? zeitraumData.isCurrent : edu.isCurrent,
+      } : edu
+    ));
+  }, []);
+
   // Load CV suggestions from Supabase
   useEffect(() => {
     const loadSuggestions = async () => {
@@ -361,45 +400,6 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
         : [...prev, task]
     );
   };
-
-  // Zeitraum update methods
-  const updateExperienceZeitraum = useCallback((id: string, zeitraumData: {
-    startMonth?: string;
-    startYear?: string;
-    endMonth?: string;
-    endYear?: string;
-    isCurrent?: boolean;
-  }) => {
-    setBerufserfahrung(prev => prev.map(exp => 
-      exp.id === id ? {
-        ...exp,
-        startMonth: zeitraumData.startMonth !== undefined ? zeitraumData.startMonth : exp.startMonth,
-        startYear: zeitraumData.startYear !== undefined ? zeitraumData.startYear : exp.startYear,
-        endMonth: zeitraumData.endMonth !== undefined ? zeitraumData.endMonth : exp.endMonth,
-        endYear: zeitraumData.endYear !== undefined ? zeitraumData.endYear : exp.endYear,
-        isCurrent: zeitraumData.isCurrent !== undefined ? zeitraumData.isCurrent : exp.isCurrent,
-      } : exp
-    ));
-  }, []);
-
-  const updateEducationZeitraum = useCallback((id: string, zeitraumData: {
-    startMonth?: string;
-    startYear?: string;
-    endMonth?: string;
-    endYear?: string;
-    isCurrent?: boolean;
-  }) => {
-    setAusbildung(prev => prev.map(edu => 
-      edu.id === id ? {
-        ...edu,
-        startMonth: zeitraumData.startMonth !== undefined ? zeitraumData.startMonth : edu.startMonth,
-        startYear: zeitraumData.startYear !== undefined ? zeitraumData.startYear : edu.startYear,
-        endMonth: zeitraumData.endMonth !== undefined ? zeitraumData.endMonth : edu.endMonth,
-        endYear: zeitraumData.endYear !== undefined ? zeitraumData.endYear : edu.endYear,
-        isCurrent: zeitraumData.isCurrent !== undefined ? zeitraumData.isCurrent : edu.isCurrent,
-      } : edu
-    ));
-  }, []);
 
   // Helper functions to ensure a valid entry exists for editing
   const ensureSelectedExperienceExists = useCallback(() => {
