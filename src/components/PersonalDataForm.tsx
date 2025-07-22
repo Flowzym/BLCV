@@ -394,7 +394,6 @@ export default function PersonalDataForm({ data = {}, onChange = () => {} }: Per
               showFavoritesButton={false}
               suggestions={titleSuggestions}
               placeholder="Titel"
-              highlightClass={safeData.titel?.trim() ? 'highlight-filled-input' : ''}
             />
           </div>
         </div>
@@ -425,7 +424,6 @@ export default function PersonalDataForm({ data = {}, onChange = () => {} }: Per
                 onCountryChange={(code) => updateData('telefonVorwahl', code)}
                 onPhoneChange={(phone) => updateData('telefon', phone)}
                 onInputEnter={() => focusNextInput(phoneRef)}
-                highlightClass={safeData.telefon?.trim() ? 'highlight-filled-input' : ''}
               />
             </div>
             
@@ -664,7 +662,6 @@ export default function PersonalDataForm({ data = {}, onChange = () => {} }: Per
                 }}
                 suggestions={Array.from(new Set([...favorites.ort, ...citySuggestions]))}
                 placeholder="Wien"
-                highlightClass={safeData.ort?.trim() ? 'highlight-filled-input' : ''}
               />
             </div>
           </div>
@@ -758,7 +755,6 @@ export default function PersonalDataForm({ data = {}, onChange = () => {} }: Per
                 }}
                 suggestions={Array.from(new Set([...favorites.geburtsort, ...citySuggestions]))}
                 placeholder="Geburtsort"
-                highlightClass={safeData.geburtsort?.trim() ? 'highlight-filled-input' : ''}
               />
             </div>
             
@@ -770,7 +766,6 @@ export default function PersonalDataForm({ data = {}, onChange = () => {} }: Per
                 value={safeData.geburtsland || ''}
                 onChange={(value) => updateData('geburtsland', value)}
                 onInputEnter={() => focusNextInput(geburtslandRef)}
-                highlightClass={safeData.geburtsland?.trim() ? 'highlight-filled-input' : ''}
               />
             </div>
           </div>
@@ -824,7 +819,6 @@ export default function PersonalDataForm({ data = {}, onChange = () => {} }: Per
                 label="Land"
                 value={safeData.land || ''}
                 onChange={(value) => updateData('land', value)}
-                highlightClass={safeData.land?.trim() ? 'highlight-filled-input' : ''}
               />
             </div>
           )}
@@ -838,7 +832,6 @@ export default function PersonalDataForm({ data = {}, onChange = () => {} }: Per
                   value={safeData.staatsbuergerschaft || ''}
                   onChange={(value) => updateData('staatsbuergerschaft', value)}
                   onInputEnter={() => focusNextInput(staatsbuergerschaftRef)}
-                  highlightClass={safeData.staatsbuergerschaft?.trim() ? 'highlight-filled-input' : ''}
                 />
               </div>
               
