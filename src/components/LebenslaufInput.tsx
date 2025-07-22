@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useCallback } from 'react';
 import { useLebenslauf } from './LebenslaufContext';
 import PersonalDataForm from './PersonalDataForm';
 import ExperienceForm from './ExperienceForm';
@@ -10,6 +11,7 @@ type TabType = 'personal' | 'experience' | 'education' | 'skills' | 'softskills'
 const LebenslaufInput: React.FC = () => {
   // State to prevent multiple entries being created
   const [isAddingEntry, setIsAddingEntry] = useState(false);
+  const [isCreatingFromInput, setIsCreatingFromInput] = useState(false);
 
   const {
     personalData,
@@ -160,8 +162,24 @@ const LebenslaufInput: React.FC = () => {
   };
 
   // Helper function to create a new experience entry when user starts typing in empty form
-  const createExperienceOnFirstInput = () => {
-    if (!selectedExperienceId) {
+  const getOrCreateExperienceId = useCallback(() => {
+    // Prevent multiple rapid creations
+    if (isCreatingFromInput) {
+      return selectedExperienceId || '';
+    }
+
+    // If we have a selected experience, check if it's not empty
+    if (selectedExperienceId) {
+      const currentExp = berufserfahrung.find(exp => exp.id === selectedExperienceId);
+      if (currentExp && !isEmptyExperience(currentExp)) {
+        return selectedExperienceId;
+      }
+    }
+
+    // Need to create a new experience
+    setIsCreatingFromInput(true);
+    
+    try {
       const newExp = {
         companies: [],
         position: [],
@@ -173,16 +191,40 @@ const LebenslaufInput: React.FC = () => {
         aufgabenbereiche: [],
         zusatzangaben: ""
       };
+      
       const newId = addExperience(newExp);
       selectExperience(newId);
+      
+      // Reset the flag after state update
+      setTimeout(() => setIsCreatingFromInput(false), 50);
+      
       return newId;
+    } catch (error) {
+      console.error('Error creating experience:', error);
+      setIsCreatingFromInput(false);
+      return selectedExperienceId || '';
     }
-    return selectedExperienceId;
-  };
+  }, [selectedExperienceId, berufserfahrung, addExperience, selectExperience, isCreatingFromInput]);
 
   // Helper function to create a new education entry when user starts typing in empty form
-  const createEducationOnFirstInput = () => {
-    if (!selectedEducationId) {
+  const getOrCreateEducationId = useCallback(() => {
+    // Prevent multiple rapid creations
+    if (isCreatingFromInput) {
+      return selectedEducationId || '';
+    }
+
+    // If we have a selected education, check if it's not empty
+    if (selectedEducationId) {
+      const currentEdu = ausbildung.find(edu => edu.id === selectedEducationId);
+      if (currentEdu && !isEmptyEducation(currentEdu)) {
+        return selectedEducationId;
+      }
+    }
+
+    // Need to create a new education
+    setIsCreatingFromInput(true);
+    
+    try {
       const newEdu = {
         institution: [],
         ausbildungsart: [],
@@ -194,12 +236,20 @@ const LebenslaufInput: React.FC = () => {
         isCurrent: false,
         zusatzangaben: ""
       };
+      
       const newId = addEducation(newEdu);
       selectEducation(newId);
+      
+      // Reset the flag after state update
+      setTimeout(() => setIsCreatingFromInput(false), 50);
+      
       return newId;
+    } catch (error) {
+      console.error('Error creating education:', error);
+      setIsCreatingFromInput(false);
+      return selectedEducationId || '';
     }
-    return selectedEducationId;
-  };
+  }, [selectedEducationId, ausbildung, addEducation, selectEducation, isCreatingFromInput]);
 
   // Hilfsfunktion zum Formatieren des Zeitraums
   const formatZeitraum = (
@@ -257,11 +307,13 @@ const LebenslaufInput: React.FC = () => {
                   form={formData}
                   selectedPositions={formData.position || []}
                   onUpdateField={(field, value) => {
-                    const experienceId = createExperienceOnFirstInput();
+                    const experienceId = getOrCreateExperienceId();
+                    if (!experienceId) return;
                     updateExperienceField(experienceId, field, value);
                   }}
                   onPositionsChange={(positions) => {
-                    const experienceId = createExperienceOnFirstInput();
+                    const experienceId = getOrCreateExperienceId();
+                    if (!experienceId) return;
                     updateExperienceField(experienceId, 'position', positions);
                   }}
                   cvSuggestions={cvSuggestions}
@@ -300,7 +352,8 @@ const LebenslaufInput: React.FC = () => {
                 <AusbildungForm
                   form={formData}
                   onUpdateField={(field, value) => {
-                    const educationId = createEducationOnFirstInput();
+                    const educationId = getOrCreateEducationId();
+                    if (!educationId) return;
                     updateEducationField(educationId, field, value);
                   }}
                   cvSuggestions={cvSuggestions}
@@ -427,7 +480,7 @@ const LebenslaufInput: React.FC = () => {
       <div className="fixed bottom-4 right-4 z-50">
         <button
           onClick={() => {
-            if (isAddingEntry) return; // Prevent multiple clicks
+            if (isAddingEntry || isCreatingFromInput) return; // Prevent multiple clicks
             
             // Zuerst prüfen, ob der aktuell ausgewählte Eintrag leer ist, und ihn löschen.
             // Dies verhindert die Anhäufung leerer Einträge, wenn der Benutzer wiederholt auf "Hinzufügen" klickt.
@@ -448,9 +501,9 @@ const LebenslaufInput: React.FC = () => {
               createEmptyEducation();
             }
           }}
-          disabled={isAddingEntry}
+          disabled={isAddingEntry || isCreatingFromInput}
           className={`flex items-center justify-center w-14 h-14 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 ${
-            isAddingEntry ? 'opacity-50 cursor-not-allowed' : ''
+            (isAddingEntry || isCreatingFromInput) ? 'opacity-50 cursor-not-allowed' : ''
           }`}
           style={{ backgroundColor: '#F29400' }}
           title="Neuen Eintrag hinzufügen"
