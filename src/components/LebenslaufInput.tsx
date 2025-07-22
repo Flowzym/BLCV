@@ -379,46 +379,33 @@ const LebenslaufInput: React.FC = () => {
 
       {/* Floating Button */}
       <div className="fixed bottom-4 right-4 z-50">
-        {(() => {
-          // Prüfe ob eine leere Card im Bearbeitungsmodus ist
-          const hasEmptyExperience = selectedExperienceId && 
-            berufserfahrung.find(exp => exp.id === selectedExperienceId && isEmptyExperience(exp));
-          const hasEmptyEducation = selectedEducationId && 
-            ausbildung.find(edu => edu.id === selectedEducationId && isEmptyEducation(edu));
-          const hasEmptyEntry = hasEmptyExperience || hasEmptyEducation;
-          
-          return (
-            <button
-              onClick={() => {
-                if (hasEmptyEntry) {
-                  // Leere Einträge löschen
-                  if (hasEmptyExperience) {
-                    deleteExperience(selectedExperienceId!);
-                  }
-                  if (hasEmptyEducation) {
-                    deleteEducation(selectedEducationId!);
-                  }
-                } else {
-                  // Neuen Eintrag hinzufügen
-                  createEmptyExperience();
-                }
-              }}
-              className="flex items-center justify-center w-14 h-14 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
-              style={{ 
-                backgroundColor: hasEmptyEntry ? '#ef4444' : '#F29400'
-              }}
-              title={
-                hasEmptyEntry ? "Leeren Eintrag abbrechen" : "Neuen Eintrag hinzufügen"
-              }
-            >
-              {hasEmptyEntry ? (
-                <CircleOff className="h-5 w-5" />
-              ) : (
-                <Plus className="h-5 w-5" />
-              )}
-            </button>
-          );
-        })()}
+        <button
+          onClick={() => {
+            // Zuerst prüfen, ob der aktuell ausgewählte Eintrag leer ist, und ihn löschen.
+            // Dies verhindert die Anhäufung leerer Einträge, wenn der Benutzer wiederholt auf "Hinzufügen" klickt.
+            const currentSelectedExp = berufserfahrung.find(exp => exp.id === selectedExperienceId);
+            const currentSelectedEdu = ausbildung.find(edu => edu.id === selectedEducationId);
+
+            if (currentSelectedExp && isEmptyExperience(currentSelectedExp)) {
+              deleteExperience(selectedExperienceId);
+            }
+            if (currentSelectedEdu && isEmptyEducation(currentSelectedEdu)) {
+              deleteEducation(selectedEducationId);
+            }
+
+            // Dann immer einen neuen leeren Eintrag basierend auf dem aktiven Tab erstellen
+            if (activeTab === 'experience') {
+              createEmptyExperience();
+            } else if (activeTab === 'education') {
+              createEmptyEducation();
+            }
+          }}
+          className="flex items-center justify-center w-14 h-14 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+          style={{ backgroundColor: '#F29400' }}
+          title="Neuen Eintrag hinzufügen"
+        >
+          <Plus className="h-5 w-5" />
+        </button>
       </div>
     </div>
   );
