@@ -9,16 +9,3 @@
     @apply w-4 h-4 flex items-center justify-center text-yellow-400;
   }
 }
-
-/* Highlighted filled inputs */
-.highlight-filled-input {
-  @apply bg-bolt-highlight-bg border-bolt-highlight-border;
-  background-color: #FFEDCE !important;
-  border-color: #FFD799 !important;
-}
-
-.highlight-filled-input:focus {
-  @apply bg-white border-orange-500;
-  background-color: white !important;
-  border-color: #f97316 !important;
-}
