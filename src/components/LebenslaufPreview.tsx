@@ -7,7 +7,11 @@ import TabNavigation from './layout/TabNavigation';
 
 type PreviewTab = 'gesamt' | 'berufserfahrung' | 'ausbildung' | 'fachkompetenzen' | 'softskills';
 
-export default function LebenslaufPreview() {
+interface LebenslaufPreviewProps {
+  inputRef?: React.RefObject<HTMLDivElement>;
+}
+
+export default function LebenslaufPreview({ inputRef }: LebenslaufPreviewProps) {
   const containerStyle = {
     backgroundColor: 'white',
     padding: '1.5rem',
@@ -52,7 +56,11 @@ export default function LebenslaufPreview() {
   // Handle click outside to deselect cards
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (previewRef.current && !previewRef.current.contains(event.target as Node)) {
+      // Nur deselektieren wenn der Klick außerhalb SOWOHL der Vorschau ALS AUCH der Eingabe erfolgt
+      const clickedOutsidePreview = previewRef.current && !previewRef.current.contains(event.target as Node);
+      const clickedOutsideInput = inputRef?.current && !inputRef.current.contains(event.target as Node);
+      
+      if (clickedOutsidePreview && clickedOutsideInput) {
         selectExperience('');
         selectEducation('');
       }
@@ -62,7 +70,7 @@ export default function LebenslaufPreview() {
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [selectExperience, selectEducation]);
+  }, [selectExperience, selectEducation, inputRef]);
   const previewTabs = [
     { id: 'gesamt', label: 'Gesamt' },
     { id: 'berufserfahrung', label: 'Berufserfahrung' },

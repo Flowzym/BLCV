@@ -1,4 +1,5 @@
 import React from "react";
+import { useRef } from "react";
 import { LebenslaufProvider } from "./LebenslaufContext";
 import { ProfileSourceMapping } from "../services/supabaseService";
 import LebenslaufInput from "./LebenslaufInput";
@@ -11,17 +12,19 @@ export default function LebenslaufEditor({
 }: {
   profileSourceMappings?: ProfileSourceMapping[];
 }) {
+  const inputRef = useRef<HTMLDivElement>(null);
+
   return (
     <LebenslaufProvider>
       <div className="w-full grid grid-cols-1 lg:grid-cols-[2fr_2fr_1fr] gap-6 relative overflow-hidden">
         {/* Linke Spalte: Eingabe */}
-        <div className="relative min-w-0">
+        <div ref={inputRef} className="relative min-w-0">
           <LebenslaufInput />
         </div>
 
         {/* Rechte Spalte: Vorschau */}
         <div className="min-w-0">
-          <LebenslaufPreview />
+          <LebenslaufPreview inputRef={inputRef} />
         </div>
 
         {/* Rechte Spalte: KI-Assistent */}
