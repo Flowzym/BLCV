@@ -8,6 +8,7 @@ interface CountryDropdownProps {
   placeholder?: string;
   onInputEnter?: () => void;
   highlightClass?: string;
+  disableHighlight?: boolean;
 }
 
 const COUNTRIES = [
@@ -73,7 +74,8 @@ const CountryDropdown = forwardRef<HTMLButtonElement, CountryDropdownProps & { c
   label, 
   placeholder = "Land auswählen", 
   className = "",
-  onInputEnter
+  onInputEnter,
+  disableHighlight = false
 }, ref) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -139,7 +141,7 @@ const CountryDropdown = forwardRef<HTMLButtonElement, CountryDropdownProps & { c
           onBlur={() => setIsFocused(false)}
           onKeyDown={handleKeyDown}
           className={`w-full h-10 flex items-center justify-between px-3 py-2 border rounded-md hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-orange-500 text-left ${
-            value.trim() && !isFocused ? 'highlight-filled-input' : 'border-gray-300'
+            value.trim() && !isFocused && !disableHighlight ? 'highlight-filled-input' : 'border-gray-300'
           } ${className}`}
         >
           <div className="flex items-center space-x-3">
