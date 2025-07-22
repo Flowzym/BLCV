@@ -112,17 +112,11 @@ const LebenslaufInput: React.FC = () => {
       // Wenn keine Berufserfahrung ausgewählt ist und keine vorhanden sind, eine erstellen
       if (!selectedExperienceId && berufserfahrung.length === 0) {
         createEmptyExperience();
-      } else if (!selectedExperienceId && berufserfahrung.length > 0) {
-        // Wenn keine ausgewählt ist, aber welche vorhanden sind, die erste auswählen
-        selectExperience(berufserfahrung[0].id);
       }
     } else if (activeTab === 'education') {
       // Wenn keine Ausbildung ausgewählt ist und keine vorhanden sind, eine erstellen
       if (!selectedEducationId && ausbildung.length === 0) {
         createEmptyEducation();
-      } else if (!selectedEducationId && ausbildung.length > 0) {
-        // Wenn keine ausgewählt ist, aber welche vorhanden sind, die erste auswählen
-        selectEducation(ausbildung[0].id);
       }
     }
     
@@ -419,38 +413,28 @@ const LebenslaufInput: React.FC = () => {
             <button
               onClick={() => {
                 if (hasEmptyEntry) {
-                  // Abbrechen: Leere Einträge löschen
+                  // Leere Einträge löschen
                   if (hasEmptyExperience) {
                     deleteExperience(selectedExperienceId!);
                   }
                   if (hasEmptyEducation) {
                     deleteEducation(selectedEducationId!);
                   }
-                } else if (selectedExperienceId || selectedEducationId) {
-                  // Aktualisieren: Bearbeitung beenden
-                  deselectAllEntries();
                 } else {
-                  // Neue Berufserfahrung hinzufügen
+                  // Neuen Eintrag hinzufügen
                   createEmptyExperience();
                 }
               }}
               className="flex items-center justify-center w-14 h-14 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
               style={{ 
-                backgroundColor: hasEmptyEntry ? '#ef4444' : 
-                                (selectedExperienceId || selectedEducationId) ? '#569f1e' : '#F29400' 
+                backgroundColor: hasEmptyEntry ? '#ef4444' : '#F29400'
               }}
               title={
-                hasEmptyEntry ? "Leeren Eintrag abbrechen" :
-                (selectedExperienceId || selectedEducationId) ? "Bearbeitung beenden" : 
-                "Neue Berufserfahrung hinzufügen"
+                hasEmptyEntry ? "Leeren Eintrag abbrechen" : "Neuen Eintrag hinzufügen"
               }
             >
               {hasEmptyEntry ? (
                 <CircleOff className="h-5 w-5" />
-              ) : (selectedExperienceId || selectedEducationId) ? (
-                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
               ) : (
                 <Plus className="h-5 w-5" />
               )}
