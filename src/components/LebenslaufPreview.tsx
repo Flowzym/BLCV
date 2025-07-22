@@ -16,6 +16,7 @@ export default function LebenslaufPreview() {
     border: '1px solid #e5e7eb'
   };
 
+  const previewRef = useRef<HTMLDivElement>(null);
   const { 
     personalData,
     berufserfahrung, 
@@ -48,6 +49,20 @@ export default function LebenslaufPreview() {
   const [newTaskInputs, setNewTaskInputs] = useState<Record<string, string>>({});
   const [showAllExpanded, setShowAllExpanded] = useState(false);
 
+  // Handle click outside to deselect cards
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (previewRef.current && !previewRef.current.contains(event.target as Node)) {
+        selectExperience('');
+        selectEducation('');
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [selectExperience, selectEducation]);
   const previewTabs = [
     { id: 'gesamt', label: 'Gesamt' },
     { id: 'berufserfahrung', label: 'Berufserfahrung' },
@@ -136,6 +151,12 @@ export default function LebenslaufPreview() {
   const handleAddTask = (expId: string) => {
     const newTask = newTaskInputs[expId]?.trim();
     if (newTask) {
+      // Check for duplicates
+      const experience = berufserfahrung.find(e => e.id === expId);
+      if (experience && experience.aufgabenbereiche && experience.aufgabenbereiche.includes(newTask)) {
+        console.warn('Doppelter Tätigkeitseintrag verhindert:', newTask);
+        return;
+      }
       addExperienceTask(expId, newTask);
       setNewTaskInputs(prev => ({ ...prev, [expId]: '' }));
     }
@@ -219,7 +240,7 @@ export default function LebenslaufPreview() {
   };
 
   return (
-    <div className="h-full flex flex-col" style={containerStyle}>
+    <div ref={previewRef} className="h-full flex flex-col" style={containerStyle}>
       {/* Header mit Toggle-Button */}
       <div className="flex items-center justify-between mb-4 flex-shrink-0">
         <h2 className="text-lg font-semibold text-gray-900 flex items-center">📄 <span className="ml-2">Vorschau</span></h2>
@@ -290,7 +311,14 @@ export default function LebenslaufPreview() {
         {(previewTab === 'gesamt' || previewTab === 'berufserfahrung') && (
         <div className="mb-6">
           <div className="flex items-center justify-between mb-1">
-            <h3 className="font-bold text-xl">Berufserfahrung</h3>
+            <h3 className="font-bold text-xl">
+              Berufserfahrung
+              {berufserfahrung.length > 0 && (
+                <span className="ml-2 px-3 py-1.5 text-white text-sm font-bold rounded-full" style={{ backgroundColor: '#b5b7bb' }}>
+                  {berufserfahrung.length}
+                </span>
+              )}
+            </h3>
             <div className="flex items-center space-x-2">
               <span className="text-sm text-gray-600">
                 {isBisTranslatorActive ? 'BIS-Modus aktiv' : 'BIS-Modus inaktiv'}
@@ -499,15 +527,16 @@ export default function LebenslaufPreview() {
                               placeholder="Neue Aufgabe hinzufügen..."
                               className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-orange-500"
                             />
-                            <button
-                              onClick={() => handleAddTask(exp.id)}
-                              disabled={!newTaskInputs[exp.id]?.trim()}
-                              className="p-1 text-white rounded hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
-                              style={{ backgroundColor: '#F29400' }}
-                              title="Aufgabe hinzufügen"
-                            >
-                              <Plus className="h-4 w-4" />
-                            </button>
+                            {newTaskInputs[exp.id]?.trim() && (
+                              <button
+                                onClick={() => handleAddTask(exp.id)}
+                                className="p-1 text-white rounded hover:bg-orange-600 transition-colors duration-200"
+                                style={{ backgroundColor: '#F29400' }}
+                                title="Aufgabe hinzufügen"
+                              >
+                                <Plus className="h-4 w-4" />
+                              </button>
+                            )}
                           </div>
                         )}
                       </>

@@ -67,6 +67,8 @@ export default function EditablePreviewText({
 
   if (isEditing) {
     const InputComponent = isTextArea ? 'textarea' : 'input';
+    const inputSize = isTextArea ? undefined : Math.max(editValue.length || 1, placeholder.length || 1, 8);
+    
     return (
       <InputComponent
         ref={inputRef as any}
@@ -74,9 +76,14 @@ export default function EditablePreviewText({
         onChange={(e) => setEditValue(e.target.value)}
         onBlur={saveChanges}
         onKeyDown={handleKeyDown}
-        className={`${isTextArea ? 'w-full' : ''} bg-white border border-orange-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 ${className}`}
+        className={`${isTextArea ? 'w-full' : ''} bg-white border border-orange-200 rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-orange-300 ${className}`}
         placeholder={placeholder}
         rows={isTextArea ? 3 : undefined}
+        size={inputSize}
+        style={isTextArea ? {} : { 
+          width: `${inputSize}ch`,
+          minWidth: `${inputSize}ch`
+        }}
       />
     );
   }
