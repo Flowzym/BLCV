@@ -37,6 +37,7 @@ const AutocompleteInput = forwardRef<HTMLInputElement, AutocompleteInputProps<an
   placeholder,
   disabled = false,
   className = '',
+  highlightClass = '',
   id,
   label,
   showAddButton = true,
