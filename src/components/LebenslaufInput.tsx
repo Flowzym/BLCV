@@ -36,9 +36,11 @@ const LebenslaufInput: React.FC = () => {
   // Hilfsfunktion zum Prüfen ob eine Berufserfahrung leer ist
   const isEmptyExperience = (exp: any) => {
     return (!exp.companies || exp.companies.length === 0) && 
-           exp.position.length === 0 && 
-           exp.aufgabenbereiche.length === 0 &&
-           !exp.startYear;
+           (!exp.position || exp.position.length === 0) && 
+           (!exp.aufgabenbereiche || exp.aufgabenbereiche.length === 0) &&
+           (!exp.startYear || exp.startYear.trim() === '') &&
+           (!exp.zusatzangaben || exp.zusatzangaben.trim() === '') &&
+           (!exp.leasingCompaniesList || exp.leasingCompaniesList.length === 0);
   };
 
   // Hilfsfunktion zum Prüfen ob eine Ausbildung leer ist
@@ -46,7 +48,8 @@ const LebenslaufInput: React.FC = () => {
     return (!edu.institution || edu.institution.length === 0) && 
            (!edu.ausbildungsart || edu.ausbildungsart.length === 0) && 
            (!edu.abschluss || edu.abschluss.length === 0) &&
-           !edu.startYear;
+           (!edu.startYear || edu.startYear.trim() === '') &&
+           (!edu.zusatzangaben || edu.zusatzangaben.trim() === '');
   };
   
   // Hilfsfunktion zum Erstellen einer neuen Berufserfahrung
@@ -104,37 +107,24 @@ const LebenslaufInput: React.FC = () => {
 
   useEffect(() => {
     if (activeTab === 'experience') {
-      // Sicherstellen, dass eine Berufserfahrung ausgewählt ist, wenn der Tab 'experience' aktiv ist und Einträge vorhanden sind
+      // Nur auswählen wenn Einträge vorhanden sind UND noch keiner ausgewählt ist
       if (berufserfahrung.length > 0 && (!selectedExperienceId || !berufserfahrung.some(exp => exp.id === selectedExperienceId))) {
         selectExperience(berufserfahrung[0].id);
       }
     } else if (activeTab === 'education') {
-      // Sicherstellen, dass eine Ausbildung ausgewählt ist, wenn der Tab 'education' aktiv ist und Einträge vorhanden sind
+      // Nur auswählen wenn Einträge vorhanden sind UND noch keiner ausgewählt ist
       if (ausbildung.length > 0 && (!selectedEducationId || !ausbildung.some(edu => edu.id === selectedEducationId))) {
         selectEducation(ausbildung[0].id);
       }
     }
     
-    // Wenn der aktuell ausgewählte Eintrag gelöscht wurde, Auswahl aufheben
+    // Cleanup: Auswahl aufheben wenn Eintrag nicht mehr existiert
     if (selectedExperienceId && !berufserfahrung.some(exp => exp.id === selectedExperienceId)) {
       selectExperience('');
     }
     if (selectedEducationId && !ausbildung.some(edu => edu.id === selectedEducationId)) {
       selectEducation('');
     }
-    
-    // Cleanup leerer Einträge beim Tab-Wechsel
-    berufserfahrung.forEach(exp => {
-      if (exp.id !== selectedExperienceId && isEmptyExperience(exp)) {
-        deleteExperience(exp.id);
-      }
-    });
-    
-    ausbildung.forEach(edu => {
-      if (edu.id !== selectedEducationId && isEmptyEducation(edu)) {
-        deleteEducation(edu.id);
-      }
-    });
   }, [activeTab]);
 
   // Beim ersten Laden
@@ -163,20 +153,22 @@ const LebenslaufInput: React.FC = () => {
 
   // Helper function to create a new experience entry when user starts typing in empty form
   const getOrCreateExperienceId = useCallback(() => {
-    // Prevent multiple rapid creations
-    if (isCreatingFromInput) {
-      return selectedExperienceId || '';
-    }
-
-    // If we have a selected experience, check if it's not empty
+    // WICHTIG: Wenn bereits ein Eintrag ausgewählt ist, IMMER diesen verwenden
+    // Egal ob er "leer" ist oder nicht - der Benutzer hat ihn ausgewählt
     if (selectedExperienceId) {
-      const currentExp = berufserfahrung.find(exp => exp.id === selectedExperienceId);
-      if (currentExp && !isEmptyExperience(currentExp)) {
-        return selectedExperienceId;
+      const existsInArray = berufserfahrung.some(exp => exp.id === selectedExperienceId);
+      if (existsInArray) {
+        return selectedExperienceId; // Verwende den ausgewählten Eintrag
       }
+      // Falls der ausgewählte Eintrag nicht mehr existiert, deselektieren
+      selectExperience('');
     }
 
-    // Need to create a new experience
+    // Nur wenn KEIN Eintrag ausgewählt ist, einen neuen erstellen
+    if (isCreatingFromInput) {
+      return ''; // Verhindere mehrfache Erstellung
+    }
+
     setIsCreatingFromInput(true);
     
     try {
@@ -195,7 +187,7 @@ const LebenslaufInput: React.FC = () => {
       const newId = addExperience(newExp);
       selectExperience(newId);
       
-      // Reset the flag after state update
+      // Reset nach kurzer Zeit
       setTimeout(() => setIsCreatingFromInput(false), 50);
       
       return newId;
@@ -208,20 +200,21 @@ const LebenslaufInput: React.FC = () => {
 
   // Helper function to create a new education entry when user starts typing in empty form
   const getOrCreateEducationId = useCallback(() => {
-    // Prevent multiple rapid creations
-    if (isCreatingFromInput) {
-      return selectedEducationId || '';
-    }
-
-    // If we have a selected education, check if it's not empty
+    // WICHTIG: Wenn bereits ein Eintrag ausgewählt ist, IMMER diesen verwenden
     if (selectedEducationId) {
-      const currentEdu = ausbildung.find(edu => edu.id === selectedEducationId);
-      if (currentEdu && !isEmptyEducation(currentEdu)) {
-        return selectedEducationId;
+      const existsInArray = ausbildung.some(edu => edu.id === selectedEducationId);
+      if (existsInArray) {
+        return selectedEducationId; // Verwende den ausgewählten Eintrag
       }
+      // Falls der ausgewählte Eintrag nicht mehr existiert, deselektieren
+      selectEducation('');
     }
 
-    // Need to create a new education
+    // Nur wenn KEIN Eintrag ausgewählt ist, einen neuen erstellen
+    if (isCreatingFromInput) {
+      return ''; // Verhindere mehrfache Erstellung
+    }
+
     setIsCreatingFromInput(true);
     
     try {
@@ -240,7 +233,7 @@ const LebenslaufInput: React.FC = () => {
       const newId = addEducation(newEdu);
       selectEducation(newId);
       
-      // Reset the flag after state update
+      // Reset nach kurzer Zeit
       setTimeout(() => setIsCreatingFromInput(false), 50);
       
       return newId;
@@ -480,21 +473,9 @@ const LebenslaufInput: React.FC = () => {
       <div className="fixed bottom-4 right-4 z-50">
         <button
           onClick={() => {
-            if (isAddingEntry || isCreatingFromInput) return; // Prevent multiple clicks
+            if (isAddingEntry || isCreatingFromInput) return; // Verhindere Mehrfachklicks
             
-            // Zuerst prüfen, ob der aktuell ausgewählte Eintrag leer ist, und ihn löschen.
-            // Dies verhindert die Anhäufung leerer Einträge, wenn der Benutzer wiederholt auf "Hinzufügen" klickt.
-            const currentSelectedExp = berufserfahrung.find(exp => exp.id === selectedExperienceId);
-            const currentSelectedEdu = ausbildung.find(edu => edu.id === selectedEducationId);
-
-            if (currentSelectedExp && isEmptyExperience(currentSelectedExp)) {
-              deleteExperience(selectedExperienceId);
-            }
-            if (currentSelectedEdu && isEmptyEducation(currentSelectedEdu)) {
-              deleteEducation(selectedEducationId);
-            }
-
-            // Dann immer einen neuen leeren Eintrag basierend auf dem aktiven Tab erstellen
+            // Einfach einen neuen Eintrag basierend auf dem aktiven Tab erstellen
             if (activeTab === 'experience') {
               createEmptyExperience();
             } else if (activeTab === 'education') {
@@ -503,7 +484,7 @@ const LebenslaufInput: React.FC = () => {
           }}
           disabled={isAddingEntry || isCreatingFromInput}
           className={`flex items-center justify-center w-14 h-14 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 ${
-            (isAddingEntry || isCreatingFromInput) ? 'opacity-50 cursor-not-allowed' : ''
+            (isAddingEntry || isCreatingFromInput) ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-90'
           }`}
           style={{ backgroundColor: '#F29400' }}
           title="Neuen Eintrag hinzufügen"
