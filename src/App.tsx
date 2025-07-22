@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import { Settings } from 'lucide-react';
 import { LebenslaufProvider } from './components/LebenslaufContext';
+import CoverLetterAiAssistant from './components/CoverLetterAiAssistant';
 import SettingsPage from './components/SettingsPage';
 import StyleTest from './pages/StyleTest';
 import TabNavigation from './components/layout/TabNavigation';
