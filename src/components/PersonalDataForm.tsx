@@ -327,8 +327,8 @@ export default function PersonalDataForm({ data = {}, onChange = () => {} }: Per
                     focusNextInput(vornameRef);
                   }
                 }}
-                className={`w-full h-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-orange-500 pr-10 ${
-                  safeData.vorname?.trim() ? 'highlight-filled-input' : ''
+                className={`w-full h-10 px-3 py-2 rounded-md focus:outline-none focus:ring-1 pr-10 ${
+                  safeData.vorname?.trim() ? 'highlight-filled-input' : 'border-gray-300 focus:ring-orange-500'
                 }`}
                 placeholder="Vorname"
               />
@@ -363,8 +363,8 @@ export default function PersonalDataForm({ data = {}, onChange = () => {} }: Per
                     focusNextInput(nachnameRef);
                   }
                 }}
-                className={`w-full h-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-orange-500 pr-10 ${
-                  safeData.nachname?.trim() ? 'highlight-filled-input' : ''
+                className={`w-full h-10 px-3 py-2 rounded-md focus:outline-none focus:ring-1 pr-10 ${
+                  safeData.nachname?.trim() ? 'highlight-filled-input' : 'border-gray-300 focus:ring-orange-500'
                 }`}
                 placeholder="Nachname"
               />
@@ -445,8 +445,8 @@ export default function PersonalDataForm({ data = {}, onChange = () => {} }: Per
                       focusNextInput(emailRef);
                     }
                   }}
-                  className={`w-full h-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-orange-500 pr-10 ${
-                    safeData.email?.trim() ? 'highlight-filled-input' : ''
+                  className={`w-full h-10 px-3 py-2 rounded-md focus:outline-none focus:ring-1 pr-10 ${
+                    safeData.email?.trim() ? 'highlight-filled-input' : 'border-gray-300 focus:ring-orange-500'
                   }`}
                   placeholder="email@beispiel.com"
                 />
@@ -587,8 +587,8 @@ export default function PersonalDataForm({ data = {}, onChange = () => {} }: Per
                       focusNextInput(adresseRef);
                     }
                   }}
-                  className={`w-full h-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-orange-500 pr-10 ${
-                    safeData.adresse?.trim() ? 'highlight-filled-input' : ''
+                  className={`w-full h-10 px-3 py-2 rounded-md focus:outline-none focus:ring-1 pr-10 ${
+                    safeData.adresse?.trim() ? 'highlight-filled-input' : 'border-gray-300 focus:ring-orange-500'
                   }`}
                   placeholder="Musterstraße 123"
                 />
@@ -625,8 +625,8 @@ export default function PersonalDataForm({ data = {}, onChange = () => {} }: Per
                       focusNextInput(plzRef);
                     }
                   }}
-                  className={`w-full h-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-orange-500 pr-10 ${
-                    safeData.plz?.trim() ? 'highlight-filled-input' : ''
+                  className={`w-full h-10 px-3 py-2 rounded-md focus:outline-none focus:ring-1 pr-10 ${
+                    safeData.plz?.trim() ? 'highlight-filled-input' : 'border-gray-300 focus:ring-orange-500'
                   }`}
                   placeholder="1010"
                 />
@@ -852,8 +852,8 @@ export default function PersonalDataForm({ data = {}, onChange = () => {} }: Per
                       focusNextInput(familienstandRef);
                     }
                   }}
-                  className={`w-full h-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-orange-500 bg-white ${
-                    safeData.arbeitsmarktzugang?.trim() ? 'highlight-filled-input' : ''
+                  className={`w-full h-10 px-3 py-2 rounded-md focus:outline-none focus:ring-1 bg-white ${
+                    safeData.arbeitsmarktzugang?.trim() ? 'highlight-filled-input' : 'border-gray-300 focus:ring-orange-500'
                   }`}
                 >
                   {arbeitsmarktzugangOptions.map(option => (
@@ -896,8 +896,8 @@ export default function PersonalDataForm({ data = {}, onChange = () => {} }: Per
                     focusNextInput(familienstandRef);
                   }
                 }}
-                className={`w-full h-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-orange-500 bg-white ${
-                  safeData.familienstand?.trim() ? 'highlight-filled-input' : ''
+                className={`w-full h-10 px-3 py-2 rounded-md focus:outline-none focus:ring-1 bg-white ${
+                  safeData.familienstand?.trim() ? 'highlight-filled-input' : 'border-gray-300 focus:ring-orange-500'
                 }`}
               >
                 {familienstandOptions.map(option => (

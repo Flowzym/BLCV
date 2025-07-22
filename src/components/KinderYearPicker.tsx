@@ -88,6 +88,15 @@ const KinderYearPicker = forwardRef<HTMLInputElement, KinderYearPickerProps>(({
                 ? 'border-red-500'
                 : 'border-gray-300'
             }`}
+            className={`w-full h-10 px-3 py-2 rounded-md focus:outline-none focus:ring-1 pr-8 ${
+              highlightClass || (
+                hasValue && !isValid
+                  ? 'border-red-500'
+                  : hasValue && isValid
+                  ? 'border-[#F29400] focus:ring-[#F29400]'
+                  : 'border-gray-300'
+              )
+            }`}
             style={{ '--tw-ring-color': '#F29400' } as React.CSSProperties}
             placeholder="Geburtsjahr"
             maxLength={4}

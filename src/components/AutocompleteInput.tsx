@@ -281,6 +281,8 @@ const AutocompleteInput = forwardRef<HTMLInputElement, AutocompleteInputProps<an
               borderColor: '#D1D5DB',
               '--tw-ring-color': '#F29400'
             } as React.CSSProperties}
+            className={`w-full px-3 h-10 rounded-md transition-all focus:outline-none focus:ring-1 pr-10 ${highlightClass || (hasInput ? 'border-orange-500' : 'border-gray-300')}`}
+            style={{ '--tw-ring-color': '#F29400' } as React.CSSProperties}
             aria-expanded={isOpen}
             aria-haspopup="listbox"
             aria-autocomplete="list"
