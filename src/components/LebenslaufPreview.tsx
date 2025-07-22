@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { Trash2, Plus, FileText, Star, X, ToggleLeft, ToggleRight, Edit, Check, CircleOff } from 'lucide-react';
 import { ReactSortable } from 'react-sortablejs';
 import { useLebenslauf } from './LebenslaufContext';
