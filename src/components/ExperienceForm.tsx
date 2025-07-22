@@ -54,7 +54,7 @@ export default function ExperienceForm({
 
   const hasZeitraumData =
     form.startMonth !== null ||
-    form.startYear.trim() !== '' ||
+    (form.startYear && form.startYear.trim() !== '') ||
     form.endMonth !== null ||
     form.endYear !== null ||
     form.isCurrent === true;
