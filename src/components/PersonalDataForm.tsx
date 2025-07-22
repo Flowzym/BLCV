@@ -328,7 +328,7 @@ export default function PersonalDataForm({ data = {}, onChange = () => {} }: Per
                   }
                 }}
                 className={`w-full h-10 px-3 py-2 border rounded-md focus:outline-none focus:ring-1 pr-10 ${
-                  safeData.vorname?.trim() ? 'highlight-filled-input' : 'border-gray-300'
+                  safeData.vorname?.trim() ? 'highlight-filled-input' : 'border-gray-300 focus:border-orange-500'
                 }`}
                 style={{ '--tw-ring-color': '#F29400' } as React.CSSProperties}
                 placeholder="Vorname"
@@ -365,7 +365,7 @@ export default function PersonalDataForm({ data = {}, onChange = () => {} }: Per
                   }
                 }}
                 className={`w-full h-10 px-3 py-2 border rounded-md focus:outline-none focus:ring-1 pr-10 ${
-                  safeData.nachname?.trim() ? 'highlight-filled-input' : 'border-gray-300'
+                  safeData.nachname?.trim() ? 'highlight-filled-input' : 'border-gray-300 focus:border-orange-500'
                 }`}
                 style={{ '--tw-ring-color': '#F29400' } as React.CSSProperties}
                 placeholder="Nachname"
@@ -448,7 +448,7 @@ export default function PersonalDataForm({ data = {}, onChange = () => {} }: Per
                     }
                   }}
                   className={`w-full h-10 px-3 py-2 border rounded-md focus:outline-none focus:ring-1 pr-10 ${
-                    safeData.email?.trim() ? 'highlight-filled-input' : 'border-gray-300'
+                    safeData.email?.trim() ? 'highlight-filled-input' : 'border-gray-300 focus:border-orange-500'
                   }`}
                   style={{ '--tw-ring-color': '#F29400' } as React.CSSProperties}
                   placeholder="email@beispiel.com"
@@ -591,7 +591,7 @@ export default function PersonalDataForm({ data = {}, onChange = () => {} }: Per
                     }
                   }}
                   className={`w-full h-10 px-3 py-2 border rounded-md focus:outline-none focus:ring-1 pr-10 ${
-                    safeData.adresse?.trim() ? 'highlight-filled-input' : 'border-gray-300'
+                    safeData.adresse?.trim() ? 'highlight-filled-input' : 'border-gray-300 focus:border-orange-500'
                   }`}
                   style={{ '--tw-ring-color': '#F29400' } as React.CSSProperties}
                   placeholder="Musterstraße 123"
@@ -630,7 +630,7 @@ export default function PersonalDataForm({ data = {}, onChange = () => {} }: Per
                     }
                   }}
                   className={`w-full h-10 px-3 py-2 border rounded-md focus:outline-none focus:ring-1 pr-10 ${
-                    safeData.plz?.trim() ? 'highlight-filled-input' : 'border-gray-300'
+                    safeData.plz?.trim() ? 'highlight-filled-input' : 'border-gray-300 focus:border-orange-500'
                   }`}
                   style={{ '--tw-ring-color': '#F29400' } as React.CSSProperties}
                   placeholder="1010"
@@ -858,7 +858,7 @@ export default function PersonalDataForm({ data = {}, onChange = () => {} }: Per
                     }
                   }}
                   className={`w-full h-10 px-3 py-2 border rounded-md focus:outline-none focus:ring-1 bg-white ${
-                    safeData.arbeitsmarktzugang?.trim() ? 'highlight-filled-input' : 'border-gray-300'
+                    safeData.arbeitsmarktzugang?.trim() ? 'highlight-filled-input' : 'border-gray-300 focus:border-orange-500'
                   }`}
                   style={{ '--tw-ring-color': '#F29400' } as React.CSSProperties}
                 >
@@ -903,7 +903,7 @@ export default function PersonalDataForm({ data = {}, onChange = () => {} }: Per
                   }
                 }}
                 className={`w-full h-10 px-3 py-2 border rounded-md focus:outline-none focus:ring-1 bg-white ${
-                  safeData.familienstand?.trim() ? 'highlight-filled-input' : 'border-gray-300'
+                  safeData.familienstand?.trim() ? 'highlight-filled-input' : 'border-gray-300 focus:border-orange-500'
                 }`}
                 style={{ '--tw-ring-color': '#F29400' } as React.CSSProperties}
               >
