@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, ToggleLeft, ToggleRight, Eraser } from 'lucide-react';
 import AutocompleteInput from './AutocompleteInput';
 import TagButtonFavorite from './ui/TagButtonFavorite';
@@ -80,6 +80,50 @@ export default function PersonalDataForm({ data = {}, onChange = () => {} }: Per
     ...data
   };
 
+  // Refs for navigation
+  const vornameRef = useRef<HTMLInputElement>(null);
+  const nachnameRef = useRef<HTMLInputElement>(null);
+  const titelRef = useRef<HTMLInputElement>(null);
+  const phoneRef = useRef<HTMLInputElement>(null);
+  const emailRef = useRef<HTMLInputElement>(null);
+  const adresseRef = useRef<HTMLInputElement>(null);
+  const plzRef = useRef<HTMLInputElement>(null);
+  const ortRef = useRef<HTMLInputElement>(null);
+  const geburtsdatumRef = useRef<HTMLInputElement>(null);
+  const geburtsortRef = useRef<HTMLInputElement>(null);
+  const geburtslandRef = useRef<HTMLButtonElement>(null);
+  const staatsbuergerschaftRef = useRef<HTMLButtonElement>(null);
+  const familienstandRef = useRef<HTMLSelectElement>(null);
+  const kinderRef = useRef<HTMLInputElement>(null);
+
+  // Navigation order
+  const inputRefs = [
+    vornameRef,
+    nachnameRef,
+    titelRef,
+    phoneRef,
+    emailRef,
+    adresseRef,
+    plzRef,
+    ortRef,
+    geburtsdatumRef,
+    geburtsortRef,
+    geburtslandRef,
+    staatsbuergerschaftRef,
+    familienstandRef,
+    kinderRef
+  ];
+
+  const focusNextInput = (currentRef: React.RefObject<any>) => {
+    const currentIndex = inputRefs.indexOf(currentRef);
+    if (currentIndex >= 0 && currentIndex < inputRefs.length - 1) {
+      const nextRef = inputRefs[currentIndex + 1];
+      setTimeout(() => {
+        nextRef.current?.focus();
+      }, 50);
+    }
+  };
+
   const [favorites, setFavorites] = useState({
     ort: citySuggestions.slice(0, 5),
     geburtsort: citySuggestions.slice(0, 5),
@@ -129,7 +173,8 @@ export default function PersonalDataForm({ data = {}, onChange = () => {} }: Per
   }, [favorites]);
 
   const updateData = (field: keyof PersonalData, value: any) => {
-    onChange({ ...safeData, [field]: value });
+    const newData = { ...safeData, [field]: value };
+    onChange(newData);
   };
 
   const toggleFavorite = (category: keyof typeof favorites, value: string) => {
@@ -191,41 +236,61 @@ export default function PersonalDataForm({ data = {}, onChange = () => {} }: Per
   const hasFamilyContent = safeData.familienstand || safeData.kinder.length > 0;
 
   const clearNameData = () => {
-    updateData('titel', '');
-    updateData('vorname', '');
-    updateData('nachname', '');
+    const clearedData = {
+      ...safeData,
+      titel: '',
+      vorname: '',
+      nachname: ''
+    };
+    onChange(clearedData);
   };
 
   const clearContactData = () => {
-    updateData('telefon', '');
-    updateData('telefonVorwahl', '+43');
-    updateData('email', '');
-    updateData('socialMedia', []);
+    const clearedData = {
+      ...safeData,
+      telefon: '',
+      telefonVorwahl: '+43',
+      email: '',
+      socialMedia: []
+    };
+    onChange(clearedData);
     setNewSocialMedia('');
     setNewHomepage('');
     setShowSocialMedia(false);
   };
 
   const clearAddressData = () => {
-    updateData('adresse', '');
-    updateData('plz', '');
-    updateData('ort', '');
-    updateData('land', '');
-    updateData('ausland', false);
+    const clearedData = {
+      ...safeData,
+      adresse: '',
+      plz: '',
+      ort: '',
+      land: '',
+      ausland: false
+    };
+    onChange(clearedData);
   };
 
   const clearBirthData = () => {
-    updateData('geburtsdatum', '');
-    updateData('geburtsort', '');
-    updateData('geburtsland', '');
-    updateData('staatsbuergerschaft', '');
-    updateData('arbeitsmarktzugang', '');
-    updateData('staatsbuergerschaftCheckbox', false);
+    const clearedData = {
+      ...safeData,
+      geburtsdatum: '',
+      geburtsort: '',
+      geburtsland: '',
+      staatsbuergerschaft: '',
+      arbeitsmarktzugang: '',
+      staatsbuergerschaftCheckbox: false
+    };
+    onChange(clearedData);
   };
 
   const clearFamilyData = () => {
-    updateData('familienstand', '');
-    updateData('kinder', []);
+    const clearedData = {
+      ...safeData,
+      familienstand: '',
+      kinder: []
+    };
+    onChange(clearedData);
     setNewChild('');
   };
 
@@ -250,12 +315,21 @@ export default function PersonalDataForm({ data = {}, onChange = () => {} }: Per
             </label>
             <div className="relative">
               <input
+                ref={vornameRef}
                 type="text"
                 id="personal-vorname"
                 name="vorname"
                 value={safeData.vorname || ''}
                 onChange={(e) => updateData('vorname', e.target.value)}
-                className="w-full h-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-orange-500 pr-10"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    focusNextInput(vornameRef);
+                  }
+                }}
+                className={`w-full h-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-orange-500 pr-10 ${
+                  safeData.vorname?.trim() ? 'highlight-filled-input' : ''
+                }`}
                 placeholder="Vorname"
               />
               {safeData.vorname && (
@@ -277,12 +351,21 @@ export default function PersonalDataForm({ data = {}, onChange = () => {} }: Per
             </label>
             <div className="relative">
               <input
+                ref={nachnameRef}
                 type="text"
                 id="personal-nachname"
                 name="nachname"
                 value={safeData.nachname || ''}
                 onChange={(e) => updateData('nachname', e.target.value)}
-                className="w-full h-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-orange-500 pr-10"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    focusNextInput(nachnameRef);
+                  }
+                }}
+                className={`w-full h-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-orange-500 pr-10 ${
+                  safeData.nachname?.trim() ? 'highlight-filled-input' : ''
+                }`}
                 placeholder="Nachname"
               />
               {safeData.nachname && (
@@ -300,13 +383,16 @@ export default function PersonalDataForm({ data = {}, onChange = () => {} }: Per
           
           <div className="col-span-4">
             <AutocompleteInput
+              ref={titelRef}
               label="Titel"
               value={safeData.titel}
               onChange={(value) => updateData('titel', value)}
+              onInputEnter={() => focusNextInput(titelRef)}
               showAddButton={false}
               showFavoritesButton={false}
               suggestions={titleSuggestions}
               placeholder="Titel"
+              highlightClass={safeData.titel?.trim() ? 'highlight-filled-input' : ''}
             />
           </div>
         </div>
@@ -331,10 +417,13 @@ export default function PersonalDataForm({ data = {}, onChange = () => {} }: Per
                 Telefon
               </label>
               <PhoneInput
+                ref={phoneRef}
                 countryCode={safeData.telefonVorwahl || '+43'}
                 phoneNumber={safeData.telefon || ''}
                 onCountryChange={(code) => updateData('telefonVorwahl', code)}
                 onPhoneChange={(phone) => updateData('telefon', phone)}
+                onInputEnter={() => focusNextInput(phoneRef)}
+                highlightClass={safeData.telefon?.trim() ? 'highlight-filled-input' : ''}
               />
             </div>
             
@@ -344,12 +433,21 @@ export default function PersonalDataForm({ data = {}, onChange = () => {} }: Per
               </label>
               <div className="relative">
                 <input
+                  ref={emailRef}
                   type="email"
                   id="personal-email"
                   name="email"
                   value={safeData.email || ''}
                   onChange={(e) => updateData('email', e.target.value)}
-                  className="w-full h-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-orange-500 pr-10"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      focusNextInput(emailRef);
+                    }
+                  }}
+                  className={`w-full h-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-orange-500 pr-10 ${
+                    safeData.email?.trim() ? 'highlight-filled-input' : ''
+                  }`}
                   placeholder="email@beispiel.com"
                 />
                 {safeData.email && (
@@ -477,12 +575,21 @@ export default function PersonalDataForm({ data = {}, onChange = () => {} }: Per
               </label>
               <div className="relative">
                 <input
+                  ref={adresseRef}
                   type="text"
                   id="personal-adresse"
                   name="adresse"
                   value={safeData.adresse || ''}
                   onChange={(e) => updateData('adresse', e.target.value)}
-                  className="w-full h-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-orange-500 pr-10"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      focusNextInput(adresseRef);
+                    }
+                  }}
+                  className={`w-full h-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-orange-500 pr-10 ${
+                    safeData.adresse?.trim() ? 'highlight-filled-input' : ''
+                  }`}
                   placeholder="Musterstraße 123"
                 />
                 {safeData.adresse && (
@@ -504,6 +611,7 @@ export default function PersonalDataForm({ data = {}, onChange = () => {} }: Per
               </label>
               <div className="relative">
                 <input
+                  ref={plzRef}
                   type="text"
                   inputMode="numeric"
                   pattern="[0-9]*"
@@ -511,7 +619,15 @@ export default function PersonalDataForm({ data = {}, onChange = () => {} }: Per
                   name="plz"
                   value={safeData.plz || ''}
                   onChange={(e) => handleNumericInput(e.target.value, (val) => updateData('plz', val))}
-                  className="w-full h-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-orange-500 pr-10"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      focusNextInput(plzRef);
+                    }
+                  }}
+                  className={`w-full h-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-orange-500 pr-10 ${
+                    safeData.plz?.trim() ? 'highlight-filled-input' : ''
+                  }`}
                   placeholder="1010"
                 />
                 {safeData.plz && (
@@ -529,10 +645,12 @@ export default function PersonalDataForm({ data = {}, onChange = () => {} }: Per
             
             <div className="col-span-5">
               <AutocompleteInput
+                ref={ortRef}
                 label="Ort"
                 category="ort"
                 value={safeData.ort || ''}
                 onChange={(value) => updateData('ort', value)}
+                onInputEnter={() => focusNextInput(ortRef)}
                 showAddButton={false}
                 showFavoritesButton={true}
                 onFavoriteClick={(value, cat) => {
@@ -541,6 +659,7 @@ export default function PersonalDataForm({ data = {}, onChange = () => {} }: Per
                 }}
                 suggestions={Array.from(new Set([...favorites.ort, ...citySuggestions]))}
                 placeholder="Wien"
+                highlightClass={safeData.ort?.trim() ? 'highlight-filled-input' : ''}
               />
             </div>
           </div>
@@ -608,19 +727,24 @@ export default function PersonalDataForm({ data = {}, onChange = () => {} }: Per
                 Geburtsdatum
               </label>
               <DatePicker
+                ref={geburtsdatumRef}
                 className="w-full"
                 value={safeData.geburtsdatum || ''}
                 onChange={(value) => updateData('geburtsdatum', value)}
+                onInputEnter={() => focusNextInput(geburtsdatumRef)}
+                highlightClass={safeData.geburtsdatum?.trim() ? 'highlight-filled-input' : ''}
               />
             </div>
             
             <div>
               <AutocompleteInput
+                ref={geburtsortRef}
                 className="w-full"
                 label="Geburtsort"
                 category="geburtsort"
                 value={safeData.geburtsort || ''}
                 onChange={(value) => updateData('geburtsort', value)}
+                onInputEnter={() => focusNextInput(geburtsortRef)}
                 showAddButton={false}
                 showFavoritesButton={true}
                 onFavoriteClick={(value, cat) => {
@@ -629,15 +753,19 @@ export default function PersonalDataForm({ data = {}, onChange = () => {} }: Per
                 }}
                 suggestions={Array.from(new Set([...favorites.geburtsort, ...citySuggestions]))}
                 placeholder="Geburtsort"
+                highlightClass={safeData.geburtsort?.trim() ? 'highlight-filled-input' : ''}
               />
             </div>
             
             <div>
               <CountryDropdown
+                ref={geburtslandRef}
                 className="w-full"
                 label="Geburtsland"
                 value={safeData.geburtsland || ''}
                 onChange={(value) => updateData('geburtsland', value)}
+                onInputEnter={() => focusNextInput(geburtslandRef)}
+                highlightClass={safeData.geburtsland?.trim() ? 'highlight-filled-input' : ''}
               />
             </div>
           </div>
@@ -691,6 +819,7 @@ export default function PersonalDataForm({ data = {}, onChange = () => {} }: Per
                 label="Land"
                 value={safeData.land || ''}
                 onChange={(value) => updateData('land', value)}
+                highlightClass={safeData.land?.trim() ? 'highlight-filled-input' : ''}
               />
             </div>
           )}
@@ -699,9 +828,12 @@ export default function PersonalDataForm({ data = {}, onChange = () => {} }: Per
             <div className="grid grid-cols-12 gap-4">
               <div className="col-span-6">
                 <CountryDropdown
+                  ref={staatsbuergerschaftRef}
                   label="Staatsbürgerschaft"
                   value={safeData.staatsbuergerschaft || ''}
                   onChange={(value) => updateData('staatsbuergerschaft', value)}
+                  onInputEnter={() => focusNextInput(staatsbuergerschaftRef)}
+                  highlightClass={safeData.staatsbuergerschaft?.trim() ? 'highlight-filled-input' : ''}
                 />
               </div>
               
@@ -714,7 +846,15 @@ export default function PersonalDataForm({ data = {}, onChange = () => {} }: Per
                   name="arbeitsmarktzugang"
                   value={safeData.arbeitsmarktzugang || ''}
                   onChange={(e) => updateData('arbeitsmarktzugang', e.target.value)}
-                  className="w-full h-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-orange-500 bg-white"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      focusNextInput(familienstandRef);
+                    }
+                  }}
+                  className={`w-full h-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-orange-500 bg-white ${
+                    safeData.arbeitsmarktzugang?.trim() ? 'highlight-filled-input' : ''
+                  }`}
                 >
                   {arbeitsmarktzugangOptions.map(option => (
                     <option key={option} value={option}>{option}</option>
@@ -745,11 +885,20 @@ export default function PersonalDataForm({ data = {}, onChange = () => {} }: Per
                 Familienstand
               </label>
               <select
+                ref={familienstandRef}
                 id="personal-familienstand"
                 name="familienstand"
                 value={safeData.familienstand || ''}
                 onChange={(e) => updateData('familienstand', e.target.value)}
-                className="w-full h-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-orange-500 bg-white"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    focusNextInput(familienstandRef);
+                  }
+                }}
+                className={`w-full h-10 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-orange-500 bg-white ${
+                  safeData.familienstand?.trim() ? 'highlight-filled-input' : ''
+                }`}
               >
                 {familienstandOptions.map(option => (
                   <option key={option} value={option}>{option}</option>
@@ -764,9 +913,11 @@ export default function PersonalDataForm({ data = {}, onChange = () => {} }: Per
               </label>
               
               <KinderYearPicker
+                ref={kinderRef}
                 value={newChild}
                 onChange={setNewChild}
                 onAdd={addChild}
+                onInputEnter={() => focusNextInput(kinderRef)}
               />
               
               {/* Kinder Tags below field */}

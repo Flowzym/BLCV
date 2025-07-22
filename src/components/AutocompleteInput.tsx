@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, forwardRef } from 'react';
 import { Plus, Star, X } from 'lucide-react';
 
 interface AutocompleteInputProps<T = string> {
@@ -25,7 +25,7 @@ interface AutocompleteInputProps<T = string> {
   getKey?: (item: T) => string;
 }
 
-export default function AutocompleteInput<T = string>({
+const AutocompleteInput = forwardRef<HTMLInputElement, AutocompleteInputProps<any>>(({
   value,
   onChange,
   onFocus,
@@ -33,10 +33,12 @@ export default function AutocompleteInput<T = string>({
   onAdd,
   onFavoriteClick,
   onInputEnter,
+  onInputEnter,
   suggestions,
   placeholder,
   disabled = false,
   className = '',
+  highlightClass = '',
   highlightClass = '',
   id,
   label,
@@ -47,13 +49,23 @@ export default function AutocompleteInput<T = string>({
   formatSuggestion,
   getSearchableString,
   getKey
-}: AutocompleteInputProps<T>) {
+}, ref) => {
   const [isOpen, setIsOpen] = useState(false);
   const [filteredSuggestions, setFilteredSuggestions] = useState<T[]>([]);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Combine internal ref with forwarded ref
+  const setRefs = (instance: HTMLInputElement | null) => {
+    inputRef.current = instance;
+    if (typeof ref === 'function') {
+      ref(instance);
+    } else if (ref && typeof ref === 'object') {
+      (ref as React.MutableRefObject<HTMLInputElement | null>).current = instance;
+    }
+  };
 
   const hasInput = (value || '').trim().length > 0;
   const [isFocused, setIsFocused] = useState(false);
@@ -253,7 +265,7 @@ export default function AutocompleteInput<T = string>({
       <div className="flex items-center w-full space-x-2">
         <div className="relative flex-1">
           <input
-            ref={inputRef}
+            ref={setRefs}
             type="text"
             id={inputId}
             name={id || `autocomplete-${inputId}`}
@@ -371,4 +383,8 @@ export default function AutocompleteInput<T = string>({
       )}
     </div>
   );
-}
+});
+
+AutocompleteInput.displayName = 'AutocompleteInput';
+
+export default AutocompleteInput;

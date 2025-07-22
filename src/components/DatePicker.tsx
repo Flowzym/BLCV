@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, forwardRef } from 'react';
 import { Calendar, X } from 'lucide-react';
 import DateInputBase from './DateInputBase';
 
@@ -37,7 +37,13 @@ const months = [
   { label: "Dezember", value: "12" },
 ];
 
-export default function DatePicker({ value, onChange, onInputEnter, highlightClass = "", className = "" }: DatePickerProps & { className?: string }) {
+const DatePicker = forwardRef<HTMLInputElement, DatePickerProps & { className?: string }>(({ 
+  value, 
+  onChange, 
+  onInputEnter, 
+  highlightClass = "", 
+  className = "" 
+}, ref) => {
   const [activeField, setActiveField] = useState<"day" | "month" | "year" | null>(null);
   const [internalValue, setInternalValue] = useState(value);
   const popupRef = useRef<HTMLDivElement>(null);
@@ -152,6 +158,7 @@ export default function DatePicker({ value, onChange, onInputEnter, highlightCla
     <div className={`relative w-40 ${className}`}>
       <div className="relative">
         <DateInputBase
+          ref={ref}
           value={internalValue}
           onChange={handleInputChange}
           onFocus={handleInputFocus}
@@ -272,4 +279,8 @@ export default function DatePicker({ value, onChange, onInputEnter, highlightCla
       )}
     </div>
   );
-}
+});
+
+DatePicker.displayName = 'DatePicker';
+
+export default DatePicker;

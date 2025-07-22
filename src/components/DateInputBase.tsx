@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, forwardRef } from 'react';
 
 interface DateInputBaseProps {
   value: string;
@@ -15,7 +15,7 @@ interface DateInputBaseProps {
  * Basis-Komponente für Datumseingabe (TT.MM.JJJJ)
  * Basiert auf der bewährten MonthYearInputBase-Logik mit Verbesserungen
  */
-export default function DateInputBase({
+const DateInputBase = forwardRef<HTMLInputElement, DateInputBaseProps>(({
   value,
   onChange,
   placeholder = "TT.MM.JJJJ",
@@ -24,9 +24,19 @@ export default function DateInputBase({
   onFocus,
   onBlur,
   onKeyDown
-}: DateInputBaseProps) {
+}, ref) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const [internalValue, setInternalValue] = useState(value);
+
+  // Combine internal ref with forwarded ref
+  const setRefs = (instance: HTMLInputElement | null) => {
+    inputRef.current = instance;
+    if (typeof ref === 'function') {
+      ref(instance);
+    } else if (ref && typeof ref === 'object') {
+      (ref as React.MutableRefObject<HTMLInputElement | null>).current = instance;
+    }
+  };
 
   // Synchronisiere mit externem value
   useEffect(() => {
@@ -300,7 +310,7 @@ export default function DateInputBase({
 
   return (
     <input
-      ref={inputRef}
+      ref={setRefs}
       type="text"
       value={internalValue}
       onChange={handleChange}
@@ -319,4 +329,8 @@ export default function DateInputBase({
       } as React.CSSProperties}
     />
   );
-}
+});
+
+DateInputBase.displayName = 'DateInputBase';
+
+export default DateInputBase;
