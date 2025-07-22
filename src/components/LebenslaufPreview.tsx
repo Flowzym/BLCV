@@ -215,23 +215,6 @@ export default function LebenslaufPreview({ inputRef }: LebenslaufPreviewProps) 
     return type === 'experience' ? selectedExperienceId === id : selectedEducationId === id;
   };
 
-  // Hilfsfunktion um zu prüfen ob ein Eintrag leer ist
-  const isEmptyExperience = (exp: any) => {
-    return (!exp.companies || exp.companies.length === 0) && 
-           (!exp.position || exp.position.length === 0) && 
-           (!exp.aufgabenbereiche || exp.aufgabenbereiche.length === 0) &&
-           (!exp.startYear || exp.startYear.trim() === '') &&
-           (!exp.zusatzangaben || exp.zusatzangaben.trim() === '');
-  };
-
-  const isEmptyEducation = (edu: any) => {
-    return (!edu.institution || edu.institution.length === 0) && 
-           (!edu.ausbildungsart || edu.ausbildungsart.length === 0) && 
-           (!edu.abschluss || edu.abschluss.length === 0) &&
-           (!edu.startYear || edu.startYear.trim() === '') &&
-           (!edu.zusatzangaben || edu.zusatzangaben.trim() === '');
-  };
-
   // Helper function to check if personal data has content
   const hasPersonalDataContent = () => {
     return personalData && (
