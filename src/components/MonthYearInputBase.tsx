@@ -141,17 +141,15 @@ export default function MonthYearInputBase({
         // Monat selektieren
         input.setSelectionRange(0, slashPos);
       } else {
-        setCursorPosToRestore(0);
-        // Für Selektion verwenden wir einen speziellen Wert
-        setCursorPosToRestore(-firstDot); // Negative Werte für Selektion: -endPos
-        input.setSelectionRange(slashPos + 1, currentValue.length);
+        // Jahr selektieren
+        setCursorPosToRestore(-(currentValue.length * 1000 + slashPos + 1)); // Kodierung für Jahr-Selektion
       }
     } else if (currentValue.length === 4) {
-        setCursorPosToRestore(-(secondDot * 1000 + firstDot + 1)); // Kodierung für Selektion
-      input.setSelectionRange(0, currentValue.length);
+      // 4-stelliges Jahr: alles selektieren
+      setCursorPosToRestore(-(currentValue.length * 10000)); // Kodierung für komplette Selektion
     } else if (currentValue.length <= 2) {
-        setCursorPosToRestore(-(currentValue.length * 10000 + secondDot + 1)); // Kodierung für Selektion
-      input.setSelectionRange(0, currentValue.length);
+      // 1-2 stelliger Monat: alles selektieren
+      setCursorPosToRestore(-(currentValue.length * 10000)); // Kodierung für komplette Selektion
     } else {
       // Fallback: alles selektieren
       setCursorPosToRestore(-(currentValue.length * 10000)); // Kodierung für komplette Selektion
