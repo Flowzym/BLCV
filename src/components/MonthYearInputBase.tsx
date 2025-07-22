@@ -122,12 +122,10 @@ export default function MonthYearInputBase({
     onChange(formatted);
     
     // Cursor-Position setzen
-    setTimeout(() => {
-      if (inputRef.current) {
-        const finalPos = Math.min(newCursorPos, formatted.length);
-        inputRef.current.setSelectionRange(finalPos, finalPos);
-      }
-    }, 0);
+    if (inputRef.current) {
+      const finalPos = Math.min(newCursorPos, formatted.length);
+      inputRef.current.setSelectionRange(finalPos, finalPos);
+    }
   };
 
   const handleClick = () => {
@@ -142,20 +140,20 @@ export default function MonthYearInputBase({
       const slashPos = currentValue.indexOf('/');
       if (pos <= slashPos) {
         // Monat selektieren
-        setTimeout(() => input.setSelectionRange(0, slashPos), 0);
+        input.setSelectionRange(0, slashPos);
       } else {
         // Jahr selektieren
-        setTimeout(() => input.setSelectionRange(slashPos + 1, currentValue.length), 0);
+        input.setSelectionRange(slashPos + 1, currentValue.length);
       }
     } else if (currentValue.length === 4) {
       // Nur Jahr: ganzes Jahr selektieren
-      setTimeout(() => input.setSelectionRange(0, currentValue.length), 0);
+      input.setSelectionRange(0, currentValue.length);
     } else if (currentValue.length <= 2) {
       // Nur Monat: ganzen Monat selektieren
-      setTimeout(() => input.setSelectionRange(0, currentValue.length), 0);
+      input.setSelectionRange(0, currentValue.length);
     } else {
       // Fallback: alles selektieren
-      setTimeout(() => input.setSelectionRange(0, currentValue.length), 0);
+      input.setSelectionRange(0, currentValue.length);
     }
   };
 
@@ -263,11 +261,9 @@ export default function MonthYearInputBase({
           onChange(newValue);
           
           // Cursor nach der ersten Ziffer positionieren
-          setTimeout(() => {
-            if (inputRef.current) {
-              inputRef.current.setSelectionRange(1, 1);
-            }
-          }, 0);
+          if (inputRef.current) {
+            inputRef.current.setSelectionRange(1, 1);
+          }
           return;
         }
         
@@ -281,11 +277,9 @@ export default function MonthYearInputBase({
           onChange(newValue);
           
           // Cursor nach der Ziffer positionieren
-          setTimeout(() => {
-            if (inputRef.current) {
-              inputRef.current.setSelectionRange(slashPos + 2, slashPos + 2);
-            }
-          }, 0);
+          if (inputRef.current) {
+            inputRef.current.setSelectionRange(slashPos + 2, slashPos + 2);
+          }
           return;
         }
       }
@@ -297,11 +291,9 @@ export default function MonthYearInputBase({
         setInternalValue(digit);
         onChange(digit);
         
-        setTimeout(() => {
-          if (inputRef.current) {
-            inputRef.current.setSelectionRange(1, 1);
-          }
-        }, 0);
+        if (inputRef.current) {
+          inputRef.current.setSelectionRange(1, 1);
+        }
         return;
       }
     }
