@@ -203,7 +203,7 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
       leasingCompaniesList: experience.leasingCompaniesList || []
     };
     setBerufserfahrung(prev => [...prev, newExperience]);
-    setSelectedExperienceId(newExperience.id);
+    return newExperience.id; // Return the ID instead of setting it directly
   };
 
   const updateExperience = (id: string, experience: Partial<Experience>) => {
@@ -226,9 +226,6 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
 
   const deleteExperience = (id: string) => {
     setBerufserfahrung(prev => prev.filter(exp => exp.id !== id));
-    if (selectedExperienceId === id) {
-      setSelectedExperienceId('');
-    }
     setMultiSelectedExperienceIds(prev => prev.filter(expId => expId !== id));
   };
 
@@ -278,7 +275,7 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
       zusatzangaben: education.zusatzangaben || ''
     };
     setAusbildung(prev => [...prev, newEducation]);
-    setSelectedEducationId(newEducation.id);
+    return newEducation.id; // Return the ID instead of setting it directly
   };
 
   const updateEducation = (id: string, education: Partial<Education>) => {
@@ -293,9 +290,6 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
 
   const deleteEducation = (id: string) => {
     setAusbildung(prev => prev.filter(edu => edu.id !== id));
-    if (selectedEducationId === id) {
-      setSelectedEducationId('');
-    }
   };
 
   const updateEducationField = (id: string, field: string, value: any) => {

@@ -46,7 +46,6 @@ const LebenslaufInput: React.FC = () => {
   
   // Hilfsfunktion zum Erstellen einer neuen Berufserfahrung
   const createEmptyExperience = () => {
-    // Immer eine neue Berufserfahrung erstellen
     const newExp = {
       companies: [],
       position: [],
@@ -58,7 +57,8 @@ const LebenslaufInput: React.FC = () => {
       aufgabenbereiche: []
     };
     
-    addExperience(newExp);
+    const newId = addExperience(newExp);
+    selectExperience(newId);
   };
 
   // Funktion zum Deselektieren aller Einträge (für Floating Button)
@@ -69,7 +69,6 @@ const LebenslaufInput: React.FC = () => {
 
   // Hilfsfunktion zum Erstellen einer neuen Ausbildung
   const createEmptyEducation = () => {
-    // Immer eine neue Ausbildung erstellen, wenn der Button geklickt wird
     const newEdu = {
       institution: [],
       ausbildungsart: [],
@@ -82,7 +81,8 @@ const LebenslaufInput: React.FC = () => {
       zusatzangaben: ""
     };
     
-    addEducation(newEdu);
+    const newId = addEducation(newEdu);
+    selectEducation(newId);
   };
 
   useEffect(() => {
@@ -91,18 +91,10 @@ const LebenslaufInput: React.FC = () => {
       if (berufserfahrung.length > 0 && (!selectedExperienceId || !berufserfahrung.some(exp => exp.id === selectedExperienceId))) {
         selectExperience(berufserfahrung[0].id);
       }
-      // Wenn keine Berufserfahrung ausgewählt ist und keine vorhanden sind, eine erstellen
-      else if (!selectedExperienceId && berufserfahrung.length === 0) {
-        createEmptyExperience();
-      }
     } else if (activeTab === 'education') {
       // Sicherstellen, dass eine Ausbildung ausgewählt ist, wenn der Tab 'education' aktiv ist und Einträge vorhanden sind
       if (ausbildung.length > 0 && (!selectedEducationId || !ausbildung.some(edu => edu.id === selectedEducationId))) {
         selectEducation(ausbildung[0].id);
-      }
-      // Wenn keine Ausbildung ausgewählt ist und keine vorhanden sind, eine erstellen
-      else if (!selectedEducationId && ausbildung.length === 0) {
-        createEmptyEducation();
       }
     }
     
@@ -130,28 +122,7 @@ const LebenslaufInput: React.FC = () => {
 
   // Beim ersten Laden
   useEffect(() => {
-    if (activeTab === 'experience' && berufserfahrung.length === 0) {
-      addExperience({
-        companies: [],
-        position: [],
-        startMonth: null,
-        startYear: "",
-        endMonth: null,
-        aufgabenbereiche: []
-      });
-    } else if (activeTab === 'education' && ausbildung.length === 0) {
-      addEducation({
-        institution: [],
-        ausbildungsart: [],
-        abschluss: [],
-        startMonth: null, 
-        startYear: "", 
-        endMonth: null, 
-        endYear: null, 
-        isCurrent: false, 
-        zusatzangaben: ""
-      });
-    }
+    // Removed automatic creation on first load - let user decide when to add entries
   }, []);
 
   // Auto-switch to experience tab when an experience is selected
