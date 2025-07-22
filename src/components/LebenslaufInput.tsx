@@ -144,6 +144,48 @@ const LebenslaufInput: React.FC = () => {
     setActiveTabWithSync(tabId);
   };
 
+  // Helper function to create a new experience entry when user starts typing in empty form
+  const createExperienceOnFirstInput = () => {
+    if (!selectedExperienceId) {
+      const newExp = {
+        companies: [],
+        position: [],
+        startMonth: null,
+        startYear: "",
+        endMonth: null,
+        endYear: null,
+        isCurrent: false,
+        aufgabenbereiche: [],
+        zusatzangaben: ""
+      };
+      const newId = addExperience(newExp);
+      selectExperience(newId);
+      return newId;
+    }
+    return selectedExperienceId;
+  };
+
+  // Helper function to create a new education entry when user starts typing in empty form
+  const createEducationOnFirstInput = () => {
+    if (!selectedEducationId) {
+      const newEdu = {
+        institution: [],
+        ausbildungsart: [],
+        abschluss: [],
+        startMonth: null,
+        startYear: "",
+        endMonth: null,
+        endYear: null,
+        isCurrent: false,
+        zusatzangaben: ""
+      };
+      const newId = addEducation(newEdu);
+      selectEducation(newId);
+      return newId;
+    }
+    return selectedEducationId;
+  };
+
   // Hilfsfunktion zum Formatieren des Zeitraums
   const formatZeitraum = (
     startMonth: string | null,
@@ -181,28 +223,34 @@ const LebenslaufInput: React.FC = () => {
             </h3>
             {(() => {
               const currentExperience = berufserfahrung.find(e => e.id === selectedExperienceId);
-              return currentExperience ? (
+              
+              // Always show form - either with selected experience or empty form
+              const formData = currentExperience || {
+                companies: [],
+                position: [],
+                startMonth: null,
+                startYear: "",
+                endMonth: null,
+                endYear: null,
+                isCurrent: false,
+                aufgabenbereiche: [],
+                zusatzangaben: ""
+              };
+              
+              return (
                 <ExperienceForm
-                  form={currentExperience}
-                  selectedPositions={currentExperience.position || []}
+                  form={formData}
+                  selectedPositions={formData.position || []}
                   onUpdateField={(field, value) => {
-                    updateExperienceField(selectedExperienceId, field, value);
+                    const experienceId = createExperienceOnFirstInput();
+                    updateExperienceField(experienceId, field, value);
                   }}
                   onPositionsChange={(positions) => {
-                    updateExperienceField(selectedExperienceId, 'position', positions);
+                    const experienceId = createExperienceOnFirstInput();
+                    updateExperienceField(experienceId, 'position', positions);
                   }}
                   cvSuggestions={cvSuggestions}
                 />
-              ) : (
-                berufserfahrung.length === 0 ? (
-                  <div className="text-center py-6 text-gray-500 text-sm">
-                    Keine Berufserfahrung vorhanden. Klicken Sie auf den Plus-Button, um eine hinzuzufügen.
-                  </div>
-                ) : (
-                  <div className="text-center py-6 text-gray-500 text-sm">
-                    Wählen Sie eine Berufserfahrung aus der Vorschau aus, um sie zu bearbeiten.
-                  </div>
-                )
               );
             })()}
           </div>
@@ -219,24 +267,29 @@ const LebenslaufInput: React.FC = () => {
             </h3>
             {(() => {
               const currentEducation = ausbildung.find(e => e.id === selectedEducationId);
-              return currentEducation ? (
+              
+              // Always show form - either with selected education or empty form
+              const formData = currentEducation || {
+                institution: [],
+                ausbildungsart: [],
+                abschluss: [],
+                startMonth: null,
+                startYear: "",
+                endMonth: null,
+                endYear: null,
+                isCurrent: false,
+                zusatzangaben: ""
+              };
+              
+              return (
                 <AusbildungForm
-                  form={currentEducation}
+                  form={formData}
                   onUpdateField={(field, value) => {
-                    updateEducationField(selectedEducationId, field, value);
+                    const educationId = createEducationOnFirstInput();
+                    updateEducationField(educationId, field, value);
                   }}
                   cvSuggestions={cvSuggestions}
                 />
-              ) : (
-                ausbildung.length === 0 ? (
-                  <div className="text-center py-6 text-gray-500 text-sm">
-                    Keine Ausbildung vorhanden. Klicken Sie auf den Plus-Button, um eine hinzuzufügen.
-                  </div>
-                ) : (
-                  <div className="text-center py-6 text-gray-500 text-sm">
-                    Wählen Sie eine Ausbildung aus der Vorschau aus, um sie zu bearbeiten.
-                  </div>
-                )
               );
             })()}
           </div>
