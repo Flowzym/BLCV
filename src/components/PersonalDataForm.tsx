@@ -766,6 +766,7 @@ export default function PersonalDataForm({ data = {}, onChange = () => {} }: Per
                 value={safeData.geburtsland || ''}
                 onChange={(value) => updateData('geburtsland', value)}
                 onInputEnter={() => focusNextInput(geburtslandRef)}
+                disableHighlight={true}
               />
             </div>
           </div>
@@ -819,6 +820,7 @@ export default function PersonalDataForm({ data = {}, onChange = () => {} }: Per
                 label="Land"
                 value={safeData.land || ''}
                 onChange={(value) => updateData('land', value)}
+                disableHighlight={true}
               />
             </div>
           )}
@@ -832,6 +834,7 @@ export default function PersonalDataForm({ data = {}, onChange = () => {} }: Per
                   value={safeData.staatsbuergerschaft || ''}
                   onChange={(value) => updateData('staatsbuergerschaft', value)}
                   onInputEnter={() => focusNextInput(staatsbuergerschaftRef)}
+                  disableHighlight={true}
                 />
               </div>
               
