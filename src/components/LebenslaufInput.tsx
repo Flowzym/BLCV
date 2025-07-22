@@ -8,6 +8,9 @@ import { Plus, Calendar, Building, Briefcase, ChevronRight, User, CircleOff } fr
 type TabType = 'personal' | 'experience' | 'education' | 'skills' | 'softskills';
 
 const LebenslaufInput: React.FC = () => {
+  // State to prevent multiple entries being created
+  const [isAddingEntry, setIsAddingEntry] = useState(false);
+
   const {
     personalData,
     updatePersonalData,
@@ -46,6 +49,9 @@ const LebenslaufInput: React.FC = () => {
   
   // Hilfsfunktion zum Erstellen einer neuen Berufserfahrung
   const createEmptyExperience = () => {
+    if (isAddingEntry) return; // Prevent multiple entries
+    setIsAddingEntry(true);
+    
     const newExp = {
       companies: [],
       position: [],
@@ -59,6 +65,9 @@ const LebenslaufInput: React.FC = () => {
     
     const newId = addExperience(newExp);
     selectExperience(newId);
+    
+    // Reset the flag after a short delay to ensure the operation is complete
+    setTimeout(() => setIsAddingEntry(false), 100);
   };
 
   // Funktion zum Deselektieren aller Einträge (für Floating Button)
@@ -69,6 +78,9 @@ const LebenslaufInput: React.FC = () => {
 
   // Hilfsfunktion zum Erstellen einer neuen Ausbildung
   const createEmptyEducation = () => {
+    if (isAddingEntry) return; // Prevent multiple entries
+    setIsAddingEntry(true);
+    
     const newEdu = {
       institution: [],
       ausbildungsart: [],
@@ -83,6 +95,9 @@ const LebenslaufInput: React.FC = () => {
     
     const newId = addEducation(newEdu);
     selectEducation(newId);
+    
+    // Reset the flag after a short delay to ensure the operation is complete
+    setTimeout(() => setIsAddingEntry(false), 100);
   };
 
   useEffect(() => {
@@ -412,6 +427,8 @@ const LebenslaufInput: React.FC = () => {
       <div className="fixed bottom-4 right-4 z-50">
         <button
           onClick={() => {
+            if (isAddingEntry) return; // Prevent multiple clicks
+            
             // Zuerst prüfen, ob der aktuell ausgewählte Eintrag leer ist, und ihn löschen.
             // Dies verhindert die Anhäufung leerer Einträge, wenn der Benutzer wiederholt auf "Hinzufügen" klickt.
             const currentSelectedExp = berufserfahrung.find(exp => exp.id === selectedExperienceId);
@@ -431,7 +448,10 @@ const LebenslaufInput: React.FC = () => {
               createEmptyEducation();
             }
           }}
-          className="flex items-center justify-center w-14 h-14 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+          disabled={isAddingEntry}
+          className={`flex items-center justify-center w-14 h-14 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 ${
+            isAddingEntry ? 'opacity-50 cursor-not-allowed' : ''
+          }`}
           style={{ backgroundColor: '#F29400' }}
           title="Neuen Eintrag hinzufügen"
         >
