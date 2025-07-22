@@ -438,12 +438,14 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
     updateExperienceTask,
     updateExperienceTasksOrder,
     addExperienceTask,
+    updateExperienceZeitraum,
     
     addEducation,
     updateEducation,
     selectEducation,
     deleteEducation,
     updateEducationField,
+    updateEducationZeitraum,
     
     toggleFavoriteTask,
     toggleFavoriteCompany,

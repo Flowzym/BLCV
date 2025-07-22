@@ -66,11 +66,13 @@ export default function AusbildungForm({
             <button
               type="button"
               onClick={() => {
-                updateEducationField(educationId, 'startMonth', null);
-                updateEducationField(educationId, 'startYear', '');
-                updateEducationField(educationId, 'endMonth', null);
-                updateEducationField(educationId, 'endYear', null);
-                updateEducationField(educationId, 'isCurrent', false);
+                updateEducationZeitraum(educationId, {
+                  startMonth: null,
+                  startYear: '',
+                  endMonth: null,
+                  endYear: null,
+                  isCurrent: false
+                });
               }}
               className="p-1 text-gray-600 hover:text-gray-900"
               title="Zeitraum zurücksetzen"

@@ -233,11 +233,13 @@ export default function ExperienceForm({
               type="button"
               onClick={() => {
                 updateExperienceField(experienceId, 'companies', []);
-                updateExperienceField(experienceId, 'startYear', '');
-                updateExperienceField(experienceId, 'startMonth', null);
-                updateExperienceField(experienceId, 'endMonth', null);
-                updateExperienceField(experienceId, 'endYear', null);
-                updateExperienceField(experienceId, 'isCurrent', false);
+                updateExperienceZeitraum(experienceId, {
+                  startMonth: null,
+                  startYear: '',
+                  endMonth: null,
+                  endYear: null,
+                  isCurrent: false
+                });
               }}
               className="p-1 text-gray-600 hover:text-gray-900"
               title="Zeitraum zurücksetzen"
