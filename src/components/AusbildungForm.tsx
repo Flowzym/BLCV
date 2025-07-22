@@ -16,6 +16,7 @@ export default function AusbildungForm({
   cvSuggestions,
 }: AusbildungFormProps) {
   const { ausbildung, updateEducationField } = useLebenslauf();
+  const { ausbildung, updateEducationField, updateEducationZeitraum } = useLebenslauf();
   
   // Get current form data
   const form = ausbildung.find(edu => edu.id === educationId);
@@ -90,23 +91,17 @@ export default function AusbildungForm({
             isCurrent: safeForm.isCurrent,
           }}
           onChange={(data) => {
-            updateEducationField(educationId, 'startMonth',
-              data.startMonth !== undefined && data.startMonth !== null
+            updateEducationZeitraum(educationId, {
+              startMonth: data.startMonth !== undefined && data.startMonth !== null
                 ? String(data.startMonth).padStart(2, '0')
-                : null
-            );
-            updateEducationField(educationId, 'startYear',
-              data.startYear !== undefined && data.startYear !== null ? String(data.startYear) : ''
-            );
-            updateEducationField(educationId, 'endMonth',
-              data.endMonth !== undefined && data.endMonth !== null
+                : null,
+              startYear: data.startYear !== undefined && data.startYear !== null ? String(data.startYear) : '',
+              endMonth: data.endMonth !== undefined && data.endMonth !== null
                 ? String(data.endMonth).padStart(2, '0')
-                : null
-            );
-            updateEducationField(educationId, 'endYear',
-              data.endYear !== undefined && data.endYear !== null ? String(data.endYear) : null
-            );
-            updateEducationField(educationId, 'isCurrent', data.isCurrent ?? false);
+                : null,
+              endYear: data.endYear !== undefined && data.endYear !== null ? String(data.endYear) : null,
+              isCurrent: data.isCurrent ?? false
+            });
           }}
         />
       </div>

@@ -24,6 +24,7 @@ export default function ExperienceForm({
   cvSuggestions,
 }: ExperienceFormProps) {
   const { berufserfahrung, updateExperienceField } = useLebenslauf();
+  const { berufserfahrung, updateExperienceField, updateExperienceZeitraum } = useLebenslauf();
   
   // Get current form data
   const form = berufserfahrung.find(exp => exp.id === experienceId);
@@ -257,23 +258,17 @@ export default function ExperienceForm({
             isCurrent: safeForm.isCurrent,
           }}
           onChange={(data) => {
-            updateExperienceField(experienceId, 'startMonth', 
-              data.startMonth !== undefined && data.startMonth !== null
+            updateExperienceZeitraum(experienceId, {
+              startMonth: data.startMonth !== undefined && data.startMonth !== null
                 ? String(data.startMonth).padStart(2, '0')
-                : null
-            );
-            updateExperienceField(experienceId, 'startYear',
-              data.startYear !== undefined && data.startYear !== null ? String(data.startYear) : ''
-            );
-            updateExperienceField(experienceId, 'endMonth',
-              data.endMonth !== undefined && data.endMonth !== null
+                : null,
+              startYear: data.startYear !== undefined && data.startYear !== null ? String(data.startYear) : '',
+              endMonth: data.endMonth !== undefined && data.endMonth !== null
                 ? String(data.endMonth).padStart(2, '0')
-                : null
-            );
-            updateExperienceField(experienceId, 'endYear',
-              data.endYear !== undefined && data.endYear !== null ? String(data.endYear) : null
-            );
-            updateExperienceField(experienceId, 'isCurrent', data.isCurrent ?? false);
+                : null,
+              endYear: data.endYear !== undefined && data.endYear !== null ? String(data.endYear) : null,
+              isCurrent: data.isCurrent ?? false
+            });
           }}
         />
       </div>
