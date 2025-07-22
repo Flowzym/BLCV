@@ -40,6 +40,8 @@ export default function LebenslaufPreview({ inputRef }: LebenslaufPreviewProps) 
     updateExperienceField,
     favoriteTasks,
     toggleFavoriteTask,
+    isEmptyExperience,
+    isEmptyEducation,
     isBisTranslatorActive,
     setIsBisTranslatorActive,
     selectedBisTasks,
@@ -63,7 +65,14 @@ export default function LebenslaufPreview({ inputRef }: LebenslaufPreviewProps) 
 
   const sortedErfahrungen = useMemo(() => {
     console.log('Berufserfahrungen für Vorschau:', berufserfahrung);
-    return [...berufserfahrung].sort((a, b) => {
+    // Filter out empty experiences unless they are selected or showAllExpanded is true
+    const filteredErfahrungen = berufserfahrung.filter(exp => {
+      if (showAllExpanded) return true;
+      if (selectedExperienceId === exp.id) return true;
+      return !isEmptyExperience(exp);
+    });
+    
+    return [...filteredErfahrungen].sort((a, b) => {
       // Neue Einträge ohne Zeitraum kommen immer nach oben
       const aHasTime = a.startYear && a.startYear.trim();
       const bHasTime = b.startYear && b.startYear.trim();
@@ -80,11 +89,18 @@ export default function LebenslaufPreview({ inputRef }: LebenslaufPreviewProps) 
       if (yearA !== yearB) return yearB - yearA;
       return monthB - monthA;
     });
-  }, [berufserfahrung]);
+  }, [berufserfahrung, selectedExperienceId, showAllExpanded, isEmptyExperience]);
 
   const sortedAusbildungen = useMemo(() => {
     console.log('Ausbildungen für Vorschau:', ausbildung);
-    return [...ausbildung].sort((a, b) => {
+    // Filter out empty educations unless they are selected or showAllExpanded is true
+    const filteredAusbildungen = ausbildung.filter(edu => {
+      if (showAllExpanded) return true;
+      if (selectedEducationId === edu.id) return true;
+      return !isEmptyEducation(edu);
+    });
+    
+    return [...filteredAusbildungen].sort((a, b) => {
       // Neue Einträge ohne Zeitraum kommen immer nach oben (neueste zuerst)
       const aHasTime = a.startYear && a.startYear.trim();
       const bHasTime = b.startYear && b.startYear.trim();
@@ -104,7 +120,7 @@ export default function LebenslaufPreview({ inputRef }: LebenslaufPreviewProps) 
       if (yearA !== yearB) return yearB - yearA;
       return monthB - monthA;
     });
-  }, [ausbildung]);
+  }, [ausbildung, selectedEducationId, showAllExpanded, isEmptyEducation]);
 
   // Hilfsfunktion zum Formatieren einer Liste mit korrekter Interpunktion
   const formatListWithConjunction = (items: string[]): string => {

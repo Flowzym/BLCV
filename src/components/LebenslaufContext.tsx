@@ -120,6 +120,8 @@ interface LebenslaufContextType {
   // Helper methods to ensure valid entries exist
   ensureSelectedExperienceExists: () => string;
   ensureSelectedEducationExists: () => string;
+  isEmptyExperience: (exp: Experience) => boolean;
+  isEmptyEducation: (edu: Education) => boolean;
 }
 
 const LebenslaufContext = createContext<LebenslaufContextType | undefined>(undefined);
@@ -232,6 +234,17 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
 
   // Experience methods
   const addExperience = (experience: Partial<Experience>) => {
+    // Check if there's already an empty experience that's not selected
+    const existingEmptyExp = berufserfahrung.find(exp => 
+      isEmptyExperience(exp) && exp.id !== selectedExperienceId
+    );
+    
+    // If there's an existing empty experience, select it instead of creating a new one
+    if (existingEmptyExp) {
+      setSelectedExperienceId(existingEmptyExp.id);
+      return existingEmptyExp.id;
+    }
+    
     const newExperience: Experience = {
       id: Date.now().toString(),
       companies: experience.companies || [],
@@ -257,6 +270,15 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
   };
 
   const selectExperience = (id: string) => {
+    // If switching away from a currently selected empty experience, delete it
+    if (selectedExperienceId && selectedExperienceId !== id) {
+      const currentExp = berufserfahrung.find(exp => exp.id === selectedExperienceId);
+      if (currentExp && isEmptyExperience(currentExp)) {
+        setBerufserfahrung(prev => prev.filter(exp => exp.id !== selectedExperienceId));
+        setMultiSelectedExperienceIds(prev => prev.filter(expId => expId !== selectedExperienceId));
+      }
+    }
+    
     setSelectedExperienceId(id);
   };
 
@@ -306,6 +328,17 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
 
   // Education methods
   const addEducation = (education: Partial<Education>) => {
+    // Check if there's already an empty education that's not selected
+    const existingEmptyEdu = ausbildung.find(edu => 
+      isEmptyEducation(edu) && edu.id !== selectedEducationId
+    );
+    
+    // If there's an existing empty education, select it instead of creating a new one
+    if (existingEmptyEdu) {
+      setSelectedEducationId(existingEmptyEdu.id);
+      return existingEmptyEdu.id;
+    }
+    
     const newEducation: Education = {
       id: Date.now().toString(),
       institution: education.institution || [],
@@ -330,6 +363,14 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
   };
 
   const selectEducation = (id: string) => {
+    // If switching away from a currently selected empty education, delete it
+    if (selectedEducationId && selectedEducationId !== id) {
+      const currentEdu = ausbildung.find(edu => edu.id === selectedEducationId);
+      if (currentEdu && isEmptyEducation(currentEdu)) {
+        setAusbildung(prev => prev.filter(edu => edu.id !== selectedEducationId));
+      }
+    }
+    
     setSelectedEducationId(id);
   };
 
@@ -505,6 +546,8 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
     
     ensureSelectedExperienceExists,
     ensureSelectedEducationExists,
+    isEmptyExperience,
+    isEmptyEducation,
   };
 
   return (
@@ -521,3 +564,20 @@ export function useLebenslauf() {
   }
   return context;
 }
+// Helper functions to check if entries are empty
+const isEmptyExperience = (exp: Experience): boolean => {
+  return (!exp.companies || exp.companies.length === 0) && 
+         (!exp.position || exp.position.length === 0) && 
+         (!exp.aufgabenbereiche || exp.aufgabenbereiche.length === 0) &&
+         (!exp.startYear || exp.startYear.trim() === '') &&
+         (!exp.zusatzangaben || exp.zusatzangaben.trim() === '') &&
+         (!exp.leasingCompaniesList || exp.leasingCompaniesList.length === 0);
+};
+
+const isEmptyEducation = (edu: Education): boolean => {
+  return (!edu.institution || edu.institution.length === 0) && 
+         (!edu.ausbildungsart || edu.ausbildungsart.length === 0) && 
+         (!edu.abschluss || edu.abschluss.length === 0) &&
+         (!edu.startYear || edu.startYear.trim() === '') &&
+         (!edu.zusatzangaben || edu.zusatzangaben.trim() === '');
+};

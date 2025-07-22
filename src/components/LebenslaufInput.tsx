@@ -33,25 +33,6 @@ const LebenslaufInput: React.FC = () => {
     ensureSelectedExperienceExists,
     ensureSelectedEducationExists
   } = useLebenslauf();
-
-  // Hilfsfunktion zum Prüfen ob eine Berufserfahrung leer ist
-  const isEmptyExperience = (exp: any) => {
-    return (!exp.companies || exp.companies.length === 0) && 
-           (!exp.position || exp.position.length === 0) && 
-           (!exp.aufgabenbereiche || exp.aufgabenbereiche.length === 0) &&
-           (!exp.startYear || exp.startYear.trim() === '') &&
-           (!exp.zusatzangaben || exp.zusatzangaben.trim() === '') &&
-           (!exp.leasingCompaniesList || exp.leasingCompaniesList.length === 0);
-  };
-
-  // Hilfsfunktion zum Prüfen ob eine Ausbildung leer ist
-  const isEmptyEducation = (edu: any) => {
-    return (!edu.institution || edu.institution.length === 0) && 
-           (!edu.ausbildungsart || edu.ausbildungsart.length === 0) && 
-           (!edu.abschluss || edu.abschluss.length === 0) &&
-           (!edu.startYear || edu.startYear.trim() === '') &&
-           (!edu.zusatzangaben || edu.zusatzangaben.trim() === '');
-  };
   
   // Hilfsfunktion zum Erstellen einer neuen Berufserfahrung
   const createEmptyExperience = () => {
