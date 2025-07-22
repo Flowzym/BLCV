@@ -53,24 +53,6 @@ export default function LebenslaufPreview({ inputRef }: LebenslaufPreviewProps) 
   const [newTaskInputs, setNewTaskInputs] = useState<Record<string, string>>({});
   const [showAllExpanded, setShowAllExpanded] = useState(false);
 
-  // Handle click outside to deselect cards
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      // Nur deselektieren wenn der Klick außerhalb SOWOHL der Vorschau ALS AUCH der Eingabe erfolgt
-      const clickedOutsidePreview = previewRef.current && !previewRef.current.contains(event.target as Node);
-      const clickedOutsideInput = inputRef?.current && !inputRef.current.contains(event.target as Node);
-      
-      if (clickedOutsidePreview && clickedOutsideInput) {
-        selectExperience('');
-        selectEducation('');
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [selectExperience, selectEducation, inputRef]);
   const previewTabs = [
     { id: 'gesamt', label: 'Gesamt' },
     { id: 'berufserfahrung', label: 'Berufserfahrung' },
