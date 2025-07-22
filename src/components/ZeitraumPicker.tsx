@@ -149,6 +149,7 @@ export default function ZeitraumPicker({
 
   const handleMonthSelect = (event: React.MouseEvent, month?: string) => {
     event.stopPropagation(); // Verhindert, dass der Klick die Deselektierungslogik auslöst
+    event.stopPropagation(); // Verhindert, dass der Klick die Deselektierungslogik auslöst
     if (activeField === "start") {
       setStartMonth(month);
       setStartInput(`${month ?? ""}/`);
@@ -162,6 +163,7 @@ export default function ZeitraumPicker({
   };
 
   const handleYearSelect = (event: React.MouseEvent, year: string) => {
+    event.stopPropagation(); // Verhindert, dass der Klick die Deselektierungslogik auslöst
     event.stopPropagation(); // Verhindert, dass der Klick die Deselektierungslogik auslöst
     if (activeField === "start") {
       setStartYear(year);
