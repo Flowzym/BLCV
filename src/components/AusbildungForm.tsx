@@ -15,7 +15,6 @@ export default function AusbildungForm({
   educationId,
   cvSuggestions,
 }: AusbildungFormProps) {
-  const { ausbildung, updateEducationField } = useLebenslauf();
   const { ausbildung, updateEducationField, updateEducationZeitraum } = useLebenslauf();
   
   // Get current form data

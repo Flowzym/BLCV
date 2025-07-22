@@ -23,7 +23,6 @@ export default function ExperienceForm({
   experienceId,
   cvSuggestions,
 }: ExperienceFormProps) {
-  const { berufserfahrung, updateExperienceField } = useLebenslauf();
   const { berufserfahrung, updateExperienceField, updateExperienceZeitraum } = useLebenslauf();
   
   // Get current form data
