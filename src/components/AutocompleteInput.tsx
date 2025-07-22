@@ -13,7 +13,6 @@ interface AutocompleteInputProps<T = string> {
   placeholder: string;
   disabled?: boolean;
   className?: string;
-  highlightClass?: string;
   showAddButton?: boolean;
   showFavoritesButton?: boolean;
   buttonColor?: string;
@@ -37,7 +36,6 @@ const AutocompleteInput = forwardRef<HTMLInputElement, AutocompleteInputProps<an
   placeholder,
   disabled = false,
   className = '',
-  highlightClass = '',
   id,
   label,
   showAddButton = true,
@@ -51,6 +49,7 @@ const AutocompleteInput = forwardRef<HTMLInputElement, AutocompleteInputProps<an
   const [isOpen, setIsOpen] = useState(false);
   const [filteredSuggestions, setFilteredSuggestions] = useState<T[]>([]);
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
+  const [isFocused, setIsFocused] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -66,7 +65,6 @@ const AutocompleteInput = forwardRef<HTMLInputElement, AutocompleteInputProps<an
   };
 
   const hasInput = (value || '').trim().length > 0;
-  const [isFocused, setIsFocused] = useState(false);
 
   // Buttons nur bei Fokus, wenn Handler vorhanden sind
   const shouldShowAddButton = isFocused && hasInput && onAdd && showAddButton;
@@ -157,13 +155,13 @@ const AutocompleteInput = forwardRef<HTMLInputElement, AutocompleteInputProps<an
   // Focus event handler - prevents editor focus
   const handleFocus = (e: React.FocusEvent) => {
     setIsFocused(true);
-    onFocus?.();
+    onFocus?.(e);
   };
 
   const handleBlur = (e: React.FocusEvent) => {
     // Delay setting isFocused to false to allow button clicks to register
     setTimeout(() => setIsFocused(false), 200);
-    onBlur?.();
+    onBlur?.(e);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -274,7 +272,9 @@ const AutocompleteInput = forwardRef<HTMLInputElement, AutocompleteInputProps<an
             onBlur={handleBlur}
             placeholder={placeholder}
             disabled={disabled}
-            className={`w-full px-3 h-10 border rounded-md transition-all focus:outline-none focus:ring-1 pr-10 ${hasInput ? 'border-orange-500' : 'border-gray-300'} ${highlightClass}`}
+            className={`w-full px-3 h-10 border rounded-md transition-all focus:outline-none focus:ring-1 pr-10 ${
+              hasInput && !isFocused ? 'highlight-filled-input' : 'border-gray-300 focus:border-orange-500'
+            } ${className}`}
             className={`w-full px-3 h-10 border rounded-md transition-all focus:outline-none focus:ring-1 pr-10 ${highlightClass || 'border-gray-300'}`}
             style={{ '--tw-ring-color': '#F29400' } as React.CSSProperties}
             aria-expanded={isOpen}
@@ -338,7 +338,6 @@ const AutocompleteInput = forwardRef<HTMLInputElement, AutocompleteInputProps<an
           ref={dropdownRef} 
           className="absolute z-50 mt-1 bg-white border border-gray-300 rounded-md shadow-lg max-h-48 overflow-y-auto"
           style={{
-            borderColor: hasInput ? '#F29400' : '#D1D5DB',
             left: '0'
           }}
           role="listbox"
