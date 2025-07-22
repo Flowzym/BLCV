@@ -9,3 +9,12 @@
     @apply w-4 h-4 flex items-center justify-center text-yellow-400;
   }
 }
+
+/* Highlighted filled inputs */
+.highlight-filled-input {
+  @apply bg-orange-50 border-orange-200;
+}
+
+.highlight-filled-input:focus {
+  @apply bg-white border-orange-500;
+}

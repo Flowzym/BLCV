@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, forwardRef } from 'react';
 import { Phone, ChevronDown, X } from 'lucide-react';
 
 interface PhoneInputProps {
@@ -6,6 +6,8 @@ interface PhoneInputProps {
   phoneNumber: string;
   onCountryChange: (code: string) => void;
   onPhoneChange: (phone: string) => void;
+  onInputEnter?: () => void;
+  highlightClass?: string;
 }
 
 const COUNTRY_CODES = [
@@ -31,7 +33,14 @@ const COUNTRY_CODES = [
   { code: '+386', country: 'Slowenien', flag: '🇸🇮' },
 ];
 
-export default function PhoneInput({ countryCode, phoneNumber, onCountryChange, onPhoneChange }: PhoneInputProps) {
+const PhoneInput = forwardRef<HTMLInputElement, PhoneInputProps>(({ 
+  countryCode, 
+  phoneNumber, 
+  onCountryChange, 
+  onPhoneChange,
+  onInputEnter,
+  highlightClass = ""
+}, ref) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -121,6 +130,13 @@ export default function PhoneInput({ countryCode, phoneNumber, onCountryChange, 
     }, 0);
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      onInputEnter?.();
+    }
+  };
+
   const clearPhoneNumber = () => {
     onPhoneChange('');
   };
@@ -183,12 +199,14 @@ export default function PhoneInput({ countryCode, phoneNumber, onCountryChange, 
       {/* Phone Number Input */}
       <div className="relative flex-1">
         <input
+          ref={ref}
           type="tel"
           id="phone-number"
           name="phoneNumber"
           value={phoneNumber}
           onChange={handlePhoneChange}
-        className="w-full h-10 pl-3 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-orange-500"
+          onKeyDown={handleKeyDown}
+        className={`w-full h-10 pl-3 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-orange-500 ${highlightClass}`}
           placeholder="Telefonnummer"
         />
         {phoneNumber && (
@@ -204,4 +222,8 @@ export default function PhoneInput({ countryCode, phoneNumber, onCountryChange, 
       </div>
     </div>
   );
-}
+});
+
+PhoneInput.displayName = 'PhoneInput';
+
+export default PhoneInput;

@@ -8,10 +8,12 @@ interface AutocompleteInputProps<T = string> {
   onBlur?: () => void;
   onAdd?: (valueToAdd?: string | T) => void;
   onFavoriteClick?: (valueToAdd?: string, category?: string) => void;
+  onInputEnter?: () => void;
   suggestions: T[];
   placeholder: string;
   disabled?: boolean;
   className?: string;
+  highlightClass?: string;
   showAddButton?: boolean;
   showFavoritesButton?: boolean;
   buttonColor?: string;
@@ -30,10 +32,12 @@ export default function AutocompleteInput<T = string>({
   onBlur,
   onAdd,
   onFavoriteClick,
+  onInputEnter,
   suggestions,
   placeholder,
   disabled = false,
   className = '',
+  highlightClass = '',
   id,
   label,
   showAddButton = true,
@@ -157,6 +161,7 @@ export default function AutocompleteInput<T = string>({
       if (e.key === 'Enter') {
         e.preventDefault();
         onAdd?.();
+        onInputEnter?.();
       }
       return;
     }
@@ -178,6 +183,7 @@ export default function AutocompleteInput<T = string>({
           handleSuggestionSelect(filteredSuggestions[highlightedIndex]);
         } else {
           onAdd?.();
+          onInputEnter?.();
         }
         break;
       case 'Escape':
@@ -258,7 +264,7 @@ export default function AutocompleteInput<T = string>({
             onBlur={handleBlur}
             placeholder={placeholder}
             disabled={disabled}
-            className={`w-full px-3 h-10 border rounded-md transition-all focus:outline-none focus:ring-1 pr-10 ${hasInput ? 'border-orange-500' : 'border-gray-300'}`}
+            className={`w-full px-3 h-10 border rounded-md transition-all focus:outline-none focus:ring-1 pr-10 ${hasInput ? 'border-orange-500' : 'border-gray-300'} ${highlightClass}`}
             style={isFocused ? {
               '--tw-ring-color': '#F29400'
             } : {

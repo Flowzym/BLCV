@@ -5,6 +5,8 @@ import DateInputBase from './DateInputBase';
 interface DatePickerProps {
   value: string;
   onChange: (value: string) => void;
+  onInputEnter?: () => void;
+  highlightClass?: string;
 }
 
 // Helper functions
@@ -35,7 +37,7 @@ const months = [
   { label: "Dezember", value: "12" },
 ];
 
-export default function DatePicker({ value, onChange, className = "" }: DatePickerProps & { className?: string }) {
+export default function DatePicker({ value, onChange, onInputEnter, highlightClass = "", className = "" }: DatePickerProps & { className?: string }) {
   const [activeField, setActiveField] = useState<"day" | "month" | "year" | null>(null);
   const [internalValue, setInternalValue] = useState(value);
   const popupRef = useRef<HTMLDivElement>(null);
@@ -104,6 +106,9 @@ export default function DatePicker({ value, onChange, className = "" }: DatePick
           `${newYear}`; // Nur Jahr ohne Punkte
         handleInputChange(newValue);
       }
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      onInputEnter?.();
     }
   };
 
@@ -152,6 +157,7 @@ export default function DatePicker({ value, onChange, className = "" }: DatePick
           onFocus={handleInputFocus}
           onKeyDown={handleInputKeyDown}
           placeholder="TT.MM.JJJJ"
+          className={highlightClass}
         />
         
         {/* Icon Container mit beiden Icons */}

@@ -1,13 +1,21 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, forwardRef } from 'react';
 import { ChevronDown, Plus } from 'lucide-react';
 
 interface KinderYearPickerProps {
   value: string;
   onChange: (value: string) => void;
   onAdd: () => void;
+  onInputEnter?: () => void;
+  highlightClass?: string;
 }
 
-export default function KinderYearPicker({ value, onChange, onAdd }: KinderYearPickerProps) {
+const KinderYearPicker = forwardRef<HTMLInputElement, KinderYearPickerProps>(({ 
+  value, 
+  onChange, 
+  onAdd,
+  onInputEnter,
+  highlightClass = ""
+}, ref) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -43,6 +51,7 @@ export default function KinderYearPicker({ value, onChange, onAdd }: KinderYearP
     if (e.key === 'Enter') {
       e.preventDefault();
       onAdd();
+      onInputEnter?.();
     }
   };
 
@@ -60,6 +69,7 @@ export default function KinderYearPicker({ value, onChange, onAdd }: KinderYearP
       <div className="flex space-x-2">
         <div className="relative flex-1">
           <input
+            ref={ref}
             type="text"
             inputMode="numeric"
             pattern="[0-9]*"
@@ -71,7 +81,7 @@ export default function KinderYearPicker({ value, onChange, onAdd }: KinderYearP
             }}
             onBlur={() => setIsFocused(false)}
             onKeyPress={handleKeyPress}
-            className={`w-full h-10 px-3 py-2 border rounded-md focus:outline-none focus:ring-1 pr-8 ${
+            className={`w-full h-10 px-3 py-2 border rounded-md focus:outline-none focus:ring-1 pr-8 ${highlightClass} ${
               isFocused || (hasValue && isValid)
                 ? 'border-[#F29400] focus:ring-[#F29400]'
                 : hasValue && !isValid
@@ -125,4 +135,8 @@ export default function KinderYearPicker({ value, onChange, onAdd }: KinderYearP
       )}
     </div>
   );
-}
+});
+
+KinderYearPicker.displayName = 'KinderYearPicker';
+
+export default KinderYearPicker;
