@@ -12,9 +12,9 @@
 
 /* Highlighted filled inputs */
 .highlight-filled-input {
-  @apply bg-orange-50 border-orange-200 !important;
+  @apply bg-bolt-highlight-bg border-bolt-highlight-border;
 }
 
 .highlight-filled-input:focus {
-  @apply bg-white border-orange-500 !important;
+  @apply bg-white border-orange-500;
 }
