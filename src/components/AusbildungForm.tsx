@@ -7,20 +7,33 @@ import { AusbildungEntryForm, useLebenslauf } from './LebenslaufContext';
 import { CVSuggestionConfig } from '../services/supabaseService';
 
 interface AusbildungFormProps {
-  ensureEducationId: () => string;
-  updateEducationField: (id: string, field: string, value: any) => void;
+  educationId: string;
   cvSuggestions: CVSuggestionConfig;
 }
 
 export default function AusbildungForm({
-  ensureEducationId,
-  updateEducationField,
+  educationId,
   cvSuggestions,
 }: AusbildungFormProps) {
-  const { favoriteAusbildungsarten, favoriteAbschluesse, ausbildung, selectedEducationId } = useLebenslauf();
+  const { favoriteAusbildungsarten, favoriteAbschluesse, ausbildung, updateEducationField } = useLebenslauf();
   
   // Get current form data
-  const form = ausbildung.find(edu => edu.id === selectedEducationId) || {
+  const form = ausbildung.find(edu => edu.id === educationId);
+  
+  // If no valid education found, show error state
+  if (!form) {
+    return (
+      <div className="text-center py-8 bg-red-50 rounded-lg border border-red-200">
+        <p className="text-red-600 mb-2">Fehler: Ausbildung nicht gefunden</p>
+        <p className="text-sm text-red-500">
+          Der ausgewählte Eintrag existiert nicht mehr. Bitte wählen Sie einen anderen Eintrag aus.
+        </p>
+      </div>
+    );
+  }
+  
+  // Default form structure for safety
+  const safeForm = {
     institution: [],
     ausbildungsart: [],
     abschluss: [],
@@ -29,19 +42,20 @@ export default function AusbildungForm({
     endMonth: null,
     endYear: null,
     isCurrent: false,
-    zusatzangaben: ""
+    zusatzangaben: "",
+    ...form
   };
 
   const hasZeitraumData =
-    form.startMonth !== null ||
-    form.startYear.trim() !== '' ||
-    form.endMonth !== null ||
-    form.endYear !== null ||
-    form.isCurrent === true;
-  const hasInstitutionData = form.institution.length > 0;
-  const hasAusbildungsartData = form.ausbildungsart.length > 0;
-  const hasAbschlussData = form.abschluss.length > 0;
-  const hasZusatzangabenData = form.zusatzangaben.trim().length > 0;
+    safeForm.startMonth !== null ||
+    safeForm.startYear.trim() !== '' ||
+    safeForm.endMonth !== null ||
+    safeForm.endYear !== null ||
+    safeForm.isCurrent === true;
+  const hasInstitutionData = safeForm.institution.length > 0;
+  const hasAusbildungsartData = safeForm.ausbildungsart.length > 0;
+  const hasAbschlussData = safeForm.abschluss.length > 0;
+  const hasZusatzangabenData = safeForm.zusatzangaben.trim().length > 0;
 
   return (
     <div className="space-y-4">
@@ -52,11 +66,11 @@ export default function AusbildungForm({
             <button
               type="button"
               onClick={() => {
-                onUpdateField('startMonth', null);
-                onUpdateField('startYear', '');
-                onUpdateField('endMonth', null);
-                onUpdateField('endYear', null);
-                onUpdateField('isCurrent', false);
+                updateEducationField(educationId, 'startMonth', null);
+                updateEducationField(educationId, 'startYear', '');
+                updateEducationField(educationId, 'endMonth', null);
+                updateEducationField(educationId, 'endYear', null);
+                updateEducationField(educationId, 'isCurrent', false);
               }}
               className="p-1 text-gray-600 hover:text-gray-900"
               title="Zeitraum zurücksetzen"
@@ -67,14 +81,13 @@ export default function AusbildungForm({
         </div>
         <ZeitraumPicker
           value={{
-            startMonth: form.startMonth ?? undefined,
-            startYear: form.startYear ?? undefined,
-            endMonth: form.endMonth ?? undefined,
-            endYear: form.endYear ?? undefined,
-            isCurrent: form.isCurrent,
+            startMonth: safeForm.startMonth ?? undefined,
+            startYear: safeForm.startYear ?? undefined,
+            endMonth: safeForm.endMonth ?? undefined,
+            endYear: safeForm.endYear ?? undefined,
+            isCurrent: safeForm.isCurrent,
           }}
           onChange={(data) => {
-            const educationId = ensureEducationId();
             updateEducationField(educationId, 'startMonth',
               data.startMonth !== undefined && data.startMonth !== null
                 ? String(data.startMonth).padStart(2, '0')
@@ -102,7 +115,7 @@ export default function AusbildungForm({
           {hasInstitutionData && (
             <button
               type="button"
-              onClick={() => onUpdateField('institution', [])}
+              onClick={() => updateEducationField(educationId, 'institution', [])}
               className="p-1 text-gray-600 hover:text-gray-900"
               title="Institution & Ort zurücksetzen"
             >
@@ -111,9 +124,8 @@ export default function AusbildungForm({
           )}
         </div>
         <InstitutionTagInput
-          value={form.institution}
+          value={safeForm.institution}
           onChange={(val) => {
-            const educationId = ensureEducationId();
             updateEducationField(educationId, 'institution', val);
           }}
           suggestions={cvSuggestions.companies}
@@ -126,7 +138,7 @@ export default function AusbildungForm({
           {hasAusbildungsartData && (
             <button
               type="button"
-              onClick={() => onUpdateField('ausbildungsart', [])}
+              onClick={() => updateEducationField(educationId, 'ausbildungsart', [])}
               className="p-1 text-gray-600 hover:text-gray-900"
               title="Ausbildungsart zurücksetzen"
             >
@@ -136,9 +148,8 @@ export default function AusbildungForm({
         </div>
         <TagSelectorWithFavorites
           label=""
-          value={form.ausbildungsart}
+          value={safeForm.ausbildungsart}
           onChange={(val) => {
-            const educationId = ensureEducationId();
             updateEducationField(educationId, 'ausbildungsart', val);
           }}
           allowCustom={true}
@@ -152,7 +163,7 @@ export default function AusbildungForm({
           {hasAbschlussData && (
             <button
               type="button"
-              onClick={() => onUpdateField('abschluss', [])}
+              onClick={() => updateEducationField(educationId, 'abschluss', [])}
               className="p-1 text-gray-600 hover:text-gray-900"
               title="Abschluss zurücksetzen"
             >
@@ -162,9 +173,8 @@ export default function AusbildungForm({
         </div>
         <TagSelectorWithFavorites
           label=""
-          value={form.abschluss}
+          value={safeForm.abschluss}
           onChange={(val) => {
-            const educationId = ensureEducationId();
             updateEducationField(educationId, 'abschluss', val);
           }}
           allowCustom={true}
@@ -178,7 +188,7 @@ export default function AusbildungForm({
           {hasZusatzangabenData && (
             <button
               type="button"
-              onClick={() => onUpdateField('zusatzangaben', '')}
+              onClick={() => updateEducationField(educationId, 'zusatzangaben', '')}
               className="p-1 text-gray-600 hover:text-gray-900"
               title="Zusatzangaben zurücksetzen"
             >
@@ -187,9 +197,8 @@ export default function AusbildungForm({
           )}
         </div>
         <TextInput
-          value={form.zusatzangaben}
+          value={safeForm.zusatzangaben}
           onChange={(val) => {
-            const educationId = ensureEducationId();
             updateEducationField(educationId, 'zusatzangaben', val);
           }}
           label="" 

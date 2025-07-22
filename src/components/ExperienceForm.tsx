@@ -15,20 +15,33 @@ import TextInput from './TextInput';
 import ToggleSwitch from './ToggleSwitch';
 
 interface ExperienceFormProps {
-  ensureExperienceId: () => string;
-  updateExperienceField: (id: string, field: string, value: any) => void;
+  experienceId: string;
   cvSuggestions: CVSuggestionConfig;
 }
 
 export default function ExperienceForm({
-  ensureExperienceId,
-  updateExperienceField,
+  experienceId,
   cvSuggestions,
 }: ExperienceFormProps) {
-  const { berufserfahrung, selectedExperienceId } = useLebenslauf();
+  const { berufserfahrung, updateExperienceField } = useLebenslauf();
   
   // Get current form data
-  const form = berufserfahrung.find(exp => exp.id === selectedExperienceId) || {
+  const form = berufserfahrung.find(exp => exp.id === experienceId);
+  
+  // If no valid experience found, show error state
+  if (!form) {
+    return (
+      <div className="text-center py-8 bg-red-50 rounded-lg border border-red-200">
+        <p className="text-red-600 mb-2">Fehler: Berufserfahrung nicht gefunden</p>
+        <p className="text-sm text-red-500">
+          Der ausgewählte Eintrag existiert nicht mehr. Bitte wählen Sie einen anderen Eintrag aus.
+        </p>
+      </div>
+    );
+  }
+  
+  // Default form structure for safety
+  const safeForm = {
     companies: [],
     position: [],
     startMonth: null,
@@ -37,10 +50,11 @@ export default function ExperienceForm({
     endYear: null,
     isCurrent: false,
     aufgabenbereiche: [],
-    zusatzangaben: ""
+    zusatzangaben: "",
+    ...form
   };
   
-  const selectedPositions = form.position || [];
+  const selectedPositions = safeForm.position || [];
   
   const { 
     favoriteTasks, 
@@ -66,23 +80,22 @@ export default function ExperienceForm({
   const [isPositionInputFocused, setIsPositionInputFocused] = useState(false);
 
   const hasZeitraumData =
-    form.startMonth !== null ||
-    (form.startYear && form.startYear.trim() !== '') ||
-    form.endMonth !== null ||
-    form.endYear !== null ||
-    form.isCurrent === true;
-  const hasCompanyData = form.companies && form.companies.length > 0;
+    safeForm.startMonth !== null ||
+    (safeForm.startYear && safeForm.startYear.trim() !== '') ||
+    safeForm.endMonth !== null ||
+    safeForm.endYear !== null ||
+    safeForm.isCurrent === true;
+  const hasCompanyData = safeForm.companies && safeForm.companies.length > 0;
   const hasPositionData = selectedPositions.length > 0;
-  const hasTaskData = form.aufgabenbereiche.length > 0;
-  const hasAdditionalInfo = form.zusatzangaben && form.zusatzangaben.trim().length > 0;
-  const hasLeasingData = showLeasing && ((Array.isArray(form.leasingCompaniesList) && form.leasingCompaniesList.length > 0) || leasingCompanyInput.trim() !== '');
+  const hasTaskData = safeForm.aufgabenbereiche.length > 0;
+  const hasAdditionalInfo = safeForm.zusatzangaben && safeForm.zusatzangaben.trim().length > 0;
+  const hasLeasingData = showLeasing && ((Array.isArray(safeForm.leasingCompaniesList) && safeForm.leasingCompaniesList.length > 0) || leasingCompanyInput.trim() !== '');
 
   // Leasing-Daten löschen wenn Toggle deaktiviert wird
   const handleLeasingToggle = (enabled: boolean) => {
     setShowLeasing(enabled);
     if (!enabled) {
       // Leasing-Daten löschen wenn deaktiviert
-      const experienceId = ensureExperienceId();
       updateExperienceField(experienceId, 'leasingCompaniesList', []);
       setLeasingCompanyInput('');
     }
@@ -118,8 +131,7 @@ export default function ExperienceForm({
       }
     }
     
-    if (newEntry && (!form.companies || !form.companies.includes(newEntry))) {
-      const experienceId = ensureExperienceId();
+    if (newEntry && (!safeForm.companies || !safeForm.companies.includes(newEntry))) {
       updateExperienceField(experienceId, 'companies', [...(form.companies || []), newEntry]);
     }
 
@@ -136,19 +148,17 @@ export default function ExperienceForm({
     const companyToAdd = (company ?? leasingCompanyInput).trim();
     if (!companyToAdd) return;
     
-    const currentList = Array.isArray(form.leasingCompaniesList) ? form.leasingCompaniesList : [];
+    const currentList = Array.isArray(safeForm.leasingCompaniesList) ? safeForm.leasingCompaniesList : [];
     if (currentList.includes(companyToAdd)) return;
     
-    const experienceId = ensureExperienceId();
     updateExperienceField(experienceId, 'leasingCompaniesList', [...currentList, companyToAdd]);
     setLeasingCompanyInput('');
   };
 
   // Funktion zum Entfernen einer Leasingfirma
   const removeLeasingCompany = (company: string) => {
-    const currentList = Array.isArray(form.leasingCompaniesList) ? form.leasingCompaniesList : [];
+    const currentList = Array.isArray(safeForm.leasingCompaniesList) ? safeForm.leasingCompaniesList : [];
     const newLeasingCompanies = currentList.filter(c => c !== company);
-    const experienceId = ensureExperienceId();
     updateExperienceField(experienceId, 'leasingCompaniesList', newLeasingCompanies);
   };
 
@@ -157,25 +167,22 @@ export default function ExperienceForm({
     const trimmed = newCompany.trim();
     if (!trimmed) return;
     
-    const currentList = Array.isArray(form.leasingCompaniesList) ? form.leasingCompaniesList : [];
+    const currentList = Array.isArray(safeForm.leasingCompaniesList) ? safeForm.leasingCompaniesList : [];
     const newLeasingCompanies = currentList.map(c => c === oldCompany ? trimmed : c);
-    const experienceId = ensureExperienceId();
     updateExperienceField(experienceId, 'leasingCompaniesList', newLeasingCompanies);
   };
 
   // Funktion zum Entfernen eines Unternehmenseintrags
   const removeCompanyEntry = (entry: string) => {
-    if (form.companies) {
-      const experienceId = ensureExperienceId();
-      updateExperienceField(experienceId, 'companies', form.companies.filter(c => c !== entry));
+    if (safeForm.companies) {
+      updateExperienceField(experienceId, 'companies', safeForm.companies.filter(c => c !== entry));
     }
   };
   
   // Funktion zum Bearbeiten eines Unternehmenseintrags
   const updateCompanyEntry = (oldEntry: string, newEntry: string) => {
-    if (form.companies) {
-      const experienceId = ensureExperienceId();
-      updateExperienceField(experienceId, 'companies', form.companies.map(c => c === oldEntry ? newEntry : c));
+    if (safeForm.companies) {
+      updateExperienceField(experienceId, 'companies', safeForm.companies.map(c => c === oldEntry ? newEntry : c));
     }
   };
   
@@ -183,9 +190,8 @@ export default function ExperienceForm({
   const addCompanyFavorite = (favorite: string) => {
     let newEntry = favorite;
     
-    if ((!form.companies || !form.companies.includes(newEntry))) {
-      const experienceId = ensureExperienceId();
-      updateExperienceField(experienceId, 'companies', [...(form.companies || []), newEntry]);
+    if ((!safeForm.companies || !safeForm.companies.includes(newEntry))) {
+      updateExperienceField(experienceId, 'companies', [...(safeForm.companies || []), newEntry]);
     }
   };
   
@@ -226,11 +232,11 @@ export default function ExperienceForm({
             <button
               type="button"
               onClick={() => {
-                onUpdateField('startMonth', null);
-                onUpdateField('startYear', '');
-                onUpdateField('endMonth', null);
-                onUpdateField('endYear', null);
-                onUpdateField('isCurrent', false);
+                updateExperienceField(experienceId, 'companies', []);
+                updateExperienceField(experienceId, 'startYear', '');
+                updateExperienceField(experienceId, 'endMonth', null);
+                updateExperienceField(experienceId, 'endYear', null);
+                updateExperienceField(experienceId, 'isCurrent', false);
               }}
               className="p-1 text-gray-600 hover:text-gray-900"
               title="Zeitraum zurücksetzen"
@@ -241,14 +247,13 @@ export default function ExperienceForm({
         </div>
         <ZeitraumPicker
           value={{
-            startMonth: form.startMonth ?? undefined,
-            startYear: form.startYear ?? undefined,
-            endMonth: form.endMonth ?? undefined,
-            endYear: form.endYear ?? undefined,
-            isCurrent: form.isCurrent,
+            startMonth: safeForm.startMonth ?? undefined,
+            startYear: safeForm.startYear ?? undefined,
+            endMonth: safeForm.endMonth ?? undefined,
+            endYear: safeForm.endYear ?? undefined,
+            isCurrent: safeForm.isCurrent,
           }}
           onChange={(data) => {
-            const experienceId = ensureExperienceId();
             updateExperienceField(experienceId, 'startMonth', 
               data.startMonth !== undefined && data.startMonth !== null
                 ? String(data.startMonth).padStart(2, '0')
@@ -298,9 +303,9 @@ export default function ExperienceForm({
         </div>
         
         {/* Bestehende Unternehmenseinträge als Tags anzeigen */}
-        {form.companies && form.companies.length > 0 && (
+        {safeForm.companies && safeForm.companies.length > 0 && (
           <div className="flex flex-wrap gap-2 mb-4">
-            {form.companies.map((company, index) => (
+            {safeForm.companies.map((company, index) => (
               <CompanyTag
                 key={`${company}-${index}`}
                 label={company}
@@ -429,7 +434,7 @@ export default function ExperienceForm({
           </div>
           
           {/* Unternehmen Favoriten */}
-          {(favorites || []).filter(company => !form.companies?.includes(company)).length > 0 && (
+          {(favorites || []).filter(company => !safeForm.companies?.includes(company)).length > 0 && (
             <div className="mt-4"> 
               <div className="flex items-center space-x-2 mb-1">
                 <Star className="h-4 w-4 text-gray-400" />
@@ -437,7 +442,7 @@ export default function ExperienceForm({
               </div>
               <div className="flex flex-wrap gap-2">
                 {(favorites || [])
-                  .filter(company => !form.companies?.includes(company))
+                  .filter(company => !safeForm.companies?.includes(company))
                   .map((company) => (
                   <TagButtonFavorite
                     key={company}
@@ -474,9 +479,9 @@ export default function ExperienceForm({
           {showLeasing && (
             <div className="mt-4 space-y-3">
               {/* Bestehende Leasingfirmen als Tags anzeigen */}
-              {Array.isArray(form.leasingCompaniesList) && form.leasingCompaniesList.length > 0 && (
+              {Array.isArray(safeForm.leasingCompaniesList) && safeForm.leasingCompaniesList.length > 0 && (
                 <div className="flex flex-wrap gap-2 mb-4">
-                  {form.leasingCompaniesList.map((company, index) => (
+                  {safeForm.leasingCompaniesList.map((company, index) => (
                     <CompanyTag
                       key={`${company}-${index}`}
                       label={company}
@@ -510,7 +515,7 @@ export default function ExperienceForm({
               </div>
               
               {/* Leasing-Unternehmen Favoriten */}
-              {(favoriteLeasingCompanies || []).filter(company => !(Array.isArray(form.leasingCompaniesList) && form.leasingCompaniesList.includes(company))).length > 0 && (
+              {(favoriteLeasingCompanies || []).filter(company => !(Array.isArray(safeForm.leasingCompaniesList) && safeForm.leasingCompaniesList.includes(company))).length > 0 && (
                 <div>
                   <div className="flex items-center space-x-2 mb-2">
                     <Star className="h-4 w-4 text-gray-400" />
@@ -518,7 +523,7 @@ export default function ExperienceForm({
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {(favoriteLeasingCompanies || [])
-                      .filter(company => !(Array.isArray(form.leasingCompaniesList) && form.leasingCompaniesList.includes(company)))
+                      .filter(company => !(Array.isArray(safeForm.leasingCompaniesList) && safeForm.leasingCompaniesList.includes(company)))
                       .map((company) => (
                       <TagButtonFavorite
                         key={company}
@@ -562,7 +567,7 @@ export default function ExperienceForm({
           {hasPositionData && (
             <button
               type="button"
-              onClick={() => onPositionsChange([])}
+              onClick={() => updateExperienceField(experienceId, 'position', [])}
               className="p-1 text-gray-600 hover:text-gray-900"
               title="Position zurücksetzen"
             >
@@ -574,7 +579,6 @@ export default function ExperienceForm({
           label=""
           value={selectedPositions}
           onChange={(positions) => {
-            const experienceId = ensureExperienceId();
             updateExperienceField(experienceId, 'position', positions);
           }}
           allowCustom={true}
@@ -589,7 +593,7 @@ export default function ExperienceForm({
           {hasTaskData && (
             <button
               type="button"
-              onClick={() => onUpdateField('aufgabenbereiche', [])}
+              onClick={() => updateExperienceField(experienceId, 'aufgabenbereiche', [])}
               className="p-1 text-gray-600 hover:text-gray-900"
               title="Tätigkeiten zurücksetzen"
             >
@@ -598,9 +602,8 @@ export default function ExperienceForm({
           )}
         </div>
         <TasksTagInput
-          value={form.aufgabenbereiche}
+          value={safeForm.aufgabenbereiche}
           onChange={(val) => {
-            const experienceId = ensureExperienceId();
             updateExperienceField(experienceId, 'aufgabenbereiche', val);
           }}
           aiSuggestions={aiTaskSuggestions || []}
@@ -613,10 +616,10 @@ export default function ExperienceForm({
       <div className="bg-white border border-gray-200 rounded shadow-sm p-4">
         <div className="flex justify-between mb-2">
           <h3 className="text-sm font-bold text-gray-700">Weitere Angaben</h3>
-          {(form.zusatzangaben && form.zusatzangaben.trim().length > 0) && (
+          {(safeForm.zusatzangaben && safeForm.zusatzangaben.trim().length > 0) && (
             <button
               type="button"
-              onClick={() => onUpdateField('zusatzangaben', '')}
+              onClick={() => updateExperienceField(experienceId, 'zusatzangaben', '')}
               className="p-1 text-gray-600 hover:text-gray-900"
               title="Weitere Angaben zurücksetzen"
               aria-label="Weitere Angaben zurücksetzen"
@@ -626,9 +629,8 @@ export default function ExperienceForm({
           )}
         </div>
         <TextInput
-          value={form.zusatzangaben || ''}
+          value={safeForm.zusatzangaben || ''}
           onChange={(val) => {
-            const experienceId = ensureExperienceId();
             updateExperienceField(experienceId, 'zusatzangaben', val);
           }}
           label=""

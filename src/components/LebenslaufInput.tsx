@@ -187,11 +187,19 @@ const LebenslaufInput: React.FC = () => {
                 </span>
               )}
             </h3>
-            <ExperienceForm
-              ensureExperienceId={ensureSelectedExperienceExists}
-              updateExperienceField={updateExperienceField}
-              cvSuggestions={cvSuggestions}
-            />
+            {selectedExperienceId ? (
+              <ExperienceForm
+                experienceId={selectedExperienceId}
+                cvSuggestions={cvSuggestions}
+              />
+            ) : (
+              <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                <p className="text-gray-600 mb-4">Keine Berufserfahrung ausgewählt</p>
+                <p className="text-sm text-gray-500">
+                  Wählen Sie einen Eintrag aus der Vorschau aus oder erstellen Sie einen neuen mit dem + Button.
+                </p>
+              </div>
+            )}
           </div>
         );
       case 'education':
@@ -204,11 +212,19 @@ const LebenslaufInput: React.FC = () => {
                 </span>
               )}
             </h3>
-            <AusbildungForm
-              ensureEducationId={ensureSelectedEducationExists}
-              updateEducationField={updateEducationField}
-              cvSuggestions={cvSuggestions}
-            />
+            {selectedEducationId ? (
+              <AusbildungForm
+                educationId={selectedEducationId}
+                cvSuggestions={cvSuggestions}
+              />
+            ) : (
+              <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                <p className="text-gray-600 mb-4">Keine Ausbildung ausgewählt</p>
+                <p className="text-sm text-gray-500">
+                  Wählen Sie einen Eintrag aus der Vorschau aus oder erstellen Sie einen neuen mit dem + Button.
+                </p>
+              </div>
+            )}
           </div>
         );
       case 'skills':
