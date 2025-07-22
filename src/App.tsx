@@ -496,45 +496,62 @@ function HomePage() {
         <TabNavigation tabs={tabs} active={activeTab} onChange={setActiveTab} />
 
         {activeTab === 'bewerbung' && (
-          <>
-            <DocumentTypeBlock
-              documentTypes={documentTypes}
-              selected={selectedDocumentType}
-              onChange={setSelectedDocumentType}
-            />
+          <div className="grid grid-cols-1 lg:grid-cols-[2fr_2fr_1fr] gap-6 relative overflow-hidden">
+            {/* Linke Spalte: Dokumenttyp, Eingabe und Generierung */}
+            <div className="min-w-0 space-y-6">
+              <DocumentTypeBlock
+                documentTypes={documentTypes}
+                selected={selectedDocumentType}
+                onChange={setSelectedDocumentType}
+              />
 
-            <InputColumns
-              onCvChange={setCvContent}
-              onJobChange={setJobContent}
-              profileConfig={profileConfig}
-            />
+              <InputColumns
+                onCvChange={setCvContent}
+                onJobChange={setJobContent}
+                profileConfig={profileConfig}
+              />
 
-            <GenerateControls
-              selectedStyles={selectedStyles}
-              onStylesChange={setSelectedStyles}
-              stylePrompts={stylePrompts}
-              onGenerate={handleGenerate}
-              disabled={isGenerating || !cvContent.trim() || !jobContent.trim()}
-              generating={isGenerating}
-            />
+              <GenerateControls
+                selectedStyles={selectedStyles}
+                onStylesChange={setSelectedStyles}
+                stylePrompts={stylePrompts}
+                onGenerate={handleGenerate}
+                disabled={isGenerating || !cvContent.trim() || !jobContent.trim()}
+                generating={isGenerating}
+              />
 
-            {error && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                <div className="flex items-center space-x-2 text-red-700">
-                  <div className="h-5 w-5 flex-shrink-0">⚠️</div>
-                  <p className="font-medium">{error}</p>
+              {error && (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                  <div className="flex items-center space-x-2 text-red-700">
+                    <div className="h-5 w-5 flex-shrink-0">⚠️</div>
+                    <p className="font-medium">{error}</p>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
 
-            <EditorBlock
-              content={coverLetter}
-              isEditing={isEditing}
-              onEdit={handleEdit}
-              onContentChange={handleDirectContentChange}
-              editPrompts={editPrompts}
-            />
-          </>
+            {/* Mittlere Spalte: Editor */}
+            <div className="min-w-0">
+              <EditorBlock
+                content={coverLetter}
+                isEditing={isEditing}
+                onEdit={handleEdit}
+                onContentChange={handleDirectContentChange}
+                editPrompts={editPrompts}
+              />
+            </div>
+
+            {/* Rechte Spalte: KI-Assistent */}
+            <div className="min-w-0">
+              <CoverLetterAiAssistant
+                cvContent={cvContent}
+                jobContent={jobContent}
+                coverLetter={coverLetter}
+                activeKIModel={activeKIModel}
+                onCoverLetterChange={setCoverLetter}
+              />
+            </div>
+          </div>
         )}
 
         {activeTab === 'lebenslauf' && (
