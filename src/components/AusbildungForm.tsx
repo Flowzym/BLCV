@@ -3,7 +3,7 @@ import ZeitraumPicker from './ZeitraumPicker';
 import TextInput from './TextInput';
 import InstitutionTagInput from './InstitutionTagInput';
 import TagSelectorWithFavorites from './TagSelectorWithFavorites';
-import { AusbildungEntryForm, useLebenslauf } from './LebenslaufContext';
+import { useLebenslauf } from './LebenslaufContext';
 import { CVSuggestionConfig } from '../services/supabaseService';
 
 interface AusbildungFormProps {
@@ -15,7 +15,7 @@ export default function AusbildungForm({
   educationId,
   cvSuggestions,
 }: AusbildungFormProps) {
-  const { favoriteAusbildungsarten, favoriteAbschluesse, ausbildung, updateEducationField } = useLebenslauf();
+  const { ausbildung, updateEducationField } = useLebenslauf();
   
   // Get current form data
   const form = ausbildung.find(edu => edu.id === educationId);
@@ -61,7 +61,7 @@ export default function AusbildungForm({
     <div className="space-y-4">
       <div className="bg-white border border-gray-200 rounded shadow-sm p-4">
         <div className="flex justify-between mb-2">
-          <h3 className="text-sm font-medium text-gray-700">Zeitraum</h3>
+          <h3 className="text-sm font-bold text-gray-700">Zeitraum</h3>
           {hasZeitraumData && (
             <button
               type="button"
@@ -111,7 +111,7 @@ export default function AusbildungForm({
 
       <div className="bg-white border border-gray-200 rounded shadow-sm p-4">
         <div className="flex justify-between mb-2">
-          <h3 className="text-sm font-medium text-gray-700">Institution & Ort</h3>
+          <h3 className="text-sm font-bold text-gray-700">Institution & Ort</h3>
           {hasInstitutionData && (
             <button
               type="button"
@@ -134,7 +134,7 @@ export default function AusbildungForm({
 
       <div className="bg-white border border-gray-200 rounded shadow-sm p-4">
         <div className="flex justify-between mb-2">
-          <h3 className="text-sm font-medium text-gray-700">Ausbildungsart</h3>
+          <h3 className="text-sm font-bold text-gray-700">Ausbildungsart</h3>
           {hasAusbildungsartData && (
             <button
               type="button"
@@ -159,7 +159,7 @@ export default function AusbildungForm({
 
       <div className="bg-white border border-gray-200 rounded shadow-sm p-4">
         <div className="flex justify-between mb-2">
-          <h3 className="text-sm font-medium text-gray-700">Abschluss</h3>
+          <h3 className="text-sm font-bold text-gray-700">Abschluss</h3>
           {hasAbschlussData && (
             <button
               type="button"
@@ -184,7 +184,7 @@ export default function AusbildungForm({
 
       <div className="bg-white border border-gray-200 rounded shadow-sm p-4">
         <div className="flex justify-between mb-2">
-          <h3 className="text-sm font-medium text-gray-700">Zusatzangaben</h3>
+          <h3 className="text-sm font-bold text-gray-700">Zusatzangaben</h3>
           {hasZusatzangabenData && (
             <button
               type="button"

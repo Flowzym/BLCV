@@ -8,7 +8,7 @@ import AutocompleteInput from './AutocompleteInput';
 import TagSelectorWithFavorites from './TagSelectorWithFavorites';
 import CompanyTag from './CompanyTag';
 import TagButtonFavorite from './ui/TagButtonFavorite';
-import { Berufserfahrung, useLebenslauf } from './LebenslaufContext';
+import { useLebenslauf } from './LebenslaufContext';
 import { CVSuggestionConfig } from '../services/supabaseService';
 import { getTasksForPositions } from '../constants/positionsToTasks';
 import TextInput from './TextInput';
@@ -132,7 +132,7 @@ export default function ExperienceForm({
     }
     
     if (newEntry && (!safeForm.companies || !safeForm.companies.includes(newEntry))) {
-      updateExperienceField(experienceId, 'companies', [...(form.companies || []), newEntry]);
+      updateExperienceField(experienceId, 'companies', [...(safeForm.companies || []), newEntry]);
     }
 
     // Eingabefelder leeren nach dem Hinzufügen
@@ -234,6 +234,7 @@ export default function ExperienceForm({
               onClick={() => {
                 updateExperienceField(experienceId, 'companies', []);
                 updateExperienceField(experienceId, 'startYear', '');
+                updateExperienceField(experienceId, 'startMonth', null);
                 updateExperienceField(experienceId, 'endMonth', null);
                 updateExperienceField(experienceId, 'endYear', null);
                 updateExperienceField(experienceId, 'isCurrent', false);
@@ -289,7 +290,7 @@ export default function ExperienceForm({
               <button
                 type="button"
                 onClick={() => {
-                  onUpdateField('companies', []);
+                  updateExperienceField(experienceId, 'companies', []);
                   setCompanyNameInput('');
                   setCompanyCityInput('');
                 }}

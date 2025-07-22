@@ -128,25 +128,6 @@ const LebenslaufInput: React.FC = () => {
     }
   }, [activeTab]);
 
-  // Beim ersten Laden
-  useEffect(() => {
-    // Removed automatic creation on first load - let user decide when to add entries
-  }, []);
-
-  // Auto-switch to experience tab when an experience is selected
-  useEffect(() => {
-    if (selectedExperienceId) {
-      setActiveTabWithSync('experience');
-    }
-  }, [selectedExperienceId, setActiveTabWithSync]);
-
-  // Auto-switch to education tab when an education is selected
-  useEffect(() => {
-    if (selectedEducationId) {
-      setActiveTabWithSync('education');
-    }
-  }, [selectedEducationId, setActiveTabWithSync]);
-
   // Function to handle tab changes
   const handleTabChange = (tabId: TabType) => {
     setActiveTabWithSync(tabId);
@@ -196,7 +177,7 @@ const LebenslaufInput: React.FC = () => {
               <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
                 <p className="text-gray-600 mb-4">Keine Berufserfahrung ausgewählt</p>
                 <p className="text-sm text-gray-500">
-                  Wählen Sie einen Eintrag aus der Vorschau aus oder erstellen Sie einen neuen mit dem + Button.
+                  Wählen Sie einen Eintrag aus der Vorschau aus oder erstellen Sie einen neuen mit dem ⊕ Button unten rechts.
                 </p>
               </div>
             )}
@@ -221,7 +202,7 @@ const LebenslaufInput: React.FC = () => {
               <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
                 <p className="text-gray-600 mb-4">Keine Ausbildung ausgewählt</p>
                 <p className="text-sm text-gray-500">
-                  Wählen Sie einen Eintrag aus der Vorschau aus oder erstellen Sie einen neuen mit dem + Button.
+                  Wählen Sie einen Eintrag aus der Vorschau aus oder erstellen Sie einen neuen mit dem ⊕ Button unten rechts.
                 </p>
               </div>
             )}
@@ -347,11 +328,15 @@ const LebenslaufInput: React.FC = () => {
           onClick={() => {
             if (isAddingEntry) return; // Verhindere Mehrfachklicks
             
-            // Einfach einen neuen Eintrag basierend auf dem aktiven Tab erstellen
+            // Erstelle einen neuen Eintrag basierend auf dem aktiven Tab
             if (activeTab === 'experience') {
               createEmptyExperience();
             } else if (activeTab === 'education') {
               createEmptyEducation();
+            } else {
+              // Für andere Tabs (personal, skills, softskills) - erstelle Berufserfahrung als Standard
+              setActiveTabWithSync('experience');
+              setTimeout(() => createEmptyExperience(), 100);
             }
           }}
           disabled={isAddingEntry}
@@ -359,7 +344,7 @@ const LebenslaufInput: React.FC = () => {
             isAddingEntry ? 'opacity-50 cursor-not-allowed' : 'hover:opacity-90'
           }`}
           style={{ backgroundColor: '#F29400' }}
-          title="Neuen Eintrag hinzufügen"
+          title={`Neuen ${activeTab === 'education' ? 'Ausbildungs' : 'Berufserfahrungs'}eintrag hinzufügen`}
         >
           <Plus className="h-5 w-5" />
         </button>
