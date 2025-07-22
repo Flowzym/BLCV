@@ -289,6 +289,8 @@ export default function MonthYearInputBase({
       if (start === 0 && end === currentValue.length) {
         e.preventDefault();
         
+      }
+    }
     onKeyDown?.(e);
   };
 
