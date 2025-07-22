@@ -30,7 +30,6 @@ const COUNTRY_CODES = [
   { code: '+421', country: 'Slowakei', flag: '🇸🇰' },
   { code: '+36', country: 'Ungarn', flag: '🇭🇺' },
   { code: '+385', country: 'Kroatien', flag: '🇭🇷' },
-  { code: '+386', country: 'Slowenien', flag: '🇸🇮' },
 ];
 
 const PhoneInput = forwardRef<HTMLInputElement, PhoneInputProps>(({ 
@@ -38,11 +37,11 @@ const PhoneInput = forwardRef<HTMLInputElement, PhoneInputProps>(({
   phoneNumber, 
   onCountryChange, 
   onPhoneChange,
-  onInputEnter,
-  highlightClass = ""
+  onInputEnter
 }, ref) => {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isFocused, setIsFocused] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Set default country code if empty
@@ -206,7 +205,11 @@ const PhoneInput = forwardRef<HTMLInputElement, PhoneInputProps>(({
           value={phoneNumber}
           onChange={handlePhoneChange}
           onKeyDown={handleKeyDown}
-        className={`w-full h-10 pl-3 pr-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-orange-500 ${highlightClass}`}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setIsFocused(false)}
+          className={`w-full h-10 pl-3 pr-3 py-2 border rounded-md focus:outline-none focus:ring-1 focus:ring-orange-500 ${
+            phoneNumber.trim() && !isFocused ? 'highlight-filled-input' : 'border-gray-300'
+          }`}
           placeholder="Telefonnummer"
         />
         {phoneNumber && (

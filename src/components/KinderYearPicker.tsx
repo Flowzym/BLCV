@@ -6,15 +6,13 @@ interface KinderYearPickerProps {
   onChange: (value: string) => void;
   onAdd: () => void;
   onInputEnter?: () => void;
-  highlightClass?: string;
 }
 
 const KinderYearPicker = forwardRef<HTMLInputElement, KinderYearPickerProps>(({ 
   value, 
   onChange, 
   onAdd,
-  onInputEnter,
-  highlightClass = ""
+  onInputEnter
 }, ref) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
@@ -79,10 +77,16 @@ const KinderYearPicker = forwardRef<HTMLInputElement, KinderYearPickerProps>(({
               setIsFocused(true);
               setIsOpen(true);
             }}
-            onBlur={() => setIsFocused(false)}
+            onBlur={() => {
+              setIsFocused(false);
+            }}
             onKeyPress={handleKeyPress}
             className={`w-full h-10 px-3 py-2 border rounded-md focus:outline-none focus:ring-1 pr-8 ${
               hasValue && !isValid 
+                ? 'border-red-500' 
+                : hasValue && !isFocused 
+                  ? 'highlight-filled-input' 
+                  : 'border-gray-300 focus:border-orange-500'
                 ? 'border-red-500' 
                 : highlightClass || 'border-gray-300'
             }`}
