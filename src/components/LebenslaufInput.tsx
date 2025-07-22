@@ -46,29 +46,7 @@ const LebenslaufInput: React.FC = () => {
   
   // Hilfsfunktion zum Erstellen einer neuen Berufserfahrung
   const createEmptyExperience = () => {
-    // Prüfen, ob bereits eine leere Berufserfahrung existiert
-    const hasEmptyExperience = berufserfahrung.some(exp => 
-      (!exp.companies || exp.companies.length === 0) && 
-      exp.position.length === 0 && 
-      exp.aufgabenbereiche.length === 0 &&
-      !exp.startYear
-    );
-    
-    // Wenn bereits eine leere Berufserfahrung existiert, diese auswählen statt eine neue zu erstellen
-    if (hasEmptyExperience) {
-      const emptyExp = berufserfahrung.find(exp => 
-        (!exp.companies || exp.companies.length === 0) && 
-        exp.position.length === 0 && 
-        exp.aufgabenbereiche.length === 0 &&
-        !exp.startYear
-      );
-      if (emptyExp) {
-        selectExperience(emptyExp.id);
-        return;
-      }
-    }
-    
-    // Immer eine neue Berufserfahrung erstellen, wenn der Button geklickt wird
+    // Immer eine neue Berufserfahrung erstellen
     const newExp = {
       companies: [],
       position: [],
