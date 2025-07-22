@@ -3,7 +3,6 @@ import { Trash2, Plus, FileText, Star, X, ToggleLeft, ToggleRight, Edit, Check, 
 import { ReactSortable } from 'react-sortablejs';
 import { useLebenslauf } from './LebenslaufContext';
 import EditablePreviewText from './EditablePreviewText';
-import TabNavigation from './layout/TabNavigation';
 
 type PreviewTab = 'gesamt' | 'berufserfahrung' | 'ausbildung' | 'fachkompetenzen' | 'softskills';
 
@@ -14,7 +13,7 @@ interface LebenslaufPreviewProps {
 export default function LebenslaufPreview({ inputRef }: LebenslaufPreviewProps) {
   const containerStyle = {
     backgroundColor: 'white',
-    padding: '1.5rem',
+    padding: '0',
     borderRadius: '0.5rem',
     boxShadow: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
     border: '1px solid #e5e7eb'
@@ -54,14 +53,6 @@ export default function LebenslaufPreview({ inputRef }: LebenslaufPreviewProps) 
 
   const [newTaskInputs, setNewTaskInputs] = useState<Record<string, string>>({});
   const [showAllExpanded, setShowAllExpanded] = useState(false);
-
-  const previewTabs = [
-    { id: 'gesamt', label: 'Gesamt' },
-    { id: 'berufserfahrung', label: 'Berufserfahrung' },
-    { id: 'ausbildung', label: 'Ausbildung' },
-    { id: 'fachkompetenzen', label: 'Fachkompetenzen' },
-    { id: 'softskills', label: 'Soft Skills' }
-  ];
 
   const sortedErfahrungen = useMemo(() => {
     console.log('Berufserfahrungen für Vorschau:', berufserfahrung);
@@ -231,7 +222,7 @@ export default function LebenslaufPreview({ inputRef }: LebenslaufPreviewProps) 
   return (
     <div ref={previewRef} className="h-full flex flex-col" style={containerStyle}>
       {/* Header mit Toggle-Button */}
-      <div className="flex items-center justify-between mb-4 flex-shrink-0">
+      <div className="flex items-center justify-between mb-4 flex-shrink-0 p-4 border-b border-gray-200">
         <h2 className="text-lg font-semibold text-gray-900 flex items-center">📄 <span className="ml-2">Vorschau</span></h2>
         <div className="flex items-center space-x-2">
           <span className="text-sm text-gray-600">
@@ -251,17 +242,8 @@ export default function LebenslaufPreview({ inputRef }: LebenslaufPreviewProps) 
         </div>
       </div>
 
-      {/* Tab Navigation */}
-      <div className="flex-shrink-0 mb-4">
-        <TabNavigation 
-          tabs={previewTabs} 
-          active={previewTab} 
-          onChange={(tabId) => setPreviewTabWithSync(tabId as PreviewTab)} 
-        />
-      </div>
-
       {/* Scrollbarer Inhalt */}
-      <div className="flex-1 overflow-y-auto space-y-0">
+      <div className="flex-1 overflow-y-auto space-y-0 p-4">
         {/* Persönliche Daten - nur im Gesamt-Tab anzeigen */}
         {previewTab === 'gesamt' && hasPersonalDataContent() && (
           <div className="mb-6">

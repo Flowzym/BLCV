@@ -4,7 +4,7 @@ import { useLebenslauf } from './LebenslaufContext';
 import PersonalDataForm from './PersonalDataForm';
 import ExperienceForm from './ExperienceForm';
 import AusbildungForm from './AusbildungForm';
-import { Plus, Calendar, Building, Briefcase, ChevronRight, User, CircleOff } from 'lucide-react';
+import { Plus } from 'lucide-react';
 
 type TabType = 'personal' | 'experience' | 'education' | 'skills' | 'softskills';
 
@@ -199,106 +199,7 @@ const LebenslaufInput: React.FC = () => {
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 relative p-6">
-      <div className="flex items-center gap-2 p-4 border-b border-gray-200">
-        <User className="h-6 w-6 mr-2" style={{ color: '#F29400' }} stroke="#F29400" fill="none" />
-        <h2 className="text-lg font-semibold text-gray-900">Lebenslauf</h2>
-      </div>
-
-      <div className="border-b border-gray-200">
-        <nav className="flex space-x-8 px-4">
-          <button
-            onClick={() => handleTabChange('personal')}
-            className={`py-3 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'personal'
-                ? 'border-orange-500 text-orange-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4">
-                <svg viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 2C13.1 2 14 2.9 14 4C14 5.1 13.1 6 12 6C10.9 6 10 5.1 10 4C10 2.9 10.9 2 12 2ZM21 9V7L15 1H5C3.89 1 3 1.89 3 3V21C3 22.11 3.89 23 5 23H19C20.11 23 21 22.11 21 21V9M19 9H14V4H5V21H19V9Z"/>
-                </svg>
-              </div>
-              Persönliche Daten
-            </div>
-          </button>
-
-          <button
-            onClick={() => handleTabChange('experience')}
-            className={`py-3 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'experience'
-                ? 'border-orange-500 text-orange-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4">
-                <svg viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M10,2H14A2,2 0 0,1 16,4V6H20A2,2 0 0,1 22,8V19A2,2 0 0,1 20,21H4A2,2 0 0,1 2,19V8A2,2 0 0,1 4,6H8V4A2,2 0 0,1 10,2M14,6V4H10V6H14Z"/>
-                </svg>
-              </div>
-              Berufserfahrung
-            </div>
-          </button>
-
-          <button
-            onClick={() => handleTabChange('education')}
-            className={`py-3 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'education'
-                ? 'border-orange-500 text-orange-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4">
-                <svg viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12,3L1,9L12,15L21,10.09V17H23V9M5,13.18V17.18L12,21L19,17.18V13.18L12,17L5,13.18Z"/>
-                </svg>
-              </div>
-              Ausbildung
-            </div>
-          </button>
-
-          <button
-            onClick={() => handleTabChange('skills')}
-            className={`py-3 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'skills'
-                ? 'border-orange-500 text-orange-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4">
-                <svg viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M9,5V9H21V5M9,19H21V15H9M9,14H21V10H9M4,9H8L6,7M4,19H8L6,17M4,14H8L6,12"/>
-                </svg>
-              </div>
-              Fachkompetenzen
-            </div>
-          </button>
-
-          <button
-            onClick={() => handleTabChange('softskills')}
-            className={`py-3 px-1 border-b-2 font-medium text-sm ${
-              activeTab === 'softskills'
-                ? 'border-orange-500 text-orange-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <div className="w-4 h-4">
-                <svg viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M16,4C18.2,4 20,5.8 20,8C20,10.2 18.2,12 16,12C13.8,12 12,10.2 12,8C12,5.8 13.8,4 16,4M16,6A2,2 0 0,0 14,8A2,2 0 0,0 16,10A2,2 0 0,0 18,8A2,2 0 0,0 16,6M8,4C10.2,4 12,5.8 12,8C12,10.2 10.2,12 8,12C5.8,12 4,10.2 4,8C4,5.8 5.8,4 8,4M8,6A2,2 0 0,0 6,8A2,2 0 0,0 8,10A2,2 0 0,0 10,8A2,2 0 0,0 8,6M16,13C18.67,13 24,14.33 24,17V20H8V17C8,14.33 13.33,13 16,13M8,13C10.67,13 16,14.33 16,17V20H0V17C0,14.33 5.33,13 8,13Z"/>
-                </svg>
-              </div>
-              Softskills
-            </div>
-          </button>
-        </nav>
-      </div>
-
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 relative">
       <div className="p-4">
         {renderTabContent()}
       </div>
