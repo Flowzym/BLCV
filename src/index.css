@@ -11,6 +11,29 @@
   }
 }
 
+@layer components {
+  .tag-button-favorite {
+    @apply bg-[#efefef] text-gray-700 border border-gray-300 rounded-full;
+  }
+  .tag-button-selected {
+    @apply bg-[#F29400] text-white border border-[#F29400] rounded-full;
+  }
+  .star-icon {
+    @apply w-4 h-4 flex items-center justify-center text-yellow-400;
+  }
+
+  /* Highlighted filled inputs */
+  .highlight-filled-input {
+    background-color: #FFEDCE !important;
+    border-color: #FFD799 !important;
+  }
+
+  .highlight-filled-input:focus {
+    background-color: white !important;
+    border-color: #f97316 !important;
+  }
+}
+
 /* BOLT-UI-ANPASSUNG 2025-01-15: Toolbar nimmt volle Breite des Editor-Blocks ein */
 .toolbar-wrapper {
   width: 100%;
