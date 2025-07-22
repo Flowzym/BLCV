@@ -87,15 +87,31 @@ const LebenslaufInput: React.FC = () => {
 
   useEffect(() => {
     if (activeTab === 'experience') {
+      // Sicherstellen, dass eine Berufserfahrung ausgewählt ist, wenn der Tab 'experience' aktiv ist und Einträge vorhanden sind
+      if (berufserfahrung.length > 0 && (!selectedExperienceId || !berufserfahrung.some(exp => exp.id === selectedExperienceId))) {
+        selectExperience(berufserfahrung[0].id);
+      }
       // Wenn keine Berufserfahrung ausgewählt ist und keine vorhanden sind, eine erstellen
-      if (!selectedExperienceId && berufserfahrung.length === 0) {
+      else if (!selectedExperienceId && berufserfahrung.length === 0) {
         createEmptyExperience();
       }
     } else if (activeTab === 'education') {
+      // Sicherstellen, dass eine Ausbildung ausgewählt ist, wenn der Tab 'education' aktiv ist und Einträge vorhanden sind
+      if (ausbildung.length > 0 && (!selectedEducationId || !ausbildung.some(edu => edu.id === selectedEducationId))) {
+        selectEducation(ausbildung[0].id);
+      }
       // Wenn keine Ausbildung ausgewählt ist und keine vorhanden sind, eine erstellen
-      if (!selectedEducationId && ausbildung.length === 0) {
+      else if (!selectedEducationId && ausbildung.length === 0) {
         createEmptyEducation();
       }
+    }
+    
+    // Wenn der aktuell ausgewählte Eintrag gelöscht wurde, Auswahl aufheben
+    if (selectedExperienceId && !berufserfahrung.some(exp => exp.id === selectedExperienceId)) {
+      selectExperience('');
+    }
+    if (selectedEducationId && !ausbildung.some(edu => edu.id === selectedEducationId)) {
+      selectEducation('');
     }
     
     // Cleanup leerer Einträge beim Tab-Wechsel
@@ -192,8 +208,217 @@ const LebenslaufInput: React.FC = () => {
                 </span>
               )}
             </h3>
-            {/* Immer das Formular anzeigen, unabhängig davon, ob ein Eintrag ausgewählt ist */}
-            {(selectedExperienceId || berufserfahrung.length > 0) && (
+            {(() => {
+              const currentExperience = berufserfahrung.find(e => e.id === selectedExperienceId);
+              return currentExperience ? (
+                <ExperienceForm
+                  form={currentExperience}
+                  selectedPositions={currentExperience.position || []}
+                  onUpdateField={(field, value) => {
+                    updateExperienceField(selectedExperienceId, field, value);
+                  }}
+                  onPositionsChange={(positions) => {
+                    updateExperienceField(selectedExperienceId, 'position', positions);
+                  }}
+                  cvSuggestions={cvSuggestions}
+                />
+              ) : (
+                berufserfahrung.length === 0 ? (
+                  <div className="text-center py-6 text-gray-500 text-sm">
+                    Keine Berufserfahrung vorhanden. Klicken Sie auf den Plus-Button, um eine hinzuzufügen.
+                  </div>
+                ) : (
+                  <div className="text-center py-6 text-gray-500 text-sm">
+                    Wählen Sie eine Berufserfahrung aus der Vorschau aus, um sie zu bearbeiten.
+                  </div>
+                )
+              );
+            })()}
+          </div>
+        );
+      case 'education':
+        return (
+          <div className="space-y-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">
+              Ausbildung {ausbildung.length > 0 && (
+                <span className="ml-2 px-3 py-1.5 text-white text-sm font-bold rounded-full" style={{ backgroundColor: '#b5b7bb' }}>
+                  {ausbildung.length}
+                </span>
+              )}
+            </h3>
+            {(() => {
+              const currentEducation = ausbildung.find(e => e.id === selectedEducationId);
+              return currentEducation ? (
+                <AusbildungForm
+                  form={currentEducation}
+                  onUpdateField={(field, value) => {
+                    updateEducationField(selectedEducationId, field, value);
+                  }}
+                  cvSuggestions={cvSuggestions}
+                />
+              ) : (
+                ausbildung.length === 0 ? (
+                  <div className="text-center py-6 text-gray-500 text-sm">
+                    Keine Ausbildung vorhanden. Klicken Sie auf den Plus-Button, um eine hinzuzufügen.
+                  </div>
+                ) : (
+                  <div className="text-center py-6 text-gray-500 text-sm">
+                    Wählen Sie eine Ausbildung aus der Vorschau aus, um sie zu bearbeiten.
+                  </div>
+                )
+              );
+            })()}
+          </div>
+        );
+      case 'skills':
+        return <div className="p-4">Fachkompetenzen - Coming soon</div>;
+      case 'softskills':
+        return <div className="p-4">Softskills - Coming soon</div>;
+      default:
+        return <PersonalDataForm data={personalData || {}} onChange={updatePersonalData} />;
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 relative p-6">
+      <div className="flex items-center gap-2 p-4 border-b border-gray-200">
+        <User className="h-6 w-6 mr-2" style={{ color: '#F29400' }} stroke="#F29400" fill="none" />
+        <h2 className="text-lg font-semibold text-gray-900">Lebenslauf</h2>
+      </div>
+
+      <div className="border-b border-gray-200">
+        <nav className="flex space-x-8 px-4">
+          <button
+            onClick={() => handleTabChange('personal')}
+            className={`py-3 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'personal'
+                ? 'border-orange-500 text-orange-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2C13.1 2 14 2.9 14 4C14 5.1 13.1 6 12 6C10.9 6 10 5.1 10 4C10 2.9 10.9 2 12 2ZM21 9V7L15 1H5C3.89 1 3 1.89 3 3V21C3 22.11 3.89 23 5 23H19C20.11 23 21 22.11 21 21V9M19 9H14V4H5V21H19V9Z"/>
+                </svg>
+              </div>
+              Persönliche Daten
+            </div>
+          </button>
+
+          <button
+            onClick={() => handleTabChange('experience')}
+            className={`py-3 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'experience'
+                ? 'border-orange-500 text-orange-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M10,2H14A2,2 0 0,1 16,4V6H20A2,2 0 0,1 22,8V19A2,2 0 0,1 20,21H4A2,2 0 0,1 2,19V8A2,2 0 0,1 4,6H8V4A2,2 0 0,1 10,2M14,6V4H10V6H14Z"/>
+                </svg>
+              </div>
+              Berufserfahrung
+            </div>
+          </button>
+
+          <button
+            onClick={() => handleTabChange('education')}
+            className={`py-3 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'education'
+                ? 'border-orange-500 text-orange-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12,3L1,9L12,15L21,10.09V17H23V9M5,13.18V17.18L12,21L19,17.18V13.18L12,17L5,13.18Z"/>
+                </svg>
+              </div>
+              Ausbildung
+            </div>
+          </button>
+
+          <button
+            onClick={() => handleTabChange('skills')}
+            className={`py-3 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'skills'
+                ? 'border-orange-500 text-orange-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M9,5V9H21V5M9,19H21V15H9M9,14H21V10H9M4,9H8L6,7M4,19H8L6,17M4,14H8L6,12"/>
+                </svg>
+              </div>
+              Fachkompetenzen
+            </div>
+          </button>
+
+          <button
+            onClick={() => handleTabChange('softskills')}
+            className={`py-3 px-1 border-b-2 font-medium text-sm ${
+              activeTab === 'softskills'
+                ? 'border-orange-500 text-orange-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4">
+                <svg viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M16,4C18.2,4 20,5.8 20,8C20,10.2 18.2,12 16,12C13.8,12 12,10.2 12,8C12,5.8 13.8,4 16,4M16,6A2,2 0 0,0 14,8A2,2 0 0,0 16,10A2,2 0 0,0 18,8A2,2 0 0,0 16,6M8,4C10.2,4 12,5.8 12,8C12,10.2 10.2,12 8,12C5.8,12 4,10.2 4,8C4,5.8 5.8,4 8,4M8,6A2,2 0 0,0 6,8A2,2 0 0,0 8,10A2,2 0 0,0 10,8A2,2 0 0,0 8,6M16,13C18.67,13 24,14.33 24,17V20H8V17C8,14.33 13.33,13 16,13M8,13C10.67,13 16,14.33 16,17V20H0V17C0,14.33 5.33,13 8,13Z"/>
+                </svg>
+              </div>
+              Softskills
+            </div>
+          </button>
+        </nav>
+      </div>
+
+      <div className="p-4">
+        {renderTabContent()}
+      </div>
+
+      {/* Floating Button */}
+      <div className="fixed bottom-4 right-4 z-50">
+        <button
+          onClick={() => {
+            // Zuerst prüfen, ob der aktuell ausgewählte Eintrag leer ist, und ihn löschen.
+            // Dies verhindert die Anhäufung leerer Einträge, wenn der Benutzer wiederholt auf "Hinzufügen" klickt.
+            const currentSelectedExp = berufserfahrung.find(exp => exp.id === selectedExperienceId);
+            const currentSelectedEdu = ausbildung.find(edu => edu.id === selectedEducationId);
+
+            if (currentSelectedExp && isEmptyExperience(currentSelectedExp)) {
+              deleteExperience(selectedExperienceId);
+            }
+            if (currentSelectedEdu && isEmptyEducation(currentSelectedEdu)) {
+              deleteEducation(selectedEducationId);
+            }
+
+            // Dann immer einen neuen leeren Eintrag basierend auf dem aktiven Tab erstellen
+            if (activeTab === 'experience') {
+              createEmptyExperience();
+            } else if (activeTab === 'education') {
+              createEmptyEducation();
+            }
+          }}
+          className="flex items-center justify-center w-14 h-14 text-white rounded-full shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+          style={{ backgroundColor: '#F29400' }}
+          title="Neuen Eintrag hinzufügen"
+        >
+          <Plus className="h-5 w-5" />
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export default LebenslaufInput;
               <ExperienceForm
                 form={(() => {
                   const experience = berufserfahrung.find(e => e.id === selectedExperienceId);
