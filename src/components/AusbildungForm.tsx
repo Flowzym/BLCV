@@ -7,17 +7,30 @@ import { AusbildungEntryForm, useLebenslauf } from './LebenslaufContext';
 import { CVSuggestionConfig } from '../services/supabaseService';
 
 interface AusbildungFormProps {
-  form: AusbildungEntryForm;
-  onUpdateField: <K extends keyof AusbildungEntryForm>(field: K, value: AusbildungEntryForm[K]) => void;
+  ensureEducationId: () => string;
+  updateEducationField: (id: string, field: string, value: any) => void;
   cvSuggestions: CVSuggestionConfig;
 }
 
 export default function AusbildungForm({
-  form,
-  onUpdateField,
+  ensureEducationId,
+  updateEducationField,
   cvSuggestions,
 }: AusbildungFormProps) {
-  const { favoriteAusbildungsarten, favoriteAbschluesse } = useLebenslauf();
+  const { favoriteAusbildungsarten, favoriteAbschluesse, ausbildung, selectedEducationId } = useLebenslauf();
+  
+  // Get current form data
+  const form = ausbildung.find(edu => edu.id === selectedEducationId) || {
+    institution: [],
+    ausbildungsart: [],
+    abschluss: [],
+    startMonth: null,
+    startYear: "",
+    endMonth: null,
+    endYear: null,
+    isCurrent: false,
+    zusatzangaben: ""
+  };
 
   const hasZeitraumData =
     form.startMonth !== null ||
@@ -61,27 +74,24 @@ export default function AusbildungForm({
             isCurrent: form.isCurrent,
           }}
           onChange={(data) => {
-            onUpdateField(
-              'startMonth',
+            const educationId = ensureEducationId();
+            updateEducationField(educationId, 'startMonth',
               data.startMonth !== undefined && data.startMonth !== null
                 ? String(data.startMonth).padStart(2, '0')
-                : null,
+                : null
             );
-            onUpdateField(
-              'startYear',
-              data.startYear !== undefined && data.startYear !== null ? String(data.startYear) : '',
+            updateEducationField(educationId, 'startYear',
+              data.startYear !== undefined && data.startYear !== null ? String(data.startYear) : ''
             );
-            onUpdateField(
-              'endMonth',
+            updateEducationField(educationId, 'endMonth',
               data.endMonth !== undefined && data.endMonth !== null
                 ? String(data.endMonth).padStart(2, '0')
-                : null,
+                : null
             );
-            onUpdateField(
-              'endYear',
-              data.endYear !== undefined && data.endYear !== null ? String(data.endYear) : null,
+            updateEducationField(educationId, 'endYear',
+              data.endYear !== undefined && data.endYear !== null ? String(data.endYear) : null
             );
-            onUpdateField('isCurrent', data.isCurrent ?? false);
+            updateEducationField(educationId, 'isCurrent', data.isCurrent ?? false);
           }}
         />
       </div>
@@ -102,7 +112,10 @@ export default function AusbildungForm({
         </div>
         <InstitutionTagInput
           value={form.institution}
-          onChange={(val) => onUpdateField('institution', val)}
+          onChange={(val) => {
+            const educationId = ensureEducationId();
+            updateEducationField(educationId, 'institution', val);
+          }}
           suggestions={cvSuggestions.companies}
         />
       </div>
@@ -124,7 +137,10 @@ export default function AusbildungForm({
         <TagSelectorWithFavorites
           label=""
           value={form.ausbildungsart}
-          onChange={(val) => onUpdateField('ausbildungsart', val)}
+          onChange={(val) => {
+            const educationId = ensureEducationId();
+            updateEducationField(educationId, 'ausbildungsart', val);
+          }}
           allowCustom={true}
           suggestions={['Studium', 'Lehre', 'Weiterbildung', 'Kurs', 'Zertifizierung']}
         />
@@ -147,7 +163,10 @@ export default function AusbildungForm({
         <TagSelectorWithFavorites
           label=""
           value={form.abschluss}
-          onChange={(val) => onUpdateField('abschluss', val)}
+          onChange={(val) => {
+            const educationId = ensureEducationId();
+            updateEducationField(educationId, 'abschluss', val);
+          }}
           allowCustom={true}
           suggestions={['Bachelor', 'Master', 'Diplom', 'Lehrabschluss', 'Zertifikat', 'Matura']}
         />
@@ -169,7 +188,10 @@ export default function AusbildungForm({
         </div>
         <TextInput
           value={form.zusatzangaben}
-          onChange={(val) => onUpdateField('zusatzangaben', val)}
+          onChange={(val) => {
+            const educationId = ensureEducationId();
+            updateEducationField(educationId, 'zusatzangaben', val);
+          }}
           label="" 
           placeholder="Zusätzliche Informationen zur Ausbildung..."
           rows={4}

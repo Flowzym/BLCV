@@ -116,6 +116,10 @@ interface LebenslaufContextType {
   // Tab synchronization methods
   setActiveTabWithSync: (tab: ActiveTab) => void;
   setPreviewTabWithSync: (tab: PreviewTab) => void;
+  
+  // Helper methods to ensure valid entries exist
+  ensureSelectedExperienceExists: () => string;
+  ensureSelectedEducationExists: () => string;
 }
 
 const LebenslaufContext = createContext<LebenslaufContextType | undefined>(undefined);
@@ -203,7 +207,8 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
       leasingCompaniesList: experience.leasingCompaniesList || []
     };
     setBerufserfahrung(prev => [...prev, newExperience]);
-    return newExperience.id; // Return the ID instead of setting it directly
+    setSelectedExperienceId(newExperience.id); // Immediately select the new entry
+    return newExperience.id;
   };
 
   const updateExperience = (id: string, experience: Partial<Experience>) => {
@@ -275,7 +280,8 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
       zusatzangaben: education.zusatzangaben || ''
     };
     setAusbildung(prev => [...prev, newEducation]);
-    return newEducation.id; // Return the ID instead of setting it directly
+    setSelectedEducationId(newEducation.id); // Immediately select the new entry
+    return newEducation.id;
   };
 
   const updateEducation = (id: string, education: Partial<Education>) => {
@@ -356,6 +362,51 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
     );
   };
 
+  // Helper functions to ensure a valid entry exists for editing
+  const ensureSelectedExperienceExists = useCallback(() => {
+    // If we have a valid selected experience, return its ID
+    if (selectedExperienceId && berufserfahrung.some(exp => exp.id === selectedExperienceId)) {
+      return selectedExperienceId;
+    }
+    
+    // No valid selection - create a new entry
+    const newExp = {
+      companies: [],
+      position: [],
+      startMonth: null,
+      startYear: "",
+      endMonth: null,
+      endYear: null,
+      isCurrent: false,
+      aufgabenbereiche: [],
+      zusatzangaben: ""
+    };
+    
+    return addExperience(newExp);
+  }, [selectedExperienceId, berufserfahrung, addExperience]);
+
+  const ensureSelectedEducationExists = useCallback(() => {
+    // If we have a valid selected education, return its ID
+    if (selectedEducationId && ausbildung.some(edu => edu.id === selectedEducationId)) {
+      return selectedEducationId;
+    }
+    
+    // No valid selection - create a new entry
+    const newEdu = {
+      institution: [],
+      ausbildungsart: [],
+      abschluss: [],
+      startMonth: null,
+      startYear: "",
+      endMonth: null,
+      endYear: null,
+      isCurrent: false,
+      zusatzangaben: ""
+    };
+    
+    return addEducation(newEdu);
+  }, [selectedEducationId, ausbildung, addEducation]);
+
   const contextValue: LebenslaufContextType = {
     personalData,
     berufserfahrung,
@@ -410,6 +461,9 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
     
     setActiveTabWithSync,
     setPreviewTabWithSync,
+    
+    ensureSelectedExperienceExists,
+    ensureSelectedEducationExists,
   };
 
   return (

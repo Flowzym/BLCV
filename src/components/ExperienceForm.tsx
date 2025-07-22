@@ -15,20 +15,33 @@ import TextInput from './TextInput';
 import ToggleSwitch from './ToggleSwitch';
 
 interface ExperienceFormProps {
-  form: Omit<Berufserfahrung, 'id'>;
-  selectedPositions: string[];
-  onUpdateField: <K extends keyof Omit<Berufserfahrung, 'id'>>(field: K, value: Omit<Berufserfahrung, 'id'>[K]) => void;
-  onPositionsChange: (val: string[]) => void;
+  ensureExperienceId: () => string;
+  updateExperienceField: (id: string, field: string, value: any) => void;
   cvSuggestions: CVSuggestionConfig;
 }
 
 export default function ExperienceForm({
-  form,
-  selectedPositions,
-  onUpdateField,
-  onPositionsChange,
+  ensureExperienceId,
+  updateExperienceField,
   cvSuggestions,
 }: ExperienceFormProps) {
+  const { berufserfahrung, selectedExperienceId } = useLebenslauf();
+  
+  // Get current form data
+  const form = berufserfahrung.find(exp => exp.id === selectedExperienceId) || {
+    companies: [],
+    position: [],
+    startMonth: null,
+    startYear: "",
+    endMonth: null,
+    endYear: null,
+    isCurrent: false,
+    aufgabenbereiche: [],
+    zusatzangaben: ""
+  };
+  
+  const selectedPositions = form.position || [];
+  
   const { 
     favoriteTasks, 
     favoriteCities, 
@@ -69,7 +82,8 @@ export default function ExperienceForm({
     setShowLeasing(enabled);
     if (!enabled) {
       // Leasing-Daten löschen wenn deaktiviert
-      onUpdateField('leasingCompaniesList', []);
+      const experienceId = ensureExperienceId();
+      updateExperienceField(experienceId, 'leasingCompaniesList', []);
       setLeasingCompanyInput('');
     }
   };
@@ -105,7 +119,8 @@ export default function ExperienceForm({
     }
     
     if (newEntry && (!form.companies || !form.companies.includes(newEntry))) {
-      onUpdateField('companies', [...(form.companies || []), newEntry]);
+      const experienceId = ensureExperienceId();
+      updateExperienceField(experienceId, 'companies', [...(form.companies || []), newEntry]);
     }
 
     // Eingabefelder leeren nach dem Hinzufügen
@@ -124,7 +139,8 @@ export default function ExperienceForm({
     const currentList = Array.isArray(form.leasingCompaniesList) ? form.leasingCompaniesList : [];
     if (currentList.includes(companyToAdd)) return;
     
-    onUpdateField('leasingCompaniesList', [...currentList, companyToAdd]);
+    const experienceId = ensureExperienceId();
+    updateExperienceField(experienceId, 'leasingCompaniesList', [...currentList, companyToAdd]);
     setLeasingCompanyInput('');
   };
 
@@ -132,7 +148,8 @@ export default function ExperienceForm({
   const removeLeasingCompany = (company: string) => {
     const currentList = Array.isArray(form.leasingCompaniesList) ? form.leasingCompaniesList : [];
     const newLeasingCompanies = currentList.filter(c => c !== company);
-    onUpdateField('leasingCompaniesList', newLeasingCompanies);
+    const experienceId = ensureExperienceId();
+    updateExperienceField(experienceId, 'leasingCompaniesList', newLeasingCompanies);
   };
 
   // Funktion zum Bearbeiten einer Leasingfirma
@@ -142,20 +159,23 @@ export default function ExperienceForm({
     
     const currentList = Array.isArray(form.leasingCompaniesList) ? form.leasingCompaniesList : [];
     const newLeasingCompanies = currentList.map(c => c === oldCompany ? trimmed : c);
-    onUpdateField('leasingCompaniesList', newLeasingCompanies);
+    const experienceId = ensureExperienceId();
+    updateExperienceField(experienceId, 'leasingCompaniesList', newLeasingCompanies);
   };
 
   // Funktion zum Entfernen eines Unternehmenseintrags
   const removeCompanyEntry = (entry: string) => {
     if (form.companies) {
-      onUpdateField('companies', form.companies.filter(c => c !== entry));
+      const experienceId = ensureExperienceId();
+      updateExperienceField(experienceId, 'companies', form.companies.filter(c => c !== entry));
     }
   };
   
   // Funktion zum Bearbeiten eines Unternehmenseintrags
   const updateCompanyEntry = (oldEntry: string, newEntry: string) => {
     if (form.companies) {
-      onUpdateField('companies', form.companies.map(c => c === oldEntry ? newEntry : c));
+      const experienceId = ensureExperienceId();
+      updateExperienceField(experienceId, 'companies', form.companies.map(c => c === oldEntry ? newEntry : c));
     }
   };
   
@@ -164,7 +184,8 @@ export default function ExperienceForm({
     let newEntry = favorite;
     
     if ((!form.companies || !form.companies.includes(newEntry))) {
-      onUpdateField('companies', [...(form.companies || []), newEntry]);
+      const experienceId = ensureExperienceId();
+      updateExperienceField(experienceId, 'companies', [...(form.companies || []), newEntry]);
     }
   };
   
@@ -227,27 +248,24 @@ export default function ExperienceForm({
             isCurrent: form.isCurrent,
           }}
           onChange={(data) => {
-            onUpdateField(
-              'startMonth',
+            const experienceId = ensureExperienceId();
+            updateExperienceField(experienceId, 'startMonth', 
               data.startMonth !== undefined && data.startMonth !== null
                 ? String(data.startMonth).padStart(2, '0')
-                : null,
+                : null
             );
-            onUpdateField(
-              'startYear',
-              data.startYear !== undefined && data.startYear !== null ? String(data.startYear) : '',
+            updateExperienceField(experienceId, 'startYear',
+              data.startYear !== undefined && data.startYear !== null ? String(data.startYear) : ''
             );
-            onUpdateField(
-              'endMonth',
+            updateExperienceField(experienceId, 'endMonth',
               data.endMonth !== undefined && data.endMonth !== null
                 ? String(data.endMonth).padStart(2, '0')
-                : null,
+                : null
             );
-            onUpdateField(
-              'endYear',
-              data.endYear !== undefined && data.endYear !== null ? String(data.endYear) : null,
+            updateExperienceField(experienceId, 'endYear',
+              data.endYear !== undefined && data.endYear !== null ? String(data.endYear) : null
             );
-            onUpdateField('isCurrent', data.isCurrent ?? false);
+            updateExperienceField(experienceId, 'isCurrent', data.isCurrent ?? false);
           }}
         />
       </div>
@@ -555,7 +573,10 @@ export default function ExperienceForm({
         <TagSelectorWithFavorites
           label=""
           value={selectedPositions}
-          onChange={onPositionsChange}
+          onChange={(positions) => {
+            const experienceId = ensureExperienceId();
+            updateExperienceField(experienceId, 'position', positions);
+          }}
           allowCustom={true}
           suggestions={cvSuggestions.positions}
         />
@@ -578,7 +599,10 @@ export default function ExperienceForm({
         </div>
         <TasksTagInput
           value={form.aufgabenbereiche}
-          onChange={(val) => onUpdateField('aufgabenbereiche', val)}
+          onChange={(val) => {
+            const experienceId = ensureExperienceId();
+            updateExperienceField(experienceId, 'aufgabenbereiche', val);
+          }}
           aiSuggestions={aiTaskSuggestions || []}
           suggestions={cvSuggestions.aufgabenbereiche}
           positionen={selectedPositions}
@@ -603,7 +627,10 @@ export default function ExperienceForm({
         </div>
         <TextInput
           value={form.zusatzangaben || ''}
-          onChange={(val) => onUpdateField('zusatzangaben', val)}
+          onChange={(val) => {
+            const experienceId = ensureExperienceId();
+            updateExperienceField(experienceId, 'zusatzangaben', val);
+          }}
           label=""
           placeholder="Zusätzliche Informationen zur Berufserfahrung..."
           rows={4}
