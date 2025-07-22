@@ -26,14 +26,31 @@ export default function MonthYearInput({ value, onChange }: MonthYearInputProps)
 
   const handleBlur = () => {
     // Validierung beim Verlassen des Feldes
-    const parsed = parseMonthYearInput(internalValue);
-    if (!parsed.isValid && internalValue.trim()) {
-      // Bei ungültiger Eingabe zurücksetzen
-      setInternalValue('');
-      onChange('');
+    if (internalValue.trim()) {
+      const parsed = parseMonthYearInput(internalValue);
+      const rawParts = parseRawMonthYearInput(internalValue);
+
+      let shouldClear = false;
+
+      // Wenn Monatsteil existiert, aber ungültig ist
+      if (rawParts.monthPart && !isValidTwoDigitMonth(rawParts.monthPart)) {
+        shouldClear = true;
+      }
+      // Wenn Jahrteil existiert, aber ungültig ist
+      else if (rawParts.yearPart && !isValidFourDigitYear(rawParts.yearPart)) {
+        shouldClear = true;
+      }
+      // Wenn weder Monat noch Jahr geparst werden konnten (z.B. "abc")
+      else if (!rawParts.monthPart && !rawParts.yearPart && internalValue.trim().length > 0) {
+        shouldClear = true;
+      }
+
+      if (shouldClear) {
+        setInternalValue('');
+        onChange('');
+      }
     }
   };
-
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     // Jahr-Navigation mit Pfeiltasten
     if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
