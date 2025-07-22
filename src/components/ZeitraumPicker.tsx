@@ -147,7 +147,8 @@ export default function ZeitraumPicker({
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  const handleMonthSelect = (month?: string) => {
+  const handleMonthSelect = (event: React.MouseEvent, month?: string) => {
+    event.stopPropagation(); // Verhindert, dass der Klick die Deselektierungslogik auslöst
     if (activeField === "start") {
       setStartMonth(month);
       setStartInput(`${month ?? ""}/`);
@@ -160,13 +161,12 @@ export default function ZeitraumPicker({
     }
   };
 
-  const handleYearSelect = (year: string) => {
+  const handleYearSelect = (event: React.MouseEvent, year: string) => {
+    event.stopPropagation(); // Verhindert, dass der Klick die Deselektierungslogik auslöst
     if (activeField === "start") {
       setStartYear(year);
       if (/^\d{2}\/$/.test(startInput)) {
         setStartInput((prev) => prev + year);
-      } else if (startMonth) {
-        setStartInput(`${startMonth}/${year}`);
       } else {
         setStartInput(`__/${year}`);
       }
@@ -175,8 +175,6 @@ export default function ZeitraumPicker({
       setEndYear(year);
       if (/^\d{2}\/$/.test(endInput)) {
         setEndInput((prev) => prev + year);
-      } else if (endMonth) {
-        setEndInput(`${endMonth}/${year}`);
       } else {
         setEndInput(`__/${year}`);
       }
@@ -340,7 +338,7 @@ export default function ZeitraumPicker({
                   return (
                     <button
                       key={m.label}
-                      onMouseDown={() => handleMonthSelect(m.value)}
+                      onMouseDown={(e) => handleMonthSelect(e, m.value)}
                       className={`w-8 h-8 rounded-full border transition-colors duration-150 focus:outline-none text-sm font-medium ${
                         selected
                           ? "bg-[#F29400] text-white border-[#F29400]"
@@ -361,7 +359,7 @@ export default function ZeitraumPicker({
                   return (
                     <button
                       key={m.label}
-                      onMouseDown={() => handleMonthSelect(m.value)}
+                      onMouseDown={(e) => handleMonthSelect(e, m.value)}
                       className={`w-8 h-8 rounded-full border transition-colors duration-150 focus:outline-none text-sm font-medium ${
                         selected
                           ? "bg-[#F29400] text-white border-[#F29400]"
@@ -385,7 +383,7 @@ export default function ZeitraumPicker({
                 return (
                   <button
                     key={year}
-                    onMouseDown={() => handleYearSelect(year)}
+                    onMouseDown={(e) => handleYearSelect(e, year)}
                     className={`w-16 h-8 rounded border transition-colors duration-150 focus:outline-none text-sm font-medium ${
                       selected
                         ? "bg-[#F29400] text-white border-[#F29400]"
