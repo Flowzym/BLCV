@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useLayoutEffect } from 'react';
 import { parseRawMonthYearInput, formatMonth, isValidTwoDigitMonth, isValidFourDigitYear } from '../utils/dateUtils';
 
 interface MonthYearInputBaseProps {
@@ -28,6 +28,7 @@ export default function MonthYearInputBase({
 }: MonthYearInputBaseProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [internalValue, setInternalValue] = useState(value);
+  const [cursorPosToRestore, setCursorPosToRestore] = useState<number | null>(null);
 
   // Synchronisiere mit externem value
   useEffect(() => {
@@ -121,11 +122,9 @@ export default function MonthYearInputBase({
     setInternalValue(formatted);
     onChange(formatted);
     
-    // Cursor-Position setzen
-    if (inputRef.current) {
-      const finalPos = Math.min(newCursorPos, formatted.length);
-      inputRef.current.setSelectionRange(finalPos, finalPos);
-    }
+    // Cursor-Position für Wiederherstellung nach Render speichern
+    const finalPos = Math.min(newCursorPos, formatted.length);
+    setCursorPosToRestore(finalPos);
   };
 
   const handleClick = () => {
@@ -142,18 +141,20 @@ export default function MonthYearInputBase({
         // Monat selektieren
         input.setSelectionRange(0, slashPos);
       } else {
-        // Jahr selektieren
+        setCursorPosToRestore(0);
+        // Für Selektion verwenden wir einen speziellen Wert
+        setCursorPosToRestore(-firstDot); // Negative Werte für Selektion: -endPos
         input.setSelectionRange(slashPos + 1, currentValue.length);
       }
     } else if (currentValue.length === 4) {
-      // Nur Jahr: ganzes Jahr selektieren
+        setCursorPosToRestore(-(secondDot * 1000 + firstDot + 1)); // Kodierung für Selektion
       input.setSelectionRange(0, currentValue.length);
     } else if (currentValue.length <= 2) {
-      // Nur Monat: ganzen Monat selektieren
+        setCursorPosToRestore(-(currentValue.length * 10000 + secondDot + 1)); // Kodierung für Selektion
       input.setSelectionRange(0, currentValue.length);
     } else {
       // Fallback: alles selektieren
-      input.setSelectionRange(0, currentValue.length);
+      setCursorPosToRestore(-(currentValue.length * 10000)); // Kodierung für komplette Selektion
     }
   };
 
@@ -288,36 +289,53 @@ export default function MonthYearInputBase({
       if (start === 0 && end === currentValue.length) {
         e.preventDefault();
         
-        setInternalValue(digit);
-        onChange(digit);
-        
-        if (inputRef.current) {
-          inputRef.current.setSelectionRange(1, 1);
-        }
-        return;
-      }
-    }
-    
-    // Nach normaler Eingabe prüfen ob Jahr markiert werden soll
-    setTimeout(() => {
-      if (inputRef.current) {
-        const currentVal = inputRef.current.value;
-        if (currentVal.includes('/')) {
-          const slashPos = currentVal.indexOf('/');
-          const monthPart = currentVal.substring(0, slashPos);
-          const yearPart = currentVal.substring(slashPos + 1);
-          // Wenn Monat jetzt 2-stellig und gültig ist, Jahr markieren
-          if (monthPart.length === 2 && isValidTwoDigitMonth(monthPart) && yearPart.length === 4) {
-            inputRef.current.setSelectionRange(slashPos + 1, currentVal.length);
-          }
-        }
-      }
-    }, 10);
-    
-    // Externe KeyDown-Handler aufrufen
     onKeyDown?.(e);
   };
 
+  // useLayoutEffect für robuste Cursor-Wiederherstellung nach Render
+  useLayoutEffect(() => {
+    if (cursorPosToRestore !== null && inputRef.current) {
+      const input = inputRef.current;
+      
+      // Stelle sicher, dass das Input fokussiert ist
+      if (document.activeElement !== input) {
+        input.focus();
+      }
+      
+      if (cursorPosToRestore < 0) {
+        // Negative Werte bedeuten Selektion (kodiert)
+        const absValue = Math.abs(cursorPosToRestore);
+        
+        if (absValue >= 10000) {
+          // Jahr-Selektion oder komplette Selektion
+          const endPos = Math.floor(absValue / 10000);
+          const startPos = absValue % 10000;
+          
+          if (startPos === 0) {
+            // Komplette Selektion
+            input.setSelectionRange(0, endPos);
+          } else {
+            // Jahr-Selektion
+            input.setSelectionRange(startPos, endPos);
+          }
+        } else if (absValue >= 1000) {
+          // Monat-Selektion
+          const endPos = Math.floor(absValue / 1000);
+          const startPos = absValue % 1000;
+          input.setSelectionRange(startPos, endPos);
+        } else {
+          // Tag-Selektion
+          input.setSelectionRange(0, absValue);
+        }
+      } else {
+        // Positive Werte bedeuten Cursor-Position
+        input.setSelectionRange(cursorPosToRestore, cursorPosToRestore);
+      }
+      
+      // Reset des Restore-States
+      setCursorPosToRestore(null);
+    }
+  }, [cursorPosToRestore, internalValue]);
   return (
     <input
       ref={inputRef}
