@@ -3,6 +3,11 @@
  * AI-powered content suggestions for CV sections
  */
 
+/**
+ * Content Suggestion Panel Component
+ * AI-powered content suggestions for CV sections
+ */
+
 import React, { useState } from 'react';
 
 interface ContentSuggestionPanelProps {
