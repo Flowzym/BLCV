@@ -4,7 +4,7 @@ import { Settings, Palette, Eye, Brain, Sparkles, Layout, Type, Paintbrush, Laye
 
 export default function DesignerPage() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('layout');
+  const [activeDesignerTab, setActiveDesignerTab] = useState('layout');
 
   // Designer tabs configuration
   const designerTabs = [
@@ -31,9 +31,7 @@ export default function DesignerPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="container mx-auto px-4 py-8">
-        <div className="w-full flex flex-col gap-6 relative overflow-hidden">
+    <div className="w-full flex flex-col gap-6 relative overflow-hidden px-4 py-8">
           {/* Header with tab navigation */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200">
             <div className="flex items-center gap-2 p-4 border-b border-gray-200">
@@ -48,9 +46,9 @@ export default function DesignerPage() {
                   return (
                     <button
                       key={tab.id}
-                      onClick={() => setActiveTab(tab.id)}
+                      onClick={() => setActiveDesignerTab(tab.id)}
                       className={`py-3 px-1 border-b-2 font-medium text-sm ${
-                        activeTab === tab.id
+                        activeDesignerTab === tab.id
                           ? 'border-orange-500 text-orange-600'
                           : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                       }`}
@@ -196,8 +194,5 @@ export default function DesignerPage() {
               </div>
             </div>
           </div>
-        </div>
-      </div>
-    </div>
   );
 }

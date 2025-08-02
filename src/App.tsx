@@ -557,15 +557,11 @@ function HomePage() {
         )}
 
         {activeTab === 'lebenslauf' && (
-          <div className="p-6">
-            <LebenslaufEditor profileSourceMappings={profileSourceMappings} />
-          </div>
+          <LebenslaufEditor profileSourceMappings={profileSourceMappings} />
         )}
 
         {activeTab === 'designer' && (
-          <div className="p-6">
-            <DesignerPage />
-          </div>
+          <DesignerPage />
         )}
 
         <div className="text-center text-gray-500 text-sm">
