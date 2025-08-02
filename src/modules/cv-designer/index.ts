@@ -15,6 +15,9 @@ export * from './hooks';
 // Context (Phase 3)
 export * from './context';
 
+// Utils (Phase 5)
+export * from './utils/fileHelpers';
+
 // Services (Phase 4)
 export * from './services';
 

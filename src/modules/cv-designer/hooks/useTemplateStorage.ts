@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { SavedTemplate } from '../types/template';
+import { exportTemplatesToFile, importTemplatesFromFile, validateTemplateFile } from '../utils/fileHelpers';
 
 const STORAGE_KEY = 'cv-templates';
 
@@ -12,6 +13,8 @@ interface UseTemplateStorageReturn {
   isLoading: boolean;
   error: string | null;
 }
+  exportAllTemplates: () => void;
+  importTemplates: (file: File) => Promise<boolean>;
 
 /**
  * Hook for managing CV template storage using localStorage
@@ -102,12 +105,60 @@ export function useTemplateStorage(): UseTemplateStorageReturn {
     return true;
   }, [templates]);
 
+  const exportAllTemplates = useCallback(() => {
+    try {
+      setError(null);
+      exportTemplatesToFile(templates);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown export error';
+      setError(`Export failed: ${errorMessage}`);
+      console.error('Template export error:', err);
+    }
+  }, [templates]);
+
+  const importTemplates = useCallback(async (file: File): Promise<boolean> => {
+    setError(null);
+    
+    try {
+      // Validate file first
+      const validation = validateTemplateFile(file);
+      if (!validation.isValid) {
+        setError(`Import failed: ${validation.error}`);
+        return false;
+      }
+
+      // Import templates from file
+      const importedTemplates = await importTemplatesFromFile(file);
+      
+      // Generate new IDs to avoid conflicts and update timestamps
+      const templatesWithNewIds = importedTemplates.map(template => ({
+        ...template,
+        id: `template_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      }));
+
+      // Add to existing templates
+      const updatedTemplates = [...templates, ...templatesWithNewIds];
+      setTemplates(updatedTemplates);
+      
+      return true;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown import error';
+      setError(`Import failed: ${errorMessage}`);
+      console.error('Template import error:', err);
+      return false;
+    }
+  }, [templates]);
+
   return {
     templates,
     saveTemplate,
     loadTemplate,
     deleteTemplate,
     updateTemplate,
+    exportAllTemplates,
+    importTemplates,
     isLoading,
     error
   };

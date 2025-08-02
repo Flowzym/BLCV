@@ -13,6 +13,8 @@ export function CvProvider({ children }: CvProviderProps) {
     loadTemplate,
     deleteTemplate,
     updateTemplate,
+    exportAllTemplates,
+    importTemplates,
     isLoading,
     error,
   } = useTemplateStorage();
@@ -25,6 +27,8 @@ export function CvProvider({ children }: CvProviderProps) {
     loadTemplate,
     deleteTemplate,
     updateTemplate,
+    exportAllTemplates,
+    importTemplates,
   };
 
   return (

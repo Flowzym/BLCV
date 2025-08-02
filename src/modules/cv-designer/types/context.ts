@@ -21,6 +21,10 @@ export interface CvContextType {
     id: string,
     updates: Partial<Omit<SavedTemplate, 'id' | 'createdAt'>>
   ) => boolean;
+
+  // Export/Import operations
+  exportAllTemplates: () => void;
+  importTemplates: (file: File) => Promise<boolean>;
 }
 
 export interface CvProviderProps {
