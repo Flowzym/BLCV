@@ -3,9 +3,18 @@
  * Combines visual and structural CV editing with live preview
  */
 
-import React, { useState } from 'react';
-import { LayoutElement } from '../../types/section';
-import { StyleConfig } from '../../types/styles';
+import React, { useState, useEffect } from 'react';
+import { CVData } from '@/types/cv-designer';
+import { StyleConfig } from '@/types/cv-designer';
+import { LayoutElement } from '@/modules/cv-designer/types/section';
+import { CVPreview } from '@/modules/cv-designer/components/CVPreview';
+import { StyleEditor } from '@/components/StyleEditor';
+import { LayoutDesigner } from '@/modules/cv-designer/components/LayoutDesigner';
+import { TemplateMatchingAssistant } from '@/components/ai/TemplateMatchingAssistant';
+import { SmartLayoutGenerator } from '@/components/ai/SmartLayoutGenerator';
+import { useMapping } from '@/modules/cv-designer/hooks/useMapping';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { 
   Palette, 
   Layout, 
@@ -15,51 +24,6 @@ import {
   FileText,
   Sparkles
 } from 'lucide-react';
-
-// Mock CVData interface for playground
-interface CVData {
-  personalData: {
-    firstName: string;
-    lastName: string;
-    email: string;
-    phone: string;
-    address: string;
-    profession?: string;
-    summary?: string;
-    profileImage?: string;
-  };
-  workExperience: Array<{
-    id: string;
-    position: string;
-    company: string;
-    location?: string;
-    startDate: string;
-    endDate: string;
-    description: string;
-  }>;
-  education: Array<{
-    id: string;
-    degree: string;
-    institution: string;
-    location?: string;
-    startDate: string;
-    endDate: string;
-    description?: string;
-    grade?: string;
-    fieldOfStudy?: string;
-  }>;
-  skills: Array<{
-    id: string;
-    name: string;
-    level: 'beginner' | 'intermediate' | 'advanced' | 'expert';
-    category?: string;
-  }>;
-  languages?: Array<{
-    id: string;
-    name: string;
-    level: string;
-  }>;
-}
 
 interface DesignLayoutEditorProps {
   cvData: CVData | null;
@@ -80,10 +44,31 @@ export const DesignLayoutEditor: React.FC<DesignLayoutEditorProps> = ({
   setLayoutElements,
   setCVData
 }) => {
+  // Debug log for received styleConfig prop
+  console.log('DesignLayoutEditor received styleConfig prop:', styleConfig);
+  
   const [activeTab, setActiveTab] = useState<DesignTab>('style');
+  
+  // Mapping hook to convert CV data to sections for preview
+  const { mapCVData } = useMapping();
+  const [mappedSections, setMappedSections] = useState<any[]>([]);
+
+  // Map CV data when it changes
+  useEffect(() => {
+    if (cvData) {
+      const result = mapCVData(cvData, {
+        locale: 'de',
+        layoutType: 'classic-one-column'
+      });
+      setMappedSections(result.sections);
+    } else {
+      setMappedSections([]);
+    }
+  }, [cvData, mapCVData]);
 
   // Handle style config changes
   const handleStyleChange = (newConfig: StyleConfig) => {
+    // Use functional update to ensure we always have the latest state
     setStyleConfig(newConfig);
   };
 
@@ -95,6 +80,8 @@ export const DesignLayoutEditor: React.FC<DesignLayoutEditorProps> = ({
   // Handle template selection
   const handleTemplateSelect = (templateId: string) => {
     console.log('Template selected:', templateId);
+    // Template selection logic would be implemented here
+    // For now, we'll just log it
   };
 
   // Handle AI layout generation
@@ -144,117 +131,47 @@ export const DesignLayoutEditor: React.FC<DesignLayoutEditorProps> = ({
     switch (activeTab) {
       case 'style':
         return (
-          <div className="space-y-4">
-            <h4 className="font-medium text-gray-900">Style-Einstellungen</h4>
-            
-            {/* Font Settings */}
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Schriftart</label>
-                <select
-                  value={styleConfig.font.family}
-                  onChange={(e) => handleStyleChange({
-                    ...styleConfig,
-                    font: { ...styleConfig.font, family: e.target.value }
-                  })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="Inter">Inter</option>
-                  <option value="Arial">Arial</option>
-                  <option value="Helvetica">Helvetica</option>
-                  <option value="Times New Roman">Times New Roman</option>
-                </select>
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Schriftgröße</label>
-                <input
-                  type="number"
-                  min="10"
-                  max="24"
-                  value={styleConfig.font.size}
-                  onChange={(e) => handleStyleChange({
-                    ...styleConfig,
-                    font: { ...styleConfig.font, size: parseInt(e.target.value) }
-                  })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            </div>
-            
-            {/* Color Settings */}
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Primärfarbe</label>
-                <input
-                  type="color"
-                  value={styleConfig.colors.primary}
-                  onChange={(e) => handleStyleChange({
-                    ...styleConfig,
-                    colors: { ...styleConfig.colors, primary: e.target.value }
-                  })}
-                  className="w-full h-10 border border-gray-300 rounded-md"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Sekundärfarbe</label>
-                <input
-                  type="color"
-                  value={styleConfig.colors.secondary || '#3b82f6'}
-                  onChange={(e) => handleStyleChange({
-                    ...styleConfig,
-                    colors: { ...styleConfig.colors, secondary: e.target.value }
-                  })}
-                  className="w-full h-10 border border-gray-300 rounded-md"
-                />
-              </div>
-            </div>
-          </div>
+          <StyleEditor
+            config={styleConfig}
+            onChange={(newConfig) => {
+              console.log('StyleEditor onChange:', newConfig);
+              setStyleConfig(newConfig);
+            }}
+            sections={['colors', 'typography', 'layout', 'spacing']}
+            showPresets={true}
+            showLivePreview={false}
+            compact={false}
+          />
         );
 
       case 'layout':
         return (
-          <div className="space-y-4">
-            <h4 className="font-medium text-gray-900">Layout-Editor</h4>
-            <div className="h-96 border border-gray-300 rounded-lg bg-gray-50 flex items-center justify-center">
-              <div className="text-center text-gray-500">
-                <Grid className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-                <p className="text-lg font-medium mb-2">Layout-Editor</p>
-                <p className="text-sm">
-                  Drag & Drop Layout-Editor wird in einer späteren Phase implementiert.
-                </p>
-              </div>
-            </div>
+          <div className="h-96 border rounded-lg overflow-hidden">
+            <LayoutDesigner
+              initialLayout={layoutElements}
+              onLayoutChange={handleLayoutChange}
+              onSave={(layout, style) => {
+                setLayoutElements(layout);
+                setStyleConfig(style);
+              }}
+            />
           </div>
         );
 
       case 'templates':
         return (
-          <div className="space-y-4">
-            <h4 className="font-medium text-gray-900">Template-Auswahl</h4>
-            <div className="text-center py-8 text-gray-500">
-              <Layout className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-              <p className="text-lg font-medium mb-2">Template-Matching</p>
-              <p className="text-sm">
-                KI-gestützte Template-Vorschläge werden in einer späteren Phase implementiert.
-              </p>
-            </div>
-          </div>
+          <TemplateMatchingAssistant
+            cvData={cvData}
+            onTemplateSelect={handleTemplateSelect}
+          />
         );
 
       case 'ai-layout':
         return (
-          <div className="space-y-4">
-            <h4 className="font-medium text-gray-900">KI-Layout-Generator</h4>
-            <div className="text-center py-8 text-gray-500">
-              <Sparkles className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-              <p className="text-lg font-medium mb-2">Smart Layout Generator</p>
-              <p className="text-sm">
-                Automatische Layout-Generierung wird in einer späteren Phase implementiert.
-              </p>
-            </div>
-          </div>
+          <SmartLayoutGenerator
+            cvData={cvData}
+            onLayoutGenerated={handleLayoutGenerated}
+          />
         );
 
       default:
@@ -296,7 +213,8 @@ export const DesignLayoutEditor: React.FC<DesignLayoutEditorProps> = ({
       </div>
 
       {/* Current CV Info */}
-      <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+      <Card className="bg-purple-50 border-purple-200">
+        <CardContent className="p-4">
           <div className="flex items-center space-x-3">
             <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
               <Palette className="w-6 h-6 text-purple-600" />
@@ -307,87 +225,41 @@ export const DesignLayoutEditor: React.FC<DesignLayoutEditorProps> = ({
               </h3>
               <p className="text-sm text-purple-700">
                 {cvData.personalData.profession || 'Keine Berufsbezeichnung'} • 
-                3 Sektionen • 
+                {mappedSections.length} Sektionen • 
                 {layoutElements.length} Layout-Elemente
               </p>
             </div>
           </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Main Two-Column Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left Column - CV Preview */}
-        <div className="bg-white border border-gray-200 rounded-lg">
-          <div className="p-6 border-b border-gray-200">
-            <h3 className="text-lg font-semibold flex items-center space-x-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
               <Eye className="w-5 h-5 text-blue-600" />
               <span>Live CV-Vorschau</span>
-            </h3>
+            </CardTitle>
             <p className="text-sm text-gray-600">
               Sehen Sie Ihre Änderungen in Echtzeit
             </p>
-          </div>
-          <div className="p-6">
-            <div className="max-h-96 overflow-y-auto border rounded-lg bg-white p-4">
-              <div className="space-y-4" style={{ 
-                fontFamily: styleConfig.font.family,
-                fontSize: `${styleConfig.font.size}px`,
-                color: styleConfig.font.color
-              }}>
-                <div>
-                  <h1 style={{ color: styleConfig.colors.primary, fontSize: `${styleConfig.font.size + 6}px` }}>
-                    {cvData.personalData.firstName} {cvData.personalData.lastName}
-                  </h1>
-                  <p style={{ color: styleConfig.colors.secondary }}>{cvData.personalData.profession}</p>
-                </div>
-                
-                {cvData.personalData.summary && (
-                  <div>
-                    <h2 style={{ color: styleConfig.colors.primary }}>Profil</h2>
-                    <p>{cvData.personalData.summary}</p>
-                  </div>
-                )}
-                
-                {cvData.workExperience.length > 0 && (
-                  <div>
-                    <h2 style={{ color: styleConfig.colors.primary }}>Berufserfahrung</h2>
-                    {cvData.workExperience.map(exp => (
-                      <div key={exp.id} className="mb-2">
-                        <h3 className="font-medium">{exp.position}</h3>
-                        <p className="text-sm opacity-75">{exp.company} • {exp.startDate} - {exp.endDate}</p>
-                        <p className="text-sm">{exp.description}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                
-                {cvData.skills.length > 0 && (
-                  <div>
-                    <h2 style={{ color: styleConfig.colors.primary }}>Fähigkeiten</h2>
-                    <div className="flex flex-wrap gap-2">
-                      {cvData.skills.map(skill => (
-                        <span 
-                          key={skill.id} 
-                          className="px-2 py-1 rounded text-sm"
-                          style={{ 
-                            backgroundColor: styleConfig.colors.secondary + '20',
-                            color: styleConfig.colors.secondary
-                          }}
-                        >
-                          {skill.name}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
+          </CardHeader>
+          <CardContent>
+            <div className="max-h-96 overflow-y-auto border rounded-lg bg-white">
+              <CVPreview
+                sections={mappedSections}
+                styleConfig={styleConfig}
+                cvData={cvData}
+              />
             </div>
             
             {/* Preview Stats */}
             <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-600">Sektionen:</span>
-                <span className="font-medium">3</span>
+                <span className="font-medium">{mappedSections.length}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Layout-Elemente:</span>
@@ -395,34 +267,34 @@ export const DesignLayoutEditor: React.FC<DesignLayoutEditorProps> = ({
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Schriftart:</span>
-                <span className="font-medium">{styleConfig.font.family}</span>
+                <span className="font-medium">{styleConfig.fontFamily}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Primärfarbe:</span>
                 <div className="flex items-center space-x-2">
                   <div 
                     className="w-4 h-4 rounded border"
-                    style={{ backgroundColor: styleConfig.colors.primary }}
+                    style={{ backgroundColor: styleConfig.primaryColor }}
                   />
-                  <span className="font-mono text-xs">{styleConfig.colors.primary}</span>
+                  <span className="font-mono text-xs">{styleConfig.primaryColor}</span>
                 </div>
               </div>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
         {/* Right Column - Design Tools */}
-        <div className="bg-white border border-gray-200 rounded-lg">
-          <div className="p-6 border-b border-gray-200">
-            <h3 className="text-lg font-semibold flex items-center space-x-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
               <Wand2 className="w-5 h-5 text-purple-600" />
               <span>Design-Tools</span>
-            </h3>
+            </CardTitle>
             <p className="text-sm text-gray-600">
               Passen Sie Aussehen und Struktur an
             </p>
-          </div>
-          <div className="p-6">
+          </CardHeader>
+          <CardContent>
             {/* Tab Navigation */}
             <div className="border-b border-gray-200 mb-4">
               <nav className="flex space-x-0">
@@ -457,19 +329,19 @@ export const DesignLayoutEditor: React.FC<DesignLayoutEditorProps> = ({
                 {designTabs.find(tab => tab.id === activeTab)?.description}
               </p>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Design Summary */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg">
-        <div className="p-6 border-b border-blue-200">
-          <h3 className="text-lg font-semibold flex items-center space-x-2 text-blue-900">
+      <Card className="bg-blue-50 border-blue-200">
+        <CardHeader>
+          <CardTitle className="flex items-center space-x-2 text-blue-900">
             <Palette className="w-5 h-5" />
             <span>Design-Zusammenfassung</span>
-          </h3>
-        </div>
-        <div className="p-6">
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Style Settings */}
             <div>
@@ -480,9 +352,9 @@ export const DesignLayoutEditor: React.FC<DesignLayoutEditorProps> = ({
                   <div className="flex items-center space-x-2">
                     <div 
                       className="w-4 h-4 rounded border"
-                      style={{ backgroundColor: styleConfig.colors.primary }}
+                      style={{ backgroundColor: styleConfig.primaryColor }}
                     />
-                    <span className="font-mono">{styleConfig.colors.primary}</span>
+                    <span className="font-mono">{styleConfig.primaryColor}</span>
                   </div>
                 </div>
                 <div className="flex justify-between">
@@ -490,18 +362,18 @@ export const DesignLayoutEditor: React.FC<DesignLayoutEditorProps> = ({
                   <div className="flex items-center space-x-2">
                     <div 
                       className="w-4 h-4 rounded border"
-                      style={{ backgroundColor: styleConfig.colors.secondary }}
+                      style={{ backgroundColor: styleConfig.accentColor }}
                     />
-                    <span className="font-mono">{styleConfig.colors.secondary}</span>
+                    <span className="font-mono">{styleConfig.accentColor}</span>
                   </div>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-blue-700">Schriftart:</span>
-                  <span className="font-medium">{styleConfig.font.family}</span>
+                  <span className="font-medium">{styleConfig.fontFamily}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-blue-700">Schriftgröße:</span>
-                  <span className="font-medium">{styleConfig.font.size}px</span>
+                  <span className="font-medium">{styleConfig.fontSize}</span>
                 </div>
               </div>
             </div>
@@ -512,11 +384,11 @@ export const DesignLayoutEditor: React.FC<DesignLayoutEditorProps> = ({
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-blue-700">Zeilenabstand:</span>
-                  <span className="font-medium">{styleConfig.spacing?.lineHeight || 1.6}</span>
+                  <span className="font-medium">{styleConfig.lineHeight}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-blue-700">Ränder:</span>
-                  <span className="font-medium">{styleConfig.spacing?.margin || 16}px</span>
+                  <span className="font-medium">{styleConfig.margin}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-blue-700">Layout-Elemente:</span>
@@ -524,7 +396,7 @@ export const DesignLayoutEditor: React.FC<DesignLayoutEditorProps> = ({
                 </div>
                 <div className="flex justify-between">
                   <span className="text-blue-700">Sektionen:</span>
-                  <span className="font-medium">3</span>
+                  <span className="font-medium">{mappedSections.length}</span>
                 </div>
               </div>
             </div>
@@ -554,8 +426,8 @@ export const DesignLayoutEditor: React.FC<DesignLayoutEditorProps> = ({
               </div>
             </div>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };
