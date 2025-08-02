@@ -55,7 +55,8 @@ export function useMapping(): UseMappingReturn {
         id: 'work-experience',
         type: 'experience',
         title: 'Berufserfahrung',
-        content: cvData.workExperience.map(exp => ({
+        content: '',
+        data: cvData.workExperience.map(exp => ({
           position: exp.position,
           company: exp.company,
           startDate: exp.startDate,
@@ -72,7 +73,8 @@ export function useMapping(): UseMappingReturn {
         id: 'education',
         type: 'education',
         title: 'Ausbildung',
-        content: cvData.education.map(edu => ({
+        content: '',
+        data: cvData.education.map(edu => ({
           degree: edu.degree,
           institution: edu.institution,
           startDate: edu.startDate,
@@ -88,11 +90,14 @@ export function useMapping(): UseMappingReturn {
         id: 'skills',
         type: 'skills',
         title: 'Fähigkeiten',
-        content: cvData.skills.map(skill => ({
+        content: '',
+        data: {
+          skills: cvData.skills.map(skill => ({
           name: skill.name,
           level: skill.level,
           category: skill.category
-        }))
+          }))
+        }
       });
     }
 
@@ -102,10 +107,13 @@ export function useMapping(): UseMappingReturn {
         id: 'languages',
         type: 'languages',
         title: 'Sprachen',
-        content: cvData.languages.map(lang => ({
+        content: '',
+        data: {
+          languages: cvData.languages.map(lang => ({
           name: lang.name,
           level: lang.level
-        }))
+          }))
+        }
       });
     }
 
