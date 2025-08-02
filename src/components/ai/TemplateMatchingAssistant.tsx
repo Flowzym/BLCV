@@ -6,7 +6,7 @@
 import React, { useState } from 'react';
 import { CVData, DesignTemplate } from '@/types/cv-designer';
 import { useAI, TemplateMatchResult } from '@/hooks/useAI';
-import { layoutTemplates } from '@/templates/consolidated_layout_templates';
+import { layoutTemplates } from '@/modules/cv-designer/config/consolidated_layout_templates';
 import { Wand2, Loader, CheckCircle, AlertCircle, Target, TrendingUp, Star } from 'lucide-react';
 
 interface TemplateMatchingAssistantProps {

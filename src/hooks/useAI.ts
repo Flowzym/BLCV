@@ -5,7 +5,7 @@
 
 import { useState, useCallback } from 'react';
 import { CVData, DesignTemplate, LayoutElement } from '@/types/cv-designer';
-import { callClaudeAPI, mockClaudeAPI } from '@/logic/claude_api';
+import { callClaudeAPI, mockClaudeAPI } from '@/services/claude_api';
 
 export interface AIAnalysisResult {
   atsScore: number;
