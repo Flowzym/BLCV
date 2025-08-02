@@ -4,6 +4,12 @@
  */
 
 import React, { useState } from 'react';
+import { CVData } from '@/types/cv-designer';
+import { MediaManager } from '@/components/MediaManager';
+import { CVPreview } from '@/modules/cv-designer/components/CVPreview';
+import { useMapping } from '@/modules/cv-designer/hooks/useMapping';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { 
   Image as ImageIcon, 
   Eye, 
@@ -14,51 +20,6 @@ import {
   AlertTriangle,
   FileText
 } from 'lucide-react';
-
-// Mock CVData interface for playground
-interface CVData {
-  personalData: {
-    firstName: string;
-    lastName: string;
-    email: string;
-    phone: string;
-    address: string;
-    profession?: string;
-    summary?: string;
-    profileImage?: string;
-  };
-  workExperience: Array<{
-    id: string;
-    position: string;
-    company: string;
-    location?: string;
-    startDate: string;
-    endDate: string;
-    description: string;
-  }>;
-  education: Array<{
-    id: string;
-    degree: string;
-    institution: string;
-    location?: string;
-    startDate: string;
-    endDate: string;
-    description?: string;
-    grade?: string;
-    fieldOfStudy?: string;
-  }>;
-  skills: Array<{
-    id: string;
-    name: string;
-    level: 'beginner' | 'intermediate' | 'advanced' | 'expert';
-    category?: string;
-  }>;
-  languages?: Array<{
-    id: string;
-    name: string;
-    level: string;
-  }>;
-}
 
 interface MediaManagementPhaseProps {
   cvData: CVData | null;
@@ -71,6 +32,23 @@ export const MediaManagementPhase: React.FC<MediaManagementPhaseProps> = ({
 }) => {
   const [showPreview, setShowPreview] = useState(true);
   const [lastUploadedImage, setLastUploadedImage] = useState<string | null>(null);
+  
+  // Mapping hook to convert CV data to sections for preview
+  const { mapCVData } = useMapping();
+  const [mappedSections, setMappedSections] = React.useState<any[]>([]);
+
+  // Map CV data when it changes
+  React.useEffect(() => {
+    if (cvData) {
+      const result = mapCVData(cvData, {
+        locale: 'de',
+        layoutType: 'classic-one-column'
+      });
+      setMappedSections(result.sections);
+    } else {
+      setMappedSections([]);
+    }
+  }, [cvData, mapCVData]);
 
   // Handle image selection from MediaManager
   const handleImageSelect = (imageSrc: string, thumbnail?: string) => {
@@ -87,21 +65,6 @@ export const MediaManagementPhase: React.FC<MediaManagementPhaseProps> = ({
     
     setCVData(updatedCVData);
     setLastUploadedImage(imageSrc);
-  };
-
-  // Handle file upload
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const result = e.target?.result as string;
-      if (result) {
-        handleImageSelect(result);
-      }
-    };
-    reader.readAsDataURL(file);
   };
 
   // Get image status
@@ -152,7 +115,8 @@ export const MediaManagementPhase: React.FC<MediaManagementPhaseProps> = ({
       </div>
 
       {/* Current CV Info */}
-      <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+      <Card className="bg-purple-50 border-purple-200">
+        <CardContent className="p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
@@ -177,23 +141,24 @@ export const MediaManagementPhase: React.FC<MediaManagementPhaseProps> = ({
               <div className="text-sm text-purple-700">Profilbild</div>
             </div>
           </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Image Status */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Current Status */}
-        <div className={`${imageStatus.hasImage ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200'} border rounded-lg`}>
-          <div className="p-6 border-b border-gray-200">
-            <h3 className={`text-lg font-semibold flex items-center space-x-2 ${imageStatus.hasImage ? 'text-green-900' : 'text-yellow-900'}`}>
+        <Card className={imageStatus.hasImage ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200'}>
+          <CardHeader>
+            <CardTitle className={`flex items-center space-x-2 ${imageStatus.hasImage ? 'text-green-900' : 'text-yellow-900'}`}>
               {imageStatus.hasImage ? (
                 <CheckCircle className="w-5 h-5" />
               ) : (
                 <AlertTriangle className="w-5 h-5" />
               )}
               <span>Profilbild-Status</span>
-            </h3>
-          </div>
-          <div className="p-6">
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className={imageStatus.hasImage ? 'text-green-700' : 'text-yellow-700'}>Status:</span>
@@ -222,18 +187,18 @@ export const MediaManagementPhase: React.FC<MediaManagementPhaseProps> = ({
                 </div>
               )}
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
         {/* Recommendations */}
-        <div className="bg-blue-50 border border-blue-200 rounded-lg">
-          <div className="p-6 border-b border-blue-200">
-            <h3 className="text-lg font-semibold flex items-center space-x-2 text-blue-900">
+        <Card className="bg-blue-50 border-blue-200">
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2 text-blue-900">
               <Settings className="w-5 h-5" />
               <span>Empfehlungen</span>
-            </h3>
-          </div>
-          <div className="p-6">
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
             <ul className="space-y-2 text-sm text-blue-800">
               <li className="flex items-start space-x-2">
                 <CheckCircle className="w-4 h-4 mt-0.5 text-blue-600" />
@@ -252,80 +217,30 @@ export const MediaManagementPhase: React.FC<MediaManagementPhaseProps> = ({
                 <span>Neutrale Hintergrundfarbe bevorzugt</span>
               </li>
             </ul>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Main Media Management Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left Side - Media Manager */}
-        <div className="bg-white border border-gray-200 rounded-lg">
-          <div className="p-6 border-b border-gray-200">
-            <h3 className="text-lg font-semibold flex items-center space-x-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
               <Upload className="w-5 h-5 text-purple-600" />
               <span>Bildbearbeitung</span>
-            </h3>
+            </CardTitle>
             <p className="text-sm text-gray-600">
               Laden Sie Ihr Profilbild hoch und bearbeiten Sie es mit professionellen Tools
             </p>
-          </div>
-          <div className="p-6">
-            {/* Image Upload Area */}
-            <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center">
-              {cvData.personalData.profileImage ? (
-                <div className="space-y-4">
-                  <div className="w-32 h-32 mx-auto rounded-full overflow-hidden border-4 border-white shadow-lg">
-                    <img 
-                      src={cvData.personalData.profileImage} 
-                      alt="Profilbild"
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-gray-900 mb-2">Profilbild hochgeladen</h4>
-                    <p className="text-sm text-gray-600 mb-4">
-                      Größe: {Math.round(cvData.personalData.profileImage.length / 1024)} KB
-                    </p>
-                    <div className="space-x-2">
-                      <label className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 cursor-pointer">
-                        <Upload className="w-4 h-4 mr-2" />
-                        Neues Bild hochladen
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleFileUpload}
-                          className="hidden"
-                        />
-                      </label>
-                      <button
-                        onClick={() => handleImageSelect('')}
-                        className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
-                      >
-                        Entfernen
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div>
-                  <ImageIcon className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-                  <h4 className="text-lg font-medium text-gray-900 mb-2">Profilbild hochladen</h4>
-                  <p className="text-gray-600 mb-4">
-                    Ziehen Sie ein Bild hierher oder klicken Sie zum Auswählen
-                  </p>
-                  <label className="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 cursor-pointer">
-                    <Upload className="w-4 h-4 mr-2" />
-                    Bild auswählen
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleFileUpload}
-                      className="hidden"
-                    />
-                  </label>
-                </div>
-              )}
-            </div>
+          </CardHeader>
+          <CardContent>
+            <MediaManager
+              onImageSelect={handleImageSelect}
+              currentImage={cvData.personalData.profileImage}
+              aspectRatio={1} // Square aspect ratio for profile pictures
+              shape="circle"
+            />
             
             {/* Media Features Info */}
             <div className="mt-6 bg-purple-50 border border-purple-200 rounded-lg p-4">
@@ -342,72 +257,57 @@ export const MediaManagementPhase: React.FC<MediaManagementPhaseProps> = ({
                 <li>• Live-Vorschau Integration</li>
               </ul>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
         {/* Right Side - CV Preview with Image */}
-        <div className="bg-white border border-gray-200 rounded-lg">
-          <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-semibold flex items-center space-x-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
                 <Eye className="w-5 h-5 text-blue-600" />
                 <span>CV-Vorschau mit Profilbild</span>
-              </h3>
-              <p className="text-sm text-gray-600">
-                Sehen Sie, wie Ihr Profilbild im fertigen CV aussieht
-              </p>
-            </div>
-            <button
-              onClick={() => setShowPreview(!showPreview)}
-              className="px-3 py-1 text-sm border border-gray-300 rounded-md hover:bg-gray-50"
-            >
-              {showPreview ? 'Vorschau ausblenden' : 'Vorschau anzeigen'}
-            </button>
-          </div>
-          <div className="p-6">
+              </div>
+              <Button
+                onClick={() => setShowPreview(!showPreview)}
+                variant="outline"
+                size="sm"
+              >
+                {showPreview ? 'Vorschau ausblenden' : 'Vorschau anzeigen'}
+              </Button>
+            </CardTitle>
+            <p className="text-sm text-gray-600">
+              Sehen Sie, wie Ihr Profilbild im fertigen CV aussieht
+            </p>
+          </CardHeader>
+          <CardContent>
             {showPreview ? (
-              <div className="flex items-center space-x-2">
-                <div className="max-h-96 overflow-y-auto border rounded-lg bg-white p-4 w-full">
-                  <div className="space-y-4">
-                    <div className="flex items-center space-x-4">
-                      {cvData.personalData.profileImage && (
-                        <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-gray-200 flex-shrink-0">
-                          <img 
-                            src={cvData.personalData.profileImage} 
-                            alt="Profilbild"
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                      )}
-                      <div>
-                        <h1 className="text-xl font-bold text-blue-600">
-                          {cvData.personalData.firstName} {cvData.personalData.lastName}
-                        </h1>
-                        <p className="text-blue-500">{cvData.personalData.profession}</p>
-                        <p className="text-sm text-gray-600">{cvData.personalData.email}</p>
-                      </div>
-                    </div>
-                    
-                    {cvData.personalData.summary && (
-                      <div>
-                        <h2 className="text-lg font-semibold text-blue-600 mb-2">Profil</h2>
-                        <p className="text-sm">{cvData.personalData.summary}</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
+              <div className="max-h-96 overflow-y-auto border rounded-lg bg-white">
+                <CVPreview
+                  sections={mappedSections}
+                  styleConfig={{
+                    primaryColor: '#1e40af',
+                    accentColor: '#3b82f6',
+                    fontFamily: 'Inter',
+                    fontSize: 'medium',
+                    lineHeight: 1.6,
+                    margin: 'normal'
+                  }}
+                  cvData={cvData}
+                />
               </div>
             ) : (
               <div className="flex items-center justify-center h-64 text-gray-500">
                 <div className="text-center">
                   <Eye className="w-16 h-16 mx-auto mb-4 text-gray-300" />
                   <p>Vorschau ausgeblendet</p>
-                  <button
+                  <Button
                     onClick={() => setShowPreview(true)}
-                    className="mt-2 px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50"
+                    variant="outline"
+                    className="mt-2"
                   >
                     Vorschau anzeigen
-                  </button>
+                  </Button>
                 </div>
               </div>
             )}
@@ -422,7 +322,7 @@ export const MediaManagementPhase: React.FC<MediaManagementPhaseProps> = ({
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Sektionen:</span>
-                <span className="font-medium">3</span>
+                <span className="font-medium">{mappedSections.length}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Bildgröße:</span>
@@ -440,16 +340,16 @@ export const MediaManagementPhase: React.FC<MediaManagementPhaseProps> = ({
                 </span>
               </div>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Media Management Tips */}
-      <div className="bg-gray-50 border border-gray-200 rounded-lg">
-        <div className="p-4 border-b border-gray-200">
-          <h3 className="text-sm font-medium text-gray-900">💡 Profilbild-Tipps</h3>
-        </div>
-        <div className="p-4">
+      <Card className="bg-gray-50 border-gray-200">
+        <CardHeader>
+          <CardTitle className="text-sm text-gray-900">💡 Profilbild-Tipps</CardTitle>
+        </CardHeader>
+        <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-700">
             <div>
               <h5 className="font-medium mb-2">📸 Bildqualität</h5>
@@ -479,19 +379,19 @@ export const MediaManagementPhase: React.FC<MediaManagementPhaseProps> = ({
               </ul>
             </div>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Image Processing Status */}
       {imageStatus.hasImage && (
-        <div className="bg-green-50 border border-green-200 rounded-lg">
-          <div className="p-6 border-b border-green-200">
-            <h3 className="text-lg font-semibold flex items-center space-x-2 text-green-900">
+        <Card className="bg-green-50 border-green-200">
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2 text-green-900">
               <CheckCircle className="w-5 h-5" />
               <span>Profilbild erfolgreich integriert</span>
-            </h3>
-          </div>
-          <div className="p-6">
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* Image Info */}
               <div>
@@ -564,28 +464,29 @@ export const MediaManagementPhase: React.FC<MediaManagementPhaseProps> = ({
                 </div>
               </div>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Quick Actions */}
       <div className="flex justify-center space-x-4">
-        <button
+        <Button
           onClick={() => setShowPreview(!showPreview)}
-          className="flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+          variant="outline"
         >
           <Eye className="w-4 h-4 mr-2" />
           {showPreview ? 'Vorschau ausblenden' : 'Vorschau anzeigen'}
-        </button>
+        </Button>
         
         {imageStatus.hasImage && (
-          <button
+          <Button
             onClick={() => handleImageSelect('')}
-            className="flex items-center px-4 py-2 border border-gray-300 text-red-600 rounded-md hover:bg-gray-50 hover:text-red-800"
+            variant="outline"
+            className="text-red-600 hover:text-red-800"
           >
             <ImageIcon className="w-4 h-4 mr-2" />
             Profilbild entfernen
-          </button>
+          </Button>
         )}
       </div>
     </div>
