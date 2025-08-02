@@ -5,6 +5,7 @@ import { LebenslaufProvider } from './components/LebenslaufContext';
 import CoverLetterAiAssistant from './components/CoverLetterAiAssistant';
 import SettingsPage from './components/SettingsPage';
 import StyleTest from './pages/StyleTest';
+import DesignerPage from './pages/DesignerPage';
 import TabNavigation from './components/layout/TabNavigation';
 import InputColumns from './components/layout/InputColumns';
 import DocumentTypeBlock from './components/layout/DocumentTypeBlock';
@@ -473,10 +474,11 @@ function HomePage() {
 
 
 
-  const [activeTab, setActiveTab] = useState<'bewerbung' | 'lebenslauf'>('bewerbung');
+  const [activeTab, setActiveTab] = useState<'bewerbung' | 'lebenslauf' | 'designer'>('bewerbung');
   const tabs = [
     { id: 'bewerbung', label: 'Bewerbung' },
     { id: 'lebenslauf', label: 'Lebenslauf' },
+    { id: 'designer', label: 'Designer' },
   ];
 
   return (
@@ -560,6 +562,12 @@ function HomePage() {
           </div>
         )}
 
+        {activeTab === 'designer' && (
+          <div className="p-6">
+            <DesignerPage />
+          </div>
+        )}
+
         <div className="text-center text-gray-500 text-sm">
           Powered by Mistral AI • Quill Editor
           {isSupabaseConfigured() && (
@@ -581,6 +589,7 @@ function App() {
   return (
     <Routes>
       <Route path="/" element={<HomePage />} />
+      <Route path="/designer" element={<DesignerPage />} />
       <Route path="/settings" element={
         <LebenslaufProvider>
           <SettingsPage />
