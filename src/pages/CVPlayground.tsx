@@ -1,24 +1,18 @@
 /**
- * CV Designer Playground - Phase 1: Core Structure & Navigation
+ * CV Designer Playground - Phase 5: Playground-Komponenten-Integration
  * Central testbed for all CV-Designer features with consistent user experience
  */
 
 import React, { useState } from 'react';
-import { CVData, DesignConfig } from '@/types/cv-designer';
-import { LayoutElement } from '@/modules/cv-designer/types/section';
-import { StyleConfigProvider, useStyleConfig } from '@/context/StyleConfigContext';
-
-// Import playground-specific phase components
-import {
-  StartLoadCV,
-  ContentEditor,
-  DesignLayoutEditor,
-  ReviewOptimizePanel,
-  ExportPhase,
-  MediaManagementPhase
-} from '@/modules/cv-designer/components/playground';
-
-import { Button } from '@/components/ui/button';
+import { CvProvider } from '../modules/cv-designer';
+import StartLoadCV from '../modules/cv-designer/components/playground/StartLoadCV';
+import ContentEditor from '../modules/cv-designer/components/playground/ContentEditor';
+import DesignLayoutEditor from '../modules/cv-designer/components/playground/DesignLayoutEditor';
+import ReviewOptimizePanel from '../modules/cv-designer/components/playground/ReviewOptimizePanel';
+import ExportPhase from '../modules/cv-designer/components/playground/ExportPhase';
+import MediaManagementPhase from '../modules/cv-designer/components/playground/MediaManagementPhase';
+import { LayoutElement } from '../modules/cv-designer/types/section';
+import { StyleConfig } from '../modules/cv-designer/types/styles';
 import { 
   Folder, 
   FileText, 
@@ -29,6 +23,51 @@ import {
   Wand2,
   CheckCircle
 } from 'lucide-react';
+
+// Mock CVData interface for playground
+interface CVData {
+  personalData: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    address: string;
+    profession?: string;
+    summary?: string;
+    profileImage?: string;
+  };
+  workExperience: Array<{
+    id: string;
+    position: string;
+    company: string;
+    location?: string;
+    startDate: string;
+    endDate: string;
+    description: string;
+  }>;
+  education: Array<{
+    id: string;
+    degree: string;
+    institution: string;
+    location?: string;
+    startDate: string;
+    endDate: string;
+    description?: string;
+    grade?: string;
+    fieldOfStudy?: string;
+  }>;
+  skills: Array<{
+    id: string;
+    name: string;
+    level: 'beginner' | 'intermediate' | 'advanced' | 'expert';
+    category?: string;
+  }>;
+  languages?: Array<{
+    id: string;
+    name: string;
+    level: string;
+  }>;
+}
 
 // Phase definitions for navigation
 interface Phase {
@@ -77,17 +116,36 @@ const phases: Phase[] = [
   }
 ];
 
+// Default style config for playground
+const defaultStyleConfig: StyleConfig = {
+  font: {
+    family: 'Inter',
+    size: 14,
+    weight: 'normal',
+    color: '#1f2937'
+  },
+  colors: {
+    primary: '#1e40af',
+    secondary: '#3b82f6',
+    background: '#ffffff',
+    text: '#1f2937'
+  },
+  spacing: {
+    margin: 16,
+    padding: 12,
+    lineHeight: 1.6
+  },
+  borderRadius: 8,
+  borderColor: '#e5e7eb',
+  borderWidth: 1
+};
+
 function CVPlaygroundContent() {
   // Central state management
   const [cvData, setCVData] = useState<CVData | null>(null);
   const [layoutElements, setLayoutElements] = useState<LayoutElement[]>([]);
+  const [styleConfig, setStyleConfig] = useState<StyleConfig>(defaultStyleConfig);
   const [currentPhase, setCurrentPhase] = useState<string>('start-load-cv');
-  
-  // Use StyleConfig from context
-  const { styleConfig, updateStyleConfig } = useStyleConfig();
-  
-  // Debug log for styleConfig state
-  console.log('CVPlayground styleConfig state:', styleConfig);
 
   // Render phase content based on current phase
   const renderPhaseContent = () => {
@@ -98,7 +156,7 @@ function CVPlaygroundContent() {
             cvData={cvData}
             setCVData={setCVData}
             styleConfig={styleConfig}
-            setStyleConfig={updateStyleConfig}
+            setStyleConfig={setStyleConfig}
             layoutElements={layoutElements}
             setLayoutElements={setLayoutElements}
           />
@@ -117,7 +175,7 @@ function CVPlaygroundContent() {
           <DesignLayoutEditor
             cvData={cvData}
             styleConfig={styleConfig}
-            setStyleConfig={updateStyleConfig}
+            setStyleConfig={setStyleConfig}
             layoutElements={layoutElements}
             setLayoutElements={setLayoutElements}
             setCVData={setCVData}
@@ -130,6 +188,8 @@ function CVPlaygroundContent() {
             cvData={cvData}
             styleConfig={styleConfig}
             layoutElements={layoutElements}
+            setCVData={setCVData}
+            setStyleConfig={setStyleConfig}
           />
         );
       
@@ -181,13 +241,12 @@ function CVPlaygroundContent() {
             const isActive = currentPhase === phase.id;
             
             return (
-              <Button
+              <button
                 key={phase.id}
-                variant={isActive ? "default" : "ghost"}
-                className={`w-full justify-start h-auto p-4 ${
+                onClick={() => setCurrentPhase(phase.id)}
+                className={`w-full justify-start h-auto p-4 rounded-lg transition-colors ${
                   isActive ? 'bg-blue-600 text-white' : 'text-gray-700 hover:bg-gray-100'
                 }`}
-                onClick={() => setCurrentPhase(phase.id)}
               >
                 <div className="flex items-center space-x-3 w-full">
                   <div className="flex items-center space-x-3 flex-1">
@@ -209,7 +268,7 @@ function CVPlaygroundContent() {
                     <CheckCircle className="w-4 h-4 text-blue-200" />
                   )}
                 </div>
-              </Button>
+              </button>
             );
           })}
         </nav>
@@ -266,8 +325,8 @@ function CVPlaygroundContent() {
 
 export default function CVPlayground() {
   return (
-    <StyleConfigProvider>
+    <CvProvider>
       <CVPlaygroundContent />
-    </StyleConfigProvider>
+    </CvProvider>
   );
 }

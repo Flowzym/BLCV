@@ -3,14 +3,10 @@
  * Allows users to download their finished CV in various formats
  */
 
-import React, { useState, useEffect } from 'react';
-import { CVData } from '@/types/cv-designer';
-import { StyleConfig } from '@/types/cv-designer';
-import { CVPreview } from '@/modules/cv-designer/components/CVPreview';
-import { ExportPanel } from '@/modules/cv-designer/components/ExportPanel';
-import { useMapping } from '@/modules/cv-designer/hooks/useMapping';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import React, { useState } from 'react';
+import { StyleConfig } from '../../types/styles';
+import { exportTemplateToDocx } from '../../services/exportLayoutDocx';
+import { useCvContext } from '../../context/CvContext';
 import { 
   Download, 
   Eye, 
@@ -19,6 +15,51 @@ import {
   AlertTriangle,
   Zap
 } from 'lucide-react';
+
+// Mock CVData interface for playground
+interface CVData {
+  personalData: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    address: string;
+    profession?: string;
+    summary?: string;
+    profileImage?: string;
+  };
+  workExperience: Array<{
+    id: string;
+    position: string;
+    company: string;
+    location?: string;
+    startDate: string;
+    endDate: string;
+    description: string;
+  }>;
+  education: Array<{
+    id: string;
+    degree: string;
+    institution: string;
+    location?: string;
+    startDate: string;
+    endDate: string;
+    description?: string;
+    grade?: string;
+    fieldOfStudy?: string;
+  }>;
+  skills: Array<{
+    id: string;
+    name: string;
+    level: 'beginner' | 'intermediate' | 'advanced' | 'expert';
+    category?: string;
+  }>;
+  languages?: Array<{
+    id: string;
+    name: string;
+    level: string;
+  }>;
+}
 
 interface ExportPhaseProps {
   cvData: CVData | null;
@@ -34,30 +75,22 @@ export const ExportPhase: React.FC<ExportPhaseProps> = ({
     issues: string[];
     warnings: string[];
   }>({ isReady: false, issues: [], warnings: [] });
+  const [isExporting, setIsExporting] = useState(false);
+  
+  // Access CV context for template operations
+  const { saveTemplate } = useCvContext();
 
-  // Mapping hook to convert CV data to sections for preview
-  const { mapCVData } = useMapping();
-  const [mappedSections, setMappedSections] = useState<any[]>([]);
-
-  // Map CV data when it changes
-  useEffect(() => {
+  // Check export readiness when CV data changes
+  React.useEffect(() => {
     if (cvData) {
-      const result = mapCVData(cvData, {
-        locale: 'de',
-        layoutType: 'classic-one-column'
-      });
-      setMappedSections(result.sections);
-      
-      // Check export readiness
-      checkExportReadiness(cvData, result.sections);
+      checkExportReadiness(cvData);
     } else {
-      setMappedSections([]);
       setExportReadiness({ isReady: false, issues: ['Kein CV geladen'], warnings: [] });
     }
-  }, [cvData, mapCVData]);
+  }, [cvData]);
 
   // Check if CV is ready for export
-  const checkExportReadiness = (cv: CVData, sections: any[]) => {
+  const checkExportReadiness = (cv: CVData) => {
     const issues: string[] = [];
     const warnings: string[] = [];
 
@@ -81,11 +114,6 @@ export const ExportPhase: React.FC<ExportPhaseProps> = ({
     }
     if (!cv.personalData.summary) {
       warnings.push('Profil-Zusammenfassung fehlt');
-    }
-
-    // Sections check
-    if (sections.length === 0) {
-      issues.push('Keine Sektionen zum Exportieren vorhanden');
     }
 
     setExportReadiness({
@@ -113,6 +141,61 @@ export const ExportPhase: React.FC<ExportPhaseProps> = ({
     ];
     
     return Math.round((checks.filter(Boolean).length / checks.length) * 100);
+  };
+
+  // Handle export to different formats
+  const handleExport = async (format: 'pdf' | 'docx' | 'json') => {
+    if (!cvData) return;
+    
+    setIsExporting(true);
+    try {
+      if (format === 'json') {
+        // Export as JSON
+        const exportData = {
+          cvData,
+          styleConfig,
+          exportedAt: new Date().toISOString()
+        };
+        
+        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `cv-${cvData.personalData.firstName}-${cvData.personalData.lastName}.json`;
+        link.click();
+        URL.revokeObjectURL(url);
+      } else if (format === 'docx') {
+        // Create a template from current CV data and export as DOCX
+        const templateId = await saveTemplate({
+          name: `${cvData.personalData.firstName} ${cvData.personalData.lastName} CV`,
+          category: 'export',
+          tags: ['export', 'cv'],
+          isFavorite: false,
+          layout: [],
+          style: styleConfig,
+          sections: [
+            {
+              id: 'personal',
+              type: 'personal',
+              title: 'Persönliche Daten',
+              content: `${cvData.personalData.firstName} ${cvData.personalData.lastName}\n${cvData.personalData.email}\n${cvData.personalData.phone}`,
+              order: 1,
+              required: true
+            }
+          ]
+        });
+        
+        // Export the template as DOCX
+        // This would use the exportTemplateToDocx function from services
+        console.log('DOCX export would be implemented here with template ID:', templateId);
+      } else if (format === 'pdf') {
+        console.log('PDF export would be implemented here');
+      }
+    } catch (error) {
+      console.error('Export failed:', error);
+    } finally {
+      setIsExporting(false);
+    }
   };
 
   if (!cvData) {
@@ -149,8 +232,7 @@ export const ExportPhase: React.FC<ExportPhaseProps> = ({
       </div>
 
       {/* Current CV Info */}
-      <Card className="bg-green-50 border-green-200">
-        <CardContent className="p-4">
+      <div className="bg-green-50 border border-green-200 rounded-lg p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
@@ -162,7 +244,7 @@ export const ExportPhase: React.FC<ExportPhaseProps> = ({
                 </h3>
                 <p className="text-sm text-green-700">
                   {cvData.personalData.profession || 'Keine Berufsbezeichnung'} • 
-                  {mappedSections.length} Sektionen • 
+                  3 Sektionen • 
                   {getCompletenessPercentage()}% vollständig
                 </p>
               </div>
@@ -175,21 +257,20 @@ export const ExportPhase: React.FC<ExportPhaseProps> = ({
               <div className="text-sm text-green-700">Vollständigkeit</div>
             </div>
           </div>
-        </CardContent>
-      </Card>
+      </div>
 
       {/* Export Readiness Status */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Issues */}
         {exportReadiness.issues.length > 0 && (
-          <Card className="bg-red-50 border-red-200">
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2 text-red-900">
+          <div className="bg-red-50 border border-red-200 rounded-lg">
+            <div className="p-6 border-b border-red-200">
+              <h3 className="text-lg font-semibold flex items-center space-x-2 text-red-900">
                 <AlertTriangle className="w-5 h-5" />
                 <span>Probleme beheben</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+              </h3>
+            </div>
+            <div className="p-6">
               <ul className="space-y-1">
                 {exportReadiness.issues.map((issue, index) => (
                   <li key={index} className="flex items-start space-x-2 text-red-800">
@@ -198,20 +279,20 @@ export const ExportPhase: React.FC<ExportPhaseProps> = ({
                   </li>
                 ))}
               </ul>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         )}
 
         {/* Warnings */}
         {exportReadiness.warnings.length > 0 && (
-          <Card className="bg-yellow-50 border-yellow-200">
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2 text-yellow-900">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg">
+            <div className="p-6 border-b border-yellow-200">
+              <h3 className="text-lg font-semibold flex items-center space-x-2 text-yellow-900">
                 <AlertTriangle className="w-5 h-5" />
                 <span>Empfehlungen</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+              </h3>
+            </div>
+            <div className="p-6">
               <ul className="space-y-1">
                 {exportReadiness.warnings.map((warning, index) => (
                   <li key={index} className="flex items-start space-x-2 text-yellow-800">
@@ -220,14 +301,13 @@ export const ExportPhase: React.FC<ExportPhaseProps> = ({
                   </li>
                 ))}
               </ul>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         )}
 
         {/* Ready Status */}
         {exportReadiness.isReady && (
-          <Card className="bg-green-50 border-green-200 md:col-span-2">
-            <CardContent className="p-4">
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4 md:col-span-2">
               <div className="flex items-center space-x-3">
                 <CheckCircle className="w-8 h-8 text-green-600" />
                 <div>
@@ -240,38 +320,64 @@ export const ExportPhase: React.FC<ExportPhaseProps> = ({
                   <Zap className="w-6 h-6 text-green-600" />
                 </div>
               </div>
-            </CardContent>
-          </Card>
+          </div>
         )}
       </div>
 
       {/* Main Export Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left Side - CV Preview */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
+        <div className="bg-white border border-gray-200 rounded-lg">
+          <div className="p-6 border-b border-gray-200">
+            <h3 className="text-lg font-semibold flex items-center space-x-2">
               <Eye className="w-5 h-5 text-blue-600" />
               <span>Finale CV-Vorschau</span>
-            </CardTitle>
+            </h3>
             <p className="text-sm text-gray-600">
               So wird Ihr CV in den exportierten Dokumenten aussehen
             </p>
-          </CardHeader>
-          <CardContent>
-            <div className="max-h-96 overflow-y-auto border rounded-lg bg-white">
-              <CVPreview
-                sections={mappedSections}
-                styleConfig={styleConfig}
-                cvData={cvData}
-              />
+          </div>
+          <div className="p-6">
+            <div className="max-h-96 overflow-y-auto border rounded-lg bg-white p-4">
+              <div className="space-y-4" style={{ 
+                fontFamily: styleConfig.font.family,
+                fontSize: `${styleConfig.font.size}px`,
+                color: styleConfig.font.color
+              }}>
+                <div>
+                  <h1 style={{ color: styleConfig.colors.primary, fontSize: `${styleConfig.font.size + 6}px` }}>
+                    {cvData.personalData.firstName} {cvData.personalData.lastName}
+                  </h1>
+                  <p style={{ color: styleConfig.colors.secondary }}>{cvData.personalData.profession}</p>
+                </div>
+                
+                {cvData.personalData.summary && (
+                  <div>
+                    <h2 style={{ color: styleConfig.colors.primary }}>Profil</h2>
+                    <p>{cvData.personalData.summary}</p>
+                  </div>
+                )}
+                
+                {cvData.workExperience.length > 0 && (
+                  <div>
+                    <h2 style={{ color: styleConfig.colors.primary }}>Berufserfahrung</h2>
+                    {cvData.workExperience.map(exp => (
+                      <div key={exp.id} className="mb-2">
+                        <h3 className="font-medium">{exp.position}</h3>
+                        <p className="text-sm opacity-75">{exp.company} • {exp.startDate} - {exp.endDate}</p>
+                        <p className="text-sm">{exp.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
             
             {/* Preview Stats */}
             <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-600">Sektionen:</span>
-                <span className="font-medium">{mappedSections.length}</span>
+                <span className="font-medium">3</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Vollständigkeit:</span>
@@ -279,51 +385,106 @@ export const ExportPhase: React.FC<ExportPhaseProps> = ({
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Schriftart:</span>
-                <span className="font-medium">{styleConfig.fontFamily}</span>
+                <span className="font-medium">{styleConfig.font.family}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Primärfarbe:</span>
                 <div className="flex items-center space-x-2">
                   <div 
                     className="w-4 h-4 rounded border"
-                    style={{ backgroundColor: styleConfig.primaryColor }}
+                    style={{ backgroundColor: styleConfig.colors.primary }}
                   />
-                  <span className="font-mono text-xs">{styleConfig.primaryColor}</span>
+                  <span className="font-mono text-xs">{styleConfig.colors.primary}</span>
                 </div>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
         {/* Right Side - Export Options */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
+        <div className="bg-white border border-gray-200 rounded-lg">
+          <div className="p-6 border-b border-gray-200">
+            <h3 className="text-lg font-semibold flex items-center space-x-2">
               <Download className="w-5 h-5 text-green-600" />
               <span>Export-Optionen</span>
-            </CardTitle>
+            </h3>
             <p className="text-sm text-gray-600">
               Wählen Sie Format und Qualitätseinstellungen für Ihren Export
             </p>
-          </CardHeader>
-          <CardContent>
-            <ExportPanel
-              cvData={cvData}
-              styleConfig={styleConfig}
-            />
-          </CardContent>
-        </Card>
+          </div>
+          <div className="p-6">
+            <div className="space-y-4">
+              <h4 className="font-medium text-gray-900">Export-Formate</h4>
+              
+              <div className="space-y-3">
+                <button
+                  onClick={() => handleExport('pdf')}
+                  disabled={!exportReadiness.isReady || isExporting}
+                  className="w-full flex items-center justify-between p-4 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <div className="flex items-center space-x-3">
+                    <FileText className="w-5 h-5 text-red-600" />
+                    <div className="text-left">
+                      <div className="font-medium">PDF Export</div>
+                      <div className="text-sm text-gray-600">Ideal für Bewerbungen</div>
+                    </div>
+                  </div>
+                  <Download className="w-4 h-4 text-gray-400" />
+                </button>
+                
+                <button
+                  onClick={() => handleExport('docx')}
+                  disabled={!exportReadiness.isReady || isExporting}
+                  className="w-full flex items-center justify-between p-4 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <div className="flex items-center space-x-3">
+                    <FileText className="w-5 h-5 text-blue-600" />
+                    <div className="text-left">
+                      <div className="font-medium">DOCX Export</div>
+                      <div className="text-sm text-gray-600">Bearbeitbar in Word</div>
+                    </div>
+                  </div>
+                  <Download className="w-4 h-4 text-gray-400" />
+                </button>
+                
+                <button
+                  onClick={() => handleExport('json')}
+                  disabled={isExporting}
+                  className="w-full flex items-center justify-between p-4 border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <div className="flex items-center space-x-3">
+                    <FileText className="w-5 h-5 text-green-600" />
+                    <div className="text-left">
+                      <div className="font-medium">JSON Export</div>
+                      <div className="text-sm text-gray-600">Vollständige Datenstruktur</div>
+                    </div>
+                  </div>
+                  <Download className="w-4 h-4 text-gray-400" />
+                </button>
+              </div>
+              
+              {isExporting && (
+                <div className="flex items-center justify-center py-4">
+                  <div className="flex items-center space-x-2 text-blue-600">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                    <span className="text-sm">Exportiere...</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Export Summary */}
-      <Card className="bg-blue-50 border-blue-200">
-        <CardHeader>
-          <CardTitle className="flex items-center space-x-2 text-blue-900">
+      <div className="bg-blue-50 border border-blue-200 rounded-lg">
+        <div className="p-6 border-b border-blue-200">
+          <h3 className="text-lg font-semibold flex items-center space-x-2 text-blue-900">
             <FileText className="w-5 h-5" />
             <span>Export-Zusammenfassung</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
+          </h3>
+        </div>
+        <div className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* CV Statistics */}
             <div>
@@ -354,19 +515,19 @@ export const ExportPhase: React.FC<ExportPhaseProps> = ({
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-blue-700">Schriftart:</span>
-                  <span className="font-medium">{styleConfig.fontFamily}</span>
+                  <span className="font-medium">{styleConfig.font.family}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-blue-700">Schriftgröße:</span>
-                  <span className="font-medium">{styleConfig.fontSize}</span>
+                  <span className="font-medium">{styleConfig.font.size}px</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-blue-700">Zeilenabstand:</span>
-                  <span className="font-medium">{styleConfig.lineHeight}</span>
+                  <span className="font-medium">{styleConfig.spacing?.lineHeight || 1.6}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-blue-700">Ränder:</span>
-                  <span className="font-medium">{styleConfig.margin}</span>
+                  <span className="font-medium">{styleConfig.spacing?.margin || 16}px</span>
                 </div>
               </div>
             </div>
@@ -394,15 +555,15 @@ export const ExportPhase: React.FC<ExportPhaseProps> = ({
               </div>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Export Tips */}
-      <Card className="bg-gray-50 border-gray-200">
-        <CardHeader>
-          <CardTitle className="text-sm text-gray-900">💡 Export-Tipps</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <div className="bg-gray-50 border border-gray-200 rounded-lg">
+        <div className="p-4 border-b border-gray-200">
+          <h3 className="text-sm font-medium text-gray-900">💡 Export-Tipps</h3>
+        </div>
+        <div className="p-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-700">
             <div>
               <h5 className="font-medium mb-2">📄 PDF-Export</h5>
@@ -432,8 +593,8 @@ export const ExportPhase: React.FC<ExportPhaseProps> = ({
               </ul>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 };
