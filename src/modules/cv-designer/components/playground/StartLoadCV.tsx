@@ -4,20 +4,14 @@
  */
 
 import React, { useState } from 'react';
-import { CVData } from '@/types/cv-designer';
-import { StyleConfig } from '@/types/cv-designer';
 import { LayoutElement } from '@/modules/cv-designer/types/section';
-import { MockDataSelector } from '@/modules/cv-designer/components/MockDataSelector';
-import { ReverseUploadPanel } from '@/modules/cv-designer/components/ReverseUploadPanel';
+import { MockDataSelector } from '../MockDataSelector';
+import { ReverseUploadPanel } from '../ReverseUploadPanel';
 import { useTemplateStorage } from '@/modules/cv-designer/hooks/useTemplateStorage';
 import { useMockData } from '@/modules/cv-designer/hooks/useMockData';
-import { getMockCVById } from '@/mocks/cv';
-import { getLayoutById } from '@/mocks/layouts';
-import { getStyleById } from '@/mocks/styles';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Input, Label } from '@/components/ui/input';
 import { 
   Plus, 
   Upload, 
@@ -28,6 +22,39 @@ import {
   Trash2,
   Download
 } from 'lucide-react';
+
+// Local interfaces for playground isolation
+interface CVData {
+  personalData: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    address: string;
+    profession?: string;
+    summary?: string;
+    profileImage?: string;
+  };
+  workExperience: any[];
+  education: any[];
+  skills: any[];
+  languages?: any[];
+}
+
+interface StyleConfig {
+  primaryColor: string;
+  accentColor: string;
+  fontFamily: string;
+  fontSize: string;
+  lineHeight: number;
+  margin: string;
+  backgroundColor?: string;
+  textColor?: string;
+  borderRadius?: string;
+  sectionSpacing?: number;
+  snapSize?: number;
+  widthPercent?: number;
+}
 
 interface StartLoadCVProps {
   cvData: CVData | null;
@@ -85,24 +112,31 @@ export const StartLoadCV: React.FC<StartLoadCVProps> = ({
   const handleMockCVSelect = (cvId: string) => {
     selectCV(cvId);
     
-    // Get the newly selected CV data directly
-    const newlySelectedCV = getMockCVById(cvId);
+    // Get the newly selected CV data from mock data hook
+    const newlySelectedCV = mockCVs.find(cv => cv.id === cvId);
     
     if (newlySelectedCV) {
       // Update central state with selected CV data
       setCVData(newlySelectedCV.cvData);
       
-      // Update design config from associated style
-      const associatedStyle = getStyleById(newlySelectedCV.metadata.styleId);
-      if (associatedStyle) {
-        setStyleConfig(associatedStyle.styleConfig);
-      }
+      // Set default style config
+      setStyleConfig({
+        primaryColor: '#1e40af',
+        accentColor: '#3b82f6',
+        fontFamily: 'Inter',
+        fontSize: 'medium',
+        lineHeight: 1.6,
+        margin: 'normal',
+        backgroundColor: '#ffffff',
+        textColor: '#000000',
+        borderRadius: '8px',
+        sectionSpacing: 24,
+        snapSize: 20,
+        widthPercent: 100
+      });
       
-      // Update layout elements from associated layout
-      const associatedLayout = getLayoutById(newlySelectedCV.metadata.layoutId);
-      if (associatedLayout) {
-        setLayoutElements(associatedLayout.layoutElements);
-      }
+      // Set default layout elements
+      setLayoutElements([]);
     } else {
       console.error('CV not found:', cvId);
     }

@@ -4,11 +4,9 @@
  */
 
 import React, { useState } from 'react';
-import { CVData, WorkExperience, Education, Skill } from '@/types/cv-designer';
-import { ContentSuggestionPanel } from '../../ai/ContentSuggestionPanel';
+import { ContentSuggestionPanel } from '@/components/ai/ContentSuggestionPanel';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Input, Label } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { 
   User, 
@@ -20,6 +18,53 @@ import {
   FileText,
   Sparkles
 } from 'lucide-react';
+
+// Local interfaces for playground isolation
+interface CVData {
+  personalData: {
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    address: string;
+    profession?: string;
+    summary?: string;
+    profileImage?: string;
+  };
+  workExperience: WorkExperience[];
+  education: Education[];
+  skills: Skill[];
+  languages?: any[];
+}
+
+interface WorkExperience {
+  id: string;
+  position: string;
+  company: string;
+  startDate: string;
+  endDate: string;
+  location?: string;
+  description?: string;
+}
+
+interface Education {
+  id: string;
+  degree: string;
+  institution: string;
+  startDate: string;
+  endDate: string;
+  location?: string;
+  grade?: string;
+  fieldOfStudy?: string;
+  description?: string;
+}
+
+interface Skill {
+  id: string;
+  name: string;
+  level: 'beginner' | 'intermediate' | 'advanced' | 'expert';
+  category?: string;
+}
 
 interface ContentEditorProps {
   cvData: CVData | null;
