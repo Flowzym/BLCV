@@ -31,7 +31,7 @@ export default function DesignerPage() {
   ];
 
   return (
-    <div className="w-full flex flex-col gap-6 relative overflow-hidden px-4 py-8">
+    <div className="w-full flex flex-col gap-6 relative overflow-hidden py-8">
           {/* Header with tab navigation */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200">
             <div className="flex items-center gap-2 p-4 border-b border-gray-200">
