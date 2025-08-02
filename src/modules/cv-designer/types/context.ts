@@ -1,4 +1,7 @@
-// 📄 src/modules/cv-designer/types/context.ts
+/**
+ * CV-Designer Module - Context Types
+ * Phase 3: Type definitions for React Context integration
+ */
 
 import { SavedTemplate } from './template';
 
