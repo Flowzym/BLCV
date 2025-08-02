@@ -14,6 +14,12 @@ interface UseTemplateStorageReturn {
   error: string | null;
   exportAllTemplates: () => void;
   importTemplates: (file: File) => Promise<boolean>;
+  getStats: () => {
+    totalTemplates: number;
+    favoriteTemplates: number;
+    categoryCounts: Record<string, number>;
+    tagCounts: Record<string, number>;
+  };
 }
 
 /**
@@ -151,6 +157,35 @@ export function useTemplateStorage(): UseTemplateStorageReturn {
     }
   }, [templates]);
 
+  const getStats = useCallback(() => {
+    const totalTemplates = templates.length;
+    const favoriteTemplates = templates.filter(template => template.isFavorite).length;
+    
+    const categoryCounts: Record<string, number> = {};
+    const tagCounts: Record<string, number> = {};
+    
+    templates.forEach(template => {
+      // Count by category
+      if (template.category) {
+        categoryCounts[template.category] = (categoryCounts[template.category] || 0) + 1;
+      }
+      
+      // Count by tags
+      if (template.tags) {
+        template.tags.forEach(tag => {
+          tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+        });
+      }
+    });
+    
+    return {
+      totalTemplates,
+      favoriteTemplates,
+      categoryCounts,
+      tagCounts
+    };
+  }, [templates]);
+
   return {
     templates,
     saveTemplate,
@@ -159,6 +194,7 @@ export function useTemplateStorage(): UseTemplateStorageReturn {
     updateTemplate,
     exportAllTemplates,
     importTemplates,
+    getStats,
     isLoading,
     error
   };
