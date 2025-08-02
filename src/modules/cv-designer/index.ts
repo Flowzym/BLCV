@@ -15,10 +15,12 @@ export * from './hooks';
 // Context (Phase 3)
 export * from './context';
 
+// Services (Phase 4)
+export * from './services';
+
 // Core functionality will be exported in later phases:
-// export * from './services';   // Phase 3–4
 // export * from './components'; // Phase 4
 
 // Module metadata
 export const CV_DESIGNER_VERSION = '1.0.0-alpha';
-export const CV_DESIGNER_PHASE = 3;
+export const CV_DESIGNER_PHASE = 4;
