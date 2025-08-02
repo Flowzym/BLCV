@@ -267,7 +267,8 @@ export const CVPreview: React.FC<CVPreviewProps> = ({
   const renderSkillsData = (data: any) => {
     if (!data) return null;
 
-    const skillsToRender = Array.isArray(data.skills) ? data.skills : [];
+    const skillsToRender = Array.isArray(data.skills) ? data.skills : 
+                          Array.isArray(data) ? data : [];
 
     return (
       <div>
@@ -333,6 +334,38 @@ export const CVPreview: React.FC<CVPreviewProps> = ({
             })}
           </div>
         )}
+      </div>
+    );
+  };
+
+  // Render languages data
+  const renderLanguagesData = (data: any) => {
+    if (!data) return null;
+
+    const languagesToRender = Array.isArray(data.languages) ? data.languages : 
+                             Array.isArray(data) ? data : [];
+
+    return (
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+        {languagesToRender.map((language: any) => {
+          if (!language || !language.name) return null;
+          return (
+            <span
+              key={language.id || language.name}
+              style={{
+                backgroundColor: safeStyleConfig.secondaryColor || '#10b981',
+                color: 'white',
+                padding: '6px 12px',
+                borderRadius: '20px',
+                fontSize: `calc(${getFontSizeValue(safeStyleConfig.fontSize || 'medium')} * 0.8)`,
+                fontFamily: safeStyleConfig.fontFamily || 'Arial',
+                fontWeight: '500'
+              }}
+            >
+              {language.name} {language.level && `(${language.level})`}
+            </span>
+          );
+        })}
       </div>
     );
   };
