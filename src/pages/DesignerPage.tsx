@@ -20,7 +20,7 @@ export default function DesignerPage() {
 
       <main className="flex-1 px-4 py-6">
         {/* Three-column layout with adjusted proportions */}
-        <div className="grid grid-cols-1 lg:grid-cols-[2fr_2fr_1fr] gap-6 relative overflow-hidden h-full">
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_3fr_1fr] gap-6 relative overflow-hidden h-full">
           {/* Left Column: Design Tools */}
           <div className="min-w-0">
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 h-full">
