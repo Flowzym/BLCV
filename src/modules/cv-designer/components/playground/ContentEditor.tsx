@@ -4,6 +4,12 @@
  */
 
 import React, { useState } from 'react';
+import { CVData, WorkExperience, Education, Skill } from '@/types/cv-designer';
+import { ContentSuggestionPanel } from '@/components/ai/ContentSuggestionPanel';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
 import { 
   User, 
   Briefcase, 
@@ -14,51 +20,6 @@ import {
   FileText,
   Sparkles
 } from 'lucide-react';
-
-// Mock CVData interface for playground
-interface CVData {
-  personalData: {
-    firstName: string;
-    lastName: string;
-    email: string;
-    phone: string;
-    address: string;
-    profession?: string;
-    summary?: string;
-    profileImage?: string;
-  };
-  workExperience: Array<{
-    id: string;
-    position: string;
-    company: string;
-    location?: string;
-    startDate: string;
-    endDate: string;
-    description: string;
-  }>;
-  education: Array<{
-    id: string;
-    degree: string;
-    institution: string;
-    location?: string;
-    startDate: string;
-    endDate: string;
-    description?: string;
-    grade?: string;
-    fieldOfStudy?: string;
-  }>;
-  skills: Array<{
-    id: string;
-    name: string;
-    level: 'beginner' | 'intermediate' | 'advanced' | 'expert';
-    category?: string;
-  }>;
-  languages?: Array<{
-    id: string;
-    name: string;
-    level: string;
-  }>;
-}
 
 interface ContentEditorProps {
   cvData: CVData | null;
@@ -86,7 +47,7 @@ export const ContentEditor: React.FC<ContentEditorProps> = ({
   };
 
   // Update work experience (first entry)
-  const updateWorkExperience = (field: string, value: string) => {
+  const updateWorkExperience = (field: keyof WorkExperience, value: string) => {
     if (!cvData) return;
     const experience = cvData.workExperience[0] || {
       id: `exp-${Date.now()}`,
@@ -106,7 +67,7 @@ export const ContentEditor: React.FC<ContentEditorProps> = ({
   };
 
   // Update education (first entry)
-  const updateEducation = (field: string, value: string) => {
+  const updateEducation = (field: keyof Education, value: string) => {
     if (!cvData) return;
     const education = cvData.education[0] || {
       id: `edu-${Date.now()}`,
@@ -127,7 +88,7 @@ export const ContentEditor: React.FC<ContentEditorProps> = ({
   // Add new skill
   const addSkill = () => {
     if (!cvData) return;
-    const newSkill = {
+    const newSkill: Skill = {
       id: `skill-${Date.now()}`,
       name: '',
       level: 'intermediate',
@@ -137,7 +98,7 @@ export const ContentEditor: React.FC<ContentEditorProps> = ({
   };
 
   // Update skill
-  const updateSkill = (index: number, field: string, value: string) => {
+  const updateSkill = (index: number, field: keyof Skill, value: string) => {
     if (!cvData) return;
     const newSkills = cvData.skills.map((skill, i) => 
       i === index ? { ...skill, [field]: value } : skill
@@ -213,7 +174,8 @@ export const ContentEditor: React.FC<ContentEditorProps> = ({
       </div>
 
       {/* Current CV Info */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+      <Card className="bg-blue-50 border-blue-200">
+        <CardContent className="p-4">
           <div className="flex items-center space-x-3">
             <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
               <FileText className="w-6 h-6 text-blue-600" />
@@ -229,7 +191,8 @@ export const ContentEditor: React.FC<ContentEditorProps> = ({
               </p>
             </div>
           </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Section Navigation */}
       <div className="border-b border-gray-200">
@@ -257,90 +220,79 @@ export const ContentEditor: React.FC<ContentEditorProps> = ({
       {/* Section Content */}
       <div className="min-h-96">
         {activeSection === 'personal' && (
-          <div className="bg-white border border-gray-200 rounded-lg">
-            <div className="p-6 border-b border-gray-200">
-              <h3 className="text-lg font-semibold flex items-center space-x-2">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
                 <User className="w-5 h-5 text-blue-600" />
                 <span>Persönliche Daten</span>
-              </h3>
-            </div>
-            <div className="p-6 space-y-4">
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">Vorname</label>
-                  <input
+                  <Label htmlFor="firstName">Vorname</Label>
+                  <Input
                     id="firstName"
-                    type="text"
                     value={cvData.personalData.firstName}
                     onChange={(e) => updatePersonalData('firstName', e.target.value)}
                     placeholder="Max"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 <div>
-                  <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">Nachname</label>
-                  <input
+                  <Label htmlFor="lastName">Nachname</Label>
+                  <Input
                     id="lastName"
-                    type="text"
                     value={cvData.personalData.lastName}
                     onChange={(e) => updatePersonalData('lastName', e.target.value)}
                     placeholder="Mustermann"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">E-Mail</label>
-                  <input
+                  <Label htmlFor="email">E-Mail</Label>
+                  <Input
                     id="email"
                     type="email"
                     value={cvData.personalData.email}
                     onChange={(e) => updatePersonalData('email', e.target.value)}
                     placeholder="max.mustermann@email.de"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 <div>
-                  <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">Telefon</label>
-                  <input
+                  <Label htmlFor="phone">Telefon</Label>
+                  <Input
                     id="phone"
-                    type="tel"
                     value={cvData.personalData.phone}
                     onChange={(e) => updatePersonalData('phone', e.target.value)}
                     placeholder="+49 123 456789"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
               </div>
 
               <div>
-                <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-1">Adresse</label>
-                <input
+                <Label htmlFor="address">Adresse</Label>
+                <Input
                   id="address"
-                  type="text"
                   value={cvData.personalData.address}
                   onChange={(e) => updatePersonalData('address', e.target.value)}
                   placeholder="Berlin, Deutschland"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
               <div>
-                <label htmlFor="profession" className="block text-sm font-medium text-gray-700 mb-1">Berufsbezeichnung</label>
-                <input
+                <Label htmlFor="profession">Berufsbezeichnung</Label>
+                <Input
                   id="profession"
-                  type="text"
                   value={cvData.personalData.profession || ''}
                   onChange={(e) => updatePersonalData('profession', e.target.value)}
                   placeholder="Software Engineer"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
               <div>
-                <label htmlFor="summary" className="block text-sm font-medium text-gray-700 mb-1">Profil / Zusammenfassung</label>
+                <Label htmlFor="summary">Profil / Zusammenfassung</Label>
                 <textarea
                   id="summary"
                   value={cvData.personalData.summary || ''}
@@ -350,85 +302,75 @@ export const ContentEditor: React.FC<ContentEditorProps> = ({
                   placeholder="Beschreiben Sie Ihre beruflichen Ziele und Qualifikationen..."
                 />
               </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         )}
 
         {activeSection === 'experience' && (
-          <div className="bg-white border border-gray-200 rounded-lg">
-            <div className="p-6 border-b border-gray-200">
-              <h3 className="text-lg font-semibold flex items-center space-x-2">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
                 <Briefcase className="w-5 h-5 text-green-600" />
                 <span>Berufserfahrung</span>
-              </h3>
+              </CardTitle>
               <p className="text-sm text-gray-600">
                 Bearbeiten Sie Ihre erste/aktuelle Position. Weitere Positionen können später hinzugefügt werden.
               </p>
-            </div>
-            <div className="p-6 space-y-4">
+            </CardHeader>
+            <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="position" className="block text-sm font-medium text-gray-700 mb-1">Position</label>
-                  <input
+                  <Label htmlFor="position">Position</Label>
+                  <Input
                     id="position"
-                    type="text"
                     value={cvData.workExperience[0]?.position || ''}
                     onChange={(e) => updateWorkExperience('position', e.target.value)}
                     placeholder="Software Engineer"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 <div>
-                  <label htmlFor="company" className="block text-sm font-medium text-gray-700 mb-1">Unternehmen</label>
-                  <input
+                  <Label htmlFor="company">Unternehmen</Label>
+                  <Input
                     id="company"
-                    type="text"
                     value={cvData.workExperience[0]?.company || ''}
                     onChange={(e) => updateWorkExperience('company', e.target.value)}
                     placeholder="Tech Corp GmbH"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-1">Ort</label>
-                  <input
+                  <Label htmlFor="location">Ort</Label>
+                  <Input
                     id="location"
-                    type="text"
                     value={cvData.workExperience[0]?.location || ''}
                     onChange={(e) => updateWorkExperience('location', e.target.value)}
                     placeholder="Berlin"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 <div>
-                  <label htmlFor="startDate" className="block text-sm font-medium text-gray-700 mb-1">Von</label>
-                  <input
+                  <Label htmlFor="startDate">Von</Label>
+                  <Input
                     id="startDate"
-                    type="text"
                     value={cvData.workExperience[0]?.startDate || ''}
                     onChange={(e) => updateWorkExperience('startDate', e.target.value)}
                     placeholder="2020-01"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 <div>
-                  <label htmlFor="endDate" className="block text-sm font-medium text-gray-700 mb-1">Bis</label>
-                  <input
+                  <Label htmlFor="endDate">Bis</Label>
+                  <Input
                     id="endDate"
-                    type="text"
                     value={cvData.workExperience[0]?.endDate || ''}
                     onChange={(e) => updateWorkExperience('endDate', e.target.value)}
                     placeholder="heute"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
               </div>
 
               <div>
-                <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">Beschreibung</label>
+                <Label htmlFor="description">Beschreibung</Label>
                 <textarea
                   id="description"
                   value={cvData.workExperience[0]?.description || ''}
@@ -438,110 +380,96 @@ export const ContentEditor: React.FC<ContentEditorProps> = ({
                   placeholder="Beschreiben Sie Ihre Aufgaben und Erfolge in dieser Position..."
                 />
               </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         )}
 
         {activeSection === 'education' && (
-          <div className="bg-white border border-gray-200 rounded-lg">
-            <div className="p-6 border-b border-gray-200">
-              <h3 className="text-lg font-semibold flex items-center space-x-2">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
                 <GraduationCap className="w-5 h-5 text-purple-600" />
                 <span>Ausbildung</span>
-              </h3>
+              </CardTitle>
               <p className="text-sm text-gray-600">
                 Bearbeiten Sie Ihre höchste/aktuelle Ausbildung. Weitere können später hinzugefügt werden.
               </p>
-            </div>
-            <div className="p-6 space-y-4">
+            </CardHeader>
+            <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="degree" className="block text-sm font-medium text-gray-700 mb-1">Abschluss</label>
-                  <input
+                  <Label htmlFor="degree">Abschluss</Label>
+                  <Input
                     id="degree"
-                    type="text"
                     value={cvData.education[0]?.degree || ''}
                     onChange={(e) => updateEducation('degree', e.target.value)}
                     placeholder="Bachelor of Science Informatik"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 <div>
-                  <label htmlFor="institution" className="block text-sm font-medium text-gray-700 mb-1">Institution</label>
-                  <input
+                  <Label htmlFor="institution">Institution</Label>
+                  <Input
                     id="institution"
-                    type="text"
                     value={cvData.education[0]?.institution || ''}
                     onChange={(e) => updateEducation('institution', e.target.value)}
                     placeholder="Technische Universität Berlin"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <label htmlFor="eduLocation" className="block text-sm font-medium text-gray-700 mb-1">Ort</label>
-                  <input
+                  <Label htmlFor="eduLocation">Ort</Label>
+                  <Input
                     id="eduLocation"
-                    type="text"
                     value={cvData.education[0]?.location || ''}
                     onChange={(e) => updateEducation('location', e.target.value)}
                     placeholder="Berlin"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 <div>
-                  <label htmlFor="eduStartDate" className="block text-sm font-medium text-gray-700 mb-1">Von</label>
-                  <input
+                  <Label htmlFor="eduStartDate">Von</Label>
+                  <Input
                     id="eduStartDate"
-                    type="text"
                     value={cvData.education[0]?.startDate || ''}
                     onChange={(e) => updateEducation('startDate', e.target.value)}
                     placeholder="2019-10"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 <div>
-                  <label htmlFor="eduEndDate" className="block text-sm font-medium text-gray-700 mb-1">Bis</label>
-                  <input
+                  <Label htmlFor="eduEndDate">Bis</Label>
+                  <Input
                     id="eduEndDate"
-                    type="text"
                     value={cvData.education[0]?.endDate || ''}
                     onChange={(e) => updateEducation('endDate', e.target.value)}
                     placeholder="2023-09"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="grade" className="block text-sm font-medium text-gray-700 mb-1">Note</label>
-                  <input
+                  <Label htmlFor="grade">Note</Label>
+                  <Input
                     id="grade"
-                    type="text"
                     value={cvData.education[0]?.grade || ''}
                     onChange={(e) => updateEducation('grade', e.target.value)}
                     placeholder="2,1"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
                 <div>
-                  <label htmlFor="fieldOfStudy" className="block text-sm font-medium text-gray-700 mb-1">Studienrichtung</label>
-                  <input
+                  <Label htmlFor="fieldOfStudy">Studienrichtung</Label>
+                  <Input
                     id="fieldOfStudy"
-                    type="text"
                     value={cvData.education[0]?.fieldOfStudy || ''}
                     onChange={(e) => updateEducation('fieldOfStudy', e.target.value)}
                     placeholder="Informatik"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
               </div>
 
               <div>
-                <label htmlFor="eduDescription" className="block text-sm font-medium text-gray-700 mb-1">Beschreibung</label>
+                <Label htmlFor="eduDescription">Beschreibung</Label>
                 <textarea
                   id="eduDescription"
                   value={cvData.education[0]?.description || ''}
@@ -551,51 +479,43 @@ export const ContentEditor: React.FC<ContentEditorProps> = ({
                   placeholder="Schwerpunkte, Abschlussarbeit, besondere Leistungen..."
                 />
               </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         )}
 
         {activeSection === 'skills' && (
-          <div className="bg-white border border-gray-200 rounded-lg">
-            <div className="p-6 border-b border-gray-200 flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold flex items-center space-x-2">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
                   <Brain className="w-5 h-5 text-orange-600" />
                   <span>Fähigkeiten</span>
-                </h3>
-              </div>
-              <button
-                onClick={addSkill}
-                className="flex items-center px-3 py-1 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Fähigkeit hinzufügen
-              </button>
-            </div>
-            <div className="p-6">
+                </div>
+                <Button onClick={addSkill} size="sm">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Fähigkeit hinzufügen
+                </Button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
               {cvData.skills.length === 0 ? (
-                <div className="flex items-center space-x-2">
+                <div className="text-center py-8 text-gray-500">
                   <Brain className="w-16 h-16 mx-auto mb-4 text-gray-300" />
                   <p>Noch keine Fähigkeiten hinzugefügt</p>
-                  <button 
-                    onClick={addSkill}
-                    className="mt-4 flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                  >
+                  <Button onClick={addSkill} className="mt-4">
                     <Plus className="w-4 h-4 mr-2" />
                     Erste Fähigkeit hinzufügen
-                  </button>
+                  </Button>
                 </div>
               ) : (
                 <div className="space-y-3">
                   {cvData.skills.map((skill, index) => (
                     <div key={skill.id} className="flex items-center space-x-3 p-3 border border-gray-200 rounded-lg">
                       <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-3">
-                        <input
-                          type="text"
+                        <Input
                           value={skill.name}
                           onChange={(e) => updateSkill(index, 'name', e.target.value)}
                           placeholder="JavaScript"
-                          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                         />
                         <select
                           value={skill.level}
@@ -607,49 +527,46 @@ export const ContentEditor: React.FC<ContentEditorProps> = ({
                           <option value="advanced">Sehr gut</option>
                           <option value="expert">Experte</option>
                         </select>
-                        <input
-                          type="text"
+                        <Input
                           value={skill.category || ''}
                           onChange={(e) => updateSkill(index, 'category', e.target.value)}
                           placeholder="Programmierung"
-                          className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                         />
                       </div>
-                      <button
+                      <Button
                         onClick={() => removeSkill(index)}
-                        className="p-2 text-red-600 hover:text-red-800 border border-gray-300 rounded-md hover:bg-gray-50"
+                        variant="outline"
+                        size="sm"
+                        className="text-red-600 hover:text-red-800"
                       >
                         <Trash2 className="w-4 h-4" />
-                      </button>
+                      </Button>
                     </div>
                   ))}
                 </div>
               )}
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         )}
 
         {activeSection === 'ai' && (
-          <div className="bg-white border border-gray-200 rounded-lg">
-            <div className="p-6 border-b border-gray-200">
-              <h3 className="text-lg font-semibold flex items-center space-x-2">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center space-x-2">
                 <Sparkles className="w-5 h-5 text-purple-600" />
                 <span>KI-Assistent</span>
-              </h3>
+              </CardTitle>
               <p className="text-sm text-gray-600">
                 Lassen Sie sich von der KI bei der Optimierung Ihrer Texte helfen.
               </p>
-            </div>
-            <div className="p-6">
-              <div className="text-center py-8 text-gray-500">
-                <Sparkles className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-                <p className="text-lg font-medium mb-2">KI-Assistent</p>
-                <p className="text-sm">
-                  KI-gestützte Inhaltsoptimierung wird in einer späteren Phase implementiert.
-                </p>
-              </div>
-            </div>
-          </div>
+            </CardHeader>
+            <CardContent>
+              <ContentSuggestionPanel
+                cvData={cvData}
+                onContentUpdate={handleContentUpdate}
+              />
+            </CardContent>
+          </Card>
         )}
       </div>
     </div>
