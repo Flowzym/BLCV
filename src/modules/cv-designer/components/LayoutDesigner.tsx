@@ -9,7 +9,7 @@ import { AdvancedStyleEngine } from '@/modules/cv-designer/utils/AdvancedStyleEn
 import { SortableSection } from '@/components/SortableSection'
 import { CanvasSettings } from '../layout-canvas/types'
 import { StyleConfig } from '@/types/cv-designer'
-import { useStyleConfig } from '@/context/StyleConfigContext'
+import { useStyleConfig } from '../context/StyleConfigContext'
 import { 
   Layout, 
   Columns, 

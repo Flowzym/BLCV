@@ -4,7 +4,7 @@ import React, { useState, useCallback } from 'react'
 import { DndContext, DragEndEvent, DragOverEvent, DragStartEvent, closestCenter, pointerWithin } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { Section } from '../types/section'
-import { SortableSection } from './SortableSection'
+import { SortableSection } from '../SortableSection'
 import { cn } from '@/lib/utils'
 import { Plus, Columns, Grid3X3, LayoutGrid, Settings } from 'lucide-react'
 

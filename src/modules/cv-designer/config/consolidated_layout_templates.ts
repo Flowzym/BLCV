@@ -6,7 +6,7 @@
  */
 
 import { DesignTemplate, TemplateCategory } from '@/types/design_types';
-import TemplateRegistry from '@/logic/template_registry';
+import TemplateRegistry from './template_registry';
 
 // ============================================================================
 // LAYOUT-TEMPLATES DEFINITION
