@@ -1,308 +1,271 @@
 /**
- * Smart Layout Generator
- * AI-powered layout generation based on CV content analysis
+ * AI-gestützter Smart-Layout-Generator
+ * Generiert optimale Layout-Anordnungen basierend auf CV-Daten
  */
 
 import React, { useState } from 'react';
-import { CVData } from '@/types/cv-designer';
-import { LayoutElement } from '@/modules/cv-designer/types/section';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { 
-  Sparkles, 
-  Grid, 
-  Zap,
-  RefreshCw,
-  CheckCircle,
-  Settings
-} from 'lucide-react';
+import { CVData, LayoutElement } from '@/types/cv-designer';
+import { useAI, SmartLayoutResult } from '@/hooks/useAI';
+import { Layout, Loader, CheckCircle, AlertCircle, Wand2, Grid, Eye, Settings } from 'lucide-react';
 
 interface SmartLayoutGeneratorProps {
   cvData: CVData;
   onLayoutGenerated: (layout: LayoutElement[]) => void;
+  className?: string;
 }
 
-interface LayoutSuggestion {
-  id: string;
-  name: string;
-  description: string;
-  layout: LayoutElement[];
-  reasoning: string[];
-  complexity: 'simple' | 'moderate' | 'complex';
+interface LayoutPreferences {
+  layoutStyle: 'modern' | 'classic' | 'creative' | 'minimal';
+  priority: 'readability' | 'visual-impact' | 'ats-optimization' | 'balance';
+  pageCount: '1' | '2' | 'auto';
+  emphasis: 'experience' | 'education' | 'skills' | 'balanced';
 }
 
 export const SmartLayoutGenerator: React.FC<SmartLayoutGeneratorProps> = ({
   cvData,
-  onLayoutGenerated
+  onLayoutGenerated,
+  className = ''
 }) => {
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [suggestions, setSuggestions] = useState<LayoutSuggestion[]>([]);
-  const [selectedSuggestion, setSelectedSuggestion] = useState<string | null>(null);
+  const { generateSmartLayout, smartLayout, isLoading, error } = useAI();
+  const [preferences, setPreferences] = useState<LayoutPreferences>({
+    layoutStyle: 'modern',
+    priority: 'balance',
+    pageCount: '1',
+    emphasis: 'balanced'
+  });
+  const [showPreview, setShowPreview] = useState(false);
 
-  // Generate layout suggestions based on CV content
-  const generateLayouts = async () => {
-    setIsGenerating(true);
-    
-    // Simulate AI processing
-    setTimeout(() => {
-      const mockSuggestions: LayoutSuggestion[] = [
-        {
-          id: 'professional-two-column',
-          name: 'Professional Two-Column',
-          description: 'Klassisches zweispaltiges Layout mit Sidebar',
-          complexity: 'simple',
-          reasoning: [
-            'Optimal für Ihre Berufserfahrung',
-            'Gute Lesbarkeit',
-            'ATS-kompatibel'
-          ],
-          layout: [
-            {
-              id: 'header',
-              type: 'header',
-              content: 'Personal Data',
-              position: { x: 0, y: 0, width: 100, height: 15 },
-              style: { backgroundColor: '#f8f9fa' }
-            },
-            {
-              id: 'sidebar',
-              type: 'sidebar',
-              content: 'Skills & Contact',
-              position: { x: 0, y: 15, width: 30, height: 85 },
-              style: { backgroundColor: '#e9ecef' }
-            },
-            {
-              id: 'main',
-              type: 'main',
-              content: 'Experience & Education',
-              position: { x: 30, y: 15, width: 70, height: 85 },
-              style: { backgroundColor: '#ffffff' }
-            }
-          ]
-        },
-        {
-          id: 'modern-single-column',
-          name: 'Modern Single-Column',
-          description: 'Modernes einspaltige Layout mit Akzenten',
-          complexity: 'moderate',
-          reasoning: [
-            'Zeitgemäßes Design',
-            'Mobile-freundlich',
-            'Fokus auf Content'
-          ],
-          layout: [
-            {
-              id: 'hero',
-              type: 'hero',
-              content: 'Profile Header',
-              position: { x: 0, y: 0, width: 100, height: 25 },
-              style: { backgroundColor: '#3b82f6' }
-            },
-            {
-              id: 'content',
-              type: 'content',
-              content: 'Main Content',
-              position: { x: 0, y: 25, width: 100, height: 75 },
-              style: { backgroundColor: '#ffffff' }
-            }
-          ]
-        },
-        {
-          id: 'creative-asymmetric',
-          name: 'Creative Asymmetric',
-          description: 'Kreatives asymmetrisches Layout',
-          complexity: 'complex',
-          reasoning: [
-            'Hebt Sie von anderen ab',
-            'Kreative Darstellung',
-            'Visuell ansprechend'
-          ],
-          layout: [
-            {
-              id: 'profile',
-              type: 'profile',
-              content: 'Profile Section',
-              position: { x: 0, y: 0, width: 40, height: 40 },
-              style: { backgroundColor: '#8b5cf6' }
-            },
-            {
-              id: 'experience',
-              type: 'experience',
-              content: 'Experience',
-              position: { x: 40, y: 0, width: 60, height: 60 },
-              style: { backgroundColor: '#f3f4f6' }
-            },
-            {
-              id: 'skills',
-              type: 'skills',
-              content: 'Skills & Education',
-              position: { x: 0, y: 40, width: 100, height: 60 },
-              style: { backgroundColor: '#ffffff' }
-            }
-          ]
-        }
-      ];
-
-      setSuggestions(mockSuggestions);
-      setIsGenerating(false);
-    }, 2000);
-  };
-
-  const handleApplyLayout = (suggestion: LayoutSuggestion) => {
-    setSelectedSuggestion(suggestion.id);
-    onLayoutGenerated(suggestion.layout);
-  };
-
-  const getComplexityColor = (complexity: string) => {
-    switch (complexity) {
-      case 'simple': return 'bg-green-100 text-green-800';
-      case 'moderate': return 'bg-yellow-100 text-yellow-800';
-      case 'complex': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+  const handleGenerate = async () => {
+    try {
+      await generateSmartLayout(cvData, preferences);
+    } catch (err) {
+      console.error('Smart-Layout-Generierung fehlgeschlagen:', err);
     }
   };
 
-  return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          <Grid className="w-5 h-5 text-purple-600" />
-          <h3 className="font-semibold text-gray-900">KI-Layout-Generator</h3>
-        </div>
-        <Button 
-          onClick={generateLayouts}
-          disabled={isGenerating}
-          className="flex items-center space-x-2"
-        >
-          {isGenerating ? (
-            <RefreshCw className="w-4 h-4 animate-spin" />
-          ) : (
-            <Zap className="w-4 h-4" />
-          )}
-          <span>{isGenerating ? 'Generiere...' : 'Layouts generieren'}</span>
-        </Button>
-      </div>
+  const handleApplyLayout = () => {
+    if (smartLayout?.layout) {
+      onLayoutGenerated(smartLayout.layout);
+    }
+  };
 
-      {/* CV Analysis Summary */}
-      <Card className="bg-blue-50 border-blue-200">
-        <CardContent className="p-4">
-          <div className="flex items-center space-x-3">
-            <Sparkles className="w-6 h-6 text-blue-600" />
+  const updatePreference = <K extends keyof LayoutPreferences>(
+    key: K, 
+    value: LayoutPreferences[K]
+  ) => {
+    setPreferences(prev => ({ ...prev, [key]: value }));
+  };
+
+  return (
+    <div className={`space-y-4 ${className}`}>
+      <div className="bg-white border border-gray-200 rounded-lg p-4">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="font-medium text-gray-900 mb-1 flex items-center">
+              <Layout className="w-4 h-4 mr-2" />
+              Smart Layout Generator
+            </h3>
+            <p className="text-sm text-gray-600">
+              Lass die KI ein optimales Layout für deinen Lebenslauf erstellen
+            </p>
+          </div>
+        </div>
+
+        {/* Preferences */}
+        <div className="space-y-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <p className="font-medium text-blue-900">CV-Analyse</p>
-              <p className="text-sm text-blue-700">
-                {cvData.workExperience.length} Positionen • {cvData.education.length} Ausbildungen • {cvData.skills.length} Skills
-              </p>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Layout-Stil
+              </label>
+              <select
+                value={preferences.layoutStyle}
+                onChange={(e) => updatePreference('layoutStyle', e.target.value as any)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="modern">Modern & Clean</option>
+                <option value="classic">Klassisch & Traditionell</option>
+                <option value="creative">Kreativ & Auffällig</option>
+                <option value="minimal">Minimal & Fokussiert</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Priorität
+              </label>
+              <select
+                value={preferences.priority}
+                onChange={(e) => updatePreference('priority', e.target.value as any)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="readability">Lesbarkeit</option>
+                <option value="visual-impact">Visuelle Wirkung</option>
+                <option value="ats-optimization">ATS-Optimierung</option>
+                <option value="balance">Ausgewogenheit</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Seitenzahl
+              </label>
+              <select
+                value={preferences.pageCount}
+                onChange={(e) => updatePreference('pageCount', e.target.value as any)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="1">1 Seite (kompakt)</option>
+                <option value="2">2 Seiten (ausführlich)</option>
+                <option value="auto">Automatisch</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Schwerpunkt
+              </label>
+              <select
+                value={preferences.emphasis}
+                onChange={(e) => updatePreference('emphasis', e.target.value as any)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="experience">Berufserfahrung</option>
+                <option value="education">Ausbildung</option>
+                <option value="skills">Fähigkeiten</option>
+                <option value="balanced">Ausgewogen</option>
+              </select>
             </div>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Loading State */}
-      {isGenerating && (
-        <div className="space-y-3">
-          <div className="flex items-center space-x-2 text-purple-600">
-            <Sparkles className="w-4 h-4 animate-pulse" />
-            <span className="text-sm">Analysiere CV-Struktur...</span>
-          </div>
-          <div className="flex items-center space-x-2 text-purple-600">
-            <Grid className="w-4 h-4 animate-pulse" />
-            <span className="text-sm">Generiere Layout-Optionen...</span>
-          </div>
-          <div className="flex items-center space-x-2 text-purple-600">
-            <Settings className="w-4 h-4 animate-pulse" />
-            <span className="text-sm">Optimiere für ATS-Kompatibilität...</span>
-          </div>
         </div>
-      )}
 
-      {/* Layout Suggestions */}
-      {suggestions.length > 0 && (
-        <div className="space-y-3">
-          <h4 className="font-medium text-gray-900">Empfohlene Layouts:</h4>
-          
-          {suggestions.map(suggestion => (
-            <Card 
-              key={suggestion.id}
-              className={`cursor-pointer transition-all hover:shadow-md ${
-                selectedSuggestion === suggestion.id 
-                  ? 'ring-2 ring-purple-500 bg-purple-50' 
-                  : 'hover:bg-gray-50'
-              }`}
-            >
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-3 mb-2">
-                      <h5 className="font-semibold text-gray-900">{suggestion.name}</h5>
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getComplexityColor(suggestion.complexity)}`}>
-                        {suggestion.complexity}
-                      </span>
-                    </div>
-                    
-                    <p className="text-sm text-gray-600 mb-3">{suggestion.description}</p>
-                    
-                    <div className="space-y-1">
-                      <p className="text-xs font-medium text-gray-700">KI-Begründung:</p>
-                      <ul className="text-xs text-gray-600 space-y-1">
-                        {suggestion.reasoning.map((reason, index) => (
-                          <li key={index} className="flex items-center space-x-2">
-                            <div className="w-1 h-1 bg-purple-500 rounded-full"></div>
-                            <span>{reason}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-                  
-                  <div className="flex flex-col items-end space-y-2">
-                    <div className="text-right">
-                      <p className="text-xs text-gray-500">Elemente:</p>
-                      <p className="text-sm font-medium">{suggestion.layout.length}</p>
-                    </div>
-                    
-                    <Button
-                      variant={selectedSuggestion === suggestion.id ? "default" : "outline"}
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleApplyLayout(suggestion);
-                      }}
-                    >
-                      {selectedSuggestion === suggestion.id ? (
-                        <>
-                          <CheckCircle className="w-4 h-4 mr-1" />
-                          Angewendet
-                        </>
-                      ) : (
-                        'Anwenden'
-                      )}
-                    </Button>
+        <button
+          onClick={handleGenerate}
+          disabled={isLoading}
+          className="w-full flex items-center justify-center px-4 py-3 bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-medium rounded-lg hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+        >
+          {isLoading ? (
+            <>
+              <Loader className="w-4 h-4 animate-spin mr-2" />
+              Generiere Smart Layout...
+            </>
+          ) : (
+            <>
+              <Wand2 className="w-4 h-4 mr-2" />
+              Smart Layout generieren
+            </>
+          )}
+        </button>
+
+        {/* Error Display */}
+        {error && (
+          <div className="mt-4 bg-red-50 border border-red-200 rounded-lg p-3">
+            <div className="flex items-center space-x-2">
+              <AlertCircle className="w-4 h-4 text-red-600" />
+              <span className="text-sm text-red-700">{error}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Results */}
+        {smartLayout && (
+          <div className="mt-4 space-y-4">
+            {/* Layout Info */}
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="font-medium text-green-900 flex items-center">
+                  <CheckCircle className="w-4 h-4 mr-2" />
+                  Smart Layout generiert
+                </h4>
+                <div className="flex items-center space-x-2">
+                  <Grid className="w-4 h-4 text-green-600" />
+                  <span className="text-sm text-green-700">
+                    {smartLayout.layout.length} Elemente
+                  </span>
+                </div>
+              </div>
+
+              <div className="bg-white rounded border border-green-200 p-3 mb-3">
+                <h5 className="text-sm font-medium text-gray-900 mb-1">Begründung:</h5>
+                <p className="text-sm text-gray-700">{smartLayout.reasoning}</p>
+              </div>
+
+              {smartLayout.atsOptimized && (
+                <div className="flex items-center space-x-2 text-sm text-green-700 mb-3">
+                  <Target className="w-4 h-4" />
+                  <span>ATS-optimiert</span>
+                </div>
+              )}
+
+              <div className="flex space-x-2">
+                <button
+                  onClick={handleApplyLayout}
+                  className="flex-1 px-4 py-2 bg-green-600 text-white font-medium rounded hover:bg-green-700 transition-colors"
+                >
+                  Layout anwenden
+                </button>
+                
+                <button
+                  onClick={() => setShowPreview(!showPreview)}
+                  className="px-4 py-2 bg-white text-green-700 border border-green-300 rounded hover:bg-green-50 transition-colors"
+                >
+                  <Eye className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Improvements List */}
+            {smartLayout.improvements.length > 0 && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <h4 className="font-medium text-blue-900 mb-3 flex items-center">
+                  <Settings className="w-4 h-4 mr-2" />
+                  Layout-Verbesserungen
+                </h4>
+                
+                <ul className="space-y-2">
+                  {smartLayout.improvements.map((improvement, index) => (
+                    <li key={index} className="flex items-start space-x-2">
+                      <CheckCircle className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                      <span className="text-sm text-blue-800">{improvement}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Layout Preview */}
+            {showPreview && (
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                <h4 className="font-medium text-gray-900 mb-3 flex items-center">
+                  <Eye className="w-4 h-4 mr-2" />
+                  Layout-Vorschau
+                </h4>
+                
+                <div className="bg-white border rounded-lg p-4 max-h-64 overflow-auto">
+                  <div className="relative" style={{ width: '600px', height: '400px' }}>
+                    {smartLayout.layout.map((element, index) => (
+                      <div
+                        key={element.id}
+                        className="absolute border border-gray-300 bg-gray-100 rounded text-xs p-1 overflow-hidden"
+                        style={{
+                          left: `${(element.x / 600) * 100}%`,
+                          top: `${(element.y / 400) * 100}%`,
+                          width: `${(element.width / 600) * 100}%`,
+                          height: `${((element.height || 100) / 400) * 100}%`
+                        }}
+                      >
+                        <div className="font-medium truncate">
+                          {element.title || element.type}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {/* Empty State */}
-      {suggestions.length === 0 && !isGenerating && (
-        <Card className="border-dashed border-2 border-gray-300">
-          <CardContent className="p-8 text-center">
-            <Grid className="w-12 h-12 mx-auto mb-4 text-gray-400" />
-            <h4 className="font-medium text-gray-900 mb-2">Keine Layouts generiert</h4>
-            <p className="text-sm text-gray-600 mb-4">
-              Klicken Sie auf "Layouts generieren", um KI-basierte Layout-Vorschläge zu erhalten.
-            </p>
-            <Button onClick={generateLayouts}>
-              <Zap className="w-4 h-4 mr-2" />
-              Jetzt generieren
-            </Button>
-          </CardContent>
-        </Card>
-      )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
