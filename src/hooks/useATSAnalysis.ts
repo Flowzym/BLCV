@@ -1,6 +1,6 @@
 import { useState } from "react"
 import type { Section } from "@/modules/cv-designer/types/section"
-import { analyzeSectionsATS } from "@/modules/cv-designer/services/analyzeSectionsATS_v2"
+import { analyzeSectionsATS } from "@/services/analyzeSectionsATS_v2"
 
 export interface ATSFeedback {
   sectionId: string

@@ -1,5 +1,5 @@
 import { LayoutElement } from "../types/section"
-import { analyzeTextContent } from "./analyzeTextContent"
+import { analyzeTextContent } from "@/modules/cv-designer/services/analyzeTextContent"
 
 interface LayoutAnalysisResult {
   atsScore: number
