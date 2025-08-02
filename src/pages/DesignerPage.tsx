@@ -194,5 +194,6 @@ export default function DesignerPage() {
               </div>
             </div>
           </div>
+    </div>
   );
 }
