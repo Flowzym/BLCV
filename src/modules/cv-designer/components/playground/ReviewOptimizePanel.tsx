@@ -3,9 +3,15 @@
  * Provides analytical feedback on CV quality and ATS compatibility
  */
 
-import React, { useState } from 'react';
-import { LayoutElement } from '../../types/section';
-import { StyleConfig } from '../../types/styles';
+import React, { useState, useEffect } from 'react';
+import { CVData } from '@/types/cv-designer';
+import { StyleConfig } from '@/types/cv-designer';
+import { LayoutElement } from '@/modules/cv-designer/types/section';
+import { CVPreview } from '@/modules/cv-designer/components/CVPreview';
+import { AnalysisPanel } from '@/modules/cv-designer/components/AnalysisPanel';
+import { useMapping } from '@/modules/cv-designer/hooks/useMapping';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { 
   BarChart3, 
   Eye, 
@@ -17,51 +23,6 @@ import {
   AlertTriangle,
   RefreshCw
 } from 'lucide-react';
-
-// Mock CVData interface for playground
-interface CVData {
-  personalData: {
-    firstName: string;
-    lastName: string;
-    email: string;
-    phone: string;
-    address: string;
-    profession?: string;
-    summary?: string;
-    profileImage?: string;
-  };
-  workExperience: Array<{
-    id: string;
-    position: string;
-    company: string;
-    location?: string;
-    startDate: string;
-    endDate: string;
-    description: string;
-  }>;
-  education: Array<{
-    id: string;
-    degree: string;
-    institution: string;
-    location?: string;
-    startDate: string;
-    endDate: string;
-    description?: string;
-    grade?: string;
-    fieldOfStudy?: string;
-  }>;
-  skills: Array<{
-    id: string;
-    name: string;
-    level: 'beginner' | 'intermediate' | 'advanced' | 'expert';
-    category?: string;
-  }>;
-  languages?: Array<{
-    id: string;
-    name: string;
-    level: string;
-  }>;
-}
 
 interface ReviewOptimizePanelProps {
   cvData: CVData | null;
@@ -81,6 +42,23 @@ export const ReviewOptimizePanel: React.FC<ReviewOptimizePanelProps> = ({
   const [activeView, setActiveView] = useState<'preview' | 'analysis'>('preview');
   const [analysisResults, setAnalysisResults] = useState<any>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  
+  // Mapping hook to convert CV data to sections for preview
+  const { mapCVData, lastMappingResult } = useMapping();
+  const [mappedSections, setMappedSections] = useState<any[]>([]);
+
+  // Map CV data when it changes
+  useEffect(() => {
+    if (cvData) {
+      const result = mapCVData(cvData, {
+        locale: 'de',
+        layoutType: 'classic-one-column'
+      });
+      setMappedSections(result.sections);
+    } else {
+      setMappedSections([]);
+    }
+  }, [cvData, mapCVData]);
 
   // Handle CV data updates from analysis
   const handleCVDataUpdate = (updates: Partial<CVData>) => {
@@ -97,6 +75,7 @@ export const ReviewOptimizePanel: React.FC<ReviewOptimizePanelProps> = ({
   // Handle template selection from analysis
   const handleTemplateSelect = (templateId: string) => {
     console.log('Template selected from analysis:', templateId);
+    // Template selection logic would be implemented here
   };
 
   // Run comprehensive analysis
@@ -113,7 +92,7 @@ export const ReviewOptimizePanel: React.FC<ReviewOptimizePanelProps> = ({
         atsScore: Math.floor(Math.random() * 30) + 70, // 70-100
         clarityScore: Math.floor(Math.random() * 25) + 75, // 75-100
         completenessScore: Math.floor(Math.random() * 20) + 80, // 80-100
-        sectionsAnalyzed: 3,
+        sectionsAnalyzed: mappedSections.length,
         layoutElementsAnalyzed: layoutElements.length,
         recommendations: [
           'Fügen Sie mehr quantifizierte Erfolge hinzu',
@@ -184,7 +163,8 @@ export const ReviewOptimizePanel: React.FC<ReviewOptimizePanelProps> = ({
       </div>
 
       {/* Current CV Info */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+      <Card className="bg-blue-50 border-blue-200">
+        <CardContent className="p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
@@ -196,16 +176,16 @@ export const ReviewOptimizePanel: React.FC<ReviewOptimizePanelProps> = ({
                 </h3>
                 <p className="text-sm text-blue-700">
                   {cvData.personalData.profession || 'Keine Berufsbezeichnung'} • 
-                  3 Sektionen • 
+                  {mappedSections.length} Sektionen • 
                   {layoutElements.length} Layout-Elemente
                 </p>
               </div>
             </div>
             
-            <button
+            <Button
               onClick={runAnalysis}
               disabled={isAnalyzing}
-              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
+              className="bg-blue-600 hover:bg-blue-700"
             >
               {isAnalyzing ? (
                 <>
@@ -218,53 +198,62 @@ export const ReviewOptimizePanel: React.FC<ReviewOptimizePanelProps> = ({
                   Analyse starten
                 </>
               )}
-            </button>
+            </Button>
           </div>
-      </div>
+        </CardContent>
+      </Card>
 
       {/* Analysis Results Summary */}
       {analysisResults && (
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className={`${getScoreBgColor(getOverallScore())} border rounded-lg p-4 text-center`}>
+          <Card className={`${getScoreBgColor(getOverallScore())} border`}>
+            <CardContent className="p-4 text-center">
               <div className={`text-3xl font-bold ${getScoreColor(getOverallScore())} mb-2`}>
                 {getOverallScore()}%
               </div>
               <div className="text-sm font-medium text-gray-700">Gesamt-Score</div>
-          </div>
+            </CardContent>
+          </Card>
           
-          <div className={`${getScoreBgColor(analysisResults.atsScore)} border rounded-lg p-4 text-center`}>
+          <Card className={`${getScoreBgColor(analysisResults.atsScore)} border`}>
+            <CardContent className="p-4 text-center">
               <div className={`text-2xl font-bold ${getScoreColor(analysisResults.atsScore)} mb-2`}>
                 {analysisResults.atsScore}%
               </div>
               <div className="text-sm font-medium text-gray-700">ATS-Score</div>
-          </div>
+            </CardContent>
+          </Card>
           
-          <div className={`${getScoreBgColor(analysisResults.clarityScore)} border rounded-lg p-4 text-center`}>
+          <Card className={`${getScoreBgColor(analysisResults.clarityScore)} border`}>
+            <CardContent className="p-4 text-center">
               <div className={`text-2xl font-bold ${getScoreColor(analysisResults.clarityScore)} mb-2`}>
                 {analysisResults.clarityScore}%
               </div>
               <div className="text-sm font-medium text-gray-700">Klarheit</div>
-          </div>
+            </CardContent>
+          </Card>
           
-          <div className={`${getScoreBgColor(analysisResults.completenessScore)} border rounded-lg p-4 text-center`}>
+          <Card className={`${getScoreBgColor(analysisResults.completenessScore)} border`}>
+            <CardContent className="p-4 text-center">
               <div className={`text-2xl font-bold ${getScoreColor(analysisResults.completenessScore)} mb-2`}>
                 {analysisResults.completenessScore}%
               </div>
               <div className="text-sm font-medium text-gray-700">Vollständigkeit</div>
-          </div>
+            </CardContent>
+          </Card>
         </div>
       )}
 
       {/* Recommendations */}
       {analysisResults && analysisResults.recommendations && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg">
-          <div className="p-6 border-b border-yellow-200">
-            <h3 className="text-lg font-semibold flex items-center space-x-2 text-yellow-900">
+        <Card className="bg-yellow-50 border-yellow-200">
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2 text-yellow-900">
               <TrendingUp className="w-5 h-5" />
               <span>Verbesserungsvorschläge</span>
-            </h3>
-          </div>
-          <div className="p-6">
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
             <ul className="space-y-2">
               {analysisResults.recommendations.map((recommendation: string, index: number) => (
                 <li key={index} className="flex items-start space-x-2 text-yellow-800">
@@ -273,90 +262,57 @@ export const ReviewOptimizePanel: React.FC<ReviewOptimizePanelProps> = ({
                 </li>
               ))}
             </ul>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* View Toggle */}
       <div className="flex items-center justify-center space-x-2">
-        <button
+        <Button
+          variant={activeView === 'preview' ? 'default' : 'outline'}
           onClick={() => setActiveView('preview')}
-          className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-colors ${
-            activeView === 'preview' 
-              ? 'bg-blue-600 text-white' 
-              : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
-          }`}
+          className="flex items-center space-x-2"
         >
           <Eye className="w-4 h-4" />
           <span>Vorschau</span>
-        </button>
-        <button
+        </Button>
+        <Button
+          variant={activeView === 'analysis' ? 'default' : 'outline'}
           onClick={() => setActiveView('analysis')}
-          className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-colors ${
-            activeView === 'analysis' 
-              ? 'bg-blue-600 text-white' 
-              : 'border border-gray-300 text-gray-700 hover:bg-gray-50'
-          }`}
+          className="flex items-center space-x-2"
         >
           <Brain className="w-4 h-4" />
           <span>Detailanalyse</span>
-        </button>
+        </Button>
       </div>
 
       {/* Main Content */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Left Side - CV Preview */}
-        <div className="bg-white border border-gray-200 rounded-lg">
-          <div className="p-6 border-b border-gray-200">
-            <h3 className="text-lg font-semibold flex items-center space-x-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
               <Eye className="w-5 h-5 text-blue-600" />
               <span>CV-Vorschau</span>
-            </h3>
+            </CardTitle>
             <p className="text-sm text-gray-600">
               Live-Vorschau Ihres CVs mit aktuellen Design-Einstellungen
             </p>
-          </div>
-          <div className="p-6">
-            <div className="max-h-96 overflow-y-auto border rounded-lg p-4">
-              <div className="space-y-4" style={{ 
-                fontFamily: styleConfig.font.family,
-                fontSize: `${styleConfig.font.size}px`,
-                color: styleConfig.font.color
-              }}>
-                <div>
-                  <h1 style={{ color: styleConfig.colors.primary, fontSize: `${styleConfig.font.size + 6}px` }}>
-                    {cvData.personalData.firstName} {cvData.personalData.lastName}
-                  </h1>
-                  <p style={{ color: styleConfig.colors.secondary }}>{cvData.personalData.profession}</p>
-                </div>
-                
-                {cvData.personalData.summary && (
-                  <div>
-                    <h2 style={{ color: styleConfig.colors.primary }}>Profil</h2>
-                    <p>{cvData.personalData.summary}</p>
-                  </div>
-                )}
-                
-                {cvData.workExperience.length > 0 && (
-                  <div>
-                    <h2 style={{ color: styleConfig.colors.primary }}>Berufserfahrung</h2>
-                    {cvData.workExperience.map(exp => (
-                      <div key={exp.id} className="mb-2">
-                        <h3 className="font-medium">{exp.position}</h3>
-                        <p className="text-sm opacity-75">{exp.company} • {exp.startDate} - {exp.endDate}</p>
-                        <p className="text-sm">{exp.description}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+          </CardHeader>
+          <CardContent>
+            <div className="max-h-96 overflow-y-auto border rounded-lg">
+              <CVPreview
+                sections={mappedSections}
+                styleConfig={designConfig}
+                cvData={cvData}
+              />
             </div>
             
             {/* Preview Stats */}
             <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
               <div className="flex justify-between">
                 <span className="text-gray-600">Sektionen:</span>
-                <span className="font-medium">3</span>
+                <span className="font-medium">{mappedSections.length}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Layout-Elemente:</span>
@@ -364,74 +320,45 @@ export const ReviewOptimizePanel: React.FC<ReviewOptimizePanelProps> = ({
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Schriftart:</span>
-                <span className="font-medium">{styleConfig.font.family}</span>
+                <span className="font-medium">{designConfig.fontFamily}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-gray-600">Primärfarbe:</span>
                 <div className="flex items-center space-x-2">
                   <div 
                     className="w-4 h-4 rounded border"
-                    style={{ backgroundColor: styleConfig.colors.primary }}
+                    style={{ backgroundColor: designConfig.primaryColor }}
                   />
-                  <span className="font-mono text-xs">{styleConfig.colors.primary}</span>
+                  <span className="font-mono text-xs">{designConfig.primaryColor}</span>
                 </div>
               </div>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
         {/* Right Side - Analysis */}
-        <div className="bg-white border border-gray-200 rounded-lg">
-          <div className="p-6 border-b border-gray-200">
-            <h3 className="text-lg font-semibold flex items-center space-x-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
               <Brain className="w-5 h-5 text-purple-600" />
               <span>Analyse & Optimierung</span>
-            </h3>
+            </CardTitle>
             <p className="text-sm text-gray-600">
               KI-gestützte Analyse und Verbesserungsvorschläge
             </p>
-          </div>
-          <div className="p-6">
+          </CardHeader>
+          <CardContent>
             {activeView === 'analysis' ? (
               <div className="max-h-96 overflow-y-auto">
-                <div className="space-y-4">
-                  <h4 className="font-medium text-gray-900">Detailanalyse</h4>
-                  {analysisResults ? (
-                    <div className="space-y-4">
-                      <div className="bg-gray-50 rounded-lg p-4">
-                        <h5 className="font-medium text-gray-900 mb-2">Analyse-Ergebnisse</h5>
-                        <div className="space-y-2 text-sm">
-                          <div className="flex justify-between">
-                            <span>ATS-Score:</span>
-                            <span className={getScoreColor(analysisResults.atsScore)}>{analysisResults.atsScore}%</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Klarheit:</span>
-                            <span className={getScoreColor(analysisResults.clarityScore)}>{analysisResults.clarityScore}%</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span>Vollständigkeit:</span>
-                            <span className={getScoreColor(analysisResults.completenessScore)}>{analysisResults.completenessScore}%</span>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                        <h5 className="font-medium text-yellow-900 mb-2">Empfehlungen</h5>
-                        <ul className="space-y-1 text-sm text-yellow-800">
-                          {analysisResults.recommendations.map((rec: string, index: number) => (
-                            <li key={index}>• {rec}</li>
-                          ))}
-                        </ul>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 text-gray-500">
-                      <Target className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-                      <p>Starten Sie eine Analyse für detaillierte Ergebnisse</p>
-                    </div>
-                  )}
-                </div>
+                <AnalysisPanel
+                  styleConfig={styleConfig}
+                  cvData={cvData}
+                  styleConfig={styleConfig}
+                  layoutElements={layoutElements}
+                  onCVDataUpdate={handleCVDataUpdate}
+                  onStyleConfigUpdate={handleStyleConfigUpdate}
+                  onTemplateSelect={handleTemplateSelect}
+                />
               </div>
             ) : (
               <div className="space-y-4">
@@ -447,16 +374,16 @@ export const ReviewOptimizePanel: React.FC<ReviewOptimizePanelProps> = ({
                       <span className="text-gray-600">Ausbildung:</span>
                       <span className="font-medium">{cvData.education.length} Abschlüsse</span>
                     </div>
-                    <div className="flex justify-between">
+                  <span className="font-medium">{styleConfig.fontFamily}</span>
                       <span className="text-gray-600">Fähigkeiten:</span>
                       <span className="font-medium">{cvData.skills.length} Skills</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Profil-Text:</span>
                       <span className="font-medium">
-                        {cvData.personalData.summary ? 'Vorhanden' : 'Fehlt'}
+                      style={{ backgroundColor: styleConfig.primaryColor }}
                       </span>
-                    </div>
+                    <span className="font-mono text-xs">{styleConfig.primaryColor}</span>
                   </div>
                 </div>
 
@@ -467,11 +394,7 @@ export const ReviewOptimizePanel: React.FC<ReviewOptimizePanelProps> = ({
                     <p className="text-gray-500 mb-4">
                       Starten Sie eine Analyse, um detailliertes Feedback zu erhalten
                     </p>
-                    <button 
-                      onClick={runAnalysis} 
-                      disabled={isAnalyzing}
-                      className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50"
-                    >
+                    <Button onClick={runAnalysis} disabled={isAnalyzing}>
                       {isAnalyzing ? (
                         <>
                           <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
@@ -483,7 +406,7 @@ export const ReviewOptimizePanel: React.FC<ReviewOptimizePanelProps> = ({
                           Erste Analyse starten
                         </>
                       )}
-                    </button>
+                    </Button>
                   </div>
                 ) : (
                   <div className="space-y-4">
@@ -497,36 +420,37 @@ export const ReviewOptimizePanel: React.FC<ReviewOptimizePanelProps> = ({
                       </p>
                     </div>
                     
-                    <button
+                    <Button
                       onClick={() => setActiveView('analysis')}
-                      className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+                      className="w-full"
+                      variant="outline"
                     >
                       <Brain className="w-4 h-4 mr-2" />
                       Detailanalyse anzeigen
-                    </button>
+                    </Button>
                   </div>
                 )}
               </div>
             )}
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Analysis Actions */}
       {analysisResults && (
         <div className="flex justify-center space-x-4">
-          <button
+          <Button
             onClick={runAnalysis}
             disabled={isAnalyzing}
-            className="flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 disabled:opacity-50"
+            variant="outline"
           >
             <RefreshCw className={`w-4 h-4 mr-2 ${isAnalyzing ? 'animate-spin' : ''}`} />
             Erneut analysieren
-          </button>
+          </Button>
           
-          <button
+          <Button
             onClick={() => setActiveView(activeView === 'preview' ? 'analysis' : 'preview')}
-            className="flex items-center px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+            variant="outline"
           >
             {activeView === 'preview' ? (
               <>
@@ -539,7 +463,7 @@ export const ReviewOptimizePanel: React.FC<ReviewOptimizePanelProps> = ({
                 Zur Vorschau
               </>
             )}
-          </button>
+          </Button>
         </div>
       )}
     </div>
