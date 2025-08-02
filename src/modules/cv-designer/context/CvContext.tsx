@@ -1,4 +1,7 @@
-// 📄 src/modules/cv-designer/context/CvContext.tsx
+/**
+ * CV-Designer Module - React Context
+ * Phase 3: Context provider for CV template state management
+ */
 
 import React, { createContext, useContext } from 'react';
 import { useTemplateStorage } from '../hooks/useTemplateStorage';
