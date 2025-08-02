@@ -4,7 +4,7 @@
  */
 
 import React, { useState } from 'react';
-import { CvProvider } from '../modules/cv-designer';
+import { CvProvider } from '../modules/cv-designer/context/CvContext';
 import StartLoadCV from '../modules/cv-designer/components/playground/StartLoadCV';
 import ContentEditor from '../modules/cv-designer/components/playground/ContentEditor';
 import DesignLayoutEditor from '../modules/cv-designer/components/playground/DesignLayoutEditor';

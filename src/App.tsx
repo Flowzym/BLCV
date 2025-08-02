@@ -6,6 +6,7 @@ import CoverLetterAiAssistant from './components/CoverLetterAiAssistant';
 import SettingsPage from './components/SettingsPage';
 import StyleTest from './pages/StyleTest';
 import DesignerPage from './pages/DesignerPage';
+import CVPlayground from './pages/CVPlayground';
 import TabNavigation from './components/layout/TabNavigation';
 import InputColumns from './components/layout/InputColumns';
 import DocumentTypeBlock from './components/layout/DocumentTypeBlock';
@@ -586,6 +587,7 @@ function App() {
     <Routes>
       <Route path="/" element={<HomePage />} />
       <Route path="/designer" element={<DesignerPage />} />
+      <Route path="/playground" element={<CVPlayground />} />
       <Route path="/settings" element={
         <LebenslaufProvider>
           <SettingsPage />
