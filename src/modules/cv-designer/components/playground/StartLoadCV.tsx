@@ -336,7 +336,7 @@ export const StartLoadCV: React.FC<StartLoadCVProps> = ({
               <ReverseUploadPanel
                 onImport={handleFileImport}
                 onCreateTemplate={handleTemplateCreation}
-                defaultStyle={designConfig}
+                defaultStyle={styleConfig}
               />
             </CardContent>
           </Card>
