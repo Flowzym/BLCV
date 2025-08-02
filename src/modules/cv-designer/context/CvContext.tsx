@@ -1,7 +1,4 @@
-/**
- * CV-Designer Module - React Context
- * Phase 3: Context provider for CV template state management
- */
+// 📄 src/modules/cv-designer/context/CvContext.tsx
 
 import React, { createContext, useContext } from 'react';
 import { useTemplateStorage } from '../hooks/useTemplateStorage';
@@ -17,7 +14,7 @@ export function CvProvider({ children }: CvProviderProps) {
     deleteTemplate,
     updateTemplate,
     isLoading,
-    error
+    error,
   } = useTemplateStorage();
 
   const contextValue: CvContextType = {
