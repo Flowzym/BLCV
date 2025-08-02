@@ -12,9 +12,9 @@ interface UseTemplateStorageReturn {
   updateTemplate: (id: string, updates: Partial<Omit<SavedTemplate, 'id' | 'createdAt'>>) => boolean;
   isLoading: boolean;
   error: string | null;
-}
   exportAllTemplates: () => void;
   importTemplates: (file: File) => Promise<boolean>;
+}
 
 /**
  * Hook for managing CV template storage using localStorage
