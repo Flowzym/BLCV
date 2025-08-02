@@ -35,3 +35,9 @@ export type {
   TemplateCategory,
   TemplateFilter
 } from './template';
+
+// Context types
+export type {
+  CvContextType,
+  CvProviderProps
+} from './context';
