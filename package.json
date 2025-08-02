@@ -28,6 +28,7 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-quill": "^2.0.0",
+    "react-rnd": "^10.4.1",
     "react-router-dom": "^6.23.0",
     "react-sortablejs": "^6.1.4",
     "sortablejs": "^1.15.6",
