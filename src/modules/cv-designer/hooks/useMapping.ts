@@ -36,7 +36,8 @@ export function useMapping(): UseMappingReturn {
         id: 'personal-data',
         type: 'personal',
         title: 'Persönliche Daten',
-        content: {
+        content: cvData.personalData.summary || '',
+        data: {
           name: `${cvData.personalData.firstName} ${cvData.personalData.lastName}`,
           profession: cvData.personalData.profession,
           email: cvData.personalData.email,

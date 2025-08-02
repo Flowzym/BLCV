@@ -108,12 +108,6 @@ export const CVPreview: React.FC<CVPreviewProps> = ({
           </div>
         )}
         
-        {section.content && typeof section.content === 'object' && section.type === 'personal' && (
-          <div style={contentStyle}>
-            {renderSummaryData(section.content, cvData?.personalData)}
-          </div>
-        )}
-        
         {section.data && renderSectionData(section, cvData)}
         
         {process.env.NODE_ENV === 'development' && section.props?.isFallback && (
@@ -141,7 +135,7 @@ export const CVPreview: React.FC<CVPreviewProps> = ({
         return renderEducationData(section.data);
       case 'skills':
         return renderSkillsData(section.data);
-      case 'summary':
+      case 'personal':
         return renderSummaryData(section.data, cvData?.personalData);
       default:
         return null;
