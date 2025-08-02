@@ -1,6 +1,6 @@
 import type { Section } from "@/modules/cv-designer/types/section"
 import type { ATSFeedback, AnalysisParams } from "@/modules/cv-designer/hooks/useATSAnalysis"
-import { gpt } from "@/lib/gptClient"
+import { gpt } from "../modules/cv-designer/services/gptClient"
 
 export async function analyzeSectionsATS(
   sections: Section[],

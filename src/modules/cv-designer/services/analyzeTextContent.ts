@@ -1,5 +1,3 @@
-import { mockAnalyzeText } from "../utils/mockAnalysis" // Optional: Für Offline-Debugging
-
 interface AnalysisResult {
   atsScore: number
   clarityScore: number
@@ -22,8 +20,27 @@ export async function analyzeTextContent(
     }
   }
 
-  // TODO: Ersetze diesen Block durch echte GPT-/API-Analyse
-  const result = await mockAnalyzeText(text, language)
+  // Mock implementation - replace with real API analysis
+  const words = text.split(/\s+/).filter(word => word.length > 0)
+  const wordCount = words.length
+  
+  // Simple keyword density calculation
+  const keywordDensity: Record<string, number> = {}
+  words.forEach(word => {
+    const cleanWord = word.toLowerCase().replace(/[^\w]/g, '')
+    if (cleanWord.length > 3) {
+      keywordDensity[cleanWord] = (keywordDensity[cleanWord] || 0) + 1
+    }
+  })
+  
+  // Mock scores based on text length and complexity
+  const result = {
+    atsScore: Math.min(90, Math.max(30, wordCount * 2)),
+    clarityScore: Math.min(95, Math.max(40, 100 - (text.split('.').length * 5))),
+    toneScore: Math.min(85, Math.max(50, wordCount > 50 ? 80 : 60)),
+    keywordDensity,
+    wordCount
+  }
 
   return result
 }
