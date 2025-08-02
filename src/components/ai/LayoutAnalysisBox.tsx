@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { LayoutElement } from "../types/section"
-import { analyzeLayout } from "../services/analyzeLayout"
+import { analyzeLayout } from "@/services/analyzeLayout"
 
 interface Props {
   layout: LayoutElement[]

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import type { Section } from "@/modules/cv-designer/types/section"
-import { useATSAnalysis, type ATSFeedback } from "@/modules/cv-designer/hooks/useATSAnalysis"
+import { useATSAnalysis, type ATSFeedback } from "@/hooks/useATSAnalysis"
 import { Button } from "@/components/ui/button"
 
 interface SectionAnalysisBoxProps {
