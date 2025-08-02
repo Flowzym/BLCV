@@ -1,10 +1,19 @@
 /**
  * CV-Designer Module - Template Types
- * Phase 1: Core type definitions for CV templates and saved configurations
+ * Phase 1-2: Core type definitions for CV templates and saved configurations
  */
 
 import { Section } from './section';
-import { StyleConfig, SectionStyleOverride } from './styles';
+import { StyleConfig } from './styles';
+
+export interface SavedTemplate {
+  id: string;
+  name: string;
+  sections: Section[];
+  styles: StyleConfig;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export interface TemplateMetadata {
   id: string;
@@ -17,19 +26,6 @@ export interface TemplateMetadata {
   version: string;
   author?: string;
   isPublic: boolean;
-}
-
-export interface SavedTemplate {
-  metadata: TemplateMetadata;
-  sections: Section[];
-  styleConfig: StyleConfig;
-  styleOverrides: SectionStyleOverride[];
-  globalSettings: {
-    pageFormat: 'A4' | 'Letter' | 'Custom';
-    orientation: 'portrait' | 'landscape';
-    language: string;
-    timezone?: string;
-  };
 }
 
 export interface TemplatePreview {
