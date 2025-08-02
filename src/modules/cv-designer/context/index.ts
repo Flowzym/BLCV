@@ -1,7 +1,3 @@
-/**
- * CV-Designer Module - Context Exports
- * Phase 3: Context provider and hook exports
- */
+// Organized exports for CV Context (Phase 3)
 
-export { CvProvider, useCvContext, CvContext } from './CvContext';
-export type { CvContextType, CvProviderProps } from '../types/context';
+export * from './CvContext';
