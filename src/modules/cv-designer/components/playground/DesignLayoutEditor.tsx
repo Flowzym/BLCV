@@ -7,7 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { CVData } from '@/types/cv-designer';
 import { StyleConfig } from '@/types/cv-designer';
 import { LayoutElement } from '@/modules/cv-designer/types/section';
-import { CVPreview } from '@/modules/cv-designer/components/CVPreview';
+import { CVPreview } from '../CVPreview';
 import { StyleEditor } from '@/components/StyleEditor';
 import { LayoutDesigner } from '@/modules/cv-designer/components/LayoutDesigner';
 import { TemplateMatchingAssistant } from '@/components/ai/TemplateMatchingAssistant';

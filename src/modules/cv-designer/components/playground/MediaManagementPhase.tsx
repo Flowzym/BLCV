@@ -6,7 +6,7 @@
 import React, { useState } from 'react';
 import { CVData } from '@/types/cv-designer';
 import { MediaManager } from '@/components/MediaManager';
-import { CVPreview } from '@/modules/cv-designer/components/CVPreview';
+import { CVPreview } from '../CVPreview';
 import { useMapping } from '@/modules/cv-designer/hooks/useMapping';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';

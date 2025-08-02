@@ -6,7 +6,7 @@
 import React, { useState, useEffect } from 'react';
 import { CVData } from '@/types/cv-designer';
 import { StyleConfig } from '@/types/cv-designer';
-import { CVPreview } from '@/modules/cv-designer/components/CVPreview';
+import { CVPreview } from '../CVPreview';
 import { ExportPanel } from '@/modules/cv-designer/components/ExportPanel';
 import { useMapping } from '@/modules/cv-designer/hooks/useMapping';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
