@@ -1,8 +1,16 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Settings, Palette, Eye, Brain, Sparkles, Layout, Type, Paintbrush, Layers } from 'lucide-react';
+import CVPreview from '../modules/cv-designer/components/CVPreview';
+import { StyleEditor } from '../components/StyleEditor';
+import { StyleConfig } from '../types/cv-designer';
 
-export default function DesignerPage() {
+interface DesignerPageProps {
+  styleConfig: StyleConfig;
+  setStyleConfig: (config: StyleConfig) => void;
+}
+
+export default function DesignerPage({ styleConfig, setStyleConfig }: DesignerPageProps) {
   const navigate = useNavigate();
   const [activeDesignerTab, setActiveDesignerTab] = useState('layout');
 
@@ -76,35 +84,14 @@ export default function DesignerPage() {
                   <h2 className="text-lg font-semibold text-gray-900">Design-Werkzeuge</h2>
                 </div>
                 
-                <div className="space-y-4">
-                  <div className="border rounded-lg p-3 bg-gray-50">
-                    <h3 className="font-medium text-gray-800 mb-2">Layout-Optionen</h3>
-                    <p className="text-sm text-gray-600">
-                      Hier werden Layout-Vorlagen, Spaltenaufteilungen und Strukturoptionen verfügbar sein.
-                    </p>
-                  </div>
-                  
-                  <div className="border rounded-lg p-3 bg-gray-50">
-                    <h3 className="font-medium text-gray-800 mb-2">Typografie</h3>
-                    <p className="text-sm text-gray-600">
-                      Schriftarten, Größen, Abstände und Formatierungsoptionen.
-                    </p>
-                  </div>
-                  
-                  <div className="border rounded-lg p-3 bg-gray-50">
-                    <h3 className="font-medium text-gray-800 mb-2">Farben & Stil</h3>
-                    <p className="text-sm text-gray-600">
-                      Farbschemata, Akzentfarben und visuelle Stiloptionen.
-                    </p>
-                  </div>
-                  
-                  <div className="border rounded-lg p-3 bg-gray-50">
-                    <h3 className="font-medium text-gray-800 mb-2">Vorlagen</h3>
-                    <p className="text-sm text-gray-600">
-                      Vorgefertigte Design-Templates und Layouts.
-                    </p>
-                  </div>
-                </div>
+                {/* Use StyleEditor component here */}
+                <StyleEditor 
+                  config={styleConfig} 
+                  onChange={setStyleConfig}
+                  sections={['colors', 'typography', 'layout', 'spacing']}
+                  showPresets={true}
+                  compact={true}
+                />
               </div>
             </div>
 
@@ -116,28 +103,9 @@ export default function DesignerPage() {
                   <h2 className="text-lg font-semibold text-gray-900">Live-Vorschau</h2>
                 </div>
                 
-                <div className="h-full flex items-center justify-center">
-                  <div className="text-center space-y-4">
-                    <div className="w-64 h-80 mx-auto border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center bg-gray-50">
-                      <div className="text-center">
-                        <Eye className="h-12 w-12 mx-auto mb-3 text-gray-400" />
-                        <h3 className="text-lg font-medium text-gray-700 mb-2">Design-Vorschau</h3>
-                        <p className="text-sm text-gray-500">
-                          Hier wird die Live-Vorschau des Lebenslauf-Designs angezeigt
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <h4 className="font-medium text-gray-800">Geplante Features:</h4>
-                      <div className="text-sm text-gray-600 space-y-1">
-                        <p>• Echtzeit-Vorschau der Design-Änderungen</p>
-                        <p>• Interaktive Bearbeitung von Elementen</p>
-                        <p>• Zoom- und Skalierungsoptionen</p>
-                        <p>• Export-Vorschau in verschiedenen Formaten</p>
-                      </div>
-                    </div>
-                  </div>
+                {/* Use CVPreview component here */}
+                <div className="h-full overflow-auto">
+                  <CVPreview styleConfig={styleConfig} />
                 </div>
               </div>
             </div>

@@ -26,6 +26,8 @@ import {
   loadKIConfigs
 } from './services/supabaseService';
 import { KIModelSettings } from './types/KIModelSettings';
+import { defaultStyleConfig } from './modules/cv-designer/config/defaultStyleConfig';
+import { StyleConfig } from './types/cv-designer';
 
 const DEFAULT_DOCUMENT_TYPES = {
   standard: {
@@ -300,6 +302,9 @@ function HomePage() {
   const [selectedStyles, setSelectedStyles] = useState<string[]>([]);
   const [activeKIModel, setActiveKIModel] = useState<KIModelSettings | null>(null);
 
+  // Add styleConfig state for the designer
+  const [styleConfig, setStyleConfig] = useState<StyleConfig>(defaultStyleConfig);
+
   useEffect(() => {
     const fetchModels = async () => {
       try {
@@ -562,7 +567,7 @@ function HomePage() {
         )}
 
         {activeTab === 'designer' && (
-          <DesignerPage />
+          <DesignerPage styleConfig={styleConfig} setStyleConfig={setStyleConfig} />
         )}
 
         <div className="text-center text-gray-500 text-sm">

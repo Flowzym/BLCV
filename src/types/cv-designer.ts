@@ -125,3 +125,22 @@ export type ExportFormat = 'pdf' | 'docx' | 'json' | 'html';
 
 // Design Config (alias for StyleConfig for compatibility)
 export type DesignConfig = StyleConfig;
+
+// Add StyleConfig interface if not already present
+export interface StyleConfig {
+  primaryColor: string;
+  accentColor: string;
+  fontFamily: string;
+  fontSize: 'small' | 'medium' | 'large';
+  lineHeight: number;
+  margin: 'compact' | 'normal' | 'wide';
+  backgroundColor?: string;
+  textColor?: string;
+  borderRadius?: string;
+  sectionSpacing?: number;
+  snapSize?: number;
+  widthPercent?: number;
+  padding?: string;
+  border?: string;
+  boxShadow?: string;
+}
