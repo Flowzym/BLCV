@@ -304,6 +304,7 @@ function HomePage() {
 
   // Add styleConfig state for the designer
   const [styleConfig, setStyleConfig] = useState<StyleConfig>(defaultStyleConfig);
+  const [layoutElements, setLayoutElements] = useState<LayoutElement[]>([]);
 
   useEffect(() => {
     const fetchModels = async () => {
@@ -567,7 +568,12 @@ function HomePage() {
         )}
 
         {activeTab === 'designer' && (
-          <DesignerPage styleConfig={styleConfig} setStyleConfig={setStyleConfig} />
+          <DesignerPage
+            styleConfig={styleConfig}
+            setStyleConfig={setStyleConfig}
+            layoutElements={layoutElements}
+            setLayoutElements={setLayoutElements}
+          />
         )}
 
         <div className="text-center text-gray-500 text-sm">

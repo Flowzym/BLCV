@@ -1,23 +1,34 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Settings, Palette, Eye, Brain, Sparkles, Layout, Type, Paintbrush, Layers } from 'lucide-react';
-import CVPreview from '../modules/cv-designer/components/CVPreview';
+import { Settings, Palette, Eye, Brain, Sparkles, Layout, Type, Paintbrush, Layers, Image as ImageIcon, FileText, Wand2 } from 'lucide-react';
+import { CVPreview } from '../modules/cv-designer/components/CVPreview';
 import { StyleEditor } from '../components/StyleEditor';
-import { StyleConfig } from '../types/cv-designer';
+import { StyleConfig, LayoutElement } from '../types/cv-designer';
+import { TemplateMatchingAssistant } from '../components/ai/TemplateMatchingAssistant';
+import { LayoutDesigner } from '../modules/cv-designer/components/LayoutDesigner';
+import { MediaManager } from '../components/MediaManager';
+import { useLebenslauf } from '../components/LebenslaufContext';
 
 interface DesignerPageProps {
   styleConfig: StyleConfig;
-  setStyleConfig: (config: StyleConfig) => void;
+  layoutElements: LayoutElement[];
+  setLayoutElements: (elements: LayoutElement[]) => void;
 }
 
-export default function DesignerPage({ styleConfig, setStyleConfig }: DesignerPageProps) {
+export default function DesignerPage({ styleConfig, setStyleConfig, layoutElements, setLayoutElements }: DesignerPageProps) {
   const navigate = useNavigate();
-  const [activeDesignerTab, setActiveDesignerTab] = useState('layout');
+  const [activeDesignerTab, setActiveDesignerTab] = useState('layout-style');
+
+  // Access LebenslaufContext for CV data and profile image
+  const { personalData, updatePersonalData } = useLebenslauf();
+
+  // Access LebenslaufContext for CV data and profile image
+  const { personalData, updatePersonalData } = useLebenslauf();
 
   // Designer tabs configuration
   const designerTabs = [
     { 
-      id: 'layout', 
+      id: 'layout-style', 
       label: 'Layout', 
       icon: Layout 
     },
@@ -35,9 +46,249 @@ export default function DesignerPage({ styleConfig, setStyleConfig }: DesignerPa
       id: 'elements', 
       label: 'Elemente', 
       icon: Layers 
+    },
+    {
+      id: 'design-templates',
+      label: 'Designvorlagen',
+      icon: FileText
+    },
+    {
+      id: 'layout-editor',
+      label: 'Layout Editor',
+      icon: Wand2
+    },
+    {
+      id: 'photo',
+      label: 'Foto',
+      icon: ImageIcon
+    },
+    {
+      id: 'design-templates',
+      label: 'Designvorlagen',
+      icon: FileText
+    },
+    {
+      id: 'layout-editor',
+      label: 'Layout Editor',
+      icon: Wand2
+    },
+    {
+      id: 'photo',
+      label: 'Foto',
+      icon: ImageIcon
     }
   ];
 
+  // Function to render content for the left column based on active tab
+  const renderDesignToolContent = () => {
+    switch (activeDesignerTab) {
+      case 'layout-style':
+        return (
+          <StyleEditor 
+            config={styleConfig} 
+            onChange={setStyleConfig} 
+            sections={['layout', 'spacing']} 
+            showPresets={true} 
+            compact={true} 
+          />
+        );
+      case 'typography':
+        return (
+          <StyleEditor 
+            config={styleConfig} 
+            onChange={setStyleConfig} 
+            sections={['typography']} 
+            showPresets={true} 
+            compact={true} 
+          />
+        );
+      case 'colors':
+        return (
+          <StyleEditor 
+            config={styleConfig} 
+            onChange={setStyleConfig} 
+            sections={['colors']} 
+            showPresets={true} 
+            compact={true} 
+          />
+        );
+      case 'elements':
+        return (
+          <div className="p-4 text-gray-600">
+            <h3 className="font-medium text-gray-900 mb-2">Elemente-Einstellungen</h3>
+            <p className="text-sm">Hier könnten zukünftig Einstellungen für einzelne CV-Elemente (z.B. Icons, Linien, Abstände zwischen Elementen) vorgenommen werden.</p>
+            <p className="mt-2 text-xs text-gray-500">Diese Funktion ist noch in Entwicklung.</p>
+          </div>
+        );
+      case 'design-templates':
+        // Create mock CV data from LebenslaufContext
+        const mockCVData = {
+          personalData: {
+            firstName: personalData?.vorname || '',
+            lastName: personalData?.nachname || '',
+            email: personalData?.email || '',
+            phone: personalData?.telefon || '',
+            address: personalData?.adresse || '',
+            profession: personalData?.profession || '',
+            summary: personalData?.summary || '',
+            profileImage: personalData?.profileImage
+          },
+          workExperience: [],
+          education: [],
+          skills: [],
+          languages: []
+        };
+        return (
+          <TemplateMatchingAssistant 
+            cvData={mockCVData}
+            onTemplateSelect={(template) => {
+              console.log('Template selected:', template);
+              // Handle template selection - could update styleConfig
+            }} 
+          />
+        );
+      case 'layout-editor':
+        return (
+          <div className="h-96 overflow-hidden">
+            <LayoutDesigner 
+              initialLayout={layoutElements}
+              onLayoutChange={setLayoutElements}
+              onSave={(layout, style) => {
+                setLayoutElements(layout);
+                setStyleConfig(style);
+              }}
+            />
+          </div>
+        );
+      case 'photo':
+        const handleImageSelect = (imageSrc: string) => {
+          updatePersonalData({ ...personalData, profileImage: imageSrc });
+        };
+        return (
+          <MediaManager 
+            onImageSelect={handleImageSelect} 
+            currentImage={personalData?.profileImage} 
+            aspectRatio={1}
+            shape="circle"
+          />
+        );
+      default:
+        return (
+          <StyleEditor 
+            config={styleConfig} 
+            onChange={setStyleConfig} 
+            sections={['colors', 'typography', 'layout', 'spacing']} 
+            showPresets={true} 
+            compact={true} 
+          />
+        );
+    }
+  };
+  // Function to render content for the left column based on active tab
+  const renderDesignToolContent = () => {
+    switch (activeDesignerTab) {
+      case 'layout-style':
+        return (
+          <StyleEditor 
+            config={styleConfig} 
+            onChange={setStyleConfig} 
+            sections={['layout', 'spacing']} 
+            showPresets={true} 
+            compact={true} 
+          />
+        );
+      case 'typography':
+        return (
+          <StyleEditor 
+            config={styleConfig} 
+            onChange={setStyleConfig} 
+            sections={['typography']} 
+            showPresets={true} 
+            compact={true} 
+          />
+        );
+      case 'colors':
+        return (
+          <StyleEditor 
+            config={styleConfig} 
+            onChange={setStyleConfig} 
+            sections={['colors']} 
+            showPresets={true} 
+            compact={true} 
+          />
+        );
+      case 'elements':
+        return (
+          <div className="p-4 text-gray-600">
+            <h3 className="font-medium text-gray-900 mb-2">Elemente-Einstellungen</h3>
+            <p className="text-sm">Hier könnten zukünftig Einstellungen für einzelne CV-Elemente (z.B. Icons, Linien, Abstände zwischen Elementen) vorgenommen werden.</p>
+            <p className="mt-2 text-xs text-gray-500">Diese Funktion ist noch in Entwicklung.</p>
+          </div>
+        );
+      case 'design-templates':
+        // Create mock CV data from LebenslaufContext
+        const mockCVData = {
+          personalData: {
+            firstName: personalData?.vorname || '',
+            lastName: personalData?.nachname || '',
+            email: personalData?.email || '',
+            phone: personalData?.telefon || '',
+            address: personalData?.adresse || '',
+            profession: personalData?.profession || '',
+            summary: personalData?.summary || '',
+            profileImage: personalData?.profileImage
+          },
+          workExperience: [],
+          education: [],
+          skills: [],
+          languages: []
+        };
+        return (
+          <TemplateMatchingAssistant 
+            cvData={mockCVData}
+            onTemplateSelect={(template) => {
+              console.log('Template selected:', template);
+              // Handle template selection - could update styleConfig
+            }} 
+          />
+        );
+      case 'layout-editor':
+        return (
+          <div className="h-96 overflow-hidden">
+            <LayoutDesigner 
+              initialLayout={layoutElements}
+              onLayoutChange={setLayoutElements}
+              onSave={(layout, style) => {
+                setLayoutElements(layout);
+                setStyleConfig(style);
+              }}
+            />
+          </div>
+        );
+      case 'photo':
+        const handleImageSelect = (imageSrc: string) => {
+          updatePersonalData({ ...personalData, profileImage: imageSrc });
+        };
+        return (
+          <MediaManager 
+            onImageSelect={handleImageSelect} 
+            currentImage={personalData?.profileImage} 
+            aspectRatio={1}
+            shape="circle"
+          />
+        );
+      default:
+        return (
+          <StyleEditor 
+            config={styleConfig} 
+            onChange={setStyleConfig} 
+            sections={['colors', 'typography', 'layout', 'spacing']} 
+            showPresets={true} 
+            compact={true} 
+          />
+        );
+    }
+  };
   return (
     <div className="w-full flex flex-col gap-6 relative overflow-hidden py-8">
           {/* Header with tab navigation */}
@@ -84,12 +335,7 @@ export default function DesignerPage({ styleConfig, setStyleConfig }: DesignerPa
                   <h2 className="text-lg font-semibold text-gray-900">Design-Werkzeuge</h2>
                 </div>
                 
-                {/* Use StyleEditor component here */}
-                <StyleEditor 
-                  config={styleConfig} 
-                  onChange={setStyleConfig}
-                  sections={['colors', 'typography', 'layout', 'spacing']}
-                  showPresets={true}
+                {renderDesignToolContent()}
                   compact={true}
                 />
               </div>
@@ -104,7 +350,6 @@ export default function DesignerPage({ styleConfig, setStyleConfig }: DesignerPa
                 </div>
                 
                 {/* Use CVPreview component here */}
-                <div className="h-full overflow-auto">
                   <CVPreview styleConfig={styleConfig} />
                 </div>
               </div>
