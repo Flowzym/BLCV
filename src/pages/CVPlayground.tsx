@@ -1,11 +1,11 @@
 /**
- * CV Playground – Integration der Headless Preview
+ * CV Playground – Headless Integration
  * Holt Daten aus LebenslaufContext, mappt sie mit Adapter und zeigt sie in der CVPreview
  */
 
 import React, { useContext } from "react";
-import { LebenslaufContext } from "@/components/LebenslaufContext"; 
-import { CVPreview } from "@/modules/cv-designer/components/CVPreview";
+import { LebenslaufContext } from "@/components/LebenslaufContext";
+import CVPreview from "@/modules/cv-designer/components/CVPreview";
 import { mapBetterLetterToDesigner } from "@/modules/cv-designer/services/mapBetterLetterToDesigner";
 
 const CVPlayground: React.FC = () => {
@@ -29,7 +29,7 @@ const CVPlayground: React.FC = () => {
 
   return (
     <div className="flex w-full h-full">
-      {/* Sidebar links, wenn vorhanden */}
+      {/* Sidebar links (Platzhalter für spätere Tools/Settings/Templates) */}
       <div className="w-1/4 border-r p-4">
         <h3 className="font-bold mb-2">Playground Steuerung</h3>
         <p className="text-sm text-gray-600">
@@ -38,7 +38,7 @@ const CVPlayground: React.FC = () => {
       </div>
 
       {/* Hauptbereich mit Vorschau */}
-      <div className="flex-1 p-6 overflow-auto">
+      <div className="flex-1 p-6 overflow-auto bg-gray-50">
         <CVPreview sections={sections} />
       </div>
     </div>
