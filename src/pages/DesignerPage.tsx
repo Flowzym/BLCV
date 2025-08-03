@@ -24,10 +24,6 @@ import { MediaManager } from "../components/MediaManager";
 import { TemplateSelector } from "../modules/cv-designer/components/TemplateSelector";
 import { useLebenslauf } from "../components/LebenslaufContext";
 import UploadPanel from "../modules/cv-designer/components/UploadPanel";
-import * as Mapper from "@/modules/cv-designer/services/mapBetterLetterWithTemplate";
-const { mapBetterLetterToDesignerWithTemplate } = Mapper;
-console.log("🔎 Mapper:", Mapper);
-
 
 interface DesignerPageProps {
   styleConfig: StyleConfig;
@@ -215,6 +211,7 @@ export default function DesignerPage({
               console.log("CV Data imported:", cvData);
               const normalized = normalizeCVData(cvData)
               updatePersonalData(normalized.personalData)
+              const const mappedLayout = mapBetterLetterToDesignerWithTemplate(normalized, "classic")
               setLayoutElements(mappedLayout)
             }}
           />
