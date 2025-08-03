@@ -7,5 +7,6 @@ export function getTemplateCategories() {
 }
 
 export function getTemplateById(id: string) {
-  return predefinedTemplates.find((tpl) => tpl.id === id)
+  // Sicherstellen, dass immer ein Template zurückkommt
+  return predefinedTemplates.find((tpl) => tpl.id === id) || classicTemplate
 }
