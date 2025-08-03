@@ -1,5 +1,6 @@
 /**
- * CV Preview – nutzt StyleConfig + LayoutElements für echte Layout-Positionen
+ * CV Preview – nutzt StyleConfig + Template Layouts
+ * Inhalte aus LebenslaufContext werden in LayoutElements injiziert
  */
 
 import React from "react";
@@ -10,7 +11,7 @@ import { useLebenslauf } from "@/components/LebenslaufContext";
 import { mapBetterLetterToDesigner } from "../services/mapBetterLetterToDesigner";
 
 interface CVPreviewProps {
-  layoutElements?: LayoutElement[]; // vom Template
+  layoutElements?: LayoutElement[];
   styleConfig?: StyleConfig;
   className?: string;
 }
@@ -24,20 +25,66 @@ const CVPreview: React.FC<CVPreviewProps> = ({
   const { personalData, berufserfahrung, ausbildung, skills, softskills } =
     useLebenslauf();
 
-  // Konvertiere Daten zu Sections (falls kein Template-Layout übergeben wurde)
-  const mappedSections = React.useMemo(() => {
-    return mapBetterLetterToDesigner({
-      personalData,
-      berufserfahrung,
-      ausbildung,
-      skills,
-      softskills,
-    });
-  }, [personalData, berufserfahrung, ausbildung, skills, softskills]);
+  // Template-Layout + Inhalte zusammenführen
+  const sectionsToRender = React.useMemo(() => {
+    if (layoutElements.length > 0) {
+      return layoutElements.map((el) => {
+        let content = "";
 
-  // Verwende LayoutElements aus Template oder fallback auf gemappte Daten
-  const sectionsToRender =
-    layoutElements.length > 0 ? layoutElements : mappedSections;
+        switch (el.type) {
+          case "profil":
+            content = [
+              personalData?.vorname,
+              personalData?.nachname,
+              personalData?.email,
+              personalData?.telefon,
+              personalData?.geburtsland,
+            ]
+              .filter(Boolean)
+              .join("\n");
+            break;
+          case "erfahrung":
+            content = berufserfahrung
+              .map(
+                (e) =>
+                  `${e.position} @ ${e.companies.join(", ")} (${e.von} – ${
+                    e.bis
+                  })\n${e.aufgabenbereiche?.join("\n") || ""}`
+              )
+              .join("\n\n");
+            break;
+          case "ausbildung":
+            content = ausbildung
+              .map(
+                (a) =>
+                  `${a.ausbildungsart} – ${a.institution} (${a.von} – ${a.bis})`
+              )
+              .join("\n\n");
+            break;
+          case "kenntnisse":
+            content = skills.join(", ");
+            break;
+          case "softskills":
+            content = softskills.join(", ");
+            break;
+          case "photo":
+            content = personalData?.profileImage || "";
+            break;
+        }
+
+        return { ...el, content };
+      });
+    } else {
+      // Fallback: Standard Mapping (einspaltig)
+      return mapBetterLetterToDesigner({
+        personalData,
+        berufserfahrung,
+        ausbildung,
+        skills,
+        softskills,
+      });
+    }
+  }, [layoutElements, personalData, berufserfahrung, ausbildung, skills, softskills]);
 
   const safeStyleConfig = styleConfig || defaultStyleConfig;
 
