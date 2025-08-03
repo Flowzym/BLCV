@@ -32,6 +32,25 @@ interface DesignerPageProps {
   setLayoutElements: (elements: LayoutElement[]) => void;
 }
 
+
+function normalizeCVData(cvData: any) {
+  if (!cvData.personalData) return cvData
+  const pd = cvData.personalData
+  return {
+    ...cvData,
+    personalData: {
+      vorname: pd.firstName || pd.vorname || "",
+      nachname: pd.lastName || pd.nachname || "",
+      email: pd.email || "",
+      telefon: pd.phone || "",
+      adresse: pd.address || "",
+      profession: pd.profession || "",
+      summary: pd.summary || "",
+      profileImage: pd.profileImage || ""
+    }
+  }
+}
+
 export default function DesignerPage({
   styleConfig,
   setStyleConfig,
@@ -190,10 +209,9 @@ export default function DesignerPage({
             }}
             onCVDataImport={(cvData) => {
               console.log("CV Data imported:", cvData);
-              if (cvData.personalData) {
-                updatePersonalData(cvData.personalData)
-              }
-              const mappedLayout = mapBetterLetterToDesignerWithTemplate(cvData, "classic")
+              const normalized = normalizeCVData(cvData)
+              updatePersonalData(normalized.personalData)
+              const mappedLayout = mapBetterLetterToDesignerWithTemplate(normalized, "classic")
               setLayoutElements(mappedLayout)
             }}
           />
