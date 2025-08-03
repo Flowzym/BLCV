@@ -9,10 +9,10 @@ interface TemplateSelectorProps {
   showCategories?: boolean;
 }
 
-const TemplateSelector: React.FC<TemplateSelectorProps> = ({
+export const TemplateSelector: React.FC<TemplateSelectorProps> = ({
   onSelect,
   selectedTemplateId,
-  showCategories = false, // Default: kein Kategorien-Filter
+  showCategories = false,
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
 
@@ -51,5 +51,3 @@ const TemplateSelector: React.FC<TemplateSelectorProps> = ({
     </div>
   );
 };
-
-export default TemplateSelector;
