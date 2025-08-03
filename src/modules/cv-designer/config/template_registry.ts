@@ -1,11 +1,21 @@
-// PATCH: Added function registerSavedTemplates to merge localStorage templates at runtime.
+// Template Registry – zentrale Sammlung aller verfügbaren Templates
+import { Template } from "../types/template"
+import { classicTemplate } from "./predefinedTemplates"
 
-import { SavedTemplate } from "../hooks/useTemplateStorage";
+// 👉 Liste aller Templates, erweiterbar
+export const predefinedTemplates: Template[] = [
+  classicTemplate,
+  // weitere Templates hier hinzufügen
+]
 
-export const registerSavedTemplates = (saved: SavedTemplate[]) => {
-  saved.forEach((tpl) => {
-    if (!templateRegistry.find((t) => t.id === tpl.id)) {
-      templateRegistry.push({ id: tpl.id, name: tpl.name, layout: tpl.layout, style: tpl.style });
-    }
-  });
-};
+// 👉 Hole Template anhand der ID
+export function getTemplateById(id: string): Template | undefined {
+  return predefinedTemplates.find(t => t.id === id)
+}
+
+// 👉 Hole alle verfügbaren Kategorien (z. B. "classic", "modern")
+export function getTemplateCategories(): string[] {
+  return Array.from(
+    new Set(predefinedTemplates.map(t => t.category || "default"))
+  )
+}
