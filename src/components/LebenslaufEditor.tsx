@@ -108,8 +108,6 @@ export default function LebenslaufEditor({
   profileSourceMappings?: ProfileSourceMapping[];
 }) {
   return (
-    <LebenslaufProvider>
-      <LebenslaufEditorContent profileSourceMappings={profileSourceMappings} />
-    </LebenslaufProvider>
+    <LebenslaufEditorContent profileSourceMappings={profileSourceMappings} />
   );
 }

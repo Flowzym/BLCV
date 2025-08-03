@@ -589,17 +589,15 @@ function HomePage() {
 
 function App() {
   return (
-    <Routes>
-      <Route path="/" element={<HomePage />} />
-      <Route path="/designer" element={<DesignerPage />} />
-      <Route path="/playground" element={<CVPlayground />} />
-      <Route path="/settings" element={
-        <LebenslaufProvider>
-          <SettingsPage />
-        </LebenslaufProvider>
-      } />
-      <Route path="/style-test" element={<StyleTest />} />
-    </Routes>
+    <LebenslaufProvider>
+      <Routes>
+        <Route path="/" element={<HomePage />} />
+        <Route path="/designer" element={<DesignerPage />} />
+        <Route path="/playground" element={<CVPlayground />} />
+        <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/style-test" element={<StyleTest />} />
+      </Routes>
+    </LebenslaufProvider>
   );
 }
 export default App;
