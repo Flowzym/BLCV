@@ -56,8 +56,8 @@ const CVPreview: React.FC<CVPreviewProps> = ({
         personalData,
         erfahrung,
         ausbildung,
-        kenntnisse: skills || [],
-        softskills: softskills || []
+        kenntnisse,
+        softskills
       },
       selectedTemplateId || "classic"
     );
