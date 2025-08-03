@@ -24,6 +24,7 @@ import { MediaManager } from "../components/MediaManager";
 import { TemplateSelector } from "../modules/cv-designer/components/TemplateSelector";
 import { useLebenslauf } from "../components/LebenslaufContext";
 import UploadPanel from "../modules/cv-designer/components/UploadPanel";
+import { mapBetterLetterToDesignerWithTemplate } from "../modules/cv-designer/services/mapBetterLetterWithTemplate";
 
 interface DesignerPageProps {
   styleConfig: StyleConfig;
