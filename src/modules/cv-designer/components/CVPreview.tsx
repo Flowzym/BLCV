@@ -1,7 +1,5 @@
 /**
- * Übergangs-Version der CV Preview
- * Beibehaltung von Layout/Features (Mehrspalten, Styles, Badges, Profilbild)
- * Bereinigung der Objekt-Renderer -> nur noch Strings/Text aus Adapter
+ * CV Preview – nutzt StyleConfig + LayoutElements für echte Layout-Positionen
  */
 
 import React from "react";
@@ -12,26 +10,21 @@ import { useLebenslauf } from "@/components/LebenslaufContext";
 import { mapBetterLetterToDesigner } from "../services/mapBetterLetterToDesigner";
 
 interface CVPreviewProps {
-  sections?: LayoutElement[]; // Optional - will be overridden by LebenslaufContext data
+  layoutElements?: LayoutElement[]; // vom Template
   styleConfig?: StyleConfig;
   className?: string;
 }
 
 const CVPreview: React.FC<CVPreviewProps> = ({
-  sections: propSections = [],
+  layoutElements = [],
   styleConfig,
   className = "",
 }) => {
   // Hole Daten aus LebenslaufContext
-  const { 
-    personalData, 
-    berufserfahrung, 
-    ausbildung, 
-    skills, 
-    softskills 
-  } = useLebenslauf();
+  const { personalData, berufserfahrung, ausbildung, skills, softskills } =
+    useLebenslauf();
 
-  // Konvertiere BetterLetter-Daten zu LayoutElement[] via Adapter
+  // Konvertiere Daten zu Sections (falls kein Template-Layout übergeben wurde)
   const mappedSections = React.useMemo(() => {
     return mapBetterLetterToDesigner({
       personalData,
@@ -42,12 +35,14 @@ const CVPreview: React.FC<CVPreviewProps> = ({
     });
   }, [personalData, berufserfahrung, ausbildung, skills, softskills]);
 
-  // Verwende gemappte Sections, fallback auf prop sections
-  const sectionsToRender = mappedSections.length > 0 ? mappedSections : propSections;
-  
+  // Verwende LayoutElements aus Template oder fallback auf gemappte Daten
+  const sectionsToRender =
+    layoutElements.length > 0 ? layoutElements : mappedSections;
+
   const safeStyleConfig = styleConfig || defaultStyleConfig;
 
   const containerStyle: React.CSSProperties = {
+    position: "relative",
     fontFamily: safeStyleConfig.fontFamily || "Arial",
     fontSize:
       safeStyleConfig.fontSize === "small"
@@ -56,7 +51,6 @@ const CVPreview: React.FC<CVPreviewProps> = ({
         ? "18px"
         : "16px",
     lineHeight: safeStyleConfig.lineHeight || 1.5,
-    padding: safeStyleConfig.padding || "16px",
     borderRadius: safeStyleConfig.borderRadius,
     border: safeStyleConfig.border,
     boxShadow: safeStyleConfig.boxShadow,
@@ -66,6 +60,8 @@ const CVPreview: React.FC<CVPreviewProps> = ({
       ? `${safeStyleConfig.widthPercent}%`
       : "210mm",
     minHeight: "297mm", // A4
+    margin: "0 auto",
+    overflow: "hidden",
   };
 
   const renderBadgeList = (items: string[] = []) => (
@@ -92,33 +88,41 @@ const CVPreview: React.FC<CVPreviewProps> = ({
       {sectionsToRender.map((section) => (
         <div
           key={section.id}
-          style={{ marginBottom: "1.5rem", pageBreakInside: "avoid" }}
+          style={{
+            position: "absolute",
+            top: section.y ?? 0,
+            left: section.x ?? 0,
+            width: section.width ?? "auto",
+            height: section.height ?? "auto",
+            padding: safeStyleConfig.padding || "8px",
+            boxSizing: "border-box",
+          }}
         >
-          {section.title && (
-            <h2 
-              style={{ 
-                fontSize: "1.25em", 
-                marginBottom: "0.5rem",
+          {section.title && section.type !== "photo" && (
+            <h2
+              style={{
+                fontSize: "1.1em",
+                marginBottom: "0.25rem",
                 color: safeStyleConfig.primaryColor || "#1e40af",
-                borderBottom: `2px solid ${safeStyleConfig.accentColor || "#3b82f6"}`,
-                paddingBottom: "0.25rem"
+                borderBottom: `1px solid ${
+                  safeStyleConfig.accentColor || "#3b82f6"
+                }`,
               }}
             >
               {section.title}
             </h2>
           )}
 
-          {/* Profilbild separat behandeln */}
+          {/* Profilbild */}
           {section.type === "photo" && section.content ? (
             <img
               src={section.content}
               alt="Profilfoto"
               style={{
-                width: "120px",
-                height: "120px",
+                width: "100%",
+                height: "100%",
                 objectFit: "cover",
                 borderRadius: "50%",
-                marginBottom: "1rem",
               }}
             />
           ) : null}
@@ -133,7 +137,6 @@ const CVPreview: React.FC<CVPreviewProps> = ({
                 .filter(Boolean)
             )
           ) : (
-            // Default: Textblock für alle anderen Sections
             section.content &&
             typeof section.content === "string" && (
               <div style={{ whiteSpace: "pre-line", lineHeight: "1.6" }}>
@@ -144,15 +147,17 @@ const CVPreview: React.FC<CVPreviewProps> = ({
         </div>
       ))}
 
-      {/* Fallback wenn keine Sections vorhanden */}
       {sectionsToRender.length === 0 && (
-        <div style={{ 
-          textAlign: "center", 
-          color: "#6b7280", 
-          padding: "2rem",
-          fontStyle: "italic"
-        }}>
-          Keine Lebenslaufdaten vorhanden. Bitte füllen Sie die Felder im Lebenslauf-Editor aus.
+        <div
+          style={{
+            textAlign: "center",
+            color: "#6b7280",
+            padding: "2rem",
+            fontStyle: "italic",
+          }}
+        >
+          Keine Lebenslaufdaten vorhanden. Bitte füllen Sie die Felder im
+          Lebenslauf-Editor aus.
         </div>
       )}
     </div>
