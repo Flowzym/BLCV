@@ -1,27 +1,8 @@
 import React from "react";
-import { useLebenslauf } from "@/components/LebenslaufContext";
 import CVPreview from "@/modules/cv-designer/components/CVPreview";
-import { mapBetterLetterToDesigner } from "@/modules/cv-designer/services/mapBetterLetterToDesigner";
+import { defaultStyleConfig } from "@/modules/cv-designer/config/defaultStyleConfig";
 
 const CVPlayground: React.FC = () => {
-  // Daten aus Custom Hook holen
-  const {
-    personalData,
-    berufserfahrung,
-    ausbildung,
-    skills,
-    softskills,
-  } = useLebenslauf();
-
-  // Adapter wandelt Daten -> LayoutElement[]
-  const sections = mapBetterLetterToDesigner({
-    personalData,
-    berufserfahrung,
-    ausbildung,
-    skills,
-    softskills,
-  });
-
   return (
     <div className="flex w-full h-full">
       <div className="w-1/4 border-r p-4">
@@ -32,7 +13,7 @@ const CVPlayground: React.FC = () => {
       </div>
 
       <div className="flex-1 p-6 overflow-auto bg-gray-50">
-        <CVPreview sections={sections} />
+        <CVPreview styleConfig={defaultStyleConfig} />
       </div>
     </div>
   );
