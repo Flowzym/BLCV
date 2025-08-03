@@ -1,61 +1,65 @@
-import { mapBetterLetterToDesigner } from "./mapBetterLetterToDesigner"
-import { getTemplateById } from "../modules/templates/template_registry"
-import { LayoutElement, Section } from "../types/section"
+import { LayoutElement } from "../types/section"
+import { getTemplateById } from "../templates"
 
-/**
- * Map BetterLetter data into a CV-Designer layout with a given template
- * - Nutzt das Template-Layout
- * - Befüllt passende Sections nach type
- * - Hängt nicht gemappte Sections automatisch unten an
- */
-export function mapBetterLetterToDesignerWithTemplate(data: any, templateId: string): LayoutElement[] {
-  // 1. Basis: Section-Daten aus BetterLetter
-  const sections: Section[] = mapBetterLetterToDesigner(data)
-
-  // 2. Template holen
+export function mapBetterLetterToDesignerWithTemplate(cvData: any, templateId: string): LayoutElement[] {
   const template = getTemplateById(templateId)
-  if (!template) {
-    console.warn(`Template ${templateId} not found, falling back to default layout`)
-    return sections.map((s, idx) => ({
-      id: s.id,
-      type: s.type,
-      title: s.title,
-      content: s.content,
-      x: 0,
-      y: idx * 120,
-      width: 600,
-      height: 100,
-    }))
-  }
+  if (!template) return []
 
-  // 3. Template-Layout mappen
-  const usedTypes = new Set<string>()
-  const mappedLayout: LayoutElement[] = template.layout.map((element) => {
-    const match = sections.find((s) => s.type === element.type)
-    if (match) usedTypes.add(match.type)
-
-    return {
-      ...element,
-      content: match ? match.content : "",
-      title: match ? match.title : element.title,
+  return template.layout.map((el) => {
+    try {
+      switch (el.type) {
+        case "profil":
+          return {
+            ...el,
+            content: [
+              cvData.personalData?.vorname || cvData.personalData?.firstName || "",
+              cvData.personalData?.nachname || cvData.personalData?.lastName || "",
+              cvData.personalData?.email || "",
+              cvData.personalData?.telefon || cvData.personalData?.phone || "",
+              cvData.personalData?.adresse || cvData.personalData?.address || "",
+              cvData.personalData?.profession || "",
+              cvData.personalData?.summary || ""
+            ].filter(Boolean).join("\n")
+          }
+        case "erfahrung":
+          return {
+            ...el,
+            content: (cvData.workExperience || cvData.erfahrung || [])
+              .map((exp: any) =>
+                `${exp.position || ""} @ ${exp.company || ""} (${exp.startDate || ""} – ${exp.endDate || "heute"})`
+              )
+              .join("\n")
+          }
+        case "ausbildung":
+          return {
+            ...el,
+            content: (cvData.education || cvData.ausbildung || [])
+              .map((edu: any) =>
+                `${edu.degree || ""} - ${edu.institution || ""} (${edu.startDate || ""} – ${edu.endDate || ""})`
+              )
+              .join("\n")
+          }
+        case "kenntnisse":
+          return {
+            ...el,
+            content: (cvData.skills || cvData.kenntnisse || []).join(", ")
+          }
+        case "softskills":
+          return {
+            ...el,
+            content: (cvData.softskills || []).join(", ")
+          }
+        case "portfolio":
+          return {
+            ...el,
+            content: (cvData.portfolio || []).map((p: any) => p.title || "").join(", ")
+          }
+        default:
+          return { ...el, content: "" }
+      }
+    } catch (err) {
+      console.error("❌ Fehler beim Mapping Element:", el, err)
+      return { ...el, content: "" }
     }
   })
-
-  // 4. Nicht gemappte Sections anhängen (unten unterhalb vom größten Y)
-  const maxY = mappedLayout.reduce((acc, el) => Math.max(acc, el.y + el.height), 0)
-
-  const extraSections: LayoutElement[] = sections
-    .filter((s) => !usedTypes.has(s.type))
-    .map((s, idx) => ({
-      id: `${s.id}-extra`,
-      type: s.type,
-      title: s.title,
-      content: s.content,
-      x: 0,
-      y: maxY + idx * 120,
-      width: 600,
-      height: 100,
-    }))
-
-  return [...mappedLayout, ...extraSections]
 }
