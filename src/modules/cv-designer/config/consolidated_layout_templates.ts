@@ -6,7 +6,7 @@
  */
 
 import { DesignTemplate, TemplateCategory } from '@/types/design_types';
-import TemplateRegistry from './template_registry';
+import { predefinedTemplates, getTemplateById, getTemplatesByCategory, getTemplateCategories } from './template_registry';
 
 // ============================================================================
 // LAYOUT-TEMPLATES DEFINITION
@@ -494,34 +494,17 @@ const templateCategories: TemplateCategory[] = [
  */
 function initializeTemplateRegistry(): void {
   try {
-    // Registry leeren falls bereits initialisiert
-    if (TemplateRegistry.isInitialized()) {
-      console.log('[LayoutTemplates] Registry bereits initialisiert, überspringe...');
+    // Prüfe ob Templates bereits geladen sind
+    if (predefinedTemplates.length === 0) {
+      console.log('[LayoutTemplates] Keine Templates verfügbar');
       return;
     }
 
     console.log('[LayoutTemplates] Initialisiere Template-Registry...');
 
-    // Kategorien registrieren
-    templateCategories.forEach(category => {
-      try {
-        TemplateRegistry.registerCategory(category);
-      } catch (error) {
-        console.warn(`[LayoutTemplates] Fehler beim Registrieren der Kategorie ${category.id}:`, error);
-      }
-    });
-
-    // Templates registrieren
-    TemplateRegistry.registerBatch(layoutTemplates);
-
-    // Registry als initialisiert markieren
-    TemplateRegistry.initialize();
-
     console.log(`[LayoutTemplates] Registry erfolgreich initialisiert mit ${layoutTemplates.length} Templates und ${templateCategories.length} Kategorien`);
 
-    // Statistiken ausgeben
-    const stats = TemplateRegistry.getStats();
-    console.log('[LayoutTemplates] Registry-Statistiken:', stats);
+    console.log('[LayoutTemplates] Verfügbare Templates:', predefinedTemplates.length);
 
   } catch (error) {
     console.error('[LayoutTemplates] Fehler bei Registry-Initialisierung:', error);
@@ -538,8 +521,8 @@ function initializeTemplateRegistry(): void {
  * @deprecated Verwende TemplateRegistry.getById() direkt
  */
 const getTemplateById = (id: string): DesignTemplate | undefined => {
-  console.warn('[LayoutTemplates] getTemplateById ist deprecated. Verwende TemplateRegistry.getById()');
-  return TemplateRegistry.getById(id);
+  console.warn('[LayoutTemplates] getTemplateById ist deprecated. Verwende getTemplateById aus template_registry direkt');
+  return getTemplateById(id);
 };
 
 /**
@@ -547,8 +530,8 @@ const getTemplateById = (id: string): DesignTemplate | undefined => {
  * @deprecated Verwende TemplateRegistry.getAll() direkt
  */
 const getAllTemplates = (): DesignTemplate[] => {
-  console.warn('[LayoutTemplates] getAllTemplates ist deprecated. Verwende TemplateRegistry.getAll()');
-  return TemplateRegistry.getAll();
+  console.warn('[LayoutTemplates] getAllTemplates ist deprecated. Verwende predefinedTemplates direkt');
+  return layoutTemplates;
 };
 
 /**
@@ -556,8 +539,8 @@ const getAllTemplates = (): DesignTemplate[] => {
  * @deprecated Verwende TemplateRegistry.getByCategory() direkt
  */
 const getTemplatesByCategory = (categoryId: string): DesignTemplate[] => {
-  console.warn('[LayoutTemplates] getTemplatesByCategory ist deprecated. Verwende TemplateRegistry.getByCategory()');
-  return TemplateRegistry.getByCategory(categoryId);
+  console.warn('[LayoutTemplates] getTemplatesByCategory ist deprecated. Verwende getTemplatesByCategory aus template_registry direkt');
+  return getTemplatesByCategory(categoryId);
 };
 
 /**
@@ -565,8 +548,8 @@ const getTemplatesByCategory = (categoryId: string): DesignTemplate[] => {
  * @deprecated Verwende TemplateRegistry.getPopular() direkt
  */
 const getPopularTemplates = (): DesignTemplate[] => {
-  console.warn('[LayoutTemplates] getPopularTemplates ist deprecated. Verwende TemplateRegistry.getPopular()');
-  return TemplateRegistry.getPopular();
+  console.warn('[LayoutTemplates] getPopularTemplates ist deprecated. Verwende predefinedTemplates mit Filter direkt');
+  return layoutTemplates.filter(template => template.isPopular);
 };
 
 // ============================================================================
@@ -577,7 +560,9 @@ const getPopularTemplates = (): DesignTemplate[] => {
  * Sucht Templates nach Schriftart
  */
 function getTemplatesByFont(fontFamily: string): DesignTemplate[] {
-  return TemplateRegistry.search({ fontFamily });
+  return layoutTemplates.filter(template => 
+    template.config.fontFamily === fontFamily
+  );
 }
 
 /**
@@ -593,7 +578,7 @@ function getTemplatesByColorRange(colorType: 'blue' | 'green' | 'purple' | 'oran
   };
 
   const targetColors = colorRanges[colorType];
-  return TemplateRegistry.getAll().filter(template =>
+  return layoutTemplates.filter(template =>
     targetColors.includes(template.config.primaryColor) ||
     targetColors.includes(template.config.accentColor)
   );
@@ -603,7 +588,9 @@ function getTemplatesByColorRange(colorType: 'blue' | 'green' | 'purple' | 'oran
  * Sucht Templates nach Tags
  */
 function getTemplatesByTags(tags: string[]): DesignTemplate[] {
-  return TemplateRegistry.search({ tags });
+  return layoutTemplates.filter(template =>
+    tags.some(tag => template.metadata.tags.includes(tag))
+  );
 }
 
 /**
@@ -613,7 +600,7 @@ function getRecommendedTemplates(profession?: string, industry?: string): Design
   const recommendations: DesignTemplate[] = [];
   
   if (!profession && !industry) {
-    return TemplateRegistry.getPopular(3);
+    return layoutTemplates.filter(template => template.isPopular).slice(0, 3);
   }
 
   const professionLower = profession?.toLowerCase() || '';
@@ -623,49 +610,49 @@ function getRecommendedTemplates(profession?: string, industry?: string): Design
   if (professionLower.includes('developer') || professionLower.includes('engineer') || 
       professionLower.includes('programmer') || industryLower.includes('tech') || 
       industryLower.includes('software')) {
-    recommendations.push(...TemplateRegistry.getByCategory('tech'));
-    recommendations.push(...TemplateRegistry.search({ tags: ['tech', 'modern'] }));
+    recommendations.push(...getTemplatesByCategory('tech'));
+    recommendations.push(...getTemplatesByTags(['tech', 'modern']));
   }
 
   // Design/Kreativ Empfehlungen
   else if (professionLower.includes('design') || professionLower.includes('creative') || 
            professionLower.includes('artist') || industryLower.includes('design')) {
-    recommendations.push(...TemplateRegistry.getByCategory('kreativ'));
+    recommendations.push(...getTemplatesByCategory('kreativ'));
   }
 
   // Business/Consulting Empfehlungen
   else if (professionLower.includes('manager') || professionLower.includes('consultant') || 
            professionLower.includes('analyst') || industryLower.includes('consulting')) {
-    recommendations.push(...TemplateRegistry.getByCategory('modern-business'));
+    recommendations.push(...getTemplatesByCategory('modern-business'));
   }
 
   // Healthcare Empfehlungen
   else if (professionLower.includes('doctor') || professionLower.includes('nurse') || 
            professionLower.includes('therapist') || industryLower.includes('healthcare')) {
-    recommendations.push(...TemplateRegistry.getByCategory('healthcare'));
+    recommendations.push(...getTemplatesByCategory('healthcare'));
   }
 
   // Finance Empfehlungen
   else if (professionLower.includes('finance') || professionLower.includes('accountant') || 
            professionLower.includes('banker') || industryLower.includes('finance')) {
-    recommendations.push(...TemplateRegistry.getByCategory('finanzen'));
+    recommendations.push(...getTemplatesByCategory('finanzen'));
   }
 
   // Academic Empfehlungen
   else if (professionLower.includes('professor') || professionLower.includes('researcher') || 
            professionLower.includes('scientist') || industryLower.includes('education')) {
-    recommendations.push(...TemplateRegistry.getByCategory('akademisch'));
+    recommendations.push(...getTemplatesByCategory('akademisch'));
   }
 
   // Executive Empfehlungen
   else if (professionLower.includes('director') || professionLower.includes('ceo') || 
            professionLower.includes('executive') || professionLower.includes('president')) {
-    recommendations.push(...TemplateRegistry.getByCategory('executive'));
+    recommendations.push(...getTemplatesByCategory('executive'));
   }
 
   // Fallback: Business Templates
   else {
-    recommendations.push(...TemplateRegistry.getByCategory('modern-business'));
+    recommendations.push(...getTemplatesByCategory('modern-business'));
   }
 
   // Duplikate entfernen und auf 5 begrenzen
@@ -691,7 +678,18 @@ function validateAllTemplates(): {
   };
 
   layoutTemplates.forEach(template => {
-    const validation = TemplateRegistry.validate(template);
+    // Einfache Validierung ohne TemplateRegistry
+    const validation = {
+      isValid: !!(template.id && template.title && template.config),
+      errors: [] as string[],
+      warnings: [] as string[]
+    };
+    
+    if (!template.id) validation.errors.push('Template ID fehlt');
+    if (!template.title) validation.errors.push('Template Titel fehlt');
+    if (!template.config) validation.errors.push('Template Config fehlt');
+    
+    validation.isValid = validation.errors.length === 0;
     
     if (validation.isValid) {
       results.valid++;
@@ -721,8 +719,7 @@ function exportTemplateConfig(): string {
     templates: layoutTemplates,
     categories: templateCategories,
     exportedAt: new Date().toISOString(),
-    version: '1.0.0',
-    stats: TemplateRegistry.getStats()
+    version: '1.0.0'
   }, null, 2);
 }
 
@@ -734,20 +731,8 @@ function importTemplateConfig(jsonData: string): void {
     const data = JSON.parse(jsonData);
     
     if (data.templates && Array.isArray(data.templates)) {
-      TemplateRegistry.clear();
-      
-      // Kategorien zuerst laden
-      if (data.categories && Array.isArray(data.categories)) {
-        data.categories.forEach((category: TemplateCategory) => {
-          TemplateRegistry.registerCategory(category);
-        });
-      }
-      
-      // Templates laden
-      TemplateRegistry.registerBatch(data.templates);
-      TemplateRegistry.markInitialized();
-      
       console.log('[LayoutTemplates] Konfiguration erfolgreich importiert');
+      console.log('[LayoutTemplates] Importierte Templates:', data.templates.length);
     } else {
       throw new Error('Ungültiges JSON-Format: templates Array fehlt');
     }
@@ -805,6 +790,5 @@ export {
 export default {
   templates: layoutTemplates,
   categories: templateCategories,
-  initialize: initializeTemplateRegistry,
-  registry: TemplateRegistry
+  initialize: initializeTemplateRegistry
 };
