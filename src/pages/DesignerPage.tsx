@@ -1,6 +1,7 @@
 // 📄 src/pages/DesignerPage.tsx
-// Überarbeitet – robust gegen undefined, mit Template-Speicher, Export & Inline Editing
-import React, { useState } from "react";
+// Überarbeitet – Inline Editing, Export-Buttons, Template-Speicher-Hooks + Default-Template-Fallback
+
+import React, { useState, useEffect } from "react";
 import {
   Palette,
   Eye,
@@ -13,6 +14,7 @@ import {
   Upload,
   Image as ImageIcon,
 } from "lucide-react";
+
 import CVPreview from "../modules/cv-designer/components/CVPreview";
 import { StyleEditor } from "../components/StyleEditor";
 import { StyleConfig, LayoutElement } from "../types/cv-designer";
@@ -56,19 +58,35 @@ type TabId =
 interface DesignerPageProps {
   styleConfig: StyleConfig;
   setStyleConfig: (config: StyleConfig) => void;
-  layoutElements?: LayoutElement[]; // optional, Default = []
+  layoutElements: LayoutElement[];
   setLayoutElements: (elements: LayoutElement[]) => void;
 }
 
 export default function DesignerPage({
   styleConfig,
   setStyleConfig,
-  layoutElements = [], // Default, damit nie undefined
+  layoutElements,
   setLayoutElements,
 }: DesignerPageProps) {
   const [activeDesignerTab, setActiveDesignerTab] = useState<TabId>("layout-style");
   const { personalData, updatePersonalData } = useLebenslauf();
-  const { saveTemplate } = useTemplateStorage();
+  const { saveTemplate, templates } = useTemplateStorage();
+
+  // Default-Template laden, falls keine gespeichert
+  useEffect(() => {
+    if ((!templates || templates.length === 0) && layoutElements.length === 0) {
+      const mapped =
+        mapBetterLetterToDesignerWithTemplate({ personalData: {} }, "classic") ?? [];
+
+      setLayoutElements(mapped);
+      saveTemplate({
+        id: "default-classic",
+        name: "Classic Default",
+        layout: mapped,
+        style: styleConfig,
+      });
+    }
+  }, [templates, layoutElements, setLayoutElements, saveTemplate, styleConfig]);
 
   const handleTemplateSave = () => {
     saveTemplate({
@@ -122,17 +140,11 @@ export default function DesignerPage({
         );
       case "layout-editor":
         return (
-          <LayoutDesigner
-            initialLayout={layoutElements}
-            onLayoutChange={setLayoutElements}
-          />
+          <LayoutDesigner initialLayout={layoutElements} onLayoutChange={setLayoutElements} />
         );
       case "upload":
         return (
-          <UploadPanel
-            onLayoutImport={handleLayoutImport}
-            onCVDataImport={handleCVDataImport}
-          />
+          <UploadPanel onLayoutImport={handleLayoutImport} onCVDataImport={handleCVDataImport} />
         );
       case "photo":
         return (
