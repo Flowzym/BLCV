@@ -1,7 +1,4 @@
-/**
- * Template-Specific Mapping Service
- * Maps Better_Letter CV data to CV-Designer Sections based on template layout
- */
+
 
 import { LayoutElement } from "../types/section";
 
@@ -66,9 +63,6 @@ interface BetterLetterCVData {
 
 type TemplateType = 'classic' | 'modern' | 'minimal' | 'creative';
 
-/**
- * Main mapping function - chooses template-specific mapper
- */
 export function mapBetterLetterToDesigner(
   cv: BetterLetterCVData,
   templateName: TemplateType = 'classic'
@@ -87,10 +81,6 @@ export function mapBetterLetterToDesigner(
   }
 }
 
-/**
- * Classic Template Mapper
- * Single column: profile → experience → education → skills → footer
- */
 function mapClassicTemplate(cv: BetterLetterCVData): LayoutElement[] {
   const sections: LayoutElement[] = [];
 
@@ -184,10 +174,6 @@ function mapClassicTemplate(cv: BetterLetterCVData): LayoutElement[] {
   return sections;
 }
 
-/**
- * Modern Template Mapper
- * Two columns: Sidebar (contact, skills) + Main (profile, experience, education)
- */
 function mapModernTemplate(cv: BetterLetterCVData): LayoutElement[] {
   const sections: LayoutElement[] = [];
 
@@ -300,10 +286,6 @@ function mapModernTemplate(cv: BetterLetterCVData): LayoutElement[] {
   return sections;
 }
 
-/**
- * Minimal Template Mapper
- * Ultra clean single column, no photo, inline skills
- */
 function mapMinimalTemplate(cv: BetterLetterCVData): LayoutElement[] {
   const sections: LayoutElement[] = [];
 
@@ -369,10 +351,6 @@ function mapMinimalTemplate(cv: BetterLetterCVData): LayoutElement[] {
   return sections;
 }
 
-/**
- * Creative Template Mapper
- * Asymmetrical layout with flexible positioning
- */
 function mapCreativeTemplate(cv: BetterLetterCVData): LayoutElement[] {
   const sections: LayoutElement[] = [];
 
@@ -484,10 +462,6 @@ function mapCreativeTemplate(cv: BetterLetterCVData): LayoutElement[] {
 
   return sections;
 }
-
-/**
- * Helper Functions for Content Building
- */
 
 function buildPersonalInfo(personalData: PersonalData): string {
   const info = [];
@@ -669,10 +643,6 @@ function buildEducationContent(ausbildung: Education[]): string {
   }).join('\n\n---\n\n');
 }
 
-/**
- * Legacy function for backward compatibility
- * @deprecated Use mapBetterLetterToDesigner with templateName parameter instead
- */
 export function mapBetterLetterToDesignerLegacy(cv: BetterLetterCVData): LayoutElement[] {
   console.warn('[mapBetterLetterToDesigner] Legacy function called. Use mapBetterLetterToDesigner(cv, templateName) instead.');
   return mapBetterLetterToDesigner(cv, 'classic');
