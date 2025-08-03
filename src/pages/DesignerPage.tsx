@@ -1,26 +1,21 @@
 // 📄 src/pages/DesignerPage.tsx
-// Überarbeitet von o3 – Inline Editing, Export-Buttons, Template-Speicher-Hooks
-import React, { useState, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+// Überarbeitet – robust gegen undefined, mit Template-Speicher, Export & Inline Editing
+import React, { useState } from "react";
 import {
   Palette,
   Eye,
-  Brain,
-  Sparkles,
   Layout,
   Type,
   Paintbrush,
   Layers,
-  Image as ImageIcon,
   FileText,
   Wand2,
   Upload,
-  Download,
-  Save } from "lucide-react";
+  Image as ImageIcon,
+} from "lucide-react";
 import CVPreview from "../modules/cv-designer/components/CVPreview";
 import { StyleEditor } from "../components/StyleEditor";
 import { StyleConfig, LayoutElement } from "../types/cv-designer";
-import { TemplateMatchingAssistant } from "../components/ai/TemplateMatchingAssistant";
 import { LayoutDesigner } from "../modules/cv-designer/components/LayoutDesigner";
 import { MediaManager } from "../components/MediaManager";
 import { TemplateSelector } from "../modules/cv-designer/components/TemplateSelector";
@@ -61,14 +56,14 @@ type TabId =
 interface DesignerPageProps {
   styleConfig: StyleConfig;
   setStyleConfig: (config: StyleConfig) => void;
-  layoutElements: LayoutElement[];
+  layoutElements?: LayoutElement[]; // optional, Default = []
   setLayoutElements: (elements: LayoutElement[]) => void;
 }
 
 export default function DesignerPage({
   styleConfig,
   setStyleConfig,
-  layoutElements,
+  layoutElements = [], // Default, damit nie undefined
   setLayoutElements,
 }: DesignerPageProps) {
   const [activeDesignerTab, setActiveDesignerTab] = useState<TabId>("layout-style");
@@ -143,7 +138,9 @@ export default function DesignerPage({
         return (
           <MediaManager
             currentImage={personalData?.profileImage}
-            onImageSelect={(img) => updatePersonalData({ ...personalData, profileImage: img })}
+            onImageSelect={(img) =>
+              updatePersonalData({ ...personalData, profileImage: img })
+            }
             aspectRatio={1}
             shape="circle"
           />
@@ -209,7 +206,11 @@ export default function DesignerPage({
             <ExportButtons layout={layoutElements} style={styleConfig} />
           </div>
           <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4">
-            <CVPreview styleConfig={styleConfig} layoutElements={layoutElements} templateName="classic" />
+            <CVPreview
+              styleConfig={styleConfig}
+              layoutElements={layoutElements}
+              templateName="classic"
+            />
           </div>
         </div>
       </div>
