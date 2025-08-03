@@ -51,7 +51,13 @@ const CVPreview: React.FC<CVPreviewProps> = ({
     } else if (sections && sections.length > 0) {
       elementsToUse = sections;
     } else {
-      elementsToUse = mapBetterLetterToDesignerWithTemplate(cvData, selectedTemplateId || "classic") // adjusted{
+      elementsToUse = mapBetterLetterToDesignerWithTemplate({
+      personalData,
+      erfahrung,
+      ausbildung,
+      kenntnisse: skills || [],
+      softskills: softskills || []
+    }, selectedTemplateId || "classic"){
         personalData,
         berufserfahrung,
         ausbildung,
