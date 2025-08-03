@@ -8,7 +8,7 @@ import { LayoutElement } from "../types/section";
 import { StyleConfig } from "../../../types/cv-designer";
 import { defaultStyleConfig } from "../config/defaultStyleConfig";
 import { useLebenslauf } from "@/components/LebenslaufContext";
-import { mapBetterLetterToDesignerWithTemplate } from "../services/mapBetterLetterWithTemplate";
+import { mapBetterLetterToDesigner } from "../services/mapBetterLetterToDesigner";
 import {
   renderElementToCanvas,
   A4_WIDTH,
@@ -51,16 +51,13 @@ const CVPreview: React.FC<CVPreviewProps> = ({
     } else if (sections && sections.length > 0) {
       elementsToUse = sections;
     } else {
-      elementsToUse = elementsToUse = mapBetterLetterToDesignerWithTemplate(
-      {
+      elementsToUse = mapBetterLetterToDesigner({
         personalData,
-        erfahrung,
+        berufserfahrung,
         ausbildung,
-        kenntnisse,
-        softskills
-      },
-      selectedTemplateId || "classic"
-    );
+        skills: [],
+        softskills: [],
+      }, templateName);
     }
 
     return elementsToUse.map((el) => {
