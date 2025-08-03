@@ -6,7 +6,8 @@
 import React, { useState } from 'react';
 import { StyleConfig } from '../../../types/cv-designer';
 import { LayoutElement } from '../types/section';
-import { predefinedTemplates, PredefinedTemplate, getTemplateCategories } from '../config/template_registry';
+import { predefinedTemplates, getTemplateCategories } from '../config/template_registry';
+import type { PredefinedTemplate } from '../config/template_registry';
 import { Eye, Check, Filter } from 'lucide-react';
 
 interface TemplateSelectorProps {
