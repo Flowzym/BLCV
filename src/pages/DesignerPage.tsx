@@ -211,7 +211,7 @@ export default function DesignerPage({
               console.log("CV Data imported:", cvData);
               const normalized = normalizeCVData(cvData)
               updatePersonalData(normalized.personalData)
-              const const mappedLayout = mapBetterLetterToDesignerWithTemplate(normalized, "classic")
+              const mappedLayout = mapBetterLetterToDesignerWithTemplate(normalized, "classic")
               setLayoutElements(mappedLayout)
             }}
           />
