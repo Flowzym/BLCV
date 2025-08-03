@@ -1,5 +1,8 @@
 import React, { useState } from "react";
-import { predefinedTemplates, getTemplateCategories } from "../config/template_registry";
+import {
+  predefinedTemplates,
+  getTemplateCategories,
+} from "../config/template_registry";
 import type { PredefinedTemplate } from "../config/template_registry";
 import TemplateThumbnail from "./TemplateThumbnail";
 
@@ -22,7 +25,7 @@ export const TemplateSelector: React.FC<TemplateSelectorProps> = ({
       : predefinedTemplates.filter((tpl) => tpl.category === selectedCategory);
 
   return (
-    <div className="w-full h-full overflow-y-auto p-2 space-y-4">
+    <div className="w-full h-full overflow-y-auto p-2">
       {showCategories && (
         <select
           value={selectedCategory}
@@ -38,16 +41,18 @@ export const TemplateSelector: React.FC<TemplateSelectorProps> = ({
         </select>
       )}
 
-      {filteredTemplates.map((tpl) => (
-        <TemplateThumbnail
-          key={tpl.id}
-          name={tpl.name}
-          layout={tpl.layout}
-          styleConfig={tpl.styleConfig}
-          isSelected={selectedTemplateId === tpl.id}
-          onClick={() => onSelect(tpl)}
-        />
-      ))}
+      <div className="grid grid-cols-3 gap-4">
+        {filteredTemplates.map((tpl) => (
+          <TemplateThumbnail
+            key={tpl.id}
+            name={tpl.name}
+            layout={tpl.layout}
+            styleConfig={tpl.styleConfig}
+            isSelected={selectedTemplateId === tpl.id}
+            onClick={() => onSelect(tpl)}
+          />
+        ))}
+      </div>
     </div>
   );
 };
