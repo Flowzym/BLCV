@@ -11,6 +11,8 @@ interface TemplateThumbnailProps {
   onClick?: () => void;
 }
 
+const aspectRatio = A4_HEIGHT / A4_WIDTH; // A4 Verhältnis ≈ 1.414
+
 const TemplateThumbnail: React.FC<TemplateThumbnailProps> = ({
   name,
   layout,
@@ -24,22 +26,30 @@ const TemplateThumbnail: React.FC<TemplateThumbnailProps> = ({
       className={`w-full rounded-md border ${
         isSelected ? "border-blue-500 shadow-md" : "border-gray-300"
       } cursor-pointer overflow-hidden`}
-      style={{ height: 160, background: "#fff" }}
     >
-      {/* Mini Preview Canvas */}
       <div
         style={{
-          width: "100%",
-          height: "100%",
           position: "relative",
-          backgroundColor: "#fafafa",
+          width: "100%",
+          paddingTop: `${aspectRatio * 100}%`, // Höhe nach A4-Verhältnis
+          backgroundColor: "#fff",
         }}
       >
+        {/* Layout Elemente */}
         {layout.map((el) => {
           const left = (el.x / A4_WIDTH) * 100;
           const top = (el.y / A4_HEIGHT) * 100;
           const width = (el.width / A4_WIDTH) * 100;
           const height = ((el.height || 100) / A4_HEIGHT) * 100;
+
+          let bg = "#d1d5db"; // Standard grau
+          if (el.type === "photo") bg = "#9ca3af"; // Foto = dunkler Kreis
+          if (["kenntnisse", "skills", "softskills"].includes(el.type))
+            bg = "#93c5fd"; // Skills = blau
+          if (["profil", "personal"].includes(el.type))
+            bg = "#f3f4f6"; // Header/Profil = hellgrau
+          if (["erfahrung", "experience"].includes(el.type))
+            bg = "#cbd5e1"; // Erfahrung = etwas dunkler
 
           return (
             <div
@@ -50,10 +60,9 @@ const TemplateThumbnail: React.FC<TemplateThumbnailProps> = ({
                 top: `${top}%`,
                 width: `${width}%`,
                 height: `${height}%`,
-                backgroundColor: styleConfig.accentColor || "#3b82f6",
-                opacity: 0.2,
-                border: "1px solid #d1d5db",
-                borderRadius: "2px",
+                backgroundColor: bg,
+                border: "1px solid #e5e7eb",
+                borderRadius: el.type === "photo" ? "50%" : "2px",
               }}
             />
           );
