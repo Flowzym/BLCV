@@ -26,17 +26,11 @@ import { useLebenslauf } from "../components/LebenslaufContext";
 import UploadPanel from "../modules/cv-designer/components/UploadPanel";
 import { mapBetterLetterToDesignerWithTemplate } from "../modules/cv-designer/services/mapBetterLetterWithTemplate";
 
-interface DesignerPageProps {
-  styleConfig: StyleConfig;
-  setStyleConfig: (config: StyleConfig) => void;
-  layoutElements: LayoutElement[];
-  setLayoutElements: (elements: LayoutElement[]) => void;
-}
-
-
+// ----------- Hilfsfunktionen ------------
 function normalizeCVData(cvData: any) {
-  if (!cvData.personalData) return cvData
-  const pd = cvData.personalData
+  if (!cvData?.personalData) return cvData;
+
+  const pd = cvData.personalData;
   return {
     ...cvData,
     personalData: {
@@ -47,9 +41,27 @@ function normalizeCVData(cvData: any) {
       adresse: pd.address || "",
       profession: pd.profession || "",
       summary: pd.summary || "",
-      profileImage: pd.profileImage || ""
-    }
-  }
+      profileImage: pd.profileImage || "",
+    },
+  };
+}
+
+// ----------- Typen für Tabs ------------
+type TabId =
+  | "layout-style"
+  | "typography"
+  | "colors"
+  | "elements"
+  | "design-templates"
+  | "layout-editor"
+  | "upload"
+  | "photo";
+
+interface DesignerPageProps {
+  styleConfig: StyleConfig;
+  setStyleConfig: (config: StyleConfig) => void;
+  layoutElements: LayoutElement[];
+  setLayoutElements: (elements: LayoutElement[]) => void;
 }
 
 export default function DesignerPage({
@@ -59,13 +71,13 @@ export default function DesignerPage({
   setLayoutElements,
 }: DesignerPageProps) {
   const navigate = useNavigate();
-  const [activeDesignerTab, setActiveDesignerTab] = useState("layout-style");
+  const [activeDesignerTab, setActiveDesignerTab] = useState<TabId>("layout-style");
 
   // Daten aus Context
   const { personalData, updatePersonalData } = useLebenslauf();
 
   // Tabs
-  const designerTabs = [
+  const designerTabs: { id: TabId; label: string; icon: React.ElementType }[] = [
     { id: "layout-style", label: "Layout", icon: Layout },
     { id: "typography", label: "Typografie", icon: Type },
     { id: "colors", label: "Farben", icon: Paintbrush },
@@ -76,39 +88,28 @@ export default function DesignerPage({
     { id: "photo", label: "Foto", icon: ImageIcon },
   ];
 
-  // Inhalte je Tab
+  // ----------- Tab-Inhalte ------------
   const renderDesignToolContent = () => {
     switch (activeDesignerTab) {
       case "layout-style":
-        return (
-          <StyleEditor
-            config={styleConfig}
-            onChange={setStyleConfig}
-            sections={["layout", "spacing"]}
-            showPresets={true}
-            compact={true}
-          />
-        );
       case "typography":
-        return (
-          <StyleEditor
-            config={styleConfig}
-            onChange={setStyleConfig}
-            sections={["typography"]}
-            showPresets={true}
-            compact={true}
-          />
-        );
       case "colors":
         return (
           <StyleEditor
             config={styleConfig}
             onChange={setStyleConfig}
-            sections={["colors"]}
-            showPresets={true}
-            compact={true}
+            sections={
+              activeDesignerTab === "layout-style"
+                ? ["layout", "spacing"]
+                : activeDesignerTab === "typography"
+                ? ["typography"]
+                : ["colors"]
+            }
+            showPresets
+            compact
           />
         );
+
       case "elements":
         return (
           <div className="p-4 text-gray-600">
@@ -124,6 +125,7 @@ export default function DesignerPage({
             </p>
           </div>
         );
+
       case "design-templates":
         // Mock-Daten für KI-Template-Assistent
         const mockCVData = {
@@ -156,7 +158,7 @@ export default function DesignerPage({
                   setStyleConfig(style);
                   setLayoutElements(layout);
                 }}
-                compact={true}
+                compact
               />
             </div>
 
@@ -176,6 +178,7 @@ export default function DesignerPage({
             </div>
           </div>
         );
+
       case "layout-editor":
         return (
           <div className="h-96 overflow-hidden">
@@ -189,6 +192,7 @@ export default function DesignerPage({
             />
           </div>
         );
+
       case "photo":
         const handleImageSelect = (imageSrc: string) => {
           updatePersonalData({ ...personalData, profileImage: imageSrc });
@@ -201,46 +205,42 @@ export default function DesignerPage({
             shape="circle"
           />
         );
+
       case "upload":
         return (
           <UploadPanel
             onLayoutImport={(layout) => {
-              console.log('Layout imported:', layout);
+              if (!layout) return;
               setLayoutElements(layout);
             }}
             onCVDataImport={(cvData) => {
-              console.log("CV Data imported:", cvData);
-              const normalized = normalizeCVData(cvData)
-              updatePersonalData(normalized.personalData)
-              const mappedLayout = mapBetterLetterToDesignerWithTemplate(normalized, "classic")
-              setLayoutElements(mappedLayout)
+              try {
+                const normalized = normalizeCVData(cvData);
+                if (normalized?.personalData) {
+                  updatePersonalData(normalized.personalData);
+                }
+                const mappedLayout =
+                  mapBetterLetterToDesignerWithTemplate(normalized, "classic") ?? [];
+                setLayoutElements(mappedLayout);
+              } catch (err) {
+                console.error("Fehler beim Import:", err);
+              }
             }}
           />
         );
+
       default:
-        return (
-          <StyleEditor
-            config={styleConfig}
-            onChange={setStyleConfig}
-            sections={["colors", "typography", "layout", "spacing"]}
-            showPresets={true}
-            compact={true}
-          />
-        );
+        return null;
     }
   };
 
+  // ----------- Render ------------
   return (
     <div className="w-full flex flex-col gap-6 relative overflow-hidden py-8">
       {/* Header */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         <div className="flex items-center gap-2 p-4 border-b border-gray-200">
-          <Palette
-            className="h-6 w-6 mr-2"
-            style={{ color: "#F29400" }}
-            stroke="#F29400"
-            fill="none"
-          />
+          <Palette className="h-6 w-6 mr-2" style={{ color: "#F29400" }} />
           <h2 className="text-lg font-semibold text-gray-900">
             Lebenslauf Designer
           </h2>
@@ -249,27 +249,22 @@ export default function DesignerPage({
         {/* Tabs */}
         <div className="border-b border-gray-200">
           <nav className="flex space-x-8 px-4">
-            {designerTabs.map((tab) => {
-              const IconComponent = tab.icon;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveDesignerTab(tab.id)}
-                  className={`py-3 px-1 border-b-2 font-medium text-sm ${
-                    activeDesignerTab === tab.id
-                      ? "border-orange-500 text-orange-600"
-                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4">
-                      <IconComponent className="w-4 h-4" />
-                    </div>
-                    {tab.label}
-                  </div>
-                </button>
-              );
-            })}
+            {designerTabs.map(({ id, label, icon: Icon }) => (
+              <button
+                key={id}
+                onClick={() => setActiveDesignerTab(id)}
+                className={`py-3 px-1 border-b-2 font-medium text-sm ${
+                  activeDesignerTab === id
+                    ? "border-orange-500 text-orange-600"
+                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <Icon className="w-4 h-4" />
+                  {label}
+                </div>
+              </button>
+            ))}
           </nav>
         </div>
       </div>
@@ -314,7 +309,6 @@ export default function DesignerPage({
               <h2 className="text-lg font-semibold text-gray-900">Design-KI</h2>
               <Sparkles className="h-4 w-4 text-yellow-500" />
             </div>
-            {/* Platzhalter für KI Features */}
             <div className="space-y-4">
               <div className="border rounded-lg p-3 bg-purple-50">
                 <h3 className="font-medium text-purple-800 mb-2">
