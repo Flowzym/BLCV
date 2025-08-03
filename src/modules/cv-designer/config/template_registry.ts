@@ -1,392 +1,300 @@
-/**
- * Template Registry
- * Defines predefined CV templates with different layouts and styles
- */
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  Palette,
+  Eye,
+  Brain,
+  Sparkles,
+  Layout,
+  Type,
+  Paintbrush,
+  Layers,
+  Image as ImageIcon,
+  FileText,
+  Wand2,
+} from "lucide-react";
+import CVPreview from "../modules/cv-designer/components/CVPreview";
+import { StyleEditor } from "../components/StyleEditor";
+import { StyleConfig, LayoutElement } from "../types/cv-designer";
+import { TemplateMatchingAssistant } from "../components/ai/TemplateMatchingAssistant";
+import { LayoutDesigner } from "../modules/cv-designer/components/LayoutDesigner";
+import { MediaManager } from "../components/MediaManager";
+import { useLebenslauf } from "../components/LebenslaufContext";
 
-import { StyleConfig } from '../../../types/cv-designer';
-import { LayoutElement } from '../types/section';
+// 🔹 Template Imports
+import { predefinedTemplates } from "../modules/cv-designer/config/template_registry";
+import TemplateSelector from "../modules/cv-designer/components/TemplateSelector";
 
-export interface PredefinedTemplate {
-  id: string;
-  name: string;
-  description: string;
-  thumbnail: string;
+interface DesignerPageProps {
   styleConfig: StyleConfig;
-  layout: LayoutElement[];
-  category: 'classic' | 'modern' | 'minimal' | 'creative';
-  tags: string[];
+  setStyleConfig: (config: StyleConfig) => void;
+  layoutElements: LayoutElement[];
+  setLayoutElements: (elements: LayoutElement[]) => void;
 }
 
-/**
- * Predefined CV Templates with real layout differences
- */
-export const predefinedTemplates: PredefinedTemplate[] = [
-  // CLASSIC TEMPLATE - Traditional single column layout
-  {
-    id: 'classic',
-    name: 'Klassisch',
-    description: 'Traditionelles einspaltige Layout mit Foto oben und Standard-Reihenfolge der Abschnitte',
-    thumbnail: '/templates/classic.png',
-    category: 'classic',
-    tags: ['traditionell', 'einspaltig', 'konservativ'],
-    styleConfig: {
-      primaryColor: '#1f2937',
-      accentColor: '#6b7280',
-      fontFamily: 'Georgia',
-      fontSize: 'medium',
-      lineHeight: 1.6,
-      margin: 'wide',
-      backgroundColor: '#ffffff',
-      textColor: '#1f2937',
-      borderRadius: '4px',
-      sectionSpacing: 32,
-      snapSize: 20,
-      widthPercent: 100,
-      padding: '24px',
-      border: '1px solid #e5e7eb',
-      boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
-    },
-    layout: [
-      {
-        id: 'header',
-        type: 'profil',
-        title: 'Persönliche Daten',
-        content: '',
-        x: 0,
-        y: 0,
-        width: 600,
-        height: 120
-      },
-      {
-        id: 'photo',
-        type: 'photo',
-        title: 'Profilbild',
-        content: '',
-        x: 500,
-        y: 10,
-        width: 80,
-        height: 80
-      },
-      {
-        id: 'experience',
-        type: 'erfahrung',
-        title: 'Berufserfahrung',
-        content: '',
-        x: 0,
-        y: 140,
-        width: 600,
-        height: 250
-      },
-      {
-        id: 'education',
-        type: 'ausbildung',
-        title: 'Ausbildung',
-        content: '',
-        x: 0,
-        y: 410,
-        width: 600,
-        height: 150
-      },
-      {
-        id: 'skills',
-        type: 'kenntnisse',
-        title: 'Fachkompetenzen',
-        content: '',
-        x: 0,
-        y: 580,
-        width: 600,
-        height: 100
-      }
-    ]
-  },
+export default function DesignerPage({
+  styleConfig,
+  setStyleConfig,
+  layoutElements,
+  setLayoutElements,
+}: DesignerPageProps) {
+  const navigate = useNavigate();
+  const [activeDesignerTab, setActiveDesignerTab] = useState("layout-style");
 
-  // MODERN TEMPLATE - Two column layout with sidebar
-  {
-    id: 'modern',
-    name: 'Modern Zweispaltig',
-    description: 'Modernes zweispaltiges Layout mit linker Sidebar für Foto & Skills, rechte Hauptspalte für Erfahrung',
-    thumbnail: '/templates/modern.png',
-    category: 'modern',
-    tags: ['modern', 'zweispaltig', 'sidebar', 'business'],
-    styleConfig: {
-      primaryColor: '#1e40af',
-      accentColor: '#3b82f6',
-      fontFamily: 'Inter',
-      fontSize: 'medium',
-      lineHeight: 1.5,
-      margin: 'normal',
-      backgroundColor: '#ffffff',
-      textColor: '#374151',
-      borderRadius: '8px',
-      sectionSpacing: 24,
-      snapSize: 20,
-      widthPercent: 100,
-      padding: '20px',
-      border: '1px solid #e5e7eb',
-      boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
-    },
-    layout: [
-      // Left Sidebar (30% width)
-      {
-        id: 'sidebar-photo',
-        type: 'photo',
-        title: 'Profilbild',
-        content: '',
-        x: 20,
-        y: 20,
-        width: 160,
-        height: 160
-      },
-      {
-        id: 'sidebar-contact',
-        type: 'profil',
-        title: 'Kontakt',
-        content: '',
-        x: 20,
-        y: 200,
-        width: 160,
-        height: 120
-      },
-      {
-        id: 'sidebar-skills',
-        type: 'kenntnisse',
-        title: 'Skills',
-        content: '',
-        x: 20,
-        y: 340,
-        width: 160,
-        height: 200
-      },
-      {
-        id: 'sidebar-softskills',
-        type: 'softskills',
-        title: 'Soft Skills',
-        content: '',
-        x: 20,
-        y: 560,
-        width: 160,
-        height: 120
-      },
-      
-      // Main Content (70% width)
-      {
-        id: 'main-header',
-        type: 'profil',
-        title: 'Profil',
-        content: '',
-        x: 200,
-        y: 20,
-        width: 380,
-        height: 100
-      },
-      {
-        id: 'main-experience',
-        type: 'erfahrung',
-        title: 'Berufserfahrung',
-        content: '',
-        x: 200,
-        y: 140,
-        width: 380,
-        height: 300
-      },
-      {
-        id: 'main-education',
-        type: 'ausbildung',
-        title: 'Ausbildung',
-        content: '',
-        x: 200,
-        y: 460,
-        width: 380,
-        height: 180
-      }
-    ]
-  },
+  // Daten aus Context
+  const { personalData, updatePersonalData } = useLebenslauf();
 
-  // MINIMAL TEMPLATE - Ultra clean, no photo, inline skills
-  {
-    id: 'minimal',
-    name: 'Minimal Clean',
-    description: 'Sehr reduziertes einspaltige Layout ohne Foto, Fokus auf Erfahrung mit inline Skills',
-    thumbnail: '/templates/minimal.png',
-    category: 'minimal',
-    tags: ['minimal', 'clean', 'fokussiert', 'tech'],
-    styleConfig: {
-      primaryColor: '#000000',
-      accentColor: '#4b5563',
-      fontFamily: 'Inter',
-      fontSize: 'small',
-      lineHeight: 1.4,
-      margin: 'narrow',
-      backgroundColor: '#ffffff',
-      textColor: '#000000',
-      borderRadius: '0px',
-      sectionSpacing: 16,
-      snapSize: 20,
-      widthPercent: 100,
-      padding: '16px',
-      border: 'none',
-      boxShadow: 'none'
-    },
-    layout: [
-      {
-        id: 'minimal-header',
-        type: 'profil',
-        title: 'Kontakt',
-        content: '',
-        x: 0,
-        y: 0,
-        width: 600,
-        height: 80
-      },
-      {
-        id: 'minimal-experience',
-        type: 'erfahrung',
-        title: 'Berufserfahrung',
-        content: '',
-        x: 0,
-        y: 100,
-        width: 600,
-        height: 300
-      },
-      {
-        id: 'minimal-skills-inline',
-        type: 'kenntnisse',
-        title: 'Kompetenzen',
-        content: '',
-        x: 0,
-        y: 420,
-        width: 300,
-        height: 80
-      },
-      {
-        id: 'minimal-education',
-        type: 'ausbildung',
-        title: 'Ausbildung',
-        content: '',
-        x: 320,
-        y: 420,
-        width: 280,
-        height: 80
-      }
-    ]
-  },
+  // Tabs
+  const designerTabs = [
+    { id: "layout-style", label: "Layout", icon: Layout },
+    { id: "typography", label: "Typografie", icon: Type },
+    { id: "colors", label: "Farben", icon: Paintbrush },
+    { id: "elements", label: "Elemente", icon: Layers },
+    { id: "design-templates", label: "Designvorlagen", icon: FileText },
+    { id: "layout-editor", label: "Layout Editor", icon: Wand2 },
+    { id: "photo", label: "Foto", icon: ImageIcon },
+  ];
 
-  // CREATIVE TEMPLATE - Asymmetric layout with creative elements
-  {
-    id: 'creative',
-    name: 'Kreativ Asymmetrisch',
-    description: 'Kreatives asymmetrisches Layout mit Foto rechts und flexibler Abschnitt-Anordnung',
-    thumbnail: '/templates/creative.png',
-    category: 'creative',
-    tags: ['kreativ', 'asymmetrisch', 'designer', 'auffällig'],
-    styleConfig: {
-      primaryColor: '#7c3aed',
-      accentColor: '#f59e0b',
-      fontFamily: 'Montserrat',
-      fontSize: 'large',
-      lineHeight: 1.7,
-      margin: 'wide',
-      backgroundColor: '#fefefe',
-      textColor: '#1f2937',
-      borderRadius: '12px',
-      sectionSpacing: 28,
-      snapSize: 20,
-      widthPercent: 100,
-      padding: '28px',
-      border: '2px solid #e5e7eb',
-      boxShadow: '0 8px 25px rgba(0, 0, 0, 0.15)'
-    },
-    layout: [
-      {
-        id: 'creative-name',
-        type: 'profil',
-        title: 'Name & Kontakt',
-        content: '',
-        x: 0,
-        y: 0,
-        width: 350,
-        height: 100
-      },
-      {
-        id: 'creative-photo',
-        type: 'photo',
-        title: 'Profilbild',
-        content: '',
-        x: 450,
-        y: 0,
-        width: 130,
-        height: 130
-      },
-      {
-        id: 'creative-skills-badges',
-        type: 'kenntnisse',
-        title: 'Expertise',
-        content: '',
-        x: 0,
-        y: 120,
-        width: 400,
-        height: 120
-      },
-      {
-        id: 'creative-experience',
-        type: 'erfahrung',
-        title: 'Berufserfahrung',
-        content: '',
-        x: 0,
-        y: 260,
-        width: 580,
-        height: 280
-      },
-      {
-        id: 'creative-education',
-        type: 'ausbildung',
-        title: 'Ausbildung & Qualifikationen',
-        content: '',
-        x: 0,
-        y: 560,
-        width: 380,
-        height: 120
-      },
-      {
-        id: 'creative-softskills',
-        type: 'softskills',
-        title: 'Persönlichkeit',
-        content: '',
-        x: 400,
-        y: 560,
-        width: 180,
-        height: 120
-      }
-    ]
-  }
-];
+  // Inhalte je Tab
+  const renderDesignToolContent = () => {
+    switch (activeDesignerTab) {
+      case "layout-style":
+        return (
+          <StyleEditor
+            config={styleConfig}
+            onChange={setStyleConfig}
+            sections={["layout", "spacing"]}
+            showPresets={true}
+            compact={true}
+          />
+        );
+      case "typography":
+        return (
+          <StyleEditor
+            config={styleConfig}
+            onChange={setStyleConfig}
+            sections={["typography"]}
+            showPresets={true}
+            compact={true}
+          />
+        );
+      case "colors":
+        return (
+          <StyleEditor
+            config={styleConfig}
+            onChange={setStyleConfig}
+            sections={["colors"]}
+            showPresets={true}
+            compact={true}
+          />
+        );
+      case "elements":
+        return (
+          <div className="p-4 text-gray-600">
+            <h3 className="font-medium text-gray-900 mb-2">
+              Elemente-Einstellungen
+            </h3>
+            <p className="text-sm">
+              Hier könnten zukünftig Einstellungen für einzelne CV-Elemente
+              (z.B. Icons, Linien, Abstände) vorgenommen werden.
+            </p>
+            <p className="mt-2 text-xs text-gray-500">
+              Diese Funktion ist noch in Entwicklung.
+            </p>
+          </div>
+        );
+      case "design-templates":
+        // Beispiel CV-Daten für KI
+        const mockCVData = {
+          personalData: {
+            firstName: personalData?.vorname || "",
+            lastName: personalData?.nachname || "",
+            email: personalData?.email || "",
+            phone: personalData?.telefon || "",
+            address: personalData?.adresse || "",
+            profession: personalData?.profession || "",
+            summary: personalData?.summary || "",
+            profileImage: personalData?.profileImage,
+          },
+          workExperience: [],
+          education: [],
+          skills: [],
+          languages: [],
+        };
 
-/**
- * Get template by ID
- */
-export function getTemplateById(id: string): PredefinedTemplate | undefined {
-  return predefinedTemplates.find(template => template.id === id);
-}
+        return (
+          <div className="space-y-6">
+            {/* Fixe Vorlagen */}
+            <div>
+              <h3 className="font-semibold mb-2">Fixe Vorlagen</h3>
+              <TemplateSelector
+                onSelect={(style, layout) => {
+                  setStyleConfig(style);
+                  setLayoutElements(layout);
+                }}
+              />
+            </div>
 
-/**
- * Get templates by category
- */
-export function getTemplatesByCategory(category: PredefinedTemplate['category']): PredefinedTemplate[] {
-  return predefinedTemplates.filter(template => template.category === category);
-}
+            {/* KI Assistent */}
+            <div>
+              <h3 className="font-semibold mb-2">KI Design-Assistent</h3>
+              <TemplateMatchingAssistant
+                cvData={mockCVData}
+                onTemplateSelect={(template) => {
+                  console.log("KI Template selected:", template);
+                }}
+              />
+            </div>
+          </div>
+        );
+      case "layout-editor":
+        return (
+          <div className="h-96 overflow-hidden">
+            <LayoutDesigner
+              initialLayout={layoutElements}
+              onLayoutChange={setLayoutElements}
+              onSave={(layout, style) => {
+                setLayoutElements(layout);
+                setStyleConfig(style);
+              }}
+            />
+          </div>
+        );
+      case "photo":
+        const handleImageSelect = (imageSrc: string) => {
+          updatePersonalData({ ...personalData, profileImage: imageSrc });
+        };
+        return (
+          <MediaManager
+            onImageSelect={handleImageSelect}
+            currentImage={personalData?.profileImage}
+            aspectRatio={1}
+            shape="circle"
+          />
+        );
+      default:
+        return (
+          <StyleEditor
+            config={styleConfig}
+            onChange={setStyleConfig}
+            sections={["colors", "typography", "layout", "spacing"]}
+            showPresets={true}
+            compact={true}
+          />
+        );
+    }
+  };
 
-/**
- * Get all template categories
- */
-export function getTemplateCategories(): PredefinedTemplate['category'][] {
-  return Array.from(new Set(predefinedTemplates.map(template => template.category)));
-}
+  return (
+    <div className="w-full flex flex-col gap-6 relative overflow-hidden py-8">
+      {/* Header */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div className="flex items-center gap-2 p-4 border-b border-gray-200">
+          <Palette
+            className="h-6 w-6 mr-2"
+            style={{ color: "#F29400" }}
+            stroke="#F29400"
+            fill="none"
+          />
+          <h2 className="text-lg font-semibold text-gray-900">
+            Lebenslauf Designer
+          </h2>
+        </div>
 
-/**
- * Search templates by tags
- */
-export function searchTemplatesByTags(tags: string[]): PredefinedTemplate[] {
-  return predefinedTemplates.filter(template =>
-    tags.some(tag => template.tags.includes(tag))
+        {/* Tabs */}
+        <div className="border-b border-gray-200">
+          <nav className="flex space-x-8 px-4">
+            {designerTabs.map((tab) => {
+              const IconComponent = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveDesignerTab(tab.id)}
+                  className={`py-3 px-1 border-b-2 font-medium text-sm ${
+                    activeDesignerTab === tab.id
+                      ? "border-orange-500 text-orange-600"
+                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4">
+                      <IconComponent className="w-4 h-4" />
+                    </div>
+                    {tab.label}
+                  </div>
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_3fr_1fr] gap-6 relative overflow-hidden">
+        {/* Left */}
+        <div className="min-w-0">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 h-full">
+            <div className="flex items-center gap-2 mb-4 border-b border-gray-200 pb-3">
+              <Palette className="h-6 w-6" style={{ color: "#F29400" }} />
+              <h2 className="text-lg font-semibold text-gray-900">
+                Design-Werkzeuge
+              </h2>
+            </div>
+            {renderDesignToolContent()}
+          </div>
+        </div>
+
+        {/* Middle */}
+        <div className="min-w-0">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 h-full">
+            <div className="flex items-center gap-2 mb-4 border-b border-gray-200 pb-3">
+              <Eye className="h-6 w-6" style={{ color: "#F29400" }} />
+              <h2 className="text-lg font-semibold text-gray-900">
+                Live-Vorschau
+              </h2>
+            </div>
+            <CVPreview styleConfig={styleConfig} />
+          </div>
+        </div>
+
+        {/* Right */}
+        <div className="min-w-0">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 h-full">
+            <div className="flex items-center gap-2 mb-4 border-b border-gray-200 pb-3">
+              <Brain className="h-6 w-6" style={{ color: "#F29400" }} />
+              <h2 className="text-lg font-semibold text-gray-900">Design-KI</h2>
+              <Sparkles className="h-4 w-4 text-yellow-500" />
+            </div>
+            {/* Platzhalter für KI Features */}
+            <div className="space-y-4">
+              <div className="border rounded-lg p-3 bg-purple-50">
+                <h3 className="font-medium text-purple-800 mb-2">
+                  Layout-Optimierung
+                </h3>
+                <p className="text-sm text-purple-600">
+                  KI-gestützte Vorschläge für optimale Layout-Strukturen.
+                </p>
+              </div>
+              <div className="border rounded-lg p-3 bg-blue-50">
+                <h3 className="font-medium text-blue-800 mb-2">
+                  Design-Analyse
+                </h3>
+                <p className="text-sm text-blue-600">
+                  Automatische Analyse und Verbesserungsvorschläge.
+                </p>
+              </div>
+              <div className="border rounded-lg p-3 bg-green-50">
+                <h3 className="font-medium text-green-800 mb-2">
+                  Branchenspezifische Anpassungen
+                </h3>
+                <p className="text-sm text-green-600">
+                  Empfehlungen basierend auf Branche & Position.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
