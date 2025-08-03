@@ -21,6 +21,7 @@ import { TemplateMatchingAssistant } from "../components/ai/TemplateMatchingAssi
 import { LayoutDesigner } from "../modules/cv-designer/components/LayoutDesigner";
 import { MediaManager } from "../components/MediaManager";
 import { useLebenslauf } from "../components/LebenslaufContext";
+import { TemplateSelector } from '../modules/cv-designer/components/TemplateSelector'; // Import TemplateSelector
 
 interface DesignerPageProps {
   styleConfig: StyleConfig;
@@ -117,12 +118,54 @@ export default function DesignerPage({
           skills: [],
           languages: [],
         };
+        // Create mock CV data for TemplateMatchingAssistant
+        const mockCVData = {
+          personalData: {
+            firstName: personalData?.vorname || 'Max',
+            lastName: personalData?.nachname || 'Mustermann',
+            email: personalData?.email || 'max.mustermann@email.de',
+            phone: personalData?.telefon || '+49 123 456789',
+            address: personalData?.adresse || 'Berlin, Deutschland',
+            profession: 'Software Engineer',
+            summary: 'Erfahrener Software Engineer mit Fokus auf moderne Webtechnologien.',
+            profileImage: personalData?.profileImage
+          },
+          workExperience: [],
+          education: [],
+          skills: [],
+          languages: []
+        };
+
         return (
-          <TemplateMatchingAssistant
-            cvData={mockCVData}
-            onTemplateSelect={(template) => {
-              console.log("Template selected:", template);
-            }}
+          <div className="space-y-6">
+            <div>
+              <h3 className="font-semibold mb-2 text-gray-900">Fixe Vorlagen</h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Wählen Sie aus vorgefertigten Templates mit unterschiedlichen Layouts
+              </p>
+              <TemplateSelector
+                onSelect={(style, layout) => {
+                  setStyleConfig(style);
+                  setLayoutElements(layout);
+                }}
+                compact={true}
+              />
+            </div>
+
+            <div className="border-t pt-6">
+              <h3 className="font-semibold mb-2 text-gray-900">KI Design-Assistent</h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Lassen Sie die KI das beste Template für Ihren Lebenslauf empfehlen
+              </p>
+              <TemplateMatchingAssistant
+                cvData={mockCVData}
+                onTemplateSelect={(template) => {
+                  console.log("KI Template selected:", template);
+                }}
+              />
+            </div>
+          </div>
+        );
           />
         );
       case "layout-editor":
