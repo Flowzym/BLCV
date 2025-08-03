@@ -1,7 +1,6 @@
 /**
  * CV Preview – nutzt StyleConfig + Template Layouts
- * Inhalte aus LebenslaufContext werden in LayoutElements injiziert
- * Robuste Behandlung von content (string | string[] | undefined)
+ * Rendert LayoutElements mit absoluter Positionierung für echte Template-Layouts
  */
 
 import React from "react";
@@ -12,213 +11,343 @@ import { useLebenslauf } from "@/components/LebenslaufContext";
 import { mapBetterLetterToDesigner } from "../services/mapBetterLetterToDesigner";
 
 interface CVPreviewProps {
+  sections?: LayoutElement[];
   layoutElements?: LayoutElement[];
   styleConfig?: StyleConfig;
+  cvData?: any;
   className?: string;
 }
 
 const CVPreview: React.FC<CVPreviewProps> = ({
+  sections,
   layoutElements = [],
   styleConfig,
+  cvData,
   className = "",
 }) => {
   // Hole Daten aus LebenslaufContext
-  const { personalData, berufserfahrung, ausbildung, skills, softskills } =
-    useLebenslauf();
+  const { personalData, berufserfahrung, ausbildung } = useLebenslauf();
 
   // Template-Layout + Inhalte zusammenführen
   const sectionsToRender = React.useMemo(() => {
+    // Priorität: layoutElements > sections > fallback mapping
+    let elementsToUse: LayoutElement[] = [];
+    
     if (layoutElements.length > 0) {
-      return layoutElements.map((el) => {
-        let content: string | string[] = "";
-
-        switch (el.type) {
-          case "profil":
-            content = [
-              personalData?.vorname,
-              personalData?.nachname,
-              personalData?.email,
-              personalData?.telefon,
-              personalData?.geburtsland,
-            ]
-              .filter(Boolean)
-              .join("\n");
-            break;
-          case "erfahrung":
-            content = berufserfahrung.map(
-              (e) =>
-                `${e.position} @ ${e.companies?.join(", ") || ""} (${e.von} – ${
-                  e.bis
-                })\n${e.aufgabenbereiche?.join("\n") || ""}`
-            );
-            break;
-          case "ausbildung":
-            content = ausbildung.map(
-              (a) =>
-                `${a.ausbildungsart} – ${a.institution} (${a.von} – ${a.bis})`
-            );
-            break;
-          case "kenntnisse":
-            content = skills;
-            break;
-          case "softskills":
-            content = softskills;
-            break;
-          case "photo":
-            content = personalData?.profileImage || "";
-            break;
-        }
-
-        return { ...el, content };
-      });
+      elementsToUse = layoutElements;
+    } else if (sections && sections.length > 0) {
+      elementsToUse = sections;
     } else {
       // Fallback: Standard Mapping (einspaltig)
-      return mapBetterLetterToDesigner({
+      elementsToUse = mapBetterLetterToDesigner({
         personalData,
         berufserfahrung,
         ausbildung,
-        skills,
-        softskills,
+        skills: [],
+        softskills: [],
       });
     }
-  }, [layoutElements, personalData, berufserfahrung, ausbildung, skills, softskills]);
+
+    // Inhalte aus Context in Template-Layout injizieren
+    return elementsToUse.map((el) => {
+      let content: string = "";
+
+      switch (el.type) {
+        case "profil":
+        case "personal":
+          const personalInfo = [];
+          
+          // Name zusammensetzen
+          const fullName = [personalData?.titel, personalData?.vorname, personalData?.nachname]
+            .filter(Boolean)
+            .join(' ');
+          if (fullName) personalInfo.push(fullName);
+          
+          // Kontaktdaten
+          if (personalData?.email) personalInfo.push(`📧 ${personalData.email}`);
+          if (personalData?.telefon) {
+            const phone = `${personalData.telefonVorwahl || ''} ${personalData.telefon}`.trim();
+            personalInfo.push(`📞 ${phone}`);
+          }
+          
+          // Adresse
+          const address = [personalData?.adresse, personalData?.plz, personalData?.ort, personalData?.land]
+            .filter(Boolean)
+            .join(', ');
+          if (address) personalInfo.push(`📍 ${address}`);
+          
+          content = personalInfo.join('\n') || "– Keine persönlichen Daten –";
+          break;
+
+        case "erfahrung":
+        case "experience":
+          if (berufserfahrung && berufserfahrung.length > 0) {
+            content = berufserfahrung.map(e => {
+              const parts = [];
+              
+              // Position und Unternehmen
+              const position = Array.isArray(e.position) ? e.position.join(' / ') : (e.position || '');
+              const companies = Array.isArray(e.companies) ? e.companies.join(' // ') : (e.companies || '');
+              
+              if (position && companies) {
+                parts.push(`${position}\n${companies}`);
+              } else if (position) {
+                parts.push(position);
+              } else if (companies) {
+                parts.push(companies);
+              }
+              
+              // Zeitraum
+              const startDate = e.startMonth && e.startYear ? `${e.startMonth}.${e.startYear}` : e.startYear || '';
+              const endDate = e.isCurrent ? 'heute' : 
+                             (e.endMonth && e.endYear ? `${e.endMonth}.${e.endYear}` : e.endYear || '');
+              
+              if (startDate || endDate) {
+                const zeitraum = startDate && endDate ? `${startDate} – ${endDate}` : (startDate || endDate);
+                parts.push(`(${zeitraum})`);
+              }
+              
+              let result = parts.join('\n');
+              
+              // Aufgabenbereiche
+              if (e.aufgabenbereiche && e.aufgabenbereiche.length > 0) {
+                result += '\n\n• ' + e.aufgabenbereiche.join('\n• ');
+              }
+              
+              return result;
+            }).join('\n\n');
+          } else {
+            content = "– Keine Berufserfahrung –";
+          }
+          break;
+
+        case "ausbildung":
+        case "education":
+          if (ausbildung && ausbildung.length > 0) {
+            content = ausbildung.map(a => {
+              const parts = [];
+              
+              // Ausbildungsart und Abschluss
+              const ausbildungsart = Array.isArray(a.ausbildungsart) ? a.ausbildungsart.join(' / ') : (a.ausbildungsart || '');
+              const abschluss = Array.isArray(a.abschluss) ? a.abschluss.join(' / ') : (a.abschluss || '');
+              
+              if (ausbildungsart && abschluss) {
+                parts.push(`${ausbildungsart}\n${abschluss}`);
+              } else if (ausbildungsart) {
+                parts.push(ausbildungsart);
+              } else if (abschluss) {
+                parts.push(abschluss);
+              }
+              
+              // Institution
+              const institution = Array.isArray(a.institution) ? a.institution.join(', ') : (a.institution || '');
+              if (institution) {
+                parts.push(institution);
+              }
+              
+              // Zeitraum
+              const startDate = a.startMonth && a.startYear ? `${a.startMonth}.${a.startYear}` : a.startYear || '';
+              const endDate = a.isCurrent ? 'heute' : 
+                             (a.endMonth && a.endYear ? `${a.endMonth}.${a.endYear}` : a.endYear || '');
+              
+              if (startDate || endDate) {
+                const zeitraum = startDate && endDate ? `${startDate} – ${endDate}` : (startDate || endDate);
+                parts.push(`(${zeitraum})`);
+              }
+              
+              return parts.join('\n');
+            }).join('\n\n');
+          } else {
+            content = "– Keine Ausbildung –";
+          }
+          break;
+
+        case "kenntnisse":
+        case "skills":
+          content = "JavaScript, React, TypeScript, Node.js, Python, SQL, Git, Docker";
+          break;
+
+        case "softskills":
+          content = "Teamfähigkeit, Kommunikationsstärke, Problemlösungskompetenz, Organisationstalent";
+          break;
+
+        case "photo":
+          // Profilbild wird speziell behandelt
+          content = personalData?.profileImage || "";
+          break;
+
+        default:
+          content = el.content || "– Keine Daten –";
+      }
+
+      return { ...el, content };
+    });
+  }, [layoutElements, sections, personalData, berufserfahrung, ausbildung]);
 
   const safeStyleConfig = styleConfig || defaultStyleConfig;
 
+  // Container-Style für A4-ähnliche Proportionen
   const containerStyle: React.CSSProperties = {
     position: "relative",
-    fontFamily: safeStyleConfig.fontFamily || "Arial",
-    fontSize:
-      safeStyleConfig.fontSize === "small"
-        ? "14px"
-        : safeStyleConfig.fontSize === "large"
-        ? "18px"
-        : "16px",
-    lineHeight: safeStyleConfig.lineHeight || 1.5,
-    borderRadius: safeStyleConfig.borderRadius,
-    border: safeStyleConfig.border,
-    boxShadow: safeStyleConfig.boxShadow,
-    backgroundColor: safeStyleConfig.backgroundColor || "#fff",
-    color: safeStyleConfig.textColor || "#333",
-    width: safeStyleConfig.widthPercent
-      ? `${safeStyleConfig.widthPercent}%`
-      : "210mm",
-    minHeight: "297mm", // A4
+    width: "100%",
+    height: "842px", // A4 Höhe in px (bei 72 DPI)
+    maxWidth: "595px", // A4 Breite in px (bei 72 DPI)
     margin: "0 auto",
-    overflow: "hidden",
+    backgroundColor: safeStyleConfig.backgroundColor || "#ffffff",
+    fontFamily: safeStyleConfig.fontFamily || "Inter",
+    fontSize: safeStyleConfig.fontSize === "small" ? "12px" : 
+              safeStyleConfig.fontSize === "large" ? "16px" : "14px",
+    lineHeight: safeStyleConfig.lineHeight || 1.5,
+    color: safeStyleConfig.textColor || "#333333",
+    border: "1px solid #e5e7eb",
+    borderRadius: "8px",
+    overflow: "auto",
+    boxShadow: "0 4px 6px rgba(0, 0, 0, 0.1)"
   };
 
-  const renderContent = (content: string | string[] | undefined) => {
-    if (!content) return null;
+  // Funktion zum Rendern von Skills als Badges
+  const renderSkillsBadges = (content: string) => {
+    const skills = content.split(/[,;\n]/).map(s => s.trim()).filter(Boolean);
+    return (
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
+        {skills.map((skill, idx) => (
+          <span
+            key={idx}
+            style={{
+              background: safeStyleConfig.accentColor || "#3b82f6",
+              color: "white",
+              padding: "4px 8px",
+              borderRadius: "12px",
+              fontSize: "0.75em",
+              fontWeight: "500"
+            }}
+          >
+            {skill}
+          </span>
+        ))}
+      </div>
+    );
+  };
 
-    if (Array.isArray(content)) {
-      return (
-        <div style={{ whiteSpace: "pre-line", lineHeight: "1.6" }}>
-          {content.join("\n")}
+  // Funktion zum Rendern von Content
+  const renderContent = (element: LayoutElement) => {
+    const { type, content, title } = element;
+
+    // Profilbild spezielle Behandlung
+    if (type === "photo") {
+      return content ? (
+        <img
+          src={content}
+          alt="Profilfoto"
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: "cover",
+            borderRadius: "50%",
+            border: `2px solid ${safeStyleConfig.accentColor || "#e5e7eb"}`
+          }}
+        />
+      ) : (
+        <div
+          style={{
+            width: "100%",
+            height: "100%",
+            borderRadius: "50%",
+            backgroundColor: "#f3f4f6",
+            border: `2px dashed ${safeStyleConfig.accentColor || "#d1d5db"}`,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: "0.75em",
+            color: "#6b7280"
+          }}
+        >
+          📷 Foto
         </div>
       );
     }
 
+    // Skills als Badges rendern
+    if (type === "kenntnisse" || type === "skills" || type === "softskills") {
+      return content ? renderSkillsBadges(content) : (
+        <div style={{ color: "#9ca3af", fontStyle: "italic", fontSize: "0.875em" }}>
+          – Keine {type === "softskills" ? "Soft Skills" : "Fähigkeiten"} –
+        </div>
+      );
+    }
+
+    // Standard Content-Rendering
     return (
-      <div style={{ whiteSpace: "pre-line", lineHeight: "1.6" }}>{content}</div>
+      <div style={{ whiteSpace: "pre-line", lineHeight: "1.6" }}>
+        {content || (
+          <div style={{ color: "#9ca3af", fontStyle: "italic", fontSize: "0.875em" }}>
+            – Keine Daten –
+          </div>
+        )}
+      </div>
     );
   };
 
-  const renderBadgeList = (items: string[] = []) => (
-    <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
-      {items.map((item, idx) => (
-        <span
-          key={idx}
-          style={{
-            background: safeStyleConfig.accentColor || "#f4f4f4",
-            color: "white",
-            padding: "4px 8px",
-            borderRadius: "6px",
-            fontSize: "0.85em",
-          }}
-        >
-          {item}
-        </span>
-      ))}
-    </div>
-  );
-
   return (
     <div className={`cv-preview ${className}`} style={containerStyle}>
-      {sectionsToRender.map((section) => (
+      {sectionsToRender.map((element) => (
         <div
-          key={section.id}
+          key={element.id}
           style={{
             position: "absolute",
-            top: section.y ?? 0,
-            left: section.x ?? 0,
-            width: section.width ?? "auto",
-            height: section.height ?? "auto",
-            padding: safeStyleConfig.padding || "8px",
+            left: `${element.x}px`,
+            top: `${element.y}px`,
+            width: `${element.width}px`,
+            height: `${element.height}px`,
+            padding: safeStyleConfig.padding || "12px",
             boxSizing: "border-box",
+            overflow: "hidden"
           }}
         >
-          {section.title && section.type !== "photo" && (
-            <h2
+          {/* Section Title */}
+          {element.title && element.type !== "photo" && (
+            <h3
               style={{
                 fontSize: "1.1em",
-                marginBottom: "0.25rem",
+                fontWeight: "600",
+                marginBottom: "8px",
                 color: safeStyleConfig.primaryColor || "#1e40af",
-                borderBottom: `1px solid ${
-                  safeStyleConfig.accentColor || "#3b82f6"
-                }`,
+                borderBottom: `1px solid ${safeStyleConfig.accentColor || "#3b82f6"}`,
+                paddingBottom: "4px"
               }}
             >
-              {section.title}
-            </h2>
+              {element.title}
+            </h3>
           )}
 
-          {/* Profilbild */}
-          {section.type === "photo" && section.content ? (
-            <img
-              src={
-                Array.isArray(section.content)
-                  ? section.content[0]
-                  : (section.content as string)
-              }
-              alt="Profilfoto"
-              style={{
-                width: "100%",
-                height: "100%",
-                objectFit: "cover",
-                borderRadius: "50%",
-              }}
-            />
-          ) : null}
-
-          {/* Skills/Softskills als Badges */}
-          {["skills", "softskills", "kenntnisse"].includes(section.type) &&
-          section.content ? (
-            renderBadgeList(
-              Array.isArray(section.content)
-                ? section.content
-                : (section.content as string)
-                    .split(/[,;\n]/)
-                    .map((s) => s.trim())
-                    .filter(Boolean)
-            )
-          ) : (
-            renderContent(section.content)
-          )}
+          {/* Section Content */}
+          <div style={{ 
+            height: element.title && element.type !== "photo" ? "calc(100% - 32px)" : "100%",
+            overflow: "hidden"
+          }}>
+            {renderContent(element)}
+          </div>
         </div>
       ))}
 
+      {/* Fallback wenn keine Sections vorhanden */}
       {sectionsToRender.length === 0 && (
         <div
           style={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
             textAlign: "center",
             color: "#6b7280",
-            padding: "2rem",
-            fontStyle: "italic",
+            fontStyle: "italic"
           }}
         >
-          Keine Lebenslaufdaten vorhanden. Bitte füllen Sie die Felder im
-          Lebenslauf-Editor aus.
+          <div style={{ fontSize: "3em", marginBottom: "16px" }}>📄</div>
+          <div>Keine Lebenslaufdaten vorhanden</div>
+          <div style={{ fontSize: "0.875em", marginTop: "8px" }}>
+            Bitte füllen Sie die Felder im Lebenslauf-Editor aus
+          </div>
         </div>
       )}
     </div>
