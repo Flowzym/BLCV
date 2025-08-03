@@ -5,7 +5,6 @@ import { LebenslaufProvider } from "@/components/LebenslaufContext";
 import HomePage from "@/pages/HomePage";
 import DesignerPage from "@/pages/DesignerPage";
 import CVPlayground from "@/pages/CVPlayground";
-import SettingsPage from "@/pages/SettingsPage";
 import StyleTest from "@/pages/StyleTest";
 
 import { StyleConfig, LayoutElement } from "@/types/cv-designer";
@@ -48,7 +47,6 @@ function App() {
 
           {/* Weitere Seiten */}
           <Route path="/playground" element={<CVPlayground />} />
-          <Route path="/settings" element={<SettingsPage />} />
           <Route path="/style-test" element={<StyleTest />} />
         </Routes>
       </Router>
