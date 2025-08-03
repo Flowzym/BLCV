@@ -1,8 +1,7 @@
-// 📄 src/pages/DesignerPage.tsx
-// Überarbeitet von o3 – Inline Editing, Export-Buttons, Template-Speicher-Hooks
-import React, { useState, useCallback } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
+  Settings,
   Palette,
   Eye,
   Brain,
@@ -15,8 +14,7 @@ import {
   FileText,
   Wand2,
   Upload,
-  Download,
-  Save } from "lucide-react";
+} from "lucide-react";
 import CVPreview from "../modules/cv-designer/components/CVPreview";
 import { StyleEditor } from "../components/StyleEditor";
 import { StyleConfig, LayoutElement } from "../types/cv-designer";
@@ -27,11 +25,11 @@ import { TemplateSelector } from "../modules/cv-designer/components/TemplateSele
 import { useLebenslauf } from "../components/LebenslaufContext";
 import UploadPanel from "../modules/cv-designer/components/UploadPanel";
 import { mapBetterLetterToDesignerWithTemplate } from "../modules/cv-designer/services/mapBetterLetterWithTemplate";
-import { useTemplateStorage } from "../modules/cv-designer/hooks/useTemplateStorage";
-import { ExportButtons } from "../modules/cv-designer/components/ExportButtons";
 
+// ----------- Hilfsfunktionen ------------
 function normalizeCVData(cvData: any) {
   if (!cvData?.personalData) return cvData;
+
   const pd = cvData.personalData;
   return {
     ...cvData,
@@ -48,6 +46,7 @@ function normalizeCVData(cvData: any) {
   };
 }
 
+// ----------- Typen für Tabs ------------
 type TabId =
   | "layout-style"
   | "typography"
@@ -71,19 +70,13 @@ export default function DesignerPage({
   layoutElements,
   setLayoutElements,
 }: DesignerPageProps) {
+  const navigate = useNavigate();
   const [activeDesignerTab, setActiveDesignerTab] = useState<TabId>("layout-style");
+
+  // Daten aus Context
   const { personalData, updatePersonalData } = useLebenslauf();
-  const { saveTemplate } = useTemplateStorage();
 
-  const handleTemplateSave = () => {
-    saveTemplate({
-      id: Date.now().toString(),
-      name: `${personalData?.vorname ?? "Template"} ${new Date().toLocaleDateString()}`,
-      layout: layoutElements,
-      style: styleConfig,
-    });
-  };
-
+  // Tabs
   const designerTabs: { id: TabId; label: string; icon: React.ElementType }[] = [
     { id: "layout-style", label: "Layout", icon: Layout },
     { id: "typography", label: "Typografie", icon: Type },
@@ -95,16 +88,7 @@ export default function DesignerPage({
     { id: "photo", label: "Foto", icon: ImageIcon },
   ];
 
-  // Upload callbacks
-  const handleLayoutImport = (layout: LayoutElement[]) => setLayoutElements(layout);
-  const handleCVDataImport = (cvData: any) => {
-    const normalized = normalizeCVData(cvData);
-    if (normalized?.personalData) updatePersonalData(normalized.personalData);
-    const mapped = mapBetterLetterToDesignerWithTemplate(normalized, "classic") ?? [];
-    setLayoutElements(mapped);
-  };
-
-  // Tab content
+  // ----------- Tab-Inhalte ------------
   const renderDesignToolContent = () => {
     switch (activeDesignerTab) {
       case "layout-style":
@@ -121,95 +105,236 @@ export default function DesignerPage({
                 ? ["typography"]
                 : ["colors"]
             }
-            compact
             showPresets
+            compact
           />
         );
+
+      case "elements":
+        return (
+          <div className="p-4 text-gray-600">
+            <h3 className="font-medium text-gray-900 mb-2">
+              Elemente-Einstellungen
+            </h3>
+            <p className="text-sm">
+              Hier könnten zukünftig Einstellungen für einzelne CV-Elemente
+              (z.B. Icons, Linien, Abstände) vorgenommen werden.
+            </p>
+            <p className="mt-2 text-xs text-gray-500">
+              Diese Funktion ist noch in Entwicklung.
+            </p>
+          </div>
+        );
+
+      case "design-templates":
+        // Mock-Daten für KI-Template-Assistent
+        const mockCVData = {
+          personalData: {
+            firstName: personalData?.vorname || "Max",
+            lastName: personalData?.nachname || "Mustermann",
+            email: personalData?.email || "max.mustermann@email.de",
+            phone: personalData?.telefon || "+49 123 456789",
+            address: personalData?.adresse || "Berlin, Deutschland",
+            profession: "Software Engineer",
+            summary:
+              "Erfahrener Software Engineer mit Fokus auf moderne Webtechnologien.",
+            profileImage: personalData?.profileImage,
+          },
+          workExperience: [],
+          education: [],
+          skills: [],
+          languages: [],
+        };
+
+        return (
+          <div className="space-y-6">
+            <div>
+              <h3 className="font-semibold mb-2 text-gray-900">Fixe Vorlagen</h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Wählen Sie aus vorgefertigten Templates mit unterschiedlichen Layouts
+              </p>
+              <TemplateSelector
+                onSelect={(style, layout) => {
+                  setStyleConfig(style);
+                  setLayoutElements(layout);
+                }}
+                compact
+              />
+            </div>
+
+            <div className="border-t pt-6">
+              <h3 className="font-semibold mb-2 text-gray-900">
+                KI Design-Assistent
+              </h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Lassen Sie die KI das beste Template für Ihren Lebenslauf empfehlen
+              </p>
+              <TemplateMatchingAssistant
+                cvData={mockCVData}
+                onTemplateSelect={(template) => {
+                  console.log("KI Template selected:", template);
+                }}
+              />
+            </div>
+          </div>
+        );
+
       case "layout-editor":
         return (
-          <LayoutDesigner
-            initialLayout={layoutElements}
-            onLayoutChange={setLayoutElements}
-          />
+          <div className="h-96 overflow-hidden">
+            <LayoutDesigner
+              initialLayout={layoutElements}
+              onLayoutChange={setLayoutElements}
+              onSave={(layout, style) => {
+                setLayoutElements(layout);
+                setStyleConfig(style);
+              }}
+            />
+          </div>
         );
-      case "upload":
-        return (
-          <UploadPanel
-            onLayoutImport={handleLayoutImport}
-            onCVDataImport={handleCVDataImport}
-          />
-        );
+
       case "photo":
+        const handleImageSelect = (imageSrc: string) => {
+          updatePersonalData({ ...personalData, profileImage: imageSrc });
+        };
         return (
           <MediaManager
+            onImageSelect={handleImageSelect}
             currentImage={personalData?.profileImage}
-            onImageSelect={(img) => updatePersonalData({ ...personalData, profileImage: img })}
             aspectRatio={1}
             shape="circle"
           />
         );
-      case "design-templates":
+
+      case "upload":
         return (
-          <TemplateSelector
-            onSelect={(style, layout) => {
-              setStyleConfig(style);
+          <UploadPanel
+            onLayoutImport={(layout) => {
+              if (!layout) return;
               setLayoutElements(layout);
             }}
-            allowSave
-            onSaveTemplate={handleTemplateSave}
+            onCVDataImport={(cvData) => {
+              try {
+                const normalized = normalizeCVData(cvData);
+                if (normalized?.personalData) {
+                  updatePersonalData(normalized.personalData);
+                }
+                const mappedLayout =
+                  mapBetterLetterToDesignerWithTemplate(normalized, "classic") ?? [];
+                setLayoutElements(mappedLayout);
+              } catch (err) {
+                console.error("Fehler beim Import:", err);
+              }
+            }}
           />
         );
+
       default:
         return null;
     }
   };
 
+  // ----------- Render ------------
   return (
-    <div className="w-full flex flex-col gap-6 py-8">
-      {/* Tabs header */}
-      <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
+    <div className="w-full flex flex-col gap-6 relative overflow-hidden py-8">
+      {/* Header */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         <div className="flex items-center gap-2 p-4 border-b border-gray-200">
-          <Palette className="w-6 h-6 text-orange-500" />
-          <h2 className="text-lg font-semibold text-gray-900">Lebenslauf Designer</h2>
+          <Palette className="h-6 w-6 mr-2" style={{ color: "#F29400" }} />
+          <h2 className="text-lg font-semibold text-gray-900">
+            Lebenslauf Designer
+          </h2>
         </div>
+
+        {/* Tabs */}
         <div className="border-b border-gray-200">
-          <nav className="flex space-x-6 px-4 overflow-x-auto">
+          <nav className="flex space-x-8 px-4">
             {designerTabs.map(({ id, label, icon: Icon }) => (
               <button
                 key={id}
                 onClick={() => setActiveDesignerTab(id)}
-                className={`py-3 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+                className={`py-3 px-1 border-b-2 font-medium text-sm ${
                   activeDesignerTab === id
                     ? "border-orange-500 text-orange-600"
                     : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
                 }`}
               >
-                <span className="flex items-center gap-1">
-                  <Icon className="w-4 h-4" /> {label}
-                </span>
+                <div className="flex items-center gap-2">
+                  <Icon className="w-4 h-4" />
+                  {label}
+                </div>
               </button>
             ))}
           </nav>
         </div>
       </div>
 
-      {/* Main grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_3fr] gap-6">
-        {/* Left column (tools) */}
-        <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4">
-          {renderDesignToolContent()}
+      {/* Content */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_3fr_1fr] gap-6 relative overflow-hidden">
+        {/* Left */}
+        <div className="min-w-0">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 h-full">
+            <div className="flex items-center gap-2 mb-4 border-b border-gray-200 pb-3">
+              <Palette className="h-6 w-6" style={{ color: "#F29400" }} />
+              <h2 className="text-lg font-semibold text-gray-900">
+                Design-Werkzeuge
+              </h2>
+            </div>
+            {renderDesignToolContent()}
+          </div>
         </div>
 
-        {/* Right column (preview)*/}
-        <div className="flex flex-col gap-4">
-          <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <Eye className="w-5 h-5 text-orange-500" /> Live‑Vorschau
-            </h3>
-            <ExportButtons layout={layoutElements} style={styleConfig} />
+        {/* Middle */}
+        <div className="min-w-0">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 h-full">
+            <div className="flex items-center gap-2 mb-4 border-b border-gray-200 pb-3">
+              <Eye className="h-6 w-6" style={{ color: "#F29400" }} />
+              <h2 className="text-lg font-semibold text-gray-900">
+                Live-Vorschau
+              </h2>
+            </div>
+            <CVPreview
+              styleConfig={styleConfig}
+              layoutElements={layoutElements}
+              templateName="classic"
+            />
           </div>
-          <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4">
-            <CVPreview styleConfig={styleConfig} layoutElements={layoutElements} templateName="classic" />
+        </div>
+
+        {/* Right */}
+        <div className="min-w-0">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 h-full">
+            <div className="flex items-center gap-2 mb-4 border-b border-gray-200 pb-3">
+              <Brain className="h-6 w-6" style={{ color: "#F29400" }} />
+              <h2 className="text-lg font-semibold text-gray-900">Design-KI</h2>
+              <Sparkles className="h-4 w-4 text-yellow-500" />
+            </div>
+            <div className="space-y-4">
+              <div className="border rounded-lg p-3 bg-purple-50">
+                <h3 className="font-medium text-purple-800 mb-2">
+                  Layout-Optimierung
+                </h3>
+                <p className="text-sm text-purple-600">
+                  KI-gestützte Vorschläge für optimale Layout-Strukturen.
+                </p>
+              </div>
+              <div className="border rounded-lg p-3 bg-blue-50">
+                <h3 className="font-medium text-blue-800 mb-2">
+                  Design-Analyse
+                </h3>
+                <p className="text-sm text-blue-600">
+                  Automatische Analyse und Verbesserungsvorschläge.
+                </p>
+              </div>
+              <div className="border rounded-lg p-3 bg-green-50">
+                <h3 className="font-medium text-green-800 mb-2">
+                  Branchenspezifische Anpassungen
+                </h3>
+                <p className="text-sm text-green-600">
+                  Empfehlungen basierend auf Branche & Position.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
