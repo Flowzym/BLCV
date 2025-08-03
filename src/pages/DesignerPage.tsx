@@ -22,6 +22,7 @@ import { LayoutDesigner } from "../modules/cv-designer/components/LayoutDesigner
 import { MediaManager } from "../components/MediaManager";
 import { TemplateSelector } from "../modules/cv-designer/components/TemplateSelector";
 import { useLebenslauf } from "../components/LebenslaufContext";
+import UploadPanel from "../modules/cv-designer/components/UploadPanel";
 
 interface DesignerPageProps {
   styleConfig: StyleConfig;
@@ -50,6 +51,7 @@ export default function DesignerPage({
     { id: "elements", label: "Elemente", icon: Layers },
     { id: "design-templates", label: "Designvorlagen", icon: FileText },
     { id: "layout-editor", label: "Layout Editor", icon: Wand2 },
+    { id: "upload", label: "Upload", icon: Upload },
     { id: "photo", label: "Foto", icon: ImageIcon },
   ];
 
@@ -176,6 +178,19 @@ export default function DesignerPage({
             currentImage={personalData?.profileImage}
             aspectRatio={1}
             shape="circle"
+          />
+        );
+      case "upload":
+        return (
+          <UploadPanel
+            onLayoutImport={(layout) => {
+              console.log('Layout imported:', layout);
+              setLayoutElements(layout);
+            }}
+            onCVDataImport={(cvData) => {
+              console.log('CV Data imported:', cvData);
+              // Could update personalData here if needed
+            }}
           />
         );
       default:
