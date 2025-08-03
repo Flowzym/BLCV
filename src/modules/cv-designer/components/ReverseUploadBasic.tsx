@@ -7,7 +7,7 @@ interface ReverseUploadProps {
   onImport: (cvData: LayoutElement[]) => void
 }
 
-const ReverseUploadBasic = ({ onImport }: ReverseUploadProps) => {
+export function ReverseUploadBasic({ onImport }: ReverseUploadProps) {
   const handleFileUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -26,9 +26,7 @@ const ReverseUploadBasic = ({ onImport }: ReverseUploadProps) => {
       } catch (err) {
         alert("Fehler beim Parsen der JSON-Datei.")
       }
-    }
-
-    else if (ext === "docx") {
+    } else if (ext === "docx") {
       try {
         const arrayBuffer = await file.arrayBuffer()
         const mammoth = await import("mammoth")
@@ -39,9 +37,7 @@ const ReverseUploadBasic = ({ onImport }: ReverseUploadProps) => {
       } catch (err) {
         alert("Fehler beim Lesen der DOCX-Datei.")
       }
-    }
-
-    else {
+    } else {
       alert("Nur .json oder .docx Dateien werden unterstützt.")
     }
   }
@@ -98,5 +94,3 @@ const ReverseUploadBasic = ({ onImport }: ReverseUploadProps) => {
     </div>
   )
 }
-
-export default ReverseUploadBasic
