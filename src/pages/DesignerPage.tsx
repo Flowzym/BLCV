@@ -20,7 +20,7 @@ import { StyleConfig, LayoutElement } from "../types/cv-designer";
 import { TemplateMatchingAssistant } from "../components/ai/TemplateMatchingAssistant";
 import { LayoutDesigner } from "../modules/cv-designer/components/LayoutDesigner";
 import { MediaManager } from "../components/MediaManager";
-import { TemplateSelector } from '../modules/cv-designer/components/TemplateSelector';
+import { TemplateSelector } from "../modules/cv-designer/components/TemplateSelector";
 import { useLebenslauf } from "../components/LebenslaufContext";
 
 interface DesignerPageProps {
@@ -102,22 +102,23 @@ export default function DesignerPage({
           </div>
         );
       case "design-templates":
-        // Create mock CV data for TemplateMatchingAssistant
+        // Mock-Daten für KI-Template-Assistent
         const mockCVData = {
           personalData: {
-            firstName: personalData?.vorname || 'Max',
-            lastName: personalData?.nachname || 'Mustermann',
-            email: personalData?.email || 'max.mustermann@email.de',
-            phone: personalData?.telefon || '+49 123 456789',
-            address: personalData?.adresse || 'Berlin, Deutschland',
-            profession: 'Software Engineer',
-            summary: 'Erfahrener Software Engineer mit Fokus auf moderne Webtechnologien.',
-            profileImage: personalData?.profileImage
+            firstName: personalData?.vorname || "Max",
+            lastName: personalData?.nachname || "Mustermann",
+            email: personalData?.email || "max.mustermann@email.de",
+            phone: personalData?.telefon || "+49 123 456789",
+            address: personalData?.adresse || "Berlin, Deutschland",
+            profession: "Software Engineer",
+            summary:
+              "Erfahrener Software Engineer mit Fokus auf moderne Webtechnologien.",
+            profileImage: personalData?.profileImage,
           },
           workExperience: [],
           education: [],
           skills: [],
-          languages: []
+          languages: [],
         };
 
         return (
@@ -137,7 +138,9 @@ export default function DesignerPage({
             </div>
 
             <div className="border-t pt-6">
-              <h3 className="font-semibold mb-2 text-gray-900">KI Design-Assistent</h3>
+              <h3 className="font-semibold mb-2 text-gray-900">
+                KI Design-Assistent
+              </h3>
               <p className="text-sm text-gray-600 mb-4">
                 Lassen Sie die KI das beste Template für Ihren Lebenslauf empfehlen
               </p>
@@ -256,7 +259,10 @@ export default function DesignerPage({
                 Live-Vorschau
               </h2>
             </div>
-            <CVPreview styleConfig={styleConfig} />
+            <CVPreview
+              styleConfig={styleConfig}
+              layoutElements={layoutElements}
+            />
           </div>
         </div>
 
