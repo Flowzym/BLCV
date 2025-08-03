@@ -11,10 +11,9 @@ interface TemplateThumbnailProps {
   onClick?: () => void;
 }
 
-const aspectRatio = A4_HEIGHT / A4_WIDTH; // A4 Verhältnis ≈ 1.414
+const aspectRatio = A4_HEIGHT / A4_WIDTH;
 
 const TemplateThumbnail: React.FC<TemplateThumbnailProps> = ({
-  name,
   layout,
   styleConfig,
   isSelected,
@@ -25,32 +24,42 @@ const TemplateThumbnail: React.FC<TemplateThumbnailProps> = ({
       onClick={onClick}
       className={`w-full rounded-md border ${
         isSelected ? "border-blue-500 shadow-md" : "border-gray-300"
-      } cursor-pointer overflow-hidden`}
+      } cursor-pointer overflow-hidden bg-white`}
     >
       <div
         style={{
           position: "relative",
           width: "100%",
-          paddingTop: `${aspectRatio * 100}%`, // Höhe nach A4-Verhältnis
+          paddingTop: `${aspectRatio * 100}%`,
           backgroundColor: "#fff",
         }}
       >
-        {/* Layout Elemente */}
         {layout.map((el) => {
           const left = (el.x / A4_WIDTH) * 100;
           const top = (el.y / A4_HEIGHT) * 100;
           const width = (el.width / A4_WIDTH) * 100;
           const height = ((el.height || 100) / A4_HEIGHT) * 100;
 
-          let bg = "#d1d5db"; // Standard grau
-          if (el.type === "photo") bg = "#9ca3af"; // Foto = dunkler Kreis
-          if (["kenntnisse", "skills", "softskills"].includes(el.type))
-            bg = "#93c5fd"; // Skills = blau
-          if (["profil", "personal"].includes(el.type))
-            bg = "#f3f4f6"; // Header/Profil = hellgrau
-          if (["erfahrung", "experience"].includes(el.type))
-            bg = "#cbd5e1"; // Erfahrung = etwas dunkler
+          // Foto
+          if (el.type === "photo") {
+            return (
+              <div
+                key={el.id}
+                style={{
+                  position: "absolute",
+                  left: `${left}%`,
+                  top: `${top}%`,
+                  width: `${width}%`,
+                  height: `${height}%`,
+                  borderRadius: "50%",
+                  backgroundColor: "#9ca3af",
+                  border: "2px solid #e5e7eb",
+                }}
+              />
+            );
+          }
 
+          // Text-Section
           return (
             <div
               key={el.id}
@@ -60,11 +69,30 @@ const TemplateThumbnail: React.FC<TemplateThumbnailProps> = ({
                 top: `${top}%`,
                 width: `${width}%`,
                 height: `${height}%`,
-                backgroundColor: bg,
+                backgroundColor: "#f9fafb",
                 border: "1px solid #e5e7eb",
-                borderRadius: el.type === "photo" ? "50%" : "2px",
+                borderRadius: "2px",
+                padding: "2px",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "flex-start",
+                gap: "2px",
               }}
-            />
+            >
+              {/* Überschrift-Balken */}
+              <div
+                style={{
+                  height: "8%",
+                  backgroundColor: "#d1d5db",
+                  borderRadius: "1px",
+                  marginBottom: "2px",
+                }}
+              />
+              {/* Platzhalter-Linien */}
+              <div style={{ height: "5%", backgroundColor: "#e5e7eb" }} />
+              <div style={{ height: "5%", backgroundColor: "#e5e7eb", width: "80%" }} />
+              <div style={{ height: "5%", backgroundColor: "#e5e7eb", width: "60%" }} />
+            </div>
           );
         })}
       </div>
