@@ -102,22 +102,6 @@ export default function DesignerPage({
           </div>
         );
       case "design-templates":
-        const mockCVData = {
-          personalData: {
-            firstName: personalData?.vorname || "",
-            lastName: personalData?.nachname || "",
-            email: personalData?.email || "",
-            phone: personalData?.telefon || "",
-            address: personalData?.adresse || "",
-            profession: personalData?.profession || "",
-            summary: personalData?.summary || "",
-            profileImage: personalData?.profileImage,
-          },
-          workExperience: [],
-          education: [],
-          skills: [],
-          languages: [],
-        };
         // Create mock CV data for TemplateMatchingAssistant
         const mockCVData = {
           personalData: {
@@ -165,8 +149,6 @@ export default function DesignerPage({
               />
             </div>
           </div>
-        );
-          />
         );
       case "layout-editor":
         return (
