@@ -11,7 +11,7 @@ interface TemplateThumbnailProps {
   onClick?: () => void;
 }
 
-const aspectRatio = A4_HEIGHT / A4_WIDTH;
+const aspectRatio = A4_HEIGHT / A4_WIDTH; // ≈ 1.414
 
 const TemplateThumbnail: React.FC<TemplateThumbnailProps> = ({
   layout,
@@ -32,6 +32,7 @@ const TemplateThumbnail: React.FC<TemplateThumbnailProps> = ({
           width: "100%",
           paddingTop: `${aspectRatio * 100}%`,
           backgroundColor: "#fff",
+          maxHeight: "160px", // Miniaturhöhe begrenzen
         }}
       >
         {layout.map((el) => {
@@ -40,7 +41,7 @@ const TemplateThumbnail: React.FC<TemplateThumbnailProps> = ({
           const width = (el.width / A4_WIDTH) * 100;
           const height = ((el.height || 100) / A4_HEIGHT) * 100;
 
-          // Foto
+          // Farben & Darstellung je nach Typ
           if (el.type === "photo") {
             return (
               <div
@@ -59,7 +60,6 @@ const TemplateThumbnail: React.FC<TemplateThumbnailProps> = ({
             );
           }
 
-          // Text-Section
           return (
             <div
               key={el.id}
@@ -72,26 +72,38 @@ const TemplateThumbnail: React.FC<TemplateThumbnailProps> = ({
                 backgroundColor: "#f9fafb",
                 border: "1px solid #e5e7eb",
                 borderRadius: "2px",
-                padding: "2px",
+                padding: "1px",
                 display: "flex",
                 flexDirection: "column",
                 justifyContent: "flex-start",
-                gap: "2px",
+                gap: "1px",
               }}
             >
               {/* Überschrift-Balken */}
               <div
                 style={{
-                  height: "8%",
+                  height: "10%",
                   backgroundColor: "#d1d5db",
                   borderRadius: "1px",
-                  marginBottom: "2px",
+                  marginBottom: "1px",
                 }}
               />
               {/* Platzhalter-Linien */}
-              <div style={{ height: "5%", backgroundColor: "#e5e7eb" }} />
-              <div style={{ height: "5%", backgroundColor: "#e5e7eb", width: "80%" }} />
-              <div style={{ height: "5%", backgroundColor: "#e5e7eb", width: "60%" }} />
+              <div style={{ height: "6%", backgroundColor: "#e5e7eb" }} />
+              <div
+                style={{
+                  height: "6%",
+                  backgroundColor: "#e5e7eb",
+                  width: "80%",
+                }}
+              />
+              <div
+                style={{
+                  height: "6%",
+                  backgroundColor: "#e5e7eb",
+                  width: "60%",
+                }}
+              />
             </div>
           );
         })}
