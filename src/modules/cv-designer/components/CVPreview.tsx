@@ -1,6 +1,7 @@
 /**
  * CV Preview – nutzt StyleConfig + Template Layouts
  * Inhalte aus LebenslaufContext werden in LayoutElements injiziert
+ * Robuste Behandlung von content (string | string[] | undefined)
  */
 
 import React from "react";
@@ -29,7 +30,7 @@ const CVPreview: React.FC<CVPreviewProps> = ({
   const sectionsToRender = React.useMemo(() => {
     if (layoutElements.length > 0) {
       return layoutElements.map((el) => {
-        let content = "";
+        let content: string | string[] = "";
 
         switch (el.type) {
           case "profil":
@@ -44,28 +45,24 @@ const CVPreview: React.FC<CVPreviewProps> = ({
               .join("\n");
             break;
           case "erfahrung":
-            content = berufserfahrung
-              .map(
-                (e) =>
-                  `${e.position} @ ${e.companies.join(", ")} (${e.von} – ${
-                    e.bis
-                  })\n${e.aufgabenbereiche?.join("\n") || ""}`
-              )
-              .join("\n\n");
+            content = berufserfahrung.map(
+              (e) =>
+                `${e.position} @ ${e.companies?.join(", ") || ""} (${e.von} – ${
+                  e.bis
+                })\n${e.aufgabenbereiche?.join("\n") || ""}`
+            );
             break;
           case "ausbildung":
-            content = ausbildung
-              .map(
-                (a) =>
-                  `${a.ausbildungsart} – ${a.institution} (${a.von} – ${a.bis})`
-              )
-              .join("\n\n");
+            content = ausbildung.map(
+              (a) =>
+                `${a.ausbildungsart} – ${a.institution} (${a.von} – ${a.bis})`
+            );
             break;
           case "kenntnisse":
-            content = skills.join(", ");
+            content = skills;
             break;
           case "softskills":
-            content = softskills.join(", ");
+            content = softskills;
             break;
           case "photo":
             content = personalData?.profileImage || "";
@@ -109,6 +106,22 @@ const CVPreview: React.FC<CVPreviewProps> = ({
     minHeight: "297mm", // A4
     margin: "0 auto",
     overflow: "hidden",
+  };
+
+  const renderContent = (content: string | string[] | undefined) => {
+    if (!content) return null;
+
+    if (Array.isArray(content)) {
+      return (
+        <div style={{ whiteSpace: "pre-line", lineHeight: "1.6" }}>
+          {content.join("\n")}
+        </div>
+      );
+    }
+
+    return (
+      <div style={{ whiteSpace: "pre-line", lineHeight: "1.6" }}>{content}</div>
+    );
   };
 
   const renderBadgeList = (items: string[] = []) => (
@@ -163,7 +176,11 @@ const CVPreview: React.FC<CVPreviewProps> = ({
           {/* Profilbild */}
           {section.type === "photo" && section.content ? (
             <img
-              src={section.content}
+              src={
+                Array.isArray(section.content)
+                  ? section.content[0]
+                  : (section.content as string)
+              }
               alt="Profilfoto"
               style={{
                 width: "100%",
@@ -178,18 +195,15 @@ const CVPreview: React.FC<CVPreviewProps> = ({
           {["skills", "softskills", "kenntnisse"].includes(section.type) &&
           section.content ? (
             renderBadgeList(
-              section.content
-                .split(/[,;\n]/)
-                .map((s) => s.trim())
-                .filter(Boolean)
+              Array.isArray(section.content)
+                ? section.content
+                : (section.content as string)
+                    .split(/[,;\n]/)
+                    .map((s) => s.trim())
+                    .filter(Boolean)
             )
           ) : (
-            section.content &&
-            typeof section.content === "string" && (
-              <div style={{ whiteSpace: "pre-line", lineHeight: "1.6" }}>
-                {section.content}
-              </div>
-            )
+            renderContent(section.content)
           )}
         </div>
       ))}
