@@ -15,6 +15,7 @@ interface CVPreviewProps {
   layoutElements?: LayoutElement[];
   styleConfig?: StyleConfig;
   cvData?: any;
+  templateName?: 'classic' | 'modern' | 'minimal' | 'creative';
   className?: string;
   showDebugBorders?: boolean;
   scale?: number;
@@ -25,6 +26,7 @@ const CVPreview: React.FC<CVPreviewProps> = ({
   layoutElements = [],
   styleConfig,
   cvData,
+  templateName = 'classic',
   className = "",
   showDebugBorders = false,
   scale,
@@ -53,7 +55,7 @@ const CVPreview: React.FC<CVPreviewProps> = ({
         ausbildung,
         skills: [],
         softskills: [],
-      });
+      }, templateName);
     }
 
     // Inhalte aus Context in Template-Layout injizieren
