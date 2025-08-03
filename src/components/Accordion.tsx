@@ -1,30 +1,60 @@
-import React, { ReactNode } from 'react';
+"use client";
 
-export function Accordion({ children }: { children: ReactNode }) {
-  return <div className="space-y-2">{children}</div>;
-}
+import * as React from "react";
+import * as AccordionPrimitive from "@radix-ui/react-accordion";
+import { cn } from "@/lib/utils";
 
-interface ItemProps {
-  children: ReactNode;
-  defaultOpen?: boolean;
-}
+const Accordion = AccordionPrimitive.Root;
 
-export function AccordionItem({ children, defaultOpen = false }: ItemProps) {
-  return (
-    <details open={defaultOpen} className="border rounded-md">
+const AccordionItem = React.forwardRef<
+  React.ElementRef<typeof AccordionPrimitive.Item>,
+  React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Item>
+>(({ className, ...props }, ref) => (
+  <AccordionPrimitive.Item
+    ref={ref}
+    className={cn("border-b border-gray-200", className)}
+    {...props}
+  />
+));
+AccordionItem.displayName = "AccordionItem";
+
+const AccordionTrigger = React.forwardRef<
+  React.ElementRef<typeof AccordionPrimitive.Trigger>,
+  React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Trigger>
+>(({ className, children, ...props }, ref) => (
+  <AccordionPrimitive.Header className="flex">
+    <AccordionPrimitive.Trigger
+      ref={ref}
+      className={cn(
+        "flex flex-1 items-center justify-between py-3 font-medium transition-all hover:text-blue-600",
+        className
+      )}
+      {...props}
+    >
       {children}
-    </details>
-  );
-}
+      <span className="ml-2 transition-transform duration-200 group-data-[state=open]:rotate-180">
+        ▼
+      </span>
+    </AccordionPrimitive.Trigger>
+  </AccordionPrimitive.Header>
+));
+AccordionTrigger.displayName = "AccordionTrigger";
 
-export function AccordionHeader({ children }: { children: ReactNode }) {
-  return (
-    <summary className="cursor-pointer list-none px-4 py-2 flex items-center justify-between">
-      {children}
-    </summary>
-  );
-}
+const AccordionContent = React.forwardRef<
+  React.ElementRef<typeof AccordionPrimitive.Content>,
+  React.ComponentPropsWithoutRef<typeof AccordionPrimitive.Content>
+>(({ className, children, ...props }, ref) => (
+  <AccordionPrimitive.Content
+    ref={ref}
+    className={cn(
+      "overflow-hidden text-sm transition-all data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down",
+      className
+    )}
+    {...props}
+  >
+    <div className="pb-4">{children}</div>
+  </AccordionPrimitive.Content>
+));
+AccordionContent.displayName = "AccordionContent";
 
-export function AccordionContent({ children }: { children: ReactNode }) {
-  return <div className="px-4 pb-4 pt-0">{children}</div>;
-}
+export { Accordion, AccordionItem, AccordionTrigger, AccordionContent };
