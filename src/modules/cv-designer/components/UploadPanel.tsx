@@ -15,9 +15,6 @@ export default function UploadPanel({ onLayoutImport, onCVDataImport }: UploadPa
     reader.onload = () => {
       try {
         let raw: any = reader.result
-        console.log("typeof result:", typeof raw, raw instanceof ArrayBuffer)
-        console.log("raw result:", raw)
-
         if (raw instanceof ArrayBuffer) {
           raw = new TextDecoder("utf-8").decode(raw)
         }
@@ -29,20 +26,25 @@ export default function UploadPanel({ onLayoutImport, onCVDataImport }: UploadPa
         const parsed = JSON.parse(cleanText)
         console.log("✅ Parsed JSON:", parsed)
 
-        if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].type) {
-          onLayoutImport(parsed)
-        } else if (parsed && typeof parsed === "object") {
-          onCVDataImport(parsed)
-        } else {
-          alert("❌ Unbekanntes JSON-Format")
+        try {
+          if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].type) {
+            console.log("▶ Dispatching to onLayoutImport")
+            onLayoutImport(parsed)
+          } else if (parsed && typeof parsed === "object") {
+            console.log("▶ Dispatching to onCVDataImport")
+            onCVDataImport(parsed)
+          } else {
+            alert("❌ Unbekanntes JSON-Format")
+          }
+        } catch (innerErr) {
+          console.error("❌ Fehler in onLayoutImport/onCVDataImport:", innerErr, parsed)
         }
       } catch (err) {
-        console.error("Fehler beim Parsen:", err)
-        alert("❌ Fehler beim Parsen der Datei. Siehe Console für Details.")
+        console.error("❌ Fehler beim Parsen des Files:", err)
+        alert("❌ Fehler beim Lesen der Datei. Siehe Console.")
       }
     }
 
-    // ArrayBuffer statt Text nutzen, um alle Formate abzufangen
     reader.readAsArrayBuffer(file)
   }
 
