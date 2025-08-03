@@ -189,8 +189,12 @@ export default function DesignerPage({
               setLayoutElements(layout);
             }}
             onCVDataImport={(cvData) => {
-              console.log('CV Data imported:', cvData);
-              // Could update personalData here if needed
+              console.log("CV Data imported:", cvData);
+              if (cvData.personalData) {
+                updatePersonalData(cvData.personalData)
+              }
+              const mappedLayout = mapBetterLetterToDesignerWithTemplate(cvData, "classic")
+              setLayoutElements(mappedLayout)
             }}
           />
         );
