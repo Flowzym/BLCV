@@ -294,3 +294,14 @@ export function searchTemplatesByTags(tags: string[]): PredefinedTemplate[] {
     tags.some((tag) => template.tags.includes(tag))
   );
 }
+
+/**
+ * Default export for compatibility with existing imports
+ */
+export default {
+  predefinedTemplates,
+  getTemplateById,
+  getTemplatesByCategory,
+  getTemplateCategories,
+  searchTemplatesByTags,
+};
