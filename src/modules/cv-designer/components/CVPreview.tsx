@@ -51,19 +51,16 @@ const CVPreview: React.FC<CVPreviewProps> = ({
     } else if (sections && sections.length > 0) {
       elementsToUse = sections;
     } else {
-      elementsToUse = mapBetterLetterToDesignerWithTemplate({
-      personalData,
-      erfahrung,
-      ausbildung,
-      kenntnisse: skills || [],
-      softskills: softskills || []
-    }, selectedTemplateId || "classic"){
+      elementsToUse = const mapped = mapBetterLetterToDesignerWithTemplate(
+      {
         personalData,
-        berufserfahrung,
+        erfahrung,
         ausbildung,
-        skills: [],
-        softskills: [],
-      }, templateName);
+        kenntnisse: skills || [],
+        softskills: softskills || []
+      },
+      selectedTemplateId || "classic"
+    );
     }
 
     return elementsToUse.map((el) => {
