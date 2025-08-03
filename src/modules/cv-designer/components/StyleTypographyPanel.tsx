@@ -10,7 +10,7 @@ import {
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
-} from "@/components/Accordion";
+} from "@/components/ui/accordion";   // ✅ neuer Import-Pfad
 
 const defaultFont: FontConfig = {
   family: "Inter",
