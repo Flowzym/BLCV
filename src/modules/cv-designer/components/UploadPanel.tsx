@@ -14,12 +14,18 @@ export default function UploadPanel({ onLayoutImport, onCVDataImport }: UploadPa
     const reader = new FileReader()
     reader.onload = () => {
       try {
-        const text = reader.result as string
-        console.log("📂 Raw File Content:", text)
+        let raw: any = reader.result
+        console.log("typeof result:", typeof raw, raw instanceof ArrayBuffer)
+        console.log("raw result:", raw)
 
-        // BOM entfernen, falls vorhanden
-        const cleanText = text.replace(/^\uFEFF/, "")
+        if (raw instanceof ArrayBuffer) {
+          raw = new TextDecoder("utf-8").decode(raw)
+        }
+        if (typeof raw !== "string") {
+          raw = String(raw)
+        }
 
+        const cleanText = raw.trim().replace(/^\uFEFF/, "")
         const parsed = JSON.parse(cleanText)
         console.log("✅ Parsed JSON:", parsed)
 
@@ -32,10 +38,12 @@ export default function UploadPanel({ onLayoutImport, onCVDataImport }: UploadPa
         }
       } catch (err) {
         console.error("Fehler beim Parsen:", err)
-        alert("Die Datei konnte nicht gelesen werden. Inhalt war: " + reader.result)
+        alert("❌ Fehler beim Parsen der Datei. Siehe Console für Details.")
       }
     }
-    reader.readAsText(file, "utf-8")
+
+    // ArrayBuffer statt Text nutzen, um alle Formate abzufangen
+    reader.readAsArrayBuffer(file)
   }
 
   return (
