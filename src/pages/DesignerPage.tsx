@@ -13,6 +13,7 @@ import {
   Image as ImageIcon,
   FileText,
   Wand2,
+  Upload,
 } from "lucide-react";
 import CVPreview from "../modules/cv-designer/components/CVPreview";
 import { StyleEditor } from "../components/StyleEditor";
