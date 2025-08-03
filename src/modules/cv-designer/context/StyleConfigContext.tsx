@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState } from "react";
-import { StyleConfig } from "@/types/cv-designer";
+import { StyleConfig } from "@/modules/cv-designer/types/styles";
 import { defaultStyleConfig } from "@/modules/cv-designer/config/defaultStyleConfig";
 
 type StyleContextType = {
@@ -29,11 +29,20 @@ export function StyleConfigProvider({
   });
 
   const updateStyleConfig = (updates: Partial<StyleConfig>) => {
-    setStyleConfig(prev => ({ ...prev, ...updates }));
+    setStyleConfig((prev) => ({
+      ...prev,
+      ...updates,
+      sections: {
+        ...prev.sections,
+        ...(updates as any).sections,
+      },
+    }));
   };
 
   return (
-    <StyleConfigContext.Provider value={{ styleConfig, setStyleConfig, updateStyleConfig }}>
+    <StyleConfigContext.Provider
+      value={{ styleConfig, setStyleConfig, updateStyleConfig }}
+    >
       {children}
     </StyleConfigContext.Provider>
   );
