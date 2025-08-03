@@ -23,6 +23,8 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "docx": "^8.5.0",
+    "file-saver": "^2.0.5",
+    "jspdf": "^3.0.1",
     "lucide-react": "^0.344.0",
     "mammoth": "^1.6.0",
     "react": "^18.3.1",
