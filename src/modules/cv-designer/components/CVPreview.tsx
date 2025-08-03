@@ -5,10 +5,18 @@
 
 import React from "react";
 import { LayoutElement } from "../types/section";
-import { StyleConfig } from "../types/styles";
+import { StyleConfig } from "../../../types/cv-designer";
 import { defaultStyleConfig } from "../config/defaultStyleConfig";
 import { useLebenslauf } from "@/components/LebenslaufContext";
 import { mapBetterLetterToDesigner } from "../services/mapBetterLetterToDesigner";
+import { 
+  renderElementToCanvas, 
+  renderElementContent, 
+  A4_WIDTH, 
+  A4_HEIGHT,
+  validateLayout,
+  getLayoutStats
+} from "../services/layoutRenderer";
 
 interface CVPreviewProps {
   sections?: LayoutElement[];
@@ -33,10 +41,6 @@ const CVPreview: React.FC<CVPreviewProps> = ({
 }) => {
   // Hole Daten aus LebenslaufContext
   const { personalData, berufserfahrung, ausbildung } = useLebenslauf();
-
-  // A4 Basis-Dimensionen (72 DPI)
-  const A4_WIDTH = 595;
-  const A4_HEIGHT = 842;
 
   // Template-Layout + Inhalte zusammenführen
   const sectionsToRender = React.useMemo(() => {
@@ -199,6 +203,15 @@ const CVPreview: React.FC<CVPreviewProps> = ({
   }, [layoutElements, sections, personalData, berufserfahrung, ausbildung]);
 
   const safeStyleConfig = styleConfig || defaultStyleConfig;
+  
+  // Layout validation for debugging
+  const layoutValidation = React.useMemo(() => {
+    return validateLayout(sectionsToRender, A4_WIDTH, A4_HEIGHT);
+  }, [sectionsToRender]);
+  
+  const layoutStats = React.useMemo(() => {
+    return getLayoutStats(sectionsToRender);
+  }, [sectionsToRender]);
 
   // Berechne Skalierung wenn gewünscht
   const actualScale = scale || 1;
@@ -222,195 +235,91 @@ const CVPreview: React.FC<CVPreviewProps> = ({
     transformOrigin: "top left"
   };
 
-  // Funktion zum Rendern von Skills als Badges
-  const renderSkillsBadges = (content: string) => {
-    const skills = content.split(/[,;\n]/).map(s => s.trim()).filter(Boolean);
-    return (
-      <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
-        {skills.slice(0, 8).map((skill, idx) => (
-          <span
-            key={idx}
-            style={{
-              background: safeStyleConfig.accentColor || "#3b82f6",
-              color: "white",
-              padding: "2px 6px",
-              borderRadius: "8px",
-              fontSize: "0.7em",
-              fontWeight: "500",
-              whiteSpace: "nowrap"
-            }}
-          >
-            {skill}
-          </span>
-        ))}
-        {skills.length > 8 && (
-          <span
-            style={{
-              background: "#6b7280",
-              color: "white",
-              padding: "2px 6px",
-              borderRadius: "8px",
-              fontSize: "0.7em",
-              fontWeight: "500"
-            }}
-          >
-            +{skills.length - 8}
-          </span>
-        )}
-      </div>
-    );
-  };
-
-  // Funktion zum Rendern von Content
-  const renderContent = (element: LayoutElement) => {
-    const { type, content, title } = element;
-
-    // Profilbild spezielle Behandlung
-    if (type === "photo") {
-      return content ? (
-        <img
-          src={content}
-          alt="Profilfoto"
-          style={{
-            width: "100%",
-            height: "100%",
-            objectFit: "cover",
-            borderRadius: "50%",
-            border: `2px solid ${safeStyleConfig.accentColor || "#e5e7eb"}`
-          }}
-        />
-      ) : (
-        <div
-          style={{
-            width: "100%",
-            height: "100%",
-            borderRadius: "50%",
-            backgroundColor: "#f3f4f6",
-            border: `2px dashed ${safeStyleConfig.accentColor || "#d1d5db"}`,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontSize: "0.6em",
-            color: "#6b7280",
-            textAlign: "center"
-          }}
-        >
-          📷<br/>Foto
-        </div>
-      );
-    }
-
-    // Skills als Badges rendern
-    if (type === "kenntnisse" || type === "skills" || type === "softskills") {
-      return content ? renderSkillsBadges(content) : (
-        <div style={{ color: "#9ca3af", fontStyle: "italic", fontSize: "0.8em" }}>
-          – Keine {type === "softskills" ? "Soft Skills" : "Fähigkeiten"} –
-        </div>
-      );
-    }
-
-    // Standard Content-Rendering
-    return (
-      <div style={{ 
-        whiteSpace: "normal", 
-        lineHeight: "1.4",
-        wordWrap: "break-word",
-        overflow: "hidden"
-      }}>
-        {content || (
-          <div style={{ color: "#9ca3af", fontStyle: "italic", fontSize: "0.8em" }}>
-            – Keine Daten –
-          </div>
-        )}
-      </div>
-    );
-  };
-
   return (
-    <div className={`cv-preview ${className}`} style={{ display: "flex", justifyContent: "center", padding: "20px" }}>
-      <div style={containerStyle}>
-        {sectionsToRender.map((element) => (
-          <div
-            key={element.id}
-            style={{
-              position: "absolute",
-              left: `${element.x}px`,
-              top: `${element.y}px`,
-              width: `${element.width}px`,
-              height: `${element.height}px`,
-              padding: "8px",
-              boxSizing: "border-box",
-              overflow: "hidden",
-              border: showDebugBorders ? "1px dashed #d1d5db" : undefined,
-              backgroundColor: showDebugBorders ? "rgba(59, 130, 246, 0.05)" : undefined
-            }}
-          >
-            {/* Section Title */}
-            {element.title && element.type !== "photo" && (
-              <h3
-                style={{
-                  fontSize: "1em",
-                  fontWeight: "600",
-                  marginBottom: "6px",
-                  color: safeStyleConfig.primaryColor || "#1e40af",
-                  borderBottom: `1px solid ${safeStyleConfig.accentColor || "#3b82f6"}`,
-                  paddingBottom: "2px",
-                  lineHeight: "1.2"
-                }}
-              >
-                {element.title}
-              </h3>
-            )}
+    <div className={`cv-preview ${className}`}>
+      <div style={{ display: "flex", justifyContent: "center", padding: "20px" }}>
+        <div style={containerStyle}>
+          {sectionsToRender.map((element) => {
+            const elementStyle = renderElementToCanvas(element, safeStyleConfig, {
+              showDebugBorders,
+              scale: actualScale
+            });
+            
+            return (
+              <div key={element.id} style={elementStyle}>
+                {/* Section Title */}
+                {element.title && element.type !== "photo" && (
+                  <h3
+                    style={{
+                      fontSize: "1em",
+                      fontWeight: "600",
+                      marginBottom: "6px",
+                      color: safeStyleConfig.primaryColor || "#1e40af",
+                      borderBottom: `1px solid ${safeStyleConfig.accentColor || "#3b82f6"}`,
+                      paddingBottom: "2px",
+                      lineHeight: "1.2"
+                    }}
+                  >
+                    {element.title}
+                  </h3>
+                )}
 
-            {/* Section Content */}
-            <div style={{ 
-              height: element.title && element.type !== "photo" ? "calc(100% - 24px)" : "100%",
-              overflow: "hidden"
-            }}>
-              {renderContent(element)}
+                {/* Section Content */}
+                <div style={{ 
+                  height: element.title && element.type !== "photo" ? "calc(100% - 24px)" : "100%",
+                  overflow: "hidden"
+                }}>
+                  {renderElementContent(element, safeStyleConfig, {
+                    renderSkillsBadges: true,
+                    maxSkills: 8,
+                    maxTasks: 3
+                  })}
+                </div>
+              </div>
+            );
+          })}
+          {/* Fallback wenn keine Sections vorhanden */}
+          {sectionsToRender.length === 0 && (
+            <div
+              style={{
+                position: "absolute",
+                top: "50%",
+                left: "50%",
+                transform: "translate(-50%, -50%)",
+                textAlign: "center",
+                color: "#6b7280",
+                fontStyle: "italic"
+              }}
+            >
+              <div style={{ fontSize: "2em", marginBottom: "12px" }}>📄</div>
+              <div style={{ fontSize: "1.2em", marginBottom: "8px" }}>Keine Lebenslaufdaten vorhanden</div>
+              <div style={{ fontSize: "0.9em" }}>
+                Bitte füllen Sie die Felder im Lebenslauf-Editor aus
+              </div>
             </div>
-          </div>
-        ))}
+          )}
 
-        {/* Fallback wenn keine Sections vorhanden */}
-        {sectionsToRender.length === 0 && (
-          <div
-            style={{
-              position: "absolute",
-              top: "50%",
-              left: "50%",
-              transform: "translate(-50%, -50%)",
-              textAlign: "center",
-              color: "#6b7280",
-              fontStyle: "italic"
-            }}
-          >
-            <div style={{ fontSize: "2em", marginBottom: "12px" }}>📄</div>
-            <div style={{ fontSize: "1.2em", marginBottom: "8px" }}>Keine Lebenslaufdaten vorhanden</div>
-            <div style={{ fontSize: "0.9em" }}>
-              Bitte füllen Sie die Felder im Lebenslauf-Editor aus
+          {/* Debug Info */}
+          {showDebugBorders && (
+            <div
+              style={{
+                position: "absolute",
+                top: "5px",
+                right: "5px",
+                background: "rgba(0, 0, 0, 0.8)",
+                color: "white",
+                padding: "4px 8px",
+                borderRadius: "4px",
+                fontSize: "0.7em",
+                zIndex: 1000
+              }}
+            >
+              A4: {A4_WIDTH}×{A4_HEIGHT}px | {sectionsToRender.length} Elemente
+              <br />
+              Density: {layoutStats.density.toFixed(1)}% | Overlaps: {layoutValidation.overlaps.length}
             </div>
-          </div>
-        )}
-
-        {/* Debug Info */}
-        {showDebugBorders && (
-          <div
-            style={{
-              position: "absolute",
-              top: "5px",
-              right: "5px",
-              background: "rgba(0, 0, 0, 0.8)",
-              color: "white",
-              padding: "4px 8px",
-              borderRadius: "4px",
-              fontSize: "0.7em",
-              zIndex: 1000
-            }}
-          >
-            A4: {A4_WIDTH}×{A4_HEIGHT}px | {sectionsToRender.length} Elemente
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   );
