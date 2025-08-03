@@ -1,5 +1,6 @@
 import { Template } from "../types/template"
 
+// Named export
 export const classicTemplate: Template = {
   id: "classic",
   name: "Classic",
