@@ -1,5 +1,6 @@
 // 📄 src/pages/DesignerPage.tsx
-// Defensiv überarbeitet – alle Arrays safe, keine .length auf undefined
+// Überarbeitet – Inline Editing, Export-Buttons, Template-Speicher-Hooks + Default-Template-Fallback
+// UploadPanel jetzt mit internen Tabs (Basic, GPT, Assistant)
 
 import React, { useState, useEffect } from "react";
 import {
@@ -65,23 +66,24 @@ interface DesignerPageProps {
 export default function DesignerPage({
   styleConfig,
   setStyleConfig,
-  layoutElements = [],
+  layoutElements,
   setLayoutElements,
 }: DesignerPageProps) {
   const [activeDesignerTab, setActiveDesignerTab] = useState<TabId>("layout-style");
   const { personalData, updatePersonalData } = useLebenslauf();
-  const { saveTemplate, templates = [] } = useTemplateStorage();
+  const { saveTemplate, templates } = useTemplateStorage();
 
-  // Default-Template laden, falls nichts vorhanden
+  // Default-Template laden, falls keine gespeichert
   useEffect(() => {
-    if ((templates ?? []).length === 0 && (layoutElements ?? []).length === 0) {
+    if ((!templates || templates.length === 0) && layoutElements.length === 0) {
       const mapped =
         mapBetterLetterToDesignerWithTemplate({ personalData: {} }, "classic") ?? [];
-      setLayoutElements(mapped ?? []);
+
+      setLayoutElements(mapped);
       saveTemplate({
         id: "default-classic",
         name: "Classic Default",
-        layout: mapped ?? [],
+        layout: mapped,
         style: styleConfig,
       });
     }
@@ -91,7 +93,7 @@ export default function DesignerPage({
     saveTemplate({
       id: Date.now().toString(),
       name: `${personalData?.vorname ?? "Template"} ${new Date().toLocaleDateString()}`,
-      layout: layoutElements ?? [],
+      layout: layoutElements,
       style: styleConfig,
     });
   };
@@ -108,13 +110,12 @@ export default function DesignerPage({
   ];
 
   // Upload callbacks
-  const handleLayoutImport = (layout: LayoutElement[]) =>
-    setLayoutElements(layout ?? []);
+  const handleLayoutImport = (layout: LayoutElement[]) => setLayoutElements(layout);
   const handleCVDataImport = (cvData: any) => {
     const normalized = normalizeCVData(cvData);
     if (normalized?.personalData) updatePersonalData(normalized.personalData);
     const mapped = mapBetterLetterToDesignerWithTemplate(normalized, "classic") ?? [];
-    setLayoutElements(mapped ?? []);
+    setLayoutElements(mapped);
   };
 
   // Tab content
@@ -140,10 +141,7 @@ export default function DesignerPage({
         );
       case "layout-editor":
         return (
-          <LayoutDesigner
-            initialLayout={layoutElements ?? []}
-            onLayoutChange={(updated) => setLayoutElements(updated ?? [])}
-          />
+          <LayoutDesigner initialLayout={layoutElements} onLayoutChange={setLayoutElements} />
         );
       case "upload":
         return (
@@ -168,7 +166,7 @@ export default function DesignerPage({
           <TemplateSelector
             onSelect={(style, layout) => {
               setStyleConfig(style);
-              setLayoutElements(layout ?? []);
+              setLayoutElements(layout);
             }}
             allowSave
             onSaveTemplate={handleTemplateSave}
@@ -221,12 +219,12 @@ export default function DesignerPage({
             <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
               <Eye className="w-5 h-5 text-orange-500" /> Live‑Vorschau
             </h3>
-            <ExportButtons layout={layoutElements ?? []} style={styleConfig} />
+            <ExportButtons layout={layoutElements} style={styleConfig} />
           </div>
           <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4">
             <CVPreview
               styleConfig={styleConfig}
-              layoutElements={layoutElements ?? []}
+              layoutElements={layoutElements}
               templateName="classic"
             />
           </div>
