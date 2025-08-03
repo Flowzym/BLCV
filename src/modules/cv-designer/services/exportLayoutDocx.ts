@@ -6,7 +6,14 @@
 import { Document, Paragraph, TextRun, AlignmentType, HeadingLevel } from 'docx';
 import { SavedTemplate, TemplateSection } from '../types/template';
 import { LayoutElement, Section, LayoutGroup } from '../types/section';
-import { StyleConfig, FontConfig } from '../types/styles';
+import { StyleConfig } from '../../../types/cv-designer';
+import { 
+  renderElementToDocx, 
+  A4_WIDTH, 
+  A4_HEIGHT,
+  validateLayout,
+  processTextForExport
+} from './layoutRenderer';
 
 /**
  * Export options for DOCX generation
@@ -50,6 +57,12 @@ export async function exportTemplateToDocx(
   options: DocxExportOptions = {}
 ): Promise<DocxExportResult> {
   try {
+    // Validate template before processing
+    const validation = validateTemplateForDocxExport(template);
+    if (!validation.isValid) {
+      throw new Error(`Template validation failed: ${validation.errors.join(', ')}`);
+    }
+
     const {
       pageMargins = { top: 1440, right: 1440, bottom: 1440, left: 1440 }, // 1 inch in twips
       includeMetadata = false,
@@ -62,15 +75,25 @@ export async function exportTemplateToDocx(
       ...customStyles
     };
 
+    // Validate layout elements
+    const layoutValidation = validateLayout(template.layout, A4_WIDTH, A4_HEIGHT);
+    if (!layoutValidation.isValid && layoutValidation.warnings.length > 0) {
+      console.warn('DOCX Export Layout Warnings:', layoutValidation.warnings);
+    }
+
     // Create document with page settings
     const doc = new Document({
       sections: [{
         properties: {
           page: {
-            margin: pageMargins
+            margin: pageMargins,
+            size: {
+              width: A4_WIDTH * 20, // Convert to twips
+              height: A4_HEIGHT * 20
+            }
           }
         },
-        children: await generateDocumentParagraphs(template, effectiveStyles, includeMetadata)
+        children: await generateDocumentParagraphs(template, effectiveStyles, includeMetadata, options)
       }]
     });
 
@@ -114,7 +137,8 @@ export async function exportTemplateToDocx(
 async function generateDocumentParagraphs(
   template: SavedTemplate,
   styles: StyleConfig,
-  includeMetadata: boolean
+  includeMetadata: boolean,
+  options: DocxExportOptions = {}
 ): Promise<Paragraph[]> {
   const paragraphs: Paragraph[] = [];
 
@@ -126,7 +150,7 @@ async function generateDocumentParagraphs(
           new TextRun({
             text: `Template: ${template.name}`,
             bold: true,
-            size: Math.round(styles.font.size * 1.2) * 2 // Convert to half-points
+            size: 24 // 12pt in half-points
           })
         ],
         heading: HeadingLevel.HEADING_1,
@@ -141,7 +165,7 @@ async function generateDocumentParagraphs(
             new TextRun({
               text: template.description,
               italics: true,
-              size: styles.font.size * 2
+              size: 22 // 11pt in half-points
             })
           ],
           spacing: { after: 240 }
@@ -151,15 +175,20 @@ async function generateDocumentParagraphs(
   }
 
   // Process template sections
-  for (const section of template.sections.sort((a, b) => a.order - b.order)) {
-    const sectionParagraphs = await generateSectionParagraphs(section, styles);
-    paragraphs.push(...sectionParagraphs);
+  if (template.sections && template.sections.length > 0) {
+    for (const section of template.sections.sort((a, b) => a.order - b.order)) {
+      const sectionParagraphs = await generateSectionParagraphs(section, styles);
+      paragraphs.push(...sectionParagraphs);
+    }
   }
 
-  // Process layout elements
+  // Process layout elements using unified renderer
   for (const element of template.layout) {
-    const elementParagraphs = await generateLayoutElementParagraphs(element, styles);
-    paragraphs.push(...elementParagraphs);
+    const elementParagraphs = renderElementToDocx(element, styles, {
+      pageWidth: A4_WIDTH,
+      pageHeight: A4_HEIGHT
+    });
+    paragraphs.push(...sectionParagraphs);
   }
 
   return paragraphs;
@@ -182,8 +211,8 @@ async function generateSectionParagraphs(
           new TextRun({
             text: section.title,
             bold: true,
-            size: Math.round(styles.font.size * 1.1) * 2,
-            color: styles.colors.primary.replace('#', '')
+            size: 26, // 13pt in half-points
+            color: (styles.primaryColor || '#1e40af').replace('#', '')
           })
         ],
         heading: HeadingLevel.HEADING_2,
@@ -194,7 +223,8 @@ async function generateSectionParagraphs(
 
   // Section content
   if (section.content) {
-    const contentLines = section.content.split('\n').filter(line => line.trim());
+    const processedContent = processTextForExport(section.content);
+    const contentLines = processedContent.split('\n').filter(line => line.trim());
     
     for (const line of contentLines) {
       paragraphs.push(
@@ -202,8 +232,8 @@ async function generateSectionParagraphs(
           children: [
             new TextRun({
               text: line.trim(),
-              size: styles.font.size * 2,
-              color: styles.colors.text?.replace('#', '') || '000000'
+              size: 24, // 12pt in half-points
+              color: (styles.textColor || '#000000').replace('#', '')
             })
           ],
           spacing: { after: 120 }
@@ -216,146 +246,9 @@ async function generateSectionParagraphs(
 }
 
 /**
- * Generates paragraphs for layout elements
+ * Validates template for DOCX export
  */
-async function generateLayoutElementParagraphs(
-  element: LayoutElement,
-  styles: StyleConfig
-): Promise<Paragraph[]> {
-  const paragraphs: Paragraph[] = [];
-
-  if (element.type === 'group') {
-    const group = element as LayoutGroup;
-    
-    // Group title if available
-    if (group.props?.title) {
-      paragraphs.push(
-        new Paragraph({
-          children: [
-            new TextRun({
-              text: group.props.title,
-              bold: true,
-              size: Math.round(styles.font.size * 1.05) * 2,
-              color: styles.colors.primary.replace('#', '')
-            })
-          ],
-          spacing: { before: 200, after: 100 }
-        })
-      );
-    }
-
-    // Process group children
-    for (const child of group.children) {
-      const childParagraphs = await generateSectionParagraphs(child, styles);
-      paragraphs.push(...childParagraphs);
-    }
-  } else {
-    // Handle individual section
-    const section = element as Section;
-    const sectionParagraphs = await generateSectionParagraphs(section, styles);
-    paragraphs.push(...sectionParagraphs);
-  }
-
-  return paragraphs;
-}
-
-/**
- * Generates paragraphs for individual sections
- */
-async function generateSectionParagraphs(
-  section: Section,
-  styles: StyleConfig
-): Promise<Paragraph[]> {
-  const paragraphs: Paragraph[] = [];
-
-  // Use section-specific styles if available
-  const sectionFont: FontConfig = {
-    ...styles.font,
-    family: section.fontFamily || styles.font.family,
-    size: section.fontSize ? parseInt(section.fontSize) : styles.font.size,
-    color: section.color || styles.font.color
-  };
-
-  // Process section data
-  if (section.data) {
-    if (typeof section.data === 'string') {
-      paragraphs.push(
-        new Paragraph({
-          children: [
-            new TextRun({
-              text: section.data,
-              size: sectionFont.size * 2,
-              color: sectionFont.color?.replace('#', '') || '000000'
-            })
-          ],
-          spacing: { after: 120 }
-        })
-      );
-    } else if (Array.isArray(section.data)) {
-      // Handle array data as list items
-      for (const item of section.data) {
-        paragraphs.push(
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: `• ${String(item)}`,
-                size: sectionFont.size * 2,
-                color: sectionFont.color?.replace('#', '') || '000000'
-              })
-            ],
-            spacing: { after: 80 }
-          })
-        );
-      }
-    } else if (typeof section.data === 'object') {
-      // Handle object data as key-value pairs
-      for (const [key, value] of Object.entries(section.data)) {
-        paragraphs.push(
-          new Paragraph({
-            children: [
-              new TextRun({
-                text: `${key}: `,
-                bold: true,
-                size: sectionFont.size * 2,
-                color: sectionFont.color?.replace('#', '') || '000000'
-              }),
-              new TextRun({
-                text: String(value),
-                size: sectionFont.size * 2,
-                color: sectionFont.color?.replace('#', '') || '000000'
-              })
-            ],
-            spacing: { after: 80 }
-          })
-        );
-      }
-    }
-  }
-
-  return paragraphs;
-}
-
-/**
- * Counts total layout elements in template
- */
-function countLayoutElements(layout: LayoutElement[]): number {
-  let count = 0;
-  
-  for (const element of layout) {
-    count++;
-    if (element.type === 'group') {
-      const group = element as LayoutGroup;
-      count += group.children.length;
-    }
-  }
-  
-  return count;
-}
-
-/**
- * Validates template before export
- */
-export function validateTemplateForExport(template: SavedTemplate): { isValid: boolean; errors: string[] } {
+function validateTemplateForDocxExport(template: SavedTemplate): { isValid: boolean; errors: string[] } {
   const errors: string[] = [];
 
   if (!template.id) {
@@ -363,17 +256,17 @@ export function validateTemplateForExport(template: SavedTemplate): { isValid: b
   }
 
   if (!template.name || template.name.trim().length === 0) {
-    errors.push('Template name is required');
+    errors.push('Template name is required for DOCX export');
   }
 
-  if (!template.style) {
-    errors.push('Template style configuration is required');
+  if (!template.style || typeof template.style !== 'object') {
+    errors.push('Template style configuration is required for DOCX export');
   } else {
-    if (!template.style.font) {
-      errors.push('Font configuration is required in template style');
+    if (!template.style.fontFamily) {
+      errors.push('Font family is required in style configuration');
     }
-    if (!template.style.colors) {
-      errors.push('Color configuration is required in template style');
+    if (!template.style.primaryColor) {
+      errors.push('Primary color is required in style configuration');
     }
   }
 
@@ -389,4 +282,23 @@ export function validateTemplateForExport(template: SavedTemplate): { isValid: b
     isValid: errors.length === 0,
     errors
   };
+}
+
+/**
+ * Counts total layout elements in template
+ */
+function countLayoutElements(layout: LayoutElement[]): number {
+  let count = 0;
+  
+  for (const element of layout) {
+    count++;
+    if (element.type === 'group') {
+      const group = element as LayoutGroup;
+      if (group.children && Array.isArray(group.children)) {
+        count += group.children.length;
+      }
+    }
+  }
+  
+  return count;
 }

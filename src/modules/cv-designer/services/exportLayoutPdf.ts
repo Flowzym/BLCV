@@ -5,7 +5,15 @@
 
 import { SavedTemplate } from '../types/template';
 import { LayoutElement } from '../types/section';
-import { StyleConfig } from '../types/styles';
+import { StyleConfig } from '../../../types/cv-designer';
+import { 
+  renderElementToPdf, 
+  A4_WIDTH, 
+  A4_HEIGHT,
+  validateLayout,
+  processTextForExport,
+  PDFElementData
+} from './layoutRenderer';
 
 /**
  * Export options for PDF generation
@@ -59,7 +67,7 @@ export async function exportTemplateToPdf(
 ): Promise<PdfExportResult> {
   try {
     // Validate template before processing
-    const validation = validateTemplateForPdfExport(template);
+    const validation = validateTemplateForExport(template);
     if (!validation.isValid) {
       throw new Error(`Template validation failed: ${validation.errors.join(', ')}`);
     }
@@ -78,22 +86,39 @@ export async function exportTemplateToPdf(
       ...customStyles
     };
 
+    // Validate layout elements
+    const layoutValidation = validateLayout(template.layout, pageWidth, pageHeight);
+    if (!layoutValidation.isValid) {
+      console.warn('PDF Export Layout Issues:', {
+        warnings: layoutValidation.warnings,
+        overlaps: layoutValidation.overlaps
+      });
+    }
+
+    // Process layout elements using unified renderer
+    const pdfElements = template.layout.map(element => 
+      renderElementToPdf(element, effectiveStyles, {
+        pageWidth,
+        pageHeight
+      })
+    );
+
     // TODO: Initialize PDF document with pdf-lib
     // const pdfDoc = await PDFDocument.create();
     // const page = pdfDoc.addPage([pageWidth, pageHeight]);
 
     // TODO: Process template sections and layout elements
-    // const processedContent = await processTemplateForPdf(template, effectiveStyles);
+    // const processedContent = await processTemplateForPdf(template, effectiveStyles, pdfElements);
 
     // TODO: Render content to PDF pages
-    // await renderContentToPdf(page, processedContent, effectiveStyles, pageMargins);
+    // await renderContentToPdf(page, processedContent, effectiveStyles, pageMargins, pdfElements);
 
     // TODO: Generate final PDF blob
     // const pdfBytes = await pdfDoc.save();
     // const blob = new Blob([pdfBytes], { type: 'application/pdf' });
 
     // Count elements for metadata
-    const elementsCount = countLayoutElements(template.layout);
+    const elementsCount = template.layout.length;
 
     // Placeholder return - replace with actual implementation
     throw new Error('PDF export not yet implemented. Please use DOCX export instead.');
@@ -129,13 +154,14 @@ export async function exportTemplateToPdf(
 
 /**
  * Processes template content for PDF rendering
- * TODO: Implement content processing logic
+ * TODO: Implement content processing logic with unified renderer
  */
 async function processTemplateForPdf(
   template: SavedTemplate,
-  styles: StyleConfig
+  styles: StyleConfig,
+  pdfElements: PDFElementData[]
 ): Promise<ProcessedPdfContent> {
-  // TODO: Convert template sections to PDF-renderable format
+  // TODO: Convert template sections to PDF-renderable format using pdfElements
   // TODO: Handle layout positioning and sizing
   // TODO: Process fonts and styling
   // TODO: Handle text wrapping and overflow
@@ -145,15 +171,16 @@ async function processTemplateForPdf(
 
 /**
  * Renders processed content to PDF page
- * TODO: Implement PDF rendering logic
+ * TODO: Implement PDF rendering logic with unified positioning
  */
 async function renderContentToPdf(
   page: any, // TODO: Replace with proper pdf-lib Page type
   content: ProcessedPdfContent,
   styles: StyleConfig,
-  margins: { top: number; right: number; bottom: number; left: number }
+  margins: { top: number; right: number; bottom: number; left: number },
+  pdfElements: PDFElementData[]
 ): Promise<void> {
-  // TODO: Implement PDF page rendering
+  // TODO: Implement PDF page rendering using pdfElements for positioning
   // TODO: Handle text positioning and styling
   // TODO: Add support for graphics and layout elements
   // TODO: Implement page overflow handling
@@ -164,7 +191,7 @@ async function renderContentToPdf(
 /**
  * Validates template for PDF export
  */
-function validateTemplateForPdfExport(template: SavedTemplate): { isValid: boolean; errors: string[] } {
+function validateTemplateForExport(template: SavedTemplate): { isValid: boolean; errors: string[] } {
   const errors: string[] = [];
 
   if (!template.id) {
@@ -178,11 +205,11 @@ function validateTemplateForPdfExport(template: SavedTemplate): { isValid: boole
   if (!template.style) {
     errors.push('Template style configuration is required for PDF export');
   } else {
-    if (!template.style.font) {
-      errors.push('Font configuration is required for PDF export');
+    if (!template.style.fontFamily) {
+      errors.push('Font family is required for PDF export');
     }
-    if (!template.style.colors) {
-      errors.push('Color configuration is required for PDF export');
+    if (!template.style.primaryColor) {
+      errors.push('Primary color is required for PDF export');
     }
   }
 
@@ -198,25 +225,6 @@ function validateTemplateForPdfExport(template: SavedTemplate): { isValid: boole
     isValid: errors.length === 0,
     errors
   };
-}
-
-/**
- * Counts total layout elements in template
- */
-function countLayoutElements(layout: LayoutElement[]): number {
-  let count = 0;
-  
-  for (const element of layout) {
-    count++;
-    if (element.type === 'group') {
-      const group = element as any; // TODO: Use proper LayoutGroup type
-      if (group.children && Array.isArray(group.children)) {
-        count += group.children.length;
-      }
-    }
-  }
-  
-  return count;
 }
 
 /**
@@ -272,12 +280,12 @@ interface PdfElementStyles {
 export function getPageDimensions(pageSize: 'A4' | 'Letter' | 'Legal'): { width: number; height: number } {
   switch (pageSize) {
     case 'A4':
-      return { width: 595, height: 842 }; // Points
+      return { width: A4_WIDTH, height: A4_HEIGHT }; // Points
     case 'Letter':
       return { width: 612, height: 792 }; // Points
     case 'Legal':
       return { width: 612, height: 1008 }; // Points
     default:
-      return { width: 595, height: 842 }; // Default to A4
+      return { width: A4_WIDTH, height: A4_HEIGHT }; // Default to A4
   }
 }
