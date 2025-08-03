@@ -20,8 +20,8 @@ import { StyleConfig, LayoutElement } from "../types/cv-designer";
 import { TemplateMatchingAssistant } from "../components/ai/TemplateMatchingAssistant";
 import { LayoutDesigner } from "../modules/cv-designer/components/LayoutDesigner";
 import { MediaManager } from "../components/MediaManager";
+import { TemplateSelector } from '../modules/cv-designer/components/TemplateSelector';
 import { useLebenslauf } from "../components/LebenslaufContext";
-import { TemplateSelector } from '../modules/cv-designer/components/TemplateSelector'; // Import TemplateSelector
 
 interface DesignerPageProps {
   styleConfig: StyleConfig;
