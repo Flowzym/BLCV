@@ -15,23 +15,27 @@ export default function UploadPanel({ onLayoutImport, onCVDataImport }: UploadPa
     reader.onload = () => {
       try {
         const text = reader.result as string
-        const parsed = JSON.parse(text)
+        console.log("📂 Raw File Content:", text)
+
+        // BOM entfernen, falls vorhanden
+        const cleanText = text.replace(/^\uFEFF/, "")
+
+        const parsed = JSON.parse(cleanText)
+        console.log("✅ Parsed JSON:", parsed)
 
         if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].type) {
-          // Layout-Format
           onLayoutImport(parsed)
         } else if (parsed && typeof parsed === "object") {
-          // CV-Daten-Format
           onCVDataImport(parsed)
         } else {
           alert("❌ Unbekanntes JSON-Format")
         }
       } catch (err) {
         console.error("Fehler beim Parsen:", err)
-        alert("Die Datei konnte nicht gelesen werden. Bitte stellen Sie sicher, dass es eine gültige JSON-Struktur ist.")
+        alert("Die Datei konnte nicht gelesen werden. Inhalt war: " + reader.result)
       }
     }
-    reader.readAsText(file)
+    reader.readAsText(file, "utf-8")
   }
 
   return (
