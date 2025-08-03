@@ -1,104 +1,55 @@
-import React from "react";
-
-// Safe imports with fallbacks
-let ReverseUpload: React.FC<any> | null = null;
-let ReverseUploadAssistant: React.FC<any> | null = null;
-let ReverseUploadWithGPT: React.FC<any> | null = null;
-
-try {
-  const reverseUploadModule = require("./ReverseUploadBasic");
-  ReverseUpload = reverseUploadModule.default || reverseUploadModule.ReverseUpload;
-} catch {
-  ReverseUpload = null;
-}
-
-try {
-  const reverseUploadAssistantModule = require("./ReverseUploadAssistant");
-  ReverseUploadAssistant = reverseUploadAssistantModule.default || reverseUploadAssistantModule.ReverseUploadAssistant;
-} catch {
-  ReverseUploadAssistant = null;
-}
-
-try {
-  const reverseUploadGPTModule = require("./ReverseUploadWithGPT");
-  ReverseUploadWithGPT = reverseUploadGPTModule.default || reverseUploadGPTModule.ReverseUploadWithGPT;
-} catch {
-  ReverseUploadWithGPT = null;
-}
-
-const FallbackBox: React.FC = () => (
-  <div className="border rounded-lg p-4 bg-gray-50 text-gray-500">
-    Noch nicht verfügbar
-  </div>
-);
+import React from "react"
+import { Upload } from "lucide-react"
 
 interface UploadPanelProps {
-  onLayoutImport?: (layout: any[]) => void;
-  onCVDataImport?: (cvData: any) => void;
+  onLayoutImport: (layout: any) => void
+  onCVDataImport: (cvData: any) => void
 }
 
-const UploadPanel: React.FC<UploadPanelProps> = ({ 
-  onLayoutImport = () => {}, 
-  onCVDataImport = () => {} 
-}) => {
+export default function UploadPanel({ onLayoutImport, onCVDataImport }: UploadPanelProps) {
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = () => {
+      try {
+        const text = reader.result as string
+        const parsed = JSON.parse(text)
+
+        // Unterscheiden: Layout- oder CV-Daten
+        if (parsed && parsed[0] && parsed[0].type) {
+          // vermutlich LayoutElement[]
+          onLayoutImport(parsed)
+        } else {
+          // vermutlich CV-Daten
+          onCVDataImport(parsed)
+        }
+      } catch (err) {
+        console.error("❌ Fehler beim Parsen:", err)
+        alert("Die Datei konnte nicht gelesen werden. Bitte stellen Sie sicher, dass es JSON ist.")
+      }
+    }
+    reader.readAsText(file)
+  }
+
   return (
-    <div className="space-y-6">
-      {/* Rohdaten Upload */}
-      <div className="border rounded-lg p-4 bg-white shadow-sm">
-        <h3 className="font-semibold text-gray-800 mb-2">📄 Rohdaten hochladen</h3>
-        <p className="text-sm text-gray-600 mb-3">
-          Importieren Sie einen Rohdaten-Lebenslauf (JSON / internes Format).
+    <div className="space-y-4">
+      <div className="border rounded-lg p-4 bg-gray-50">
+        <h3 className="font-medium flex items-center gap-2 mb-2">
+          <Upload className="w-4 h-4 text-gray-600" />
+          JSON hochladen
+        </h3>
+        <p className="text-sm text-gray-600 mb-2">
+          Laden Sie ein JSON hoch (Layout oder Lebenslaufdaten).
         </p>
-        {ReverseUpload ? (
-          <ReverseUpload onImport={onLayoutImport} />
-        ) : (
-          <FallbackBox />
-        )}
-      </div>
-
-      {/* Word/PDF Upload */}
-      <div className="border rounded-lg p-4 bg-white shadow-sm">
-        <h3 className="font-semibold text-gray-800 mb-2">📑 Word / PDF hochladen</h3>
-        <p className="text-sm text-gray-600 mb-3">
-          Laden Sie ein bestehendes Dokument hoch (DOCX oder PDF) und übernehmen Sie Inhalte.
-        </p>
-        {ReverseUploadAssistant ? (
-          <ReverseUploadAssistant 
-            onImport={onLayoutImport}
-            onCreateTemplate={(template) => {
-              console.log('Template created:', template);
-            }}
-          />
-        ) : (
-          <FallbackBox />
-        )}
-      </div>
-
-      {/* Upload mit KI */}
-      <div className="border rounded-lg p-4 bg-white shadow-sm">
-        <h3 className="font-semibold text-gray-800 mb-2">🤖 KI-gestützter Upload</h3>
-        <p className="text-sm text-gray-600 mb-3">
-          Nutzen Sie die KI, um Daten aus strukturierten oder unstrukturierten Dateien automatisch zu extrahieren.
-        </p>
-        {ReverseUploadWithGPT ? (
-          <ReverseUploadWithGPT onImport={onLayoutImport} />
-        ) : (
-          <FallbackBox />
-        )}
-      </div>
-
-      {/* Info Box */}
-      <div className="border rounded-lg p-4 bg-blue-50 border-blue-200">
-        <h4 className="font-medium text-blue-900 mb-2">💡 Upload-Hinweise</h4>
-        <ul className="text-sm text-blue-800 space-y-1">
-          <li>• JSON-Dateien werden direkt als Layout-Elemente importiert</li>
-          <li>• DOCX-Dateien werden automatisch in Abschnitte strukturiert</li>
-          <li>• KI-Upload analysiert und optimiert die Datenstruktur</li>
-          <li>• Alle Uploads können als Template gespeichert werden</li>
-        </ul>
+        <input
+          type="file"
+          accept=".json"
+          onChange={handleFileUpload}
+          className="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50"
+        />
       </div>
     </div>
-  );
-};
-
-export default UploadPanel;
+  )
+}
