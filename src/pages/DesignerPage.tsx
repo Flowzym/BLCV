@@ -262,6 +262,7 @@ export default function DesignerPage({
             <CVPreview
               styleConfig={styleConfig}
               layoutElements={layoutElements}
+              templateName="classic"
             />
           </div>
         </div>
