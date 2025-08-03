@@ -1,5 +1,5 @@
 import { LayoutElement } from "../types/section"
-import { getTemplateById } from "../templates/predefinedTemplates"
+import { getTemplateById } from "../../templates/predefinedTemplates"
 
 export function mapBetterLetterToDesignerWithTemplate(cvData: any, templateId: string): LayoutElement[] {
   const template = getTemplateById(templateId)
