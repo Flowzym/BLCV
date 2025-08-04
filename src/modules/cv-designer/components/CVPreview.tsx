@@ -1,5 +1,3 @@
-// 📄 src/modules/cv-designer/components/CVPreview.tsx
-
 import React from "react";
 import { LayoutElement } from "../types/section";
 import { StyleConfig } from "../../../types/cv-designer";
@@ -73,42 +71,46 @@ const DebugOverlay = ({
   </div>
 );
 
-const SectionRenderer = ({
-  element,
-}: {
-  element: LayoutElement;
-}) => {
-  // Use context instead of prop drilling
+const SectionRenderer = ({ element }: { element: LayoutElement }) => {
   const { styleConfig } = useStyleConfig();
   const elementStyle = renderElementToCanvas(element, styleConfig);
 
+  // ➡️ Section-spezifische FontConfig ermitteln
+  const sectionFontConfig =
+    styleConfig.sections?.[element.type]?.font || styleConfig.font;
+
   return (
     <div key={element.id} style={elementStyle}>
-      {/* NEU: Render element.title via RenderElementContent mit field="header" */}
+      {/* TITLE */}
       {element.title && element.type !== "photo" && (
         <>
-          {console.log('SectionRenderer: About to render TITLE via RenderElementContent:', {
+          {console.log("SectionRenderer: About to render TITLE via RenderElementContent:", {
             elementId: element.id,
             elementType: element.type,
             title: element.title,
-            field: 'header'
+            field: "header",
           })}
           <div
             style={{
               marginBottom: "6px",
-              borderBottom: `1px solid ${styleConfig.colors?.accent || styleConfig.accentColor || "#3b82f6"}`,
+              borderBottom: `1px solid ${
+                styleConfig.colors?.accent ||
+                styleConfig.accentColor ||
+                "#3b82f6"
+              }`,
               paddingBottom: "2px",
             }}
           >
             <RenderElementContent
-              element={{ ...element, content: element.title }} // Titel als Inhalt übergeben
-              style={styleConfig}
-              field="header" // Spezieller Feld-Key für Überschriften
+              element={{ ...element, content: element.title }}
+              style={{ ...styleConfig, font: sectionFontConfig }}
+              field="header"
             />
           </div>
         </>
       )}
 
+      {/* CONTENT */}
       <div
         style={{
           height:
@@ -118,17 +120,16 @@ const SectionRenderer = ({
           overflow: "hidden",
         }}
       >
-        {console.log('SectionRenderer: About to render CONTENT via RenderElementContent:', {
+        {console.log("SectionRenderer: About to render CONTENT via RenderElementContent:", {
           elementId: element.id,
           elementType: element.type,
           contentLength: element.content?.length || 0,
-          field: 'content'
+          field: "content",
         })}
-        {/* Bestehender Aufruf für element.content, jetzt mit field="content" */}
         <RenderElementContent
           element={element}
-          style={styleConfig}
-          field="content" // Spezieller Feld-Key für den Hauptinhalt
+          style={{ ...styleConfig, font: sectionFontConfig }}
+          field="content"
         />
       </div>
     </div>
@@ -144,21 +145,18 @@ const CVPreview: React.FC<CVPreviewProps> = ({
   showDebugBorders = false,
   scale,
 }) => {
-  // DEBUG: Log styleConfig received in CVPreview
-  console.log('CVPreview: Component render started with props:', {
+  console.log("CVPreview: Component render started with props:", {
     sectionsLength: sections?.length || 0,
     layoutElementsLength: layoutElements?.length || 0,
     templateName,
-    className
+    className,
   });
-  console.log('CVPreview: layoutElements received:', layoutElements);
-  
-  // Use context instead of prop drilling
+  console.log("CVPreview: layoutElements received:", layoutElements);
+
   const { styleConfig } = useStyleConfig();
-  
-  console.log('CVPreview: styleConfig from context:', styleConfig);
-  console.log('CVPreview: styleConfig.sections from context:', styleConfig?.sections);
-  
+  console.log("CVPreview: styleConfig from context:", styleConfig);
+  console.log("CVPreview: styleConfig.sections from context:", styleConfig?.sections);
+
   const { personalData, berufserfahrung, ausbildung } = useLebenslauf();
 
   const sectionsToRender = React.useMemo(() => {
@@ -310,33 +308,39 @@ const CVPreview: React.FC<CVPreviewProps> = ({
     });
   }, [layoutElements, sections, personalData, berufserfahrung, ausbildung, templateName]);
 
-  console.log('CVPreview: sectionsToRender built:', {
+  console.log("CVPreview: sectionsToRender built:", {
     length: sectionsToRender.length,
-    elements: sectionsToRender.map(el => ({
+    elements: sectionsToRender.map((el) => ({
       id: el.id,
       type: el.type,
       title: el.title,
-      contentLength: el.content?.length || 0
-    }))
+      contentLength: el.content?.length || 0,
+    })),
   });
 
   const safeStyleConfig = styleConfig || defaultStyleConfig;
-  console.log('CVPreview: Using safeStyleConfig:', safeStyleConfig);
-  console.log('CVPreview: safeStyleConfig.sections:', safeStyleConfig.sections);
-  
+  console.log("CVPreview: Using safeStyleConfig:", safeStyleConfig);
+  console.log("CVPreview: safeStyleConfig.sections:", safeStyleConfig.sections);
+
   const layoutValidation = React.useMemo(
     () => validateLayout(sectionsToRender, A4_WIDTH, A4_HEIGHT),
     [sectionsToRender]
   );
-  const layoutStats = React.useMemo(() => getLayoutStats(sectionsToRender), [sectionsToRender]);
+  const layoutStats = React.useMemo(
+    () => getLayoutStats(sectionsToRender),
+    [sectionsToRender]
+  );
   const actualScale = scale || 1;
 
   const containerStyle: React.CSSProperties = {
     position: "relative",
     width: A4_WIDTH,
     height: A4_HEIGHT,
-    backgroundColor: (safeStyleConfig.colors && safeStyleConfig.colors.background) || safeStyleConfig.backgroundColor || "#ffffff",
-    /* ⬇️ fontFamily entfernt → nur RenderElementContent steuert Fonts */
+    backgroundColor:
+      (safeStyleConfig.colors && safeStyleConfig.colors.background) ||
+      safeStyleConfig.backgroundColor ||
+      "#ffffff",
+    // ⬇️ fontFamily hier bewusst NICHT gesetzt
     fontSize:
       safeStyleConfig.font?.size === "small"
         ? "10px"
@@ -344,7 +348,10 @@ const CVPreview: React.FC<CVPreviewProps> = ({
         ? "14px"
         : "12px",
     lineHeight: safeStyleConfig.lineHeight || 1.5,
-    color: (safeStyleConfig.colors && safeStyleConfig.colors.text) || safeStyleConfig.textColor || "#333333",
+    color:
+      (safeStyleConfig.colors && safeStyleConfig.colors.text) ||
+      safeStyleConfig.textColor ||
+      "#333333",
     border: "1px solid #e5e7eb",
     borderRadius: "4px",
     overflow: "hidden",
@@ -356,15 +363,20 @@ const CVPreview: React.FC<CVPreviewProps> = ({
   return (
     <div className={`cv-preview ${className}`}>
       <div style={{ display: "flex", justifyContent: "center", padding: "20px" }}>
-        {console.log('CVPreview: About to render container with', sectionsToRender.length, 'sections')}
+        {console.log(
+          "CVPreview: About to render container with",
+          sectionsToRender.length,
+          "sections"
+        )}
         <div style={containerStyle}>
           {sectionsToRender.map((element) => (
             <>
-              {console.log('CVPreview: Mapping element for SectionRenderer:', element.id, element.type)}
-              <SectionRenderer
-                key={element.id}
-                element={element}
-              />
+              {console.log(
+                "CVPreview: Mapping element for SectionRenderer:",
+                element.id,
+                element.type
+              )}
+              <SectionRenderer key={element.id} element={element} />
             </>
           ))}
 
