@@ -7,6 +7,7 @@ import { LayoutElement } from '../types/section'
 import { StyleConfig } from '../../../types/cv-designer'
 import { Paragraph, TextRun } from 'docx'
 import { getFontFamilyWithFallback } from '../utils/fonts'
+import { getEffectiveFontConfig } from '../utils/fontUtils'
 
 // A4 constants
 export const A4_WIDTH = 595
@@ -95,9 +96,9 @@ export function renderElementToCanvas(element: LayoutElement, style: StyleConfig
 
 // ---------------- DOCX ----------------
 export function renderElementToDocx(element: LayoutElement, style: StyleConfig): Paragraph[] {
-  const fontSize = calculateFontSize(style.fontSize)
+  const effectiveFont = getEffectiveFontConfig(element.type, null, 'content', style);
   const leftMargin = Math.round(element.x * 20)
-  const docxFontFamily = getFontFamilyWithFallback(style.font?.family).split(',')[0].replace(/"/g, '').trim()
+  const docxFontFamily = getFontFamilyWithFallback(effectiveFont.family).split(',')[0].replace(/"/g, '').trim()
   console.log('layoutRenderer DOCX: Using font:', docxFontFamily, 'for element:', element.type);
 
   const paragraphs: Paragraph[] = []
@@ -110,11 +111,11 @@ export function renderElementToDocx(element: LayoutElement, style: StyleConfig):
           children: [
             new TextRun({
               text: line.trim(),
-              size: fontSize * 2,
-              color: (style.textColor || '#000000').replace('#', ''),
+              size: (effectiveFont.size || 12) * 2,
+              color: (effectiveFont.color || '#000000').replace('#', ''),
               font: docxFontFamily,
-              bold: style.font?.weight === "bold",
-              italics: style.font?.style === "italic"
+              bold: effectiveFont.weight === "bold",
+              italics: effectiveFont.style === "italic"
             })
           ],
           indent: { left: leftMargin }
@@ -143,7 +144,8 @@ export interface PDFElementData {
 }
 
 export function renderElementToPdf(element: LayoutElement, style: StyleConfig): PDFElementData {
-  const pdfFontFamily = getFontFamilyWithFallback(style.font?.family).split(',')[0].replace(/"/g, '').trim()
+  const effectiveFont = getEffectiveFontConfig(element.type, null, 'content', style);
+  const pdfFontFamily = getFontFamilyWithFallback(effectiveFont.family).split(',')[0].replace(/"/g, '').trim()
   console.log('layoutRenderer PDF: Using font:', pdfFontFamily, 'for element:', element.type);
 
   return {
@@ -152,12 +154,12 @@ export function renderElementToPdf(element: LayoutElement, style: StyleConfig): 
     position: { x: element.x, y: element.y, width: element.width, height: element.height || 100 },
     style: {
       fontFamily: pdfFontFamily,
-      fontSize: calculateFontSize(style.fontSize),
-      color: style.font?.color || style.textColor || '#000000',
+      fontSize: effectiveFont.size || 12,
+      color: effectiveFont.color || '#000000',
       backgroundColor: style.backgroundColor || '#ffffff',
       padding: calculatePadding(style.margin),
       borderRadius: parseInt(style.borderRadius?.replace('px', '') || '0'),
-      lineHeight: style.font?.lineHeight || 1.6
+      lineHeight: effectiveFont.lineHeight || 1.6
     },
     content: {
       text: element.content || '',
