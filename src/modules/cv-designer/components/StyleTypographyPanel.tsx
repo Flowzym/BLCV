@@ -1,6 +1,6 @@
 import React from "react";
 import { useStyleConfig } from "../context/StyleConfigContext";
-import { StyleConfig, FontConfig } from "../types/styles";
+import { FontConfig } from "../types/styles";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
@@ -55,7 +55,7 @@ export const StyleTypographyPanel: React.FC = () => {
   const { styleConfig, updateStyleConfig } = useStyleConfig();
 
   /**
-   * Update-Funktion – behandelt auch Sonderfälle "allHeaders" & "name"
+   * Update-Funktion – behandelt normale Sections + Sonderfälle
    */
   const updateFont = (
     sectionId: string,
@@ -63,7 +63,6 @@ export const StyleTypographyPanel: React.FC = () => {
     key: string | null,
     updates: Partial<FontConfig>
   ) => {
-    // --- global: alle Überschriften ---
     if (sectionId === "allHeaders") {
       const prev = styleConfig.sections?.allHeaders?.header?.font;
       const merged: FontConfig = { ...defaultFont, ...(prev || {}), ...updates };
@@ -77,7 +76,6 @@ export const StyleTypographyPanel: React.FC = () => {
       return;
     }
 
-    // --- global: Name ---
     if (sectionId === "name") {
       const prev = styleConfig.sections?.name?.font;
       const merged: FontConfig = { ...defaultFont, ...(prev || {}), ...updates };
@@ -91,7 +89,7 @@ export const StyleTypographyPanel: React.FC = () => {
       return;
     }
 
-    // --- normale Sections ---
+    // normale Sections
     const prev =
       type === "header"
         ? styleConfig.sections?.[sectionId]?.header?.font
@@ -108,7 +106,7 @@ export const StyleTypographyPanel: React.FC = () => {
       color:
         updates.color ??
         prev?.color ??
-        (type === "header" || sectionId === "allHeaders"
+        (type === "header"
           ? styleConfig.colors?.primary || styleConfig.primaryColor || defaultFont.color
           : styleConfig.colors?.text || styleConfig.textColor || defaultFont.color),
       letterSpacing: updates.letterSpacing ?? prev?.letterSpacing ?? defaultFont.letterSpacing,
@@ -223,7 +221,6 @@ export const StyleTypographyPanel: React.FC = () => {
             variant={safeFont.weight === "bold" ? "default" : "outline"}
             onClick={() => updateFont(sectionId, type, key, {
               weight: safeFont.weight === "bold" ? "normal" : "bold",
-              style: safeFont.style,
             })}
           >
             B
@@ -233,7 +230,6 @@ export const StyleTypographyPanel: React.FC = () => {
             variant={safeFont.style === "italic" ? "default" : "outline"}
             onClick={() => updateFont(sectionId, type, key, {
               style: safeFont.style === "italic" ? "normal" : "italic",
-              weight: safeFont.weight,
             })}
           >
             I
