@@ -1,5 +1,3 @@
-// 📄 src/modules/cv-designer/components/StyleTypographyPanel.tsx
-
 import React from "react";
 import { useStyleConfig } from "../context/StyleConfigContext";
 import { StyleConfig, FontConfig } from "../types/styles";
@@ -24,7 +22,7 @@ const defaultFont: FontConfig = {
   lineHeight: 1.6,
 };
 
-// Jetzt mit "header"-Feld pro Section
+// Section-Felder
 const sectionFields: Record<string, string[]> = {
   profil: ["header", "name", "adresse", "mail", "telefon"],
   erfahrung: ["header", "position", "firma", "zeitraum", "taetigkeiten"],
@@ -55,13 +53,16 @@ export const StyleTypographyPanel: React.FC = () => {
   ) => {
     const newConfig: StyleConfig = { ...styleConfig };
     if (!newConfig.sections) newConfig.sections = {};
-    if (!newConfig.sections[sectionId]) newConfig.sections[sectionId] = { sectionId: sectionId };
+    if (!newConfig.sections[sectionId]) newConfig.sections[sectionId] = { sectionId };
 
     const currentSection = newConfig.sections[sectionId];
 
     if (type === "header") {
       if (!currentSection.header) currentSection.header = {};
-      currentSection.header.font = { ...(currentSection.header.font || defaultFont), ...updates };
+      currentSection.header.font = {
+        ...(currentSection.header.font || defaultFont),
+        ...updates,
+      };
     } else if (type === "content") {
       currentSection.font = { ...(currentSection.font || defaultFont), ...updates };
     } else if (type === "field" && key) {
@@ -139,7 +140,10 @@ export const StyleTypographyPanel: React.FC = () => {
           <Button
             variant={safeFont.weight === "bold" ? "default" : "outline"}
             onClick={() =>
-              updateFont(sectionId, type, key, { weight: "bold", style: "normal" })
+              updateFont(sectionId, type, key, {
+                weight: safeFont.weight === "bold" ? "normal" : "bold",
+                style: safeFont.style, // Stil behalten
+              })
             }
           >
             B
@@ -149,13 +153,16 @@ export const StyleTypographyPanel: React.FC = () => {
           <Button
             variant={safeFont.style === "italic" ? "default" : "outline"}
             onClick={() =>
-              updateFont(sectionId, type, key, { style: "italic", weight: "normal" })
+              updateFont(sectionId, type, key, {
+                style: safeFont.style === "italic" ? "normal" : "italic",
+                weight: safeFont.weight, // Gewicht behalten
+              })
             }
           >
             I
           </Button>
 
-          {/* Regular */}
+          {/* Reset Regular */}
           <Button
             variant={
               safeFont.weight === "normal" && safeFont.style === "normal"
