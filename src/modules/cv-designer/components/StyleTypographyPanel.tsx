@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/accordion";
 
 const defaultFont: FontConfig = {
-  family: "Inter", // 👉 nur der Klarname
+  family: "Inter",
   size: 12,
   weight: "normal",
   style: "normal",
@@ -30,7 +30,7 @@ const sectionFields: Record<string, string[]> = {
   skills: ["header", "skillname", "level"],
 };
 
-// ✅ Klarname → Fallback-Kette wird erst in RenderElementContent ergänzt
+// ✅ Klarname → Fallback-Kette erst in RenderElementContent ergänzt
 const FONT_FAMILIES = [
   { value: "Inter", label: "Inter" },
   { value: "Roboto", label: "Roboto" },
@@ -59,30 +59,39 @@ export const StyleTypographyPanel: React.FC = () => {
     key: string | null,
     updates: Partial<FontConfig>
   ) => {
-    const newConfig: StyleConfig = { ...styleConfig };
-    if (!newConfig.sections) newConfig.sections = {};
-    if (!newConfig.sections[sectionId]) newConfig.sections[sectionId] = { sectionId };
-
-    const currentSection = newConfig.sections[sectionId];
-
     if (type === "header") {
-      if (!currentSection.header) currentSection.header = {};
-      currentSection.header.font = {
-        ...(currentSection.header.font || defaultFont),
+      const merged = {
+        ...defaultFont,
+        ...(styleConfig.sections?.[sectionId]?.header?.font || {}),
         ...updates,
       };
+      updateStyleConfig({
+        sectionId,
+        header: { font: merged },
+      });
     } else if (type === "content") {
-      currentSection.font = { ...(currentSection.font || defaultFont), ...updates };
-    } else if (type === "field" && key) {
-      if (!currentSection.fields) currentSection.fields = {};
-      if (!currentSection.fields[key]) currentSection.fields[key] = {};
-      currentSection.fields[key]!.font = {
-        ...(currentSection.fields[key]?.font || defaultFont),
+      const merged = {
+        ...defaultFont,
+        ...(styleConfig.sections?.[sectionId]?.font || {}),
         ...updates,
       };
+      updateStyleConfig({
+        sectionId,
+        font: merged,
+      });
+    } else if (type === "field" && key) {
+      const merged = {
+        ...defaultFont,
+        ...(styleConfig.sections?.[sectionId]?.fields?.[key]?.font || {}),
+        ...updates,
+      };
+      updateStyleConfig({
+        sectionId,
+        fields: {
+          [key]: { font: merged },
+        },
+      });
     }
-
-    updateStyleConfig(newConfig);
   };
 
   const renderFontEditor = (
