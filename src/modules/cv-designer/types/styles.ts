@@ -1,15 +1,29 @@
 /**
  * CV-Designer Module - Style Types
- * Phase 1: Core type definitions for styling and theming
+ * Core type definitions for styling and theming
  */
 
 export interface FontConfig {
+  /** Primäre Schriftfamilie (z. B. "Inter", "Georgia") */
   family: string;
+
+  /** Schriftgröße in px */
   size: number;
-  weight: number | "normal" | "bold";  // Gewicht nur für Stärke
-  style?: "normal" | "italic";         // 🆕 Kursiv-Support
-  lineHeight: number;
+
+  /** Gewicht – kann Zahl oder Keyword sein */
+  weight?: number | "normal" | "bold" | "lighter" | "bolder";
+
+  /** Stil – normal oder italic */
+  style?: "normal" | "italic";
+
+  /** Zeilenhöhe (z. B. 1.4, 1.6) */
+  lineHeight?: number;
+
+  /** Optionaler Buchstabenabstand in px */
   letterSpacing?: number;
+
+  /** Schriftfarbe (Hex oder CSS-Farbwert) */
+  color?: string;
 }
 
 export interface ColorConfig {
@@ -61,7 +75,17 @@ export interface StyleConfig {
   spacing: SpacingConfig;
   borders: BorderConfig;
   layout: LayoutConfig;
+
+  /** Beliebige Custom-Eigenschaften */
   customProperties?: Record<string, string | number>;
+
+  /**
+   * 🆕 Section-Level Overrides
+   * z. B. andere Schriftarten oder Farben je Abschnitt
+   */
+  sections?: {
+    [sectionKey: string]: SectionStyleOverride;
+  };
 }
 
 export interface ElementStyleOverride {
@@ -71,10 +95,26 @@ export interface ElementStyleOverride {
 
 export interface SectionStyleOverride {
   sectionId: string;
-  font?: FontConfig; // Allgemeiner Font für den Sektionsinhalt
-  header?: { // Spezifischer Font für Sektionsüberschriften
+
+  /** Allgemeiner Font für Sektionsinhalt */
+  font?: FontConfig;
+
+  /** Font für Überschrift */
+  header?: {
     font?: FontConfig;
   };
-  styles: Record<string, string | number>;
+
+  /** Zusätzliche Styles */
+  styles?: Record<string, string | number>;
+
+  /** Elementweise Overrides */
   elementOverrides?: ElementStyleOverride[];
+
+  /** Feldweise Overrides */
+  fields?: {
+    [fieldKey: string]: {
+      font?: FontConfig;
+      styles?: Record<string, string | number>;
+    };
+  };
 }
