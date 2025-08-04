@@ -1,3 +1,5 @@
+// 📄 src/modules/cv-designer/utils/RenderElementContent.tsx
+
 import React from "react";
 import { LayoutElement } from "../types/section";
 import { StyleConfig, FontConfig } from "../../../types/cv-designer";
@@ -6,9 +8,27 @@ import { getFontFamilyWithFallback } from "./fonts";
 interface Props {
   element: LayoutElement;
   style: StyleConfig;
-  field?: string; // Subfeld-Key
+  field?: string; // Subfeld-Key (header, name, etc.)
   maxSkills?: number;
 }
+
+/**
+ * Hilfsfunktion: Merge-Strategie mit Priorität
+ * 1. Defaults
+ * 2. allHeaders / name (globale Defaults)
+ * 3. Section-spezifische Fonts
+ * 4. Field-spezifische Fonts
+ */
+const mergeFonts = (
+  base: FontConfig,
+  overrides: (FontConfig | undefined)[]
+): FontConfig => {
+  let merged = { ...base };
+  for (const ov of overrides) {
+    if (ov) merged = { ...merged, ...ov };
+  }
+  return merged;
+};
 
 export const RenderElementContent: React.FC<Props> = ({
   element,
@@ -16,61 +36,58 @@ export const RenderElementContent: React.FC<Props> = ({
   field,
   maxSkills = 8,
 }) => {
-  let effectiveFontConfig: FontConfig | undefined;
+  // ---- Schritt 1: Basisfont aus globalem StyleConfig ----
+  const baseFont = style.font || {
+    family: "Inter",
+    size: 12,
+    weight: "normal",
+    style: "normal",
+    color: "#333333",
+    letterSpacing: 0,
+    lineHeight: 1.6,
+  };
 
-  // ---- 1. Basis: globales FontConfig
-  effectiveFontConfig = { ...style.font };
+  // ---- Schritt 2: Globale Defaults (allHeaders, name) ----
+  const allHeadersFont =
+    field === "header" ? style.sections?.allHeaders?.header?.font : undefined;
 
-  // ---- 2. global: allHeaders
-  if (field === "header" && style.sections?.allHeaders?.header?.font) {
-    effectiveFontConfig = {
-      ...effectiveFontConfig,
-      ...style.sections.allHeaders.header.font,
-    };
-  }
+  const nameFont =
+    element.type === "profil" && field === "name"
+      ? style.sections?.name?.font
+      : undefined;
 
-  // ---- 3. Section-spezifisch
-  if (field === "header" && style.sections?.[element.type]?.header?.font) {
-    effectiveFontConfig = {
-      ...effectiveFontConfig,
-      ...style.sections[element.type].header.font,
-    };
-  } else if (!field && style.sections?.[element.type]?.font) {
-    effectiveFontConfig = {
-      ...effectiveFontConfig,
-      ...style.sections[element.type].font,
-    };
-  }
+  // ---- Schritt 3: Section-spezifisch ----
+  const sectionFont =
+    field === "header"
+      ? style.sections?.[element.type]?.header?.font
+      : field
+      ? style.sections?.[element.type]?.fields?.[field]?.font
+      : style.sections?.[element.type]?.font;
 
-  // ---- 4. Field-spezifisch
-  if (field && style.sections?.[element.type]?.fields?.[field]?.font) {
-    effectiveFontConfig = {
-      ...effectiveFontConfig,
-      ...style.sections[element.type].fields[field].font,
-    };
-  }
+  // ---- Schritt 4: Endgültiger Merge ----
+  const effectiveFontConfig = mergeFonts(baseFont, [
+    allHeadersFont,
+    nameFont,
+    sectionFont,
+  ]);
 
-  // ---- 5. global: name (nur Profil/Name)
-  if (element.type === "profil" && field === "name" && style.sections?.name?.font) {
-    effectiveFontConfig = {
-      ...effectiveFontConfig,
-      ...style.sections.name.font,
-    };
-  }
-
-  // ---- Helper Farben ----
+  // ---------------- Farb-Getter ----------------
   const getPrimaryColor = () =>
     style.colors?.primary || style.primaryColor || "#1e40af";
+
   const getAccentColor = () =>
     style.colors?.accent || style.accentColor || "#3b82f6";
+
   const getBackgroundColor = () =>
     style.colors?.background || style.backgroundColor || "#ffffff";
+
   const getTextColor = () =>
     style.colors?.text || style.textColor || "#333333";
+
   const getSecondaryTextColor = () =>
     style.colors?.textSecondary || "#9ca3af";
 
-  // ---- Font anwenden ----
+  // ---------------- Font anwenden ----------------
   const applyFontStyle = (
     content: React.ReactNode,
     extraStyle: React.CSSProperties = {}
@@ -163,7 +180,7 @@ export const RenderElementContent: React.FC<Props> = ({
 
     return (
       <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
-        {skills.slice(0, maxSkills).map((skill, idx) =>
+        {skills.slice(0, maxSkills).map((skill) =>
           applyFontStyle(skill, {
             background: getAccentColor(),
             color: "white",
