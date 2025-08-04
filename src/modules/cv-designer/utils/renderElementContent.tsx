@@ -2,7 +2,7 @@
 
 import React from "react";
 import { LayoutElement } from "../types/section";
-import { StyleConfig } from "../../../types/cv-designer";
+import { StyleConfig, FontConfig } from "../../../types/cv-designer";
 
 interface Props {
   element: LayoutElement;
@@ -14,77 +14,70 @@ interface Props {
 export const RenderElementContent: React.FC<Props> = ({
   element,
   style,
-  field, // Verwenden Sie 'field' als Prop-Namen
+  field,
   maxSkills = 8,
 }) => {
-  // Debugging-Logs
-  console.log('RenderElementContent: element.type:', element.type);
-  console.log('RenderElementContent: field prop (contentFieldKey):', field);
-  console.log('RenderElementContent: element.content length:', element.content?.length || 0);
-  console.log('RenderElementContent: element.title:', element.title);
-  console.log('RenderElementContent: style.sections available:', !!style.sections);
-  console.log('RenderElementContent: style.sections keys:', style.sections ? Object.keys(style.sections) : 'none');
+  console.log("RenderElementContent: element.type:", element.type);
+  console.log("RenderElementContent: field prop (contentFieldKey):", field);
 
-  // 1. Font für spezifisches Feld (z.B. 'profil.fields.name.font' oder 'profil.fields.header.font')
-  let effectiveFontConfig: FontConfig | undefined = undefined;
+  // 1. Field-spezifisches FontConfig
+  let effectiveFontConfig: FontConfig | undefined;
   if (field) {
-    effectiveFontConfig = style.sections?.[element.type]?.fields?.[field]?.font;
-    console.log('RenderElementContent: field-specific fontConfig:', effectiveFontConfig);
-    console.log('RenderElementContent: field lookup path:', `style.sections.${element.type}.fields.${field}.font`);
+    effectiveFontConfig =
+      style.sections?.[element.type]?.fields?.[field]?.font;
+    console.log("field-specific fontConfig:", effectiveFontConfig);
   }
 
-  // 2. Allgemeiner Font für die Sektion (z.B. 'profil.font')
+  // 2. Section-spezifisches FontConfig
   if (!effectiveFontConfig) {
-    if (field === 'header') {
+    if (field === "header") {
       effectiveFontConfig = style.sections?.[element.type]?.header?.font;
-      console.log('RenderElementContent: section-header fontConfig:', effectiveFontConfig);
-      console.log('RenderElementContent: header lookup path:', `style.sections.${element.type}.header.font`);
     } else {
       effectiveFontConfig = style.sections?.[element.type]?.font;
-      console.log('RenderElementContent: section-general fontConfig:', effectiveFontConfig);
-      console.log('RenderElementContent: section lookup path:', `style.sections.${element.type}.font`);
     }
-    console.log('RenderElementContent: section-general fontConfig:', effectiveFontConfig);
+    console.log("section fontConfig:", effectiveFontConfig);
   }
 
-  // 3. Globaler Standard-Font
+  // 3. Globales FontConfig
   if (!effectiveFontConfig) {
     effectiveFontConfig = style.font;
-    console.log('RenderElementContent: global fontConfig:', effectiveFontConfig);
-    console.log('RenderElementContent: global lookup path:', 'style.font');
+    console.log("global fontConfig:", effectiveFontConfig);
   }
 
-  console.log('RenderElementContent: final effectiveFontConfig:', effectiveFontConfig);
+  console.log("final effectiveFontConfig:", effectiveFontConfig);
 
+  // Hilfsfunktion: Fonts + Farben anwenden
   const applyFontStyle = (
     content: React.ReactNode,
     extraStyle: React.CSSProperties = {}
   ) => {
-    if (!effectiveFontConfig) {
-      console.log('RenderElementContent: No effectiveFontConfig found. Applying default styles.');
-      return <span style={extraStyle}>{content}</span>;
-    }
-
     const fontStyle: React.CSSProperties = {
-      fontSize: effectiveFontConfig.size ? `${effectiveFontConfig.size}px` : undefined,
-      fontWeight: effectiveFontConfig.weight || undefined,
-      color: effectiveFontConfig.color || undefined,
+      fontSize: effectiveFontConfig?.size
+        ? `${effectiveFontConfig.size}px`
+        : undefined,
+      fontWeight: effectiveFontConfig?.weight,
+      // 🟢 Farb-Fallbacks: erst FontConfig.color, dann section/field, dann global colors
+      color:
+        effectiveFontConfig?.color ||
+        style.sections?.[element.type]?.color ||
+        (field === "header" ? style.colors?.primary : style.colors?.text) ||
+        style.textColor,
       letterSpacing:
-        effectiveFontConfig.letterSpacing !== undefined
+        effectiveFontConfig?.letterSpacing !== undefined
           ? `${effectiveFontConfig.letterSpacing}px`
           : undefined,
-      lineHeight: effectiveFontConfig.lineHeight || undefined,
+      lineHeight: effectiveFontConfig?.lineHeight,
     };
-    console.log('RenderElementContent: applied fontStyle:', fontStyle);
+
+    console.log("applied fontStyle:", fontStyle);
 
     return <span style={{ ...extraStyle, ...fontStyle }}>{content}</span>;
   };
 
-  console.log('RenderElementContent: About to process element type:', element.type);
+  console.log("About to process element type:", element.type);
 
   /* -------- Foto -------- */
   if (element.type === "photo") {
-    console.log('RenderElementContent: Processing photo element');
     return element.content ? (
       <img
         src={element.content}
@@ -94,7 +87,7 @@ export const RenderElementContent: React.FC<Props> = ({
           height: "100%",
           objectFit: "cover",
           borderRadius: "50%",
-          border: `2px solid ${style.accentColor || "#e5e7eb"}`,
+          border: `2px solid ${style.colors?.accent || style.accentColor || "#e5e7eb"}`,
         }}
       />
     ) : (
@@ -103,13 +96,13 @@ export const RenderElementContent: React.FC<Props> = ({
           width: "100%",
           height: "100%",
           borderRadius: "50%",
-          backgroundColor: "#f3f4f6",
-          border: `2px dashed ${style.accentColor || "#d1d5db"}`,
+          backgroundColor: style.colors?.background || "#f3f4f6",
+          border: `2px dashed ${style.colors?.accent || "#d1d5db"}`,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           fontSize: "0.6em",
-          color: "#6b7280",
+          color: style.colors?.text || "#6b7280",
           textAlign: "center",
         }}
       >
@@ -121,10 +114,15 @@ export const RenderElementContent: React.FC<Props> = ({
 
   /* -------- Skills & Softskills -------- */
   if (["kenntnisse", "skills", "softskills"].includes(element.type)) {
-    console.log('RenderElementContent: Processing skills/softskills element');
     if (!element.content) {
       return applyFontStyle(
-        <div style={{ fontStyle: "italic", fontSize: "0.8em", color: "#9ca3af" }}>
+        <div
+          style={{
+            fontStyle: "italic",
+            fontSize: "0.8em",
+            color: style.colors?.secondary || "#9ca3af",
+          }}
+        >
           – Keine Fähigkeiten –
         </div>
       );
@@ -139,7 +137,7 @@ export const RenderElementContent: React.FC<Props> = ({
       <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
         {skills.slice(0, maxSkills).map((skill, i) =>
           applyFontStyle(skill, {
-            background: style.colors?.accent || style.accentColor || "#3b82f6",
+            background: style.colors?.accent || "#3b82f6",
             color: "white",
             padding: "2px 6px",
             borderRadius: "8px",
@@ -161,13 +159,11 @@ export const RenderElementContent: React.FC<Props> = ({
   }
 
   /* -------- Standard Text -------- */
-  console.log('RenderElementContent: Processing standard text element, returning content:', element.content);
-  console.log('RenderElementContent: About to return with effectiveFontConfig:', effectiveFontConfig);
   return element.content
     ? applyFontStyle(element.content)
     : applyFontStyle("– Keine Daten –", {
         fontStyle: "italic",
         fontSize: "0.8em",
-        color: "#9ca3af",
+        color: style.colors?.secondary || "#9ca3af",
       });
 };
