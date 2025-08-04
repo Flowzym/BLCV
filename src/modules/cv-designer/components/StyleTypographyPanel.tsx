@@ -66,6 +66,7 @@ export const StyleTypographyPanel: React.FC = () => {
     updates: Partial<FontConfig>
   ) => {
     if (sectionId === "allHeaders") {
+      // 🟢 Updates auf alle Section-Header anwenden
       const newSections: any = {};
       Object.keys(styleConfig.sections || {}).forEach((secId) => {
         newSections[secId] = {
@@ -90,6 +91,7 @@ export const StyleTypographyPanel: React.FC = () => {
     }
 
     if (sectionId === "name") {
+      // 🟢 Nur das Namensfeld unter profil anpassen
       const prev = styleConfig.sections?.profil?.fields?.name?.font;
       const merged: FontConfig = {
         ...defaultFont,
@@ -112,7 +114,7 @@ export const StyleTypographyPanel: React.FC = () => {
       return;
     }
 
-    // normale Sections
+    // 🟢 Normale Sections
     const prev =
       type === "header"
         ? styleConfig.sections?.[sectionId]?.header?.font
@@ -159,6 +161,9 @@ export const StyleTypographyPanel: React.FC = () => {
     });
   };
 
+  /**
+   * Render: auch hier Standardfarben abhängig von Design erben
+   */
   const renderFontEditor = (
     sectionId: string,
     type: "header" | "content" | "field",
