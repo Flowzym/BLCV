@@ -20,8 +20,7 @@ const defaultStyleConfig: StyleConfig = {
     text: "#333333",
     textSecondary: "#6b7280",
     background: "#ffffff",
-    border: "#e5e7eb"
-    background: "#ffffff",
+    border: "#e5e7eb",
     text: "#333333",
   },
   spacing: {
