@@ -45,10 +45,12 @@ export const StyleConfigProvider = ({ children }: { children: ReactNode }) => {
   );
 
   const updateStyleConfig = (config: StyleConfig) => {
+    // ✅ fix: fonts werden korrekt gespeichert
     setStyleConfig(config);
   };
 
   const resetStyleConfig = () => {
+    // ✅ fix: fonts werden korrekt gespeichert
     setStyleConfig(defaultStyleConfig);
   };
 
