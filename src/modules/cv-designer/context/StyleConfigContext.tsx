@@ -1,51 +1,70 @@
-import React, { createContext, useContext, useState } from "react";
-import { StyleConfig } from "@/modules/cv-designer/types/styles";
-import { defaultStyleConfig } from "@/modules/cv-designer/config/defaultStyleConfig";
+import React, { createContext, useContext, useState, ReactNode } from "react";
+import { StyleConfig } from "../types/styles";
 
-type StyleContextType = {
+/**
+ * 🟢 Default-StyleConfig – verhindert undefined-Werte
+ */
+const defaultStyleConfig: StyleConfig = {
+  font: {
+    family: "Inter",
+    size: 12,
+    weight: "normal",
+    color: "#000000",
+    letterSpacing: 0,
+    lineHeight: 1.6,
+  },
+  colors: {
+    primary: "#1e40af",
+    secondary: "#3b82f6",
+    background: "#ffffff",
+    text: "#333333",
+  },
+  spacing: {
+    margin: 24,
+    padding: 12,
+  },
+  borderRadius: 4,
+  borderColor: "#e5e7eb",
+  borderWidth: 1,
+  sections: {}, // 🆕 keine Felder = leeres Objekt
+};
+
+interface StyleConfigContextValue {
   styleConfig: StyleConfig;
-  setStyleConfig: (config: StyleConfig) => void;
-  updateStyleConfig: (updates: Partial<StyleConfig>) => void;
-};
+  updateStyleConfig: (config: StyleConfig) => void;
+  resetStyleConfig: () => void;
+}
 
-const defaultContext: StyleContextType = {
-  styleConfig: defaultStyleConfig,
-  setStyleConfig: () => {},
-  updateStyleConfig: () => {},
-};
+const StyleConfigContext = createContext<StyleConfigContextValue | undefined>(
+  undefined
+);
 
-const StyleConfigContext = createContext<StyleContextType>(defaultContext);
+export const StyleConfigProvider = ({ children }: { children: ReactNode }) => {
+  const [styleConfig, setStyleConfig] = useState<StyleConfig>(
+    defaultStyleConfig
+  );
 
-export function StyleConfigProvider({
-  children,
-  initialConfig = {},
-}: {
-  children: React.ReactNode;
-  initialConfig?: Partial<StyleConfig>;
-}) {
-  const [styleConfig, setStyleConfig] = useState<StyleConfig>({
-    ...defaultStyleConfig,
-    ...initialConfig,
-  });
+  const updateStyleConfig = (config: StyleConfig) => {
+    setStyleConfig(config);
+  };
 
-  const updateStyleConfig = (updates: Partial<StyleConfig>) => {
-    setStyleConfig((prev) => ({
-      ...prev,
-      ...updates,
-      sections: {
-        ...prev.sections,
-        ...(updates as any).sections,
-      },
-    }));
+  const resetStyleConfig = () => {
+    setStyleConfig(defaultStyleConfig);
   };
 
   return (
     <StyleConfigContext.Provider
-      value={{ styleConfig, setStyleConfig, updateStyleConfig }}
+      value={{ styleConfig, updateStyleConfig, resetStyleConfig }}
     >
       {children}
     </StyleConfigContext.Provider>
   );
-}
+};
 
-export const useStyleConfig = () => useContext(StyleConfigContext);
+export const useStyleConfig = () => {
+  const context = useContext(StyleConfigContext);
+  if (!context) {
+    throw new Error("useStyleConfig must be used within StyleConfigProvider");
+  }
+  return context;
+};
