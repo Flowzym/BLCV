@@ -5,7 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
 const defaultFont: FontConfig = {
   family: "Inter",
@@ -46,60 +51,123 @@ const FONT_FAMILIES = [
 export const StyleTypographyPanel: React.FC = () => {
   const { styleConfig, updateStyleConfig, selectedElement } = useStyleConfig();
 
-  const updateFont = (sectionId: string, type: "header" | "content" | "field", key: string | null, updates: Partial<FontConfig>) => {
+  const updateFont = (
+    sectionId: string,
+    type: "header" | "content" | "field",
+    key: string | null,
+    updates: Partial<FontConfig>
+  ) => {
     const prev =
-      type === "header" ? styleConfig.sections?.[sectionId]?.header?.font :
-      type === "content" ? styleConfig.sections?.[sectionId]?.font :
-      key ? styleConfig.sections?.[sectionId]?.fields?.[key]?.font : undefined;
+      type === "header"
+        ? styleConfig.sections?.[sectionId]?.header?.font
+        : type === "content"
+        ? styleConfig.sections?.[sectionId]?.font
+        : key
+        ? styleConfig.sections?.[sectionId]?.fields?.[key]?.font
+        : undefined;
 
-    const merged: FontConfig = { ...defaultFont, ...prev, ...updates };
+    const merged: FontConfig = {
+      size: updates.size ?? prev?.size ?? defaultFont.size,
+      weight: updates.weight ?? prev?.weight ?? defaultFont.weight,
+      style: updates.style ?? prev?.style ?? defaultFont.style,
+      color: updates.color ?? prev?.color ?? defaultFont.color,
+      letterSpacing:
+        updates.letterSpacing ?? prev?.letterSpacing ?? defaultFont.letterSpacing,
+      lineHeight: updates.lineHeight ?? prev?.lineHeight ?? defaultFont.lineHeight,
+      family: updates.family ?? prev?.family ?? defaultFont.family,
+    };
+
+    if (sectionId === "globalHeaders") {
+      updateStyleConfig({
+        globalHeaders: { font: merged },
+      });
+      return;
+    }
 
     if (type === "header") {
-      updateStyleConfig({ sectionId, header: { font: merged } });
+      updateStyleConfig({
+        sections: {
+          ...styleConfig.sections,
+          [sectionId]: {
+            ...styleConfig.sections?.[sectionId],
+            header: { font: merged },
+          },
+        },
+      });
     } else if (type === "content") {
-      updateStyleConfig({ sectionId, font: merged });
+      updateStyleConfig({
+        sections: {
+          ...styleConfig.sections,
+          [sectionId]: {
+            ...styleConfig.sections?.[sectionId],
+            font: merged,
+          },
+        },
+      });
     } else if (type === "field" && key) {
-      updateStyleConfig({ sectionId, fields: { [key]: { font: merged } } });
+      updateStyleConfig({
+        sections: {
+          ...styleConfig.sections,
+          [sectionId]: {
+            ...styleConfig.sections?.[sectionId],
+            fields: {
+              ...(styleConfig.sections?.[sectionId]?.fields || {}),
+              [key]: { font: merged },
+            },
+          },
+        },
+      });
     }
   };
 
-  const renderFontEditor = (sectionId: string, type: "header" | "content" | "field", key: string | null, font: FontConfig = defaultFont) => {
-    const safeFont = { ...defaultFont, ...font };
-    const editorTitle = type === "header" ? "Überschrift" : type === "content" ? "Allgemeiner Inhalt" : key;
+  const renderFontEditor = (
+    sectionId: string,
+    type: "header" | "content" | "field",
+    key: string | null,
+    font: FontConfig = defaultFont
+  ) => {
+    const safeFont: FontConfig = {
+      ...defaultFont,
+      ...font,
+    };
+
+    const editorTitle =
+      sectionId === "globalHeaders"
+        ? "Alle Überschriften"
+        : type === "header"
+        ? "Überschrift"
+        : type === "content"
+        ? "Allgemeiner Inhalt"
+        : key;
 
     return (
-      <div key={`${sectionId}-${type}-${key}`} className="space-y-2 border p-3 rounded-md mb-3">
+      <div
+        key={`${sectionId}-${type}-${key}`}
+        className="space-y-2 border p-3 rounded-md mb-3"
+      >
         <h4 className="text-sm font-semibold text-gray-700">{editorTitle}</h4>
+
+        {/* Schriftart */}
         <div>
           <Label>Schriftart</Label>
           <select
             value={safeFont.family}
-            onChange={(e) => updateFont(sectionId, type, key, { family: e.target.value })}
-            className="w-full px-3 py-2 text-sm border rounded-lg"
+            onChange={(e) =>
+              updateFont(sectionId, type, key, { family: e.target.value })
+            }
+            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
           >
             {FONT_FAMILIES.map((fontFamily) => (
-              <option key={fontFamily.value} value={fontFamily.value}>{fontFamily.label}</option>
+              <option key={fontFamily.value} value={fontFamily.value}>
+                {fontFamily.label}
+              </option>
             ))}
           </select>
         </div>
+
+        {/* Schriftgröße */}
         <div className="flex items-center gap-2">
           <Label>Größe</Label>
-          <Input type="number" value={safeFont.size} onChange={(e) => updateFont(sectionId, type, key, { size: parseInt(e.target.value, 10) || defaultFont.size })} className="w-20" />
-          <span className="text-xs text-gray-500">px</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <Label>Farbe</Label>
-          <Input type="color" value={safeFont.color} onChange={(e) => updateFont(sectionId, type, key, { color: e.target.value })} className="w-12 h-8 p-0 border-none" />
-        </div>
-        <div className="flex gap-2">
-          <Button variant={safeFont.weight === "bold" ? "default" : "outline"} onClick={() => updateFont(sectionId, type, key, { weight: safeFont.weight === "bold" ? "normal" : "bold" })}>B</Button>
-          <Button variant={safeFont.style === "italic" ? "default" : "outline"} onClick={() => updateFont(sectionId, type, key, { style: safeFont.style === "italic" ? "normal" : "italic" })}>I</Button>
-          <Button variant="outline" onClick={() => updateFont(sectionId, type, key, { weight: "normal", style: "normal" })}>R</Button>
-        </div>
-        <div>
-          <Label>Buchstabenabstand: {safeFont.letterSpacing ?? 0}px</Label>
-          <Slider min={-1} max={5} step={0.1} value={[safeFont.letterSpacing ?? 0]} onValueChange={(v) => updateFont(sectionId, type, key, { letterSpacing: v[0] })} />
-        </div>
-        <div>
-          <Label>Zeilenabstand: {safeFont.lineHeight ?? 1.6}</Label>
-          <Slider min={1} max={2.5} step={0.1} value={[safeFont.lineHeight ?? 1.6]} onValueChange={(v) => updateFont
+          <Input
+            type="number"
+            value={safeFont.size
