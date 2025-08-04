@@ -70,7 +70,6 @@ export const StyleTypographyPanel: React.FC = () => {
         ? styleConfig.sections?.[sectionId]?.fields?.[key]?.font
         : undefined;
 
-    // 👉 Nur fehlende Werte mit Defaults auffüllen
     const merged: FontConfig = {
       size: updates.size ?? prev?.size ?? defaultFont.size,
       weight: updates.weight ?? prev?.weight ?? defaultFont.weight,
@@ -124,7 +123,18 @@ export const StyleTypographyPanel: React.FC = () => {
     key: string | null,
     font: FontConfig = defaultFont
   ) => {
-    const safeFont = { ...defaultFont, ...font };
+    // 👉 Farbe aus Vorlagen-Design ableiten, wenn nicht gesetzt
+    let inheritedColor =
+      type === "header"
+        ? styleConfig.colors?.primary || styleConfig.primaryColor || defaultFont.color
+        : styleConfig.colors?.text || styleConfig.textColor || defaultFont.color;
+
+    const safeFont: FontConfig = {
+      ...defaultFont,
+      ...font,
+      color: font.color || inheritedColor, // 👈 wichtig
+    };
+
     const editorTitle =
       type === "header" ? "Überschrift" : type === "content" ? "Allgemeiner Inhalt" : key;
 
@@ -172,7 +182,7 @@ export const StyleTypographyPanel: React.FC = () => {
           <Label>Farbe</Label>
           <Input
             type="color"
-            value={safeFont.color || defaultFont.color}
+            value={safeFont.color}
             onChange={(e) => updateFont(sectionId, type, key, { color: e.target.value })}
             className="w-12 h-8 p-0 border-none"
           />
