@@ -16,10 +16,8 @@
 
 @layer base {
   body {
-    /* Nur generische Fallbacks → Panel/Renderer kann überschreiben */
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-      Roboto, "Helvetica Neue", Arial, sans-serif, "Apple Color Emoji",
-      "Segoe UI Emoji", "Segoe UI Symbol";
+    /* ⬇️ Fonts nicht erzwingen → Renderer bestimmt */
+    font-family: inherit;
     background-color: white;
   }
 }
@@ -55,10 +53,10 @@
   box-sizing: border-box;
   background: #fff;
   border-bottom: 1px solid #e5e7eb;
-  margin-bottom: 24px; /* BOLT-UI-ANPASSUNG 2025-01-15: Abstand zur Editorfläche vergrößert */
+  margin-bottom: 24px;
 }
 
-/* BOLT-UI-ANPASSUNG 2025-01-15: Toolbar Content - kompakter und effizienter */
+/* BOLT-UI-ANPASSUNG 2025-01-15: Toolbar Content */
 #custom-toolbar {
   display: flex;
   align-items: center;
@@ -95,7 +93,7 @@
   gap: 4px;
   padding: 4px;
   border-radius: 4px;
-  background: transparent; /* BOLT-UI-ANPASSUNG 2025-01-15: Keine helle Hintergrundfarbe */
+  background: transparent;
   margin-bottom: 4px;
 }
 
@@ -103,14 +101,14 @@
   margin-bottom: 0;
 }
 
-/* BOLT-UI-ANPASSUNG 2025-01-15: Mehr-Button Styling */
+/* Mehr-Button Styling */
 .more-button {
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 8px;
   background: #f29400;
-  color: white; /* Keep white for selected */
+  color: white;
   border: none;
   border-radius: 6px;
   cursor: pointer;
@@ -130,7 +128,7 @@
   box-shadow: 0 4px 8px rgba(242, 148, 0, 0.3);
 }
 
-/* BOLT-UI-ANPASSUNG 2025-01-15: Zentrierte Container-Struktur */
+/* Container-Struktur */
 .editor-root {
   display: flex;
   flex-direction: column;
@@ -145,42 +143,39 @@
   margin: 0 auto;
 }
 
-/* BOLT-UI-ANPASSUNG 2025-01-15: Quill Editor Styling - A4-Simulation */
+/* Quill Editor Styling */
 .ql-container {
   border: none !important;
-  font-family: "Roboto", Arial, sans-serif;
+  font-family: inherit !important; /* ⬅️ kein Zwang */
   font-size: 14px !important;
   line-height: 1.6 !important;
 }
 
 .ql-editor {
-  padding: 64px 72px !important; /* BOLT-UI-ANPASSUNG 2025-01-15: 3cm Ränder für A4 */
-  font-family: "Roboto", Arial, sans-serif;
+  padding: 64px 72px !important;
+  font-family: inherit !important; /* ⬅️ übernimmt aus Renderer */
   font-size: 14px !important;
   line-height: 1.6 !important;
   color: #1f2937 !important;
-  min-height: calc(
-    1123px - 128px
-  ) !important; /* BOLT-UI-ANPASSUNG 2025-01-15: A4-Höhe minus Padding */
+  min-height: calc(1123px - 128px) !important;
   box-sizing: border-box;
 }
 
 .ql-editor.ql-blank::before {
   font-style: normal !important;
   color: #9ca3af !important;
-  font-family: "Roboto", Arial, sans-serif !important;
+  font-family: inherit !important; /* ⬅️ auch Platzhalter nicht erzwingen */
   left: 72px !important;
   right: 72px !important;
   top: 64px !important;
-  content: "" !important; /* BOLT-UI-ANPASSUNG 2025-01-15: Kein Platzhaltertext */
+  content: "" !important;
 }
 
-/* BOLT-UI-ANPASSUNG 2025-01-15: Quill's eigene Toolbar komplett ausblenden */
 .ql-toolbar {
   display: none !important;
 }
 
-/* BOLT-UI-ANPASSUNG 2025-01-15: Content Styles */
+/* Headings */
 .ql-editor h1,
 .ql-editor h2,
 .ql-editor h3 {
@@ -190,36 +185,33 @@
   line-height: 1.4 !important;
 }
 
-/* BOLT-UI-ANPASSUNG 2025-01-15: Tag Button Specific Overrides */
 .ql-editor h1 {
   font-size: 1.5em !important;
 }
-
 .ql-editor h2 {
   font-size: 1.3em !important;
 }
-
 .ql-editor h3 {
   font-size: 1.1em !important;
 }
 
+/* Paragraphs & Lists */
 .ql-editor p {
   margin-bottom: 1em !important;
   line-height: 1.6 !important;
 }
-
 .ql-editor ul,
 .ql-editor ol {
   margin-bottom: 1em !important;
   padding-left: 2em !important;
 }
-
 .ql-editor ul li,
 .ql-editor ol li {
   margin-bottom: 0.5em !important;
   line-height: 1.6 !important;
 }
 
+/* Blockquote */
 .ql-editor blockquote {
   border-left: 4px solid #f29400 !important;
   padding-left: 1em !important;
@@ -230,70 +222,47 @@
   border-radius: 0 8px 8px 0 !important;
 }
 
+/* Links & Formatting */
 .ql-editor a {
   color: #f29400 !important;
   text-decoration: underline !important;
 }
-
 .ql-editor strong {
   font-weight: bold !important;
 }
-
 .ql-editor em {
   font-style: italic !important;
 }
-
 .ql-editor u {
   text-decoration: underline !important;
 }
-
 .ql-editor s {
   text-decoration: line-through !important;
 }
 
-/* BOLT-UI-ANPASSUNG 2025-01-15: Schriftgrößen-spezifische Styles */
+/* Schriftgrößen */
 .ql-size-small {
   font-size: 0.75em !important;
 }
-
 .ql-size-large {
   font-size: 1.5em !important;
 }
-
 .ql-size-huge {
   font-size: 2.5em !important;
 }
 
-/* Custom fonts for Quill */
-.ql-font-serif {
-  font-family: "Times New Roman", serif !important;
-}
-
-.ql-font-monospace {
-  font-family: "Courier New", monospace !important;
-}
-
-.ql-font-Arial {
-  font-family: Arial, sans-serif !important;
-}
-
-.ql-font-Helvetica {
-  font-family: Helvetica, sans-serif !important;
-}
-
-.ql-font-Georgia {
-  font-family: Georgia, serif !important;
-}
-
-.ql-font-Verdana {
-  font-family: Verdana, sans-serif !important;
-}
-
+/* Quill Custom Fonts → auch auf inherit setzen */
+.ql-font-serif,
+.ql-font-monospace,
+.ql-font-Arial,
+.ql-font-Helvetica,
+.ql-font-Georgia,
+.ql-font-Verdana,
 .ql-font-Tahoma {
-  font-family: Tahoma, sans-serif !important;
+  font-family: inherit !important;
 }
 
-/* Custom Quill pickers */
+/* Picker */
 .ql-color .ql-picker-item,
 .ql-background .ql-picker-item {
   width: 16px;
@@ -301,58 +270,41 @@
   border-radius: 50%;
 }
 
-.ql-picker.ql-lineheight .ql-picker-label::before,
-.ql-picker.ql-lineheight .ql-picker-item::before,
-.ql-picker.ql-margintop .ql-picker-label::before,
-.ql-picker.ql-margintop .ql-picker-item::before,
-.ql-picker.ql-marginbottom .ql-picker-label::before,
-.ql-picker.ql-marginbottom .ql-picker-item::before {
-  content: attr(data-value);
-}
-
-/* BOLT-UI-ANPASSUNG 2025-01-15: Zeilenabstand-Styles */
+/* Zeilenabstand-Styles */
 .ql-editor[style*="line-height: 1"] {
   line-height: 1 !important;
 }
-
 .ql-editor[style*="line-height: 1.15"] {
   line-height: 1.15 !important;
 }
-
 .ql-editor[style*="line-height: 1.5"] {
   line-height: 1.5 !important;
 }
-
 .ql-editor[style*="line-height: 2"] {
   line-height: 2 !important;
 }
 
-/* BOLT-UI-ANPASSUNG 2025-01-15: Mobile Optimierungen */
+/* Mobile Optimierungen */
 @media (max-width: 850px) {
   .toolbar-wrapper {
     padding: 0 8px;
   }
-
   #custom-toolbar {
     padding: 8px 12px;
     gap: 6px;
   }
-
   .editor-paper-sheet {
     max-width: 100%;
     padding: 0 16px;
   }
-
   .ql-editor {
-    padding: 32px 24px !important; /* Smaller margins on tablet */
+    padding: 32px 24px !important;
   }
-
   .ql-editor.ql-blank::before {
     left: 24px !important;
     right: 24px !important;
     top: 32px !important;
   }
-
   .overflow-popup {
     right: 8px;
     max-width: calc(100vw - 32px);
@@ -363,48 +315,42 @@
   .toolbar-wrapper {
     padding: 0 4px;
   }
-
   #custom-toolbar {
     padding: 6px 8px;
     gap: 4px;
   }
-
   .editor-paper-sheet {
     max-width: 100%;
     padding: 0 8px;
   }
-
   .ql-editor {
-    padding: 24px 16px !important; /* Smaller margins on mobile */
+    padding: 24px 16px !important;
   }
-
   .ql-editor.ql-blank::before {
     left: 16px !important;
     right: 16px !important;
     top: 24px !important;
   }
-
   .overflow-popup {
     right: 4px;
     max-width: calc(100vw - 16px);
   }
 }
 
-/* BOLT-UI-ANPASSUNG 2025-01-15: Print Styles */
+/* Print */
 @media print {
   #custom-toolbar,
   .toolbar-wrapper,
   .overflow-popup {
     display: none !important;
   }
-
   .ql-editor {
     padding: 0 !important;
     min-height: auto !important;
   }
 }
 
-/* BOLT-UI-ANPASSUNG 2025-01-15: Fokus-Management für Editor */
+/* Fokus-Management */
 .profile-input:focus-within,
 .autocomplete-input:focus-within,
 input:focus,
@@ -419,17 +365,13 @@ button:focus {
   outline: none !important;
   cursor: text;
 }
-
 .ql-editor:focus {
   outline: none !important;
   box-shadow: none !important;
 }
-
-/* Prevent focus unless explicitly allowed */
 .ql-container .ql-editor[tabindex="-1"] {
   cursor: default;
 }
-
 .ql-container .ql-editor[tabindex="-1"]:focus {
   outline: none !important;
   cursor: default;
@@ -438,7 +380,6 @@ button:focus {
 [data-state="open"] {
   animation: accordion-down 0.2s ease-out;
 }
-
 [data-state="closed"] {
   animation: accordion-up 0.2s ease-out;
 }
