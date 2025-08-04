@@ -96,7 +96,10 @@ export const StyleTypographyPanel: React.FC = () => {
       type === "header" ? "Überschrift" : type === "content" ? "Allgemeiner Inhalt" : key;
 
     return (
-      <div key={`${sectionId}-${type}-${key}`} className="space-y-2 border p-3 rounded-md mb-3">
+      <div
+        key={`${sectionId}-${type}-${key}`}
+        className="space-y-2 border p-3 rounded-md mb-3"
+      >
         <h4 className="text-sm font-semibold text-gray-700">{editorTitle}</h4>
 
         {/* Schriftart */}
@@ -146,10 +149,11 @@ export const StyleTypographyPanel: React.FC = () => {
         <div className="flex gap-2">
           {/* Bold */}
           <Button
-            variant={safeFont.weight?.toString().includes("bold") ? "default" : "outline"}
+            variant={safeFont.weight === "bold" ? "default" : "outline"}
             onClick={() =>
               updateFont(sectionId, type, key, {
-                weight: safeFont.weight?.toString().includes("bold") ? "normal" : "bold",
+                weight: safeFont.weight === "bold" ? "normal" : "bold",
+                style: safeFont.style, // nicht überschreiben
               })
             }
           >
@@ -162,6 +166,7 @@ export const StyleTypographyPanel: React.FC = () => {
             onClick={() =>
               updateFont(sectionId, type, key, {
                 style: safeFont.style === "italic" ? "normal" : "italic",
+                weight: safeFont.weight, // nicht überschreiben
               })
             }
           >
