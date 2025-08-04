@@ -6,6 +6,7 @@
 import { SavedTemplate } from '../types/template';
 import { LayoutElement } from '../types/section';
 import { StyleConfig } from '../../../types/cv-designer';
+import { getFontFamilyWithFallback } from '../utils/fonts';
 import { 
   renderElementToPdf, 
   A4_WIDTH, 

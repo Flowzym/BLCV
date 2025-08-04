@@ -6,6 +6,7 @@
 import { LayoutElement } from '../types/section'
 import { StyleConfig } from '../../../types/cv-designer'
 import { Paragraph, TextRun } from 'docx'
+import { getFontFamilyWithFallback } from '../utils/fonts'
 
 // A4 constants
 export const A4_WIDTH = 595
@@ -90,6 +91,9 @@ export function renderElementToCanvas(element: LayoutElement, style: StyleConfig
 export function renderElementToDocx(element: LayoutElement, style: StyleConfig): Paragraph[] {
   const fontSize = calculateFontSize(style.fontSize)
   const leftMargin = Math.round(element.x * 20)
+  const docxFontFamily = getFontFamilyWithFallback(style.fontFamily).split(',')[0].replace(/"/g, '').trim();
+  console.log('layoutRenderer DOCX: Using font:', docxFontFamily, 'for element:', element.type);
+  
   const paragraphs: Paragraph[] = []
 
   if (element.content) {
@@ -101,7 +105,8 @@ export function renderElementToDocx(element: LayoutElement, style: StyleConfig):
             new TextRun({
               text: line.trim(),
               size: fontSize * 2,
-              color: (style.textColor || '#000000').replace('#', '')
+              color: (style.textColor || '#000000').replace('#', ''),
+              font: docxFontFamily
             })
           ],
           indent: { left: leftMargin }
@@ -130,12 +135,16 @@ export interface PDFElementData {
 }
 
 export function renderElementToPdf(element: LayoutElement, style: StyleConfig): PDFElementData {
+  // ✅ Font-Familie für PDF (nur erster Wert der Fallback-Kette)
+  const pdfFontFamily = getFontFamilyWithFallback(style.fontFamily).split(',')[0].replace(/"/g, '').trim();
+  console.log('layoutRenderer PDF: Using font:', pdfFontFamily, 'for element:', element.type);
+  
   return {
     id: element.id,
     type: element.type,
     position: { x: element.x, y: element.y, width: element.width, height: element.height || 100 },
     style: {
-      fontFamily: style.fontFamily,
+      fontFamily: pdfFontFamily,
       fontSize: calculateFontSize(style.fontSize),
       color: style.textColor || '#000000',
       backgroundColor: style.backgroundColor || '#ffffff',
