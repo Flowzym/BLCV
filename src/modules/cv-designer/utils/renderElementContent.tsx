@@ -1,3 +1,5 @@
+// 📄 src/modules/cv-designer/components/RenderElementContent.tsx
+
 import React from "react";
 import { LayoutElement } from "../types/section";
 import { StyleConfig, FontConfig } from "../../../types/cv-designer";
@@ -58,10 +60,13 @@ export const RenderElementContent: React.FC<Props> = ({
     extraStyle: React.CSSProperties = {}
   ) => {
     const fontStyle: React.CSSProperties = {
+      fontFamily:
+        effectiveFontConfig?.family || style.font?.family || "Inter",
       fontSize: effectiveFontConfig?.size
         ? `${effectiveFontConfig.size}px`
         : undefined,
-      fontWeight: effectiveFontConfig?.weight,
+      fontWeight: effectiveFontConfig?.weight || "normal",
+      fontStyle: effectiveFontConfig?.style || "normal", // NEU: italic support
       color:
         effectiveFontConfig?.color ||
         (field === "header" ? getPrimaryColor() : getTextColor()),
@@ -69,7 +74,8 @@ export const RenderElementContent: React.FC<Props> = ({
         effectiveFontConfig?.letterSpacing !== undefined
           ? `${effectiveFontConfig.letterSpacing}px`
           : undefined,
-      lineHeight: effectiveFontConfig?.lineHeight,
+      lineHeight:
+        effectiveFontConfig?.lineHeight || style.font?.lineHeight || 1.6,
     };
 
     return <span style={{ ...extraStyle, ...fontStyle }}>{content}</span>;
