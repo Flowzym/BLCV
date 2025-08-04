@@ -5,19 +5,34 @@
 
 /**
  * Returns a safe font-family string with fallbacks.
- * Ensures that multi-word fonts like "Times New Roman" are quoted correctly.
+ * - Systemfonts: nur sich selbst + generische Familie
+ * - Webfonts: mit Fallback-Kette
  */
 export function getFontFamilyWithFallback(fontFamily?: string): string {
-  const FALLBACKS =
-    `"Inter", "Roboto", Arial, Helvetica, Georgia, Verdana, Tahoma, "Times New Roman", "Courier New", sans-serif`;
-
   if (!fontFamily || fontFamily.trim() === "") {
-    return FALLBACKS;
+    return `"Inter", "Roboto", Arial, Helvetica, sans-serif`;
   }
 
-  // ensure quotes for multi-word names
-  const needsQuotes = /\s/.test(fontFamily) && !/^["'].*["']$/.test(fontFamily);
+  // Systemfonts → keine zusätzlichen Fallbacks davor
+  const systemFonts: Record<string, string> = {
+    "Times New Roman": '"Times New Roman", serif',
+    Verdana: "Verdana, sans-serif",
+    Tahoma: "Tahoma, sans-serif",
+    Arial: "Arial, sans-serif",
+    Helvetica: "Helvetica, sans-serif",
+    Georgia: "Georgia, serif",
+    "Trebuchet MS": '"Trebuchet MS", sans-serif',
+    "Segoe UI": '"Segoe UI", sans-serif',
+  };
+
+  if (systemFonts[fontFamily]) {
+    return systemFonts[fontFamily];
+  }
+
+  // Webfonts → mit generischen Fallbacks
+  const needsQuotes =
+    /\s/.test(fontFamily) && !/^["'].*["']$/.test(fontFamily);
   const safeFont = needsQuotes ? `"${fontFamily}"` : fontFamily;
 
-  return `${safeFont}, ${FALLBACKS}`;
+  return `${safeFont}, "Inter", "Roboto", Arial, Helvetica, sans-serif`;
 }
