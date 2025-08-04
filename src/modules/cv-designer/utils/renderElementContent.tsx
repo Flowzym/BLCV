@@ -6,22 +6,19 @@ import { getFontFamilyWithFallback } from "./fonts";
 interface Props {
   element: LayoutElement;
   style: StyleConfig;
-  field?: string;
+  field?: string; // Subfeld-Key
   maxSkills?: number;
 }
 
-export const RenderElementContent: React.FC<Props> = ({
-  element,
-  style,
-  field,
-  maxSkills = 8,
-}) => {
+export const RenderElementContent: React.FC<Props> = ({ element, style, field, maxSkills = 8 }) => {
   let effectiveFontConfig: FontConfig | undefined;
 
-  // 1. Field → Section
+  // 1. Field-spezifisch
   if (field) {
     effectiveFontConfig = style.sections?.[element.type]?.fields?.[field]?.font;
   }
+
+  // 2. Section-spezifisch
   if (!effectiveFontConfig) {
     if (field === "header") {
       effectiveFontConfig = style.sections?.[element.type]?.header?.font;
@@ -30,33 +27,31 @@ export const RenderElementContent: React.FC<Props> = ({
     }
   }
 
-  // 2. Global overrides
-  if (field === "header" && style.global?.allHeaders) {
-    effectiveFontConfig = { ...style.global.allHeaders, ...effectiveFontConfig };
+  // 3. Globale Overrides
+  if (field === "header" && style.sections?.allHeaders?.header?.font) {
+    effectiveFontConfig = { ...effectiveFontConfig, ...style.sections.allHeaders.header.font };
   }
-  if (element.type === "profil" && field === "name" && style.global?.name) {
-    effectiveFontConfig = { ...style.global.name, ...effectiveFontConfig };
+  if (element.type === "profil" && field === "name" && style.sections?.name?.font) {
+    effectiveFontConfig = { ...effectiveFontConfig, ...style.sections.name.font };
   }
 
-  // 3. Global default
+  // 4. Global default
   if (!effectiveFontConfig) {
     effectiveFontConfig = style.font;
   }
 
-  // Farb-Helper
+  // ---- Helpers ----
   const getPrimaryColor = () => style.colors?.primary || style.primaryColor || "#1e40af";
   const getAccentColor = () => style.colors?.accent || style.accentColor || "#3b82f6";
   const getBackgroundColor = () => style.colors?.background || style.backgroundColor || "#ffffff";
   const getTextColor = () => style.colors?.text || style.textColor || "#333333";
   const getSecondaryTextColor = () => style.colors?.textSecondary || "#9ca3af";
 
-  // Font anwenden
-  const applyFontStyle = (
-    content: React.ReactNode,
-    extraStyle: React.CSSProperties = {}
-  ) => {
+  // ---- apply font ----
+  const applyFontStyle = (content: React.ReactNode, extraStyle: React.CSSProperties = {}) => {
     const fontWeight: React.CSSProperties["fontWeight"] = effectiveFontConfig?.weight ?? "normal";
     const fontStyle: React.CSSProperties["fontStyle"] = effectiveFontConfig?.style ?? "normal";
+
     const fontFamilyWithFallbacks = getFontFamilyWithFallback(effectiveFontConfig?.family);
 
     const styleObj: React.CSSProperties = {
@@ -64,63 +59,38 @@ export const RenderElementContent: React.FC<Props> = ({
       fontSize: effectiveFontConfig?.size ? `${effectiveFontConfig.size}px` : undefined,
       fontWeight,
       fontStyle,
-      color:
-        effectiveFontConfig?.color ||
-        (field === "header" ? getPrimaryColor() : getTextColor()),
-      letterSpacing:
-        effectiveFontConfig?.letterSpacing !== undefined
-          ? `${effectiveFontConfig.letterSpacing}px`
-          : undefined,
+      color: effectiveFontConfig?.color || (field === "header" ? getPrimaryColor() : getTextColor()),
+      letterSpacing: effectiveFontConfig?.letterSpacing !== undefined ? `${effectiveFontConfig.letterSpacing}px` : undefined,
       lineHeight: effectiveFontConfig?.lineHeight,
     };
 
     return <span style={{ ...extraStyle, ...styleObj }}>{content}</span>;
   };
 
-  // Foto
+  // ---- Foto ----
   if (element.type === "photo") {
     return element.content ? (
-      <img
-        src={element.content}
-        alt="Profilfoto"
-        style={{
-          width: "100%",
-          height: "100%",
-          objectFit: "cover",
-          borderRadius: "50%",
-          border: `2px solid ${getAccentColor()}`,
-        }}
-      />
+      <img src={element.content} alt="Profilfoto" style={{
+        width: "100%", height: "100%", objectFit: "cover",
+        borderRadius: "50%", border: `2px solid ${getAccentColor()}`
+      }} />
     ) : (
-      <div
-        style={{
-          width: "100%",
-          height: "100%",
-          borderRadius: "50%",
-          backgroundColor: getBackgroundColor(),
-          border: `2px dashed ${getAccentColor()}`,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: "0.6em",
-          color: getSecondaryTextColor(),
-          textAlign: "center",
-        }}
-      >
-        📷<br />
-        Foto
+      <div style={{
+        width: "100%", height: "100%", borderRadius: "50%",
+        backgroundColor: getBackgroundColor(),
+        border: `2px dashed ${getAccentColor()}`,
+        display: "flex", alignItems: "center", justifyContent: "center",
+        fontSize: "0.6em", color: getSecondaryTextColor(), textAlign: "center"
+      }}>
+        📷<br />Foto
       </div>
     );
   }
 
-  // Skills
+  // ---- Skills ----
   if (["kenntnisse", "skills", "softskills"].includes(element.type)) {
     if (!element.content) {
-      return applyFontStyle(
-        <div style={{ fontStyle: "italic", fontSize: "0.8em", color: getSecondaryTextColor() }}>
-          – Keine Fähigkeiten –
-        </div>
-      );
+      return applyFontStyle(<div style={{ fontStyle: "italic", fontSize: "0.8em", color: getSecondaryTextColor() }}>– Keine Fähigkeiten –</div>);
     }
 
     const skills = element.content.split(/[,;\n]/).map((s) => s.trim()).filter(Boolean);
@@ -129,33 +99,21 @@ export const RenderElementContent: React.FC<Props> = ({
       <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
         {skills.slice(0, maxSkills).map((skill) =>
           applyFontStyle(skill, {
-            background: getAccentColor(),
-            color: "white",
-            padding: "2px 6px",
-            borderRadius: "8px",
-            fontSize: "0.7em",
-            fontWeight: "500",
-            whiteSpace: "nowrap",
+            background: getAccentColor(), color: "white",
+            padding: "2px 6px", borderRadius: "8px", fontSize: "0.7em", fontWeight: "500", whiteSpace: "nowrap",
           })
         )}
         {skills.length > maxSkills &&
           applyFontStyle(`+${skills.length - maxSkills}`, {
-            background: getSecondaryTextColor(),
-            color: "white",
-            padding: "2px 6px",
-            borderRadius: "8px",
-            fontSize: "0.7em",
+            background: getSecondaryTextColor(), color: "white",
+            padding: "2px 6px", borderRadius: "8px", fontSize: "0.7em",
           })}
       </div>
     );
   }
 
-  // Default Text
+  // ---- Standard ----
   return element.content
     ? applyFontStyle(element.content)
-    : applyFontStyle("– Keine Daten –", {
-        fontStyle: "italic",
-        fontSize: "0.8em",
-        color: getSecondaryTextColor(),
-      });
+    : applyFontStyle("– Keine Daten –", { fontStyle: "italic", fontSize: "0.8em", color: getSecondaryTextColor() });
 };
