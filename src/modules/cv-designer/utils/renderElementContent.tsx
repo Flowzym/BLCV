@@ -17,14 +17,31 @@ export const RenderElementContent: React.FC<Props> = ({
   field,
   maxSkills = 8,
 }) => {
+  // DEBUG: Detailed logging for font config flow
+  console.log('=== RenderElementContent DEBUG START ===');
+  console.log('RenderElementContent: element.type:', element.type);
+  console.log('RenderElementContent: field prop received:', field);
+  console.log('RenderElementContent: element.field:', element.field);
+  
+  // Bestimme den effektiven fieldKey
   const fieldKey = field || element.field || "default";
+  console.log('RenderElementContent: calculated fieldKey:', fieldKey);
+  
+  // Versuche fontConfig zu finden
   const fontConfig = style.sections?.[element.type]?.fields?.[fieldKey]?.font;
+  console.log('RenderElementContent: style.sections?.[element.type]:', style.sections?.[element.type]);
+  console.log('RenderElementContent: style.sections?.[element.type]?.fields:', style.sections?.[element.type]?.fields);
+  console.log('RenderElementContent: style.sections?.[element.type]?.fields?.[fieldKey]:', style.sections?.[element.type]?.fields?.[fieldKey]);
+  console.log('RenderElementContent: retrieved fontConfig:', fontConfig);
 
   const applyFontStyle = (
     content: React.ReactNode,
     extraStyle: React.CSSProperties = {}
   ) => {
-    if (!fontConfig) return <span style={extraStyle}>{content}</span>;
+    if (!fontConfig) {
+      console.log('RenderElementContent: No fontConfig found, using default styling');
+      return <span style={extraStyle}>{content}</span>;
+    }
 
     const fontStyle: React.CSSProperties = {
       fontSize: fontConfig.size ? `${fontConfig.size}px` : undefined,
@@ -36,6 +53,10 @@ export const RenderElementContent: React.FC<Props> = ({
           : undefined,
       lineHeight: fontConfig.lineHeight || undefined,
     };
+    
+    console.log('RenderElementContent: calculated fontStyle object:', fontStyle);
+    console.log('RenderElementContent: final combined style:', { ...extraStyle, ...fontStyle });
+    console.log('=== RenderElementContent DEBUG END ===');
 
     return <span style={{ ...extraStyle, ...fontStyle }}>{content}</span>;
   };

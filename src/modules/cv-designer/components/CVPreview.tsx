@@ -144,6 +144,10 @@ const CVPreview: React.FC<CVPreviewProps> = ({
   showDebugBorders = false,
   scale,
 }) => {
+  // DEBUG: Log styleConfig received in CVPreview
+  console.log('CVPreview: styleConfig received:', styleConfig);
+  console.log('CVPreview: styleConfig.sections:', styleConfig?.sections);
+  
   const { personalData, berufserfahrung, ausbildung } = useLebenslauf();
 
   const sectionsToRender = React.useMemo(() => {

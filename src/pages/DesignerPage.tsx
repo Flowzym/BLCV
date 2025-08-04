@@ -224,6 +224,8 @@ export default function DesignerPage({
               <ExportButtons layout={layoutElements} style={styleConfig} />
             </div>
             <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4">
+              {/* DEBUG: Log styleConfig before passing to CVPreview */}
+              {console.log('DesignerPage: styleConfig being passed to CVPreview:', styleConfig)}
               <CVPreview
                 styleConfig={styleConfig}
                 layoutElements={layoutElements}
