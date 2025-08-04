@@ -57,7 +57,7 @@ export const StyleTypographyPanel: React.FC = () => {
   const { styleConfig, updateStyleConfig } = useStyleConfig();
 
   /**
-   * Update-Funktion: behandelt jetzt auch Sonderfälle "allHeaders" & "name"
+   * Update-Funktion: behandelt auch Sonderfälle "allHeaders" & "name"
    */
   const updateFont = (
     sectionId: string,
@@ -65,7 +65,6 @@ export const StyleTypographyPanel: React.FC = () => {
     key: string | null,
     updates: Partial<FontConfig>
   ) => {
-    // 🔹 Sonderfall: Alle Überschriften
     if (sectionId === "allHeaders") {
       const newSections: any = {};
       Object.keys(styleConfig.sections || {}).forEach((secId) => {
@@ -90,7 +89,6 @@ export const StyleTypographyPanel: React.FC = () => {
       return;
     }
 
-    // 🔹 Sonderfall: Name (Profil → fields.name)
     if (sectionId === "name") {
       const prev = styleConfig.sections?.profil?.fields?.name?.font;
       const merged: FontConfig = {
@@ -114,7 +112,7 @@ export const StyleTypographyPanel: React.FC = () => {
       return;
     }
 
-    // 🔹 Normale Sections
+    // normale Sections
     const prev =
       type === "header"
         ? styleConfig.sections?.[sectionId]?.header?.font
@@ -132,14 +130,9 @@ export const StyleTypographyPanel: React.FC = () => {
         updates.color ??
         prev?.color ??
         (type === "header"
-          ? styleConfig.colors?.primary ||
-            styleConfig.primaryColor ||
-            defaultFont.color
-          : styleConfig.colors?.text ||
-            styleConfig.textColor ||
-            defaultFont.color),
-      letterSpacing:
-        updates.letterSpacing ?? prev?.letterSpacing ?? defaultFont.letterSpacing,
+          ? styleConfig.colors?.primary || styleConfig.primaryColor || defaultFont.color
+          : styleConfig.colors?.text || styleConfig.textColor || defaultFont.color),
+      letterSpacing: updates.letterSpacing ?? prev?.letterSpacing ?? defaultFont.letterSpacing,
       lineHeight: updates.lineHeight ?? prev?.lineHeight ?? defaultFont.lineHeight,
       family: updates.family ?? prev?.family ?? defaultFont.family,
     };
@@ -166,27 +159,26 @@ export const StyleTypographyPanel: React.FC = () => {
     });
   };
 
-  /**
-   * Editor für eine FontConfig
-   */
   const renderFontEditor = (
     sectionId: string,
     type: "header" | "content" | "field",
     key: string | null,
     font: FontConfig = defaultFont
   ) => {
+    // 🔹 Farbe aus Design erben, auch bei globalen Tabs
+    let inheritedColor =
+      sectionId === "allHeaders"
+        ? styleConfig.colors?.primary || styleConfig.primaryColor || defaultFont.color
+        : sectionId === "name"
+        ? styleConfig.colors?.text || styleConfig.textColor || defaultFont.color
+        : type === "header"
+        ? styleConfig.colors?.primary || styleConfig.primaryColor || defaultFont.color
+        : styleConfig.colors?.text || styleConfig.textColor || defaultFont.color;
+
     const safeFont: FontConfig = {
       ...defaultFont,
       ...font,
-      color:
-        font.color ||
-        (type === "header"
-          ? styleConfig.colors?.primary ||
-            styleConfig.primaryColor ||
-            defaultFont.color
-          : styleConfig.colors?.text ||
-            styleConfig.textColor ||
-            defaultFont.color),
+      color: font.color || inheritedColor,
     };
 
     const editorTitle =
@@ -212,9 +204,7 @@ export const StyleTypographyPanel: React.FC = () => {
           <Label>Schriftart</Label>
           <select
             value={safeFont.family}
-            onChange={(e) =>
-              updateFont(sectionId, type, key, { family: e.target.value })
-            }
+            onChange={(e) => updateFont(sectionId, type, key, { family: e.target.value })}
             className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
           >
             {FONT_FAMILIES.map((fontFamily) => (
@@ -247,9 +237,7 @@ export const StyleTypographyPanel: React.FC = () => {
           <Input
             type="color"
             value={safeFont.color}
-            onChange={(e) =>
-              updateFont(sectionId, type, key, { color: e.target.value })
-            }
+            onChange={(e) => updateFont(sectionId, type, key, { color: e.target.value })}
             className="w-12 h-8 p-0 border-none"
           />
         </div>
@@ -260,8 +248,7 @@ export const StyleTypographyPanel: React.FC = () => {
             variant={safeFont.weight === "bold" ? "default" : "outline"}
             onClick={() =>
               updateFont(sectionId, type, key, {
-                weight:
-                  safeFont.weight === "bold" ? "normal" : "bold",
+                weight: safeFont.weight === "bold" ? "normal" : "bold",
                 style: safeFont.style,
               })
             }
@@ -273,8 +260,7 @@ export const StyleTypographyPanel: React.FC = () => {
             variant={safeFont.style === "italic" ? "default" : "outline"}
             onClick={() =>
               updateFont(sectionId, type, key, {
-                style:
-                  safeFont.style === "italic" ? "normal" : "italic",
+                style: safeFont.style === "italic" ? "normal" : "italic",
                 weight: safeFont.weight,
               })
             }
@@ -289,10 +275,7 @@ export const StyleTypographyPanel: React.FC = () => {
                 : "outline"
             }
             onClick={() =>
-              updateFont(sectionId, type, key, {
-                weight: "normal",
-                style: "normal",
-              })
+              updateFont(sectionId, type, key, { weight: "normal", style: "normal" })
             }
           >
             R
@@ -307,9 +290,7 @@ export const StyleTypographyPanel: React.FC = () => {
             max={5}
             step={0.1}
             value={[safeFont.letterSpacing ?? 0]}
-            onValueChange={(v) =>
-              updateFont(sectionId, type, key, { letterSpacing: v[0] })
-            }
+            onValueChange={(v) => updateFont(sectionId, type, key, { letterSpacing: v[0] })}
           />
         </div>
 
@@ -321,9 +302,7 @@ export const StyleTypographyPanel: React.FC = () => {
             max={2.5}
             step={0.1}
             value={[safeFont.lineHeight ?? 1.6]}
-            onValueChange={(v) =>
-              updateFont(sectionId, type, key, { lineHeight: v[0] })
-            }
+            onValueChange={(v) => updateFont(sectionId, type, key, { lineHeight: v[0] })}
           />
         </div>
       </div>
@@ -332,42 +311,31 @@ export const StyleTypographyPanel: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      <h3 className="font-medium text-gray-900">
-        Typografie pro Bereich & Subfeld
-      </h3>
+      <h3 className="font-medium text-gray-900">Typografie pro Bereich & Subfeld</h3>
       <Accordion type="multiple" className="space-y-2">
         {Object.entries(sectionFields).map(([sectionId, fields]) => (
           <AccordionItem key={sectionId} value={sectionId}>
-            <AccordionTrigger className="capitalize">
-              {sectionId}
-            </AccordionTrigger>
+            <AccordionTrigger className="capitalize">{sectionId}</AccordionTrigger>
             <AccordionContent>
               {renderFontEditor(
                 sectionId,
                 "header",
                 null,
-                styleConfig.sections?.[sectionId]?.header?.font ||
-                  defaultFont
+                styleConfig.sections?.[sectionId]?.header?.font || defaultFont
               )}
               {renderFontEditor(
                 sectionId,
                 "content",
                 null,
-                styleConfig.sections?.[sectionId]?.font ||
-                  defaultFont
+                styleConfig.sections?.[sectionId]?.font || defaultFont
               )}
               {fields
                 .filter((field) => field !== "header")
                 .map((fieldKey) => {
                   const font =
-                    styleConfig.sections?.[sectionId]?.fields?.[fieldKey]
-                      ?.font || defaultFont;
-                  return renderFontEditor(
-                    sectionId,
-                    "field",
-                    fieldKey,
-                    font
-                  );
+                    styleConfig.sections?.[sectionId]?.fields?.[fieldKey]?.font ||
+                    defaultFont;
+                  return renderFontEditor(sectionId, "field", fieldKey, font);
                 })}
             </AccordionContent>
           </AccordionItem>
