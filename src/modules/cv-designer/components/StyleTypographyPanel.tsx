@@ -22,7 +22,7 @@ import {
 } from "../utils/fontUtils";
 import { Lock, RotateCcw, Eye } from "lucide-react";
 
-// Only content sections - globals are handled separately
+// Nur Content Sections – globale Settings werden separat gerendert
 const contentSections: Record<string, string[]> = {
   profil: ["header", "name", "adresse", "mail", "telefon"],
   erfahrung: ["header", "position", "firma", "zeitraum", "taetigkeiten"],
@@ -63,7 +63,6 @@ export const StyleTypographyPanel: React.FC = () => {
   ) => {
     console.log(`🔧 updateFont: ${sectionId}.${type}.${key || "null"}`, updates);
 
-    // Global sections (allHeaders, name)
     if (sectionId === "allHeaders") {
       updateStyleConfig({
         sections: {
@@ -99,7 +98,6 @@ export const StyleTypographyPanel: React.FC = () => {
       return;
     }
 
-    // 🎯 GLOBAL FONT UPDATE (für globale Basis-Font-Einstellungen)
     if (sectionId === "global") {
       updateStyleConfig({
         font: {
@@ -110,7 +108,6 @@ export const StyleTypographyPanel: React.FC = () => {
       return;
     }
 
-    // Regular sections
     const currentSection = styleConfig.sections?.[sectionId] || {};
 
     if (type === "header") {
@@ -164,9 +161,6 @@ export const StyleTypographyPanel: React.FC = () => {
     }
   };
 
-  /**
-   * Reset font to enable inheritance
-   */
   const resetFont = (
     sectionId: string,
     type: "header" | "content" | "field",
@@ -176,9 +170,6 @@ export const StyleTypographyPanel: React.FC = () => {
     updateFont(sectionId, type, key, resetConfig);
   };
 
-  /**
-   * Font editor component
-   */
   const renderFontEditor = (
     sectionId: string,
     type: "header" | "content" | "field",
@@ -186,7 +177,6 @@ export const StyleTypographyPanel: React.FC = () => {
     title: string
   ) => {
     const effectiveFont = getEffectiveFontConfig(sectionId, key, type, styleConfig);
-    const localFont = getLocalFontConfig(sectionId, key, type, styleConfig);
 
     const isExplicitFamily = isFontPropertyExplicit(sectionId, key, type, "family", styleConfig);
     const isExplicitSize = isFontPropertyExplicit(sectionId, key, type, "size", styleConfig);
@@ -414,11 +404,9 @@ export const StyleTypographyPanel: React.FC = () => {
     <div className="space-y-6">
       <h3 className="font-medium text-gray-900">Typografie-Einstellungen</h3>
 
-      {/* Global Settings Section */}
+      {/* Globale Settings */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h4 className="font-medium text-blue-900 mb-4 flex items-center">
-          🌐 Globale Einstellungen
-        </h4>
+        <h4 className="font-medium text-blue-900 mb-4 flex items-center">🌐 Globale Einstellungen</h4>
 
         <div className="mb-6">
           <h5 className="text-sm font-medium text-blue-800 mb-3">Basis-Schriftart (Global)</h5>
@@ -438,9 +426,7 @@ export const StyleTypographyPanel: React.FC = () => {
 
       {/* Content Sections */}
       <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-        <h4 className="font-medium text-gray-900 mb-4 flex items-center">
-          📝 Individuelle Sektions-Einstellungen
-        </h4>
+        <h4 className="font-medium text-gray-900 mb-4 flex items-center">📝 Individuelle Sektions-Einstellungen</h4>
 
         <Accordion type="multiple" className="space-y-2">
           {Object.entries(contentSections).map(([sectionId, fields]) => (
