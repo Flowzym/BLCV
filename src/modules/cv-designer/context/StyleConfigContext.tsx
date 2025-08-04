@@ -16,6 +16,7 @@ const defaultStyleConfig: StyleConfig = {
   colors: {
     primary: "#1e40af", // Beispielwert
     secondary: "#3b82f6", // Beispielwert
+  },
   sections: { // NEU: Default-Sektionen mit Header- und Content-Fonts
     profil: {
   // Legacy properties for backward compatibility - these will be synced with colors.*
@@ -140,7 +141,7 @@ const defaultStyleConfig: StyleConfig = {
       },
       fields: {}
     }
-  },
+  }
 };
 
 interface StyleConfigContextValue {
