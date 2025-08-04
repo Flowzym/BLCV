@@ -21,12 +21,12 @@ const defaultFont: FontConfig = {
   lineHeight: 1.6,
 };
 
-// Beispiel-Struktur → später aus Mapping ableitbar
+// Jetzt mit "header"-Feld pro Section
 const sectionFields: Record<string, string[]> = {
-  profil: ["name", "adresse", "mail", "telefon"],
-  erfahrung: ["position", "firma", "zeitraum", "taetigkeiten"],
-  ausbildung: ["abschluss", "institution", "zeitraum"],
-  skills: ["skillname", "level"],
+  profil: ["header", "name", "adresse", "mail", "telefon"],
+  erfahrung: ["header", "position", "firma", "zeitraum", "taetigkeiten"],
+  ausbildung: ["header", "abschluss", "institution", "zeitraum"],
+  skills: ["header", "skillname", "level"],
 };
 
 export const StyleTypographyPanel: React.FC = () => {
@@ -126,9 +126,7 @@ export const StyleTypographyPanel: React.FC = () => {
 
         {/* Letter Spacing */}
         <div>
-          <Label>
-            Buchstabenabstand: {safeFont.letterSpacing ?? 0}px
-          </Label>
+          <Label>Buchstabenabstand: {safeFont.letterSpacing ?? 0}px</Label>
           <Slider
             min={-1}
             max={5}
