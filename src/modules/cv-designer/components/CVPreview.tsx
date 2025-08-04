@@ -14,6 +14,7 @@ import {
   getLayoutStats,
 } from "../services/layoutRenderer";
 import { RenderElementContent } from "../utils/renderElementContent";
+import { useStyleConfig } from "../context/StyleConfigContext";
 
 interface CVPreviewProps {
   sections?: LayoutElement[];
