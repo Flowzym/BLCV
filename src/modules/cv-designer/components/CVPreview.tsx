@@ -105,7 +105,7 @@ const SectionRenderer = ({
           <div
             style={{
               marginBottom: "6px",
-              borderBottom: `1px solid ${styleConfig.colors?.secondary || "#3b82f6"}`,
+              borderBottom: `1px solid ${styleConfig.colors?.accent || styleConfig.accentColor || "#3b82f6"}`,
               paddingBottom: "2px",
             }}
           >
@@ -344,7 +344,7 @@ const CVPreview: React.FC<CVPreviewProps> = ({
     position: "relative",
     width: A4_WIDTH,
     height: A4_HEIGHT,
-    backgroundColor: safeStyleConfig.colors?.background || safeStyleConfig.backgroundColor || "#ffffff",
+    backgroundColor: safeStyleConfig.backgroundColor || "#ffffff",
     fontFamily: safeStyleConfig.fontFamily || "Inter",
     fontSize:
       safeStyleConfig.fontSize === "small"
@@ -353,7 +353,7 @@ const CVPreview: React.FC<CVPreviewProps> = ({
         ? "14px"
         : "12px",
     lineHeight: safeStyleConfig.lineHeight || 1.5,
-    color: safeStyleConfig.colors?.text || safeStyleConfig.textColor || "#333333",
+    color: safeStyleConfig.textColor || "#333333",
     border: "1px solid #e5e7eb",
     borderRadius: "4px",
     overflow: "hidden",
