@@ -67,9 +67,7 @@ export const RenderElementContent: React.FC<Props> = ({
       effectiveFontConfig?.style ?? "normal";
 
     const styleObj: React.CSSProperties = {
-      fontFamily: effectiveFontConfig?.family
-        ? `"${effectiveFontConfig.family}", ${FONT_FALLBACKS}`
-        : FONT_FALLBACKS,
+      fontFamily: effectiveFontConfig?.family,
       fontSize: effectiveFontConfig?.size
         ? `${effectiveFontConfig.size}px`
         : undefined,
