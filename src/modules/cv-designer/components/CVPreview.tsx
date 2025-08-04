@@ -1,3 +1,5 @@
+// 📄 src/modules/cv-designer/components/CVPreview.tsx
+
 /**
  * CV Preview – rendert LayoutElements im A4-Format
  * Nutzt StyleConfig, Templates & Context-Daten
@@ -89,13 +91,14 @@ const SectionRenderer = ({
 }) => {
   const elementStyle = renderElementToCanvas(element, styleConfig);
 
-  // Header-Font Override (kommt aus styleConfig.sections[section].fields.header.font)
+  // Header-FontConfig aus styleConfig
   const headerFont =
     styleConfig.sections?.[element.type]?.fields?.header?.font || {
       size: 14,
       weight: "600",
-      color: styleConfig.primaryColor || "#1e40af",
+      color: styleConfig.colors?.primary || "#1e40af",
       lineHeight: 1.2,
+      letterSpacing: 0,
     };
 
   return (
@@ -105,11 +108,14 @@ const SectionRenderer = ({
           style={{
             fontSize: headerFont.size ? `${headerFont.size}px` : "14px",
             fontWeight: headerFont.weight || "600",
-            marginBottom: "6px",
-            color: headerFont.color || styleConfig.primaryColor || "#1e40af",
-            borderBottom: `1px solid ${styleConfig.accentColor || "#3b82f6"}`,
-            paddingBottom: "2px",
+            color: headerFont.color || styleConfig.colors?.primary || "#1e40af",
             lineHeight: headerFont.lineHeight || 1.2,
+            letterSpacing: headerFont.letterSpacing
+              ? `${headerFont.letterSpacing}px`
+              : "0px",
+            marginBottom: "6px",
+            borderBottom: `1px solid ${styleConfig.colors?.secondary || "#3b82f6"}`,
+            paddingBottom: "2px",
           }}
         >
           {element.title}
@@ -118,7 +124,10 @@ const SectionRenderer = ({
 
       <div
         style={{
-          height: element.title && element.type !== "photo" ? "calc(100% - 24px)" : "100%",
+          height:
+            element.title && element.type !== "photo"
+              ? "calc(100% - 24px)"
+              : "100%",
           overflow: "hidden",
         }}
       >
@@ -271,7 +280,8 @@ const CVPreview: React.FC<CVPreviewProps> = ({
 
         case "kenntnisse":
         case "skills":
-          content = "JavaScript, React, TypeScript, Node.js, Python, SQL, Git, Docker";
+          content =
+            "JavaScript, React, TypeScript, Node.js, Python, SQL, Git, Docker";
           break;
 
         case "softskills":
@@ -325,7 +335,11 @@ const CVPreview: React.FC<CVPreviewProps> = ({
       <div style={{ display: "flex", justifyContent: "center", padding: "20px" }}>
         <div style={containerStyle}>
           {sectionsToRender.map((element) => (
-            <SectionRenderer key={element.id} element={element} styleConfig={safeStyleConfig} />
+            <SectionRenderer
+              key={element.id}
+              element={element}
+              styleConfig={safeStyleConfig}
+            />
           ))}
 
           {sectionsToRender.length === 0 && <EmptyState />}
