@@ -1,37 +1,29 @@
 // 📄 src/components/StyleEditor.tsx
 
-/**
- * Style Editor Component
- * Provides comprehensive styling controls for CV design
- */
-
 import React, { useState } from "react";
-import { StyleConfig } from "@/types/cv-designer";
 import { StyleTypographyPanel } from "@/modules/cv-designer/components/StyleTypographyPanel";
+import { useStyleConfig } from "@/modules/cv-designer/context/StyleConfigContext";
+import { StyleConfig } from "@/types/cv-designer";
 
 interface StyleEditorProps {
-  config: StyleConfig;
-  onChange: (config: StyleConfig) => void;
   sections?: string[];
   showPresets?: boolean;
-  showLivePreview?: boolean;
   compact?: boolean;
 }
 
 export const StyleEditor: React.FC<StyleEditorProps> = ({
-  config,
-  onChange,
   sections = ["colors", "typography", "layout", "spacing"],
   showPresets = true,
   compact = false,
 }) => {
   const [activeSection, setActiveSection] = useState(sections[0]);
 
+  // ⚡ Context
+  const { styleConfig, updateStyleConfig } = useStyleConfig();
+
   const handleConfigChange = (updates: Partial<StyleConfig>) => {
-    console.log('StyleEditor: handleConfigChange called with updates:', updates);
-    const newConfig = { ...config, ...updates };
-    console.log('StyleEditor: calling onChange with newConfig:', newConfig);
-    onChange(newConfig);
+    console.log("StyleEditor: handleConfigChange →", updates);
+    updateStyleConfig(updates);
   };
 
   const colorPresets = [
@@ -47,26 +39,18 @@ export const StyleEditor: React.FC<StyleEditorProps> = ({
     <div className="space-y-4">
       <h3 className="font-medium text-gray-900">Farben</h3>
 
-      {/* Color Presets */}
       {showPresets && (
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Farbvorlagen
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Farbvorlagen</label>
           <div className="grid grid-cols-1 gap-2">
             {colorPresets.map((preset, index) => (
               <button
                 key={index}
                 onClick={() => {
-                  console.log('StyleEditor: Color preset clicked:', preset.name, 'colors:', {
-                    primary: preset.primary,
-                    accent: preset.accent,
-                    background: preset.background,
-                    text: preset.text
-                  });
+                  console.log("StyleEditor: Preset clicked →", preset);
                   handleConfigChange({
                     colors: {
-                      ...(config.colors || {}),
+                      ...(styleConfig.colors || {}),
                       primary: preset.primary,
                       accent: preset.accent,
                       background: preset.background,
@@ -77,14 +61,8 @@ export const StyleEditor: React.FC<StyleEditorProps> = ({
                 className="flex items-center space-x-3 p-2 border rounded-lg hover:bg-gray-50 text-left"
               >
                 <div className="flex space-x-1">
-                  <div
-                    className="w-4 h-4 rounded border"
-                    style={{ backgroundColor: preset.primary }}
-                  />
-                  <div
-                    className="w-4 h-4 rounded border"
-                    style={{ backgroundColor: preset.accent }}
-                  />
+                  <div className="w-4 h-4 rounded border" style={{ backgroundColor: preset.primary }} />
+                  <div className="w-4 h-4 rounded border" style={{ backgroundColor: preset.accent }} />
                 </div>
                 <span className="text-sm">{preset.name}</span>
               </button>
@@ -95,156 +73,38 @@ export const StyleEditor: React.FC<StyleEditorProps> = ({
 
       {/* Custom Colors */}
       <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Primärfarbe
-          </label>
-          <div className="flex items-center space-x-2">
-            <input
-              type="color"
-              value={config.colors?.primary || config.primaryColor || "#1e40af"}
-              onChange={(e) => {
-                console.log('StyleEditor: Primary color changed to:', e.target.value);
-                handleConfigChange({
-                  colors: { 
-                    ...(config.colors || {}), 
-                    primary: e.target.value 
-                  },
-                });
-              }}
-              className="w-8 h-8 border rounded cursor-pointer"
-            />
-            <input
-              type="text"
-              value={config.colors?.primary || config.primaryColor || "#1e40af"}
-              onChange={(e) => {
-                console.log('StyleEditor: Primary color text input changed to:', e.target.value);
-                handleConfigChange({
-                  colors: { 
-                    ...(config.colors || {}), 
-                    primary: e.target.value 
-                  },
-                });
-              }}
-              className="flex-1 px-2 py-1 text-xs font-mono border rounded"
-              placeholder="#1e40af"
-            />
+        {["primary", "accent", "background", "text"].map((key) => (
+          <div key={key}>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              {key === "primary" && "Primärfarbe"}
+              {key === "accent" && "Akzentfarbe"}
+              {key === "background" && "Hintergrundfarbe"}
+              {key === "text" && "Textfarbe"}
+            </label>
+            <div className="flex items-center space-x-2">
+              <input
+                type="color"
+                value={styleConfig.colors?.[key] || "#000000"}
+                onChange={(e) =>
+                  handleConfigChange({
+                    colors: { ...(styleConfig.colors || {}), [key]: e.target.value },
+                  })
+                }
+                className="w-8 h-8 border rounded cursor-pointer"
+              />
+              <input
+                type="text"
+                value={styleConfig.colors?.[key] || "#000000"}
+                onChange={(e) =>
+                  handleConfigChange({
+                    colors: { ...(styleConfig.colors || {}), [key]: e.target.value },
+                  })
+                }
+                className="flex-1 px-2 py-1 text-xs font-mono border rounded"
+              />
+            </div>
           </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Akzentfarbe
-          </label>
-          <div className="flex items-center space-x-2">
-            <input
-              type="color"
-              value={config.colors?.accent || config.accentColor || "#3b82f6"}
-              onChange={(e) => {
-                console.log('StyleEditor: Accent color changed to:', e.target.value);
-                handleConfigChange({
-                  colors: { 
-                    ...(config.colors || {}), 
-                    accent: e.target.value 
-                  },
-                });
-              }}
-              className="w-8 h-8 border rounded cursor-pointer"
-            />
-            <input
-              type="text"
-              value={config.colors?.accent || config.accentColor || "#3b82f6"}
-              onChange={(e) => {
-                console.log('StyleEditor: Accent color text input changed to:', e.target.value);
-                handleConfigChange({
-                  colors: { 
-                    ...(config.colors || {}), 
-                    accent: e.target.value 
-                  },
-                });
-              }}
-              className="flex-1 px-2 py-1 text-xs font-mono border rounded"
-              placeholder="#3b82f6"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Additional Colors */}
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Hintergrundfarbe
-          </label>
-          <div className="flex items-center space-x-2">
-            <input
-              type="color"
-              value={config.colors?.background || config.backgroundColor || "#ffffff"}
-              onChange={(e) => {
-                console.log('StyleEditor: Background color changed to:', e.target.value);
-                handleConfigChange({
-                  colors: { 
-                    ...(config.colors || {}), 
-                    background: e.target.value 
-                  },
-                });
-              }}
-              className="w-8 h-8 border rounded cursor-pointer"
-            />
-            <input
-              type="text"
-              value={config.colors?.background || config.backgroundColor || "#ffffff"}
-              onChange={(e) => {
-                console.log('StyleEditor: Background color text input changed to:', e.target.value);
-                handleConfigChange({
-                  colors: { 
-                    ...(config.colors || {}), 
-                    background: e.target.value 
-                  },
-                });
-              }}
-              className="flex-1 px-2 py-1 text-xs font-mono border rounded"
-              placeholder="#ffffff"
-            />
-          </div>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Textfarbe
-          </label>
-          <div className="flex items-center space-x-2">
-            <input
-              type="color"
-              value={config.colors?.text || config.textColor || "#333333"}
-              onChange={(e) => {
-                console.log('StyleEditor: Text color changed to:', e.target.value);
-                handleConfigChange({
-                  colors: { 
-                    ...(config.colors || {}), 
-                    text: e.target.value 
-                  },
-                });
-              }}
-              className="w-8 h-8 border rounded cursor-pointer"
-            />
-            <input
-              type="text"
-              value={config.colors?.text || config.textColor || "#333333"}
-              onChange={(e) => {
-                console.log('StyleEditor: Text color text input changed to:', e.target.value);
-                handleConfigChange({
-                  colors: { 
-                    ...(config.colors || {}), 
-                    text: e.target.value 
-                  },
-                });
-              }}
-              className="flex-1 px-2 py-1 text-xs font-mono border rounded"
-              placeholder="#333333"
-            />
-          </div>
-        </div>
+        ))}
       </div>
     </div>
   );
@@ -261,27 +121,19 @@ export const StyleEditor: React.FC<StyleEditorProps> = ({
     <div className="space-y-4">
       <h3 className="font-medium text-gray-900">Layout</h3>
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">
-          Seitenränder
-        </label>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Seitenränder</label>
         <div className="grid grid-cols-3 gap-2">
           {["compact", "normal", "wide"].map((margin) => (
             <button
               key={margin}
-              onClick={() =>
-                handleConfigChange({ margin: margin as any })
-              }
+              onClick={() => handleConfigChange({ margin: margin as any })}
               className={`px-3 py-2 text-sm border rounded-lg transition-colors capitalize ${
-                config.margin === margin
+                styleConfig.margin === margin
                   ? "bg-blue-600 text-white border-blue-600"
                   : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
               }`}
             >
-              {margin === "compact"
-                ? "Kompakt"
-                : margin === "normal"
-                ? "Normal"
-                : "Weit"}
+              {margin === "compact" ? "Kompakt" : margin === "normal" ? "Normal" : "Weit"}
             </button>
           ))}
         </div>
@@ -301,9 +153,9 @@ export const StyleEditor: React.FC<StyleEditorProps> = ({
           <div className="flex justify-between">
             <span>Sektionsabstand:</span>
             <span className="font-medium">
-              {config.margin === "compact"
+              {styleConfig.margin === "compact"
                 ? "16px"
-                : config.margin === "normal"
+                : styleConfig.margin === "normal"
                 ? "24px"
                 : "32px"}
             </span>
@@ -311,16 +163,16 @@ export const StyleEditor: React.FC<StyleEditorProps> = ({
           <div className="flex justify-between">
             <span>Elementabstand:</span>
             <span className="font-medium">
-              {config.margin === "compact"
+              {styleConfig.margin === "compact"
                 ? "8px"
-                : config.margin === "normal"
+                : styleConfig.margin === "normal"
                 ? "12px"
                 : "16px"}
             </span>
           </div>
           <div className="flex justify-between">
             <span>Zeilenabstand:</span>
-            <span className="font-medium">{config.font?.lineHeight || 1.6}</span>
+            <span className="font-medium">{styleConfig.font?.lineHeight || 1.6}</span>
           </div>
         </div>
       </div>
