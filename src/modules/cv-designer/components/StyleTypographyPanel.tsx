@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/accordion";
 
 const defaultFont: FontConfig = {
-  family: "Inter, sans-serif",
+  family: "Inter", // 👉 nur der Klarname
   size: 12,
   weight: "normal",
   style: "normal",
@@ -30,24 +30,24 @@ const sectionFields: Record<string, string[]> = {
   skills: ["header", "skillname", "level"],
 };
 
-// ✅ Erweiterte Font-Liste (Google + System Fonts mit Fallbacks)
+// ✅ Klarname → Fallback-Kette wird erst in RenderElementContent ergänzt
 const FONT_FAMILIES = [
-  { value: "Inter, sans-serif", label: "Inter" },
-  { value: "Roboto, sans-serif", label: "Roboto" },
-  { value: "'Open Sans', sans-serif", label: "Open Sans" },
-  { value: "Lato, sans-serif", label: "Lato" },
-  { value: "Montserrat, sans-serif", label: "Montserrat" },
-  { value: "'Source Sans Pro', sans-serif", label: "Source Sans Pro" },
-  { value: "Arial, sans-serif", label: "Arial" },
-  { value: "Helvetica, sans-serif", label: "Helvetica" },
-  { value: "Georgia, serif", label: "Georgia" },
-  { value: "'Times New Roman', serif", label: "Times New Roman" },
-  { value: "Verdana, sans-serif", label: "Verdana" },
-  { value: "Tahoma, sans-serif", label: "Tahoma" },
-  { value: "'Trebuchet MS', sans-serif", label: "Trebuchet MS" },
-  { value: "'Segoe UI', sans-serif", label: "Segoe UI" },
-  { value: "system-ui, sans-serif", label: "System UI" },
-  { value: "'Courier Prime', monospace", label: "Courier Prime" },
+  { value: "Inter", label: "Inter" },
+  { value: "Roboto", label: "Roboto" },
+  { value: "Open Sans", label: "Open Sans" },
+  { value: "Lato", label: "Lato" },
+  { value: "Montserrat", label: "Montserrat" },
+  { value: "Source Sans Pro", label: "Source Sans Pro" },
+  { value: "Arial", label: "Arial" },
+  { value: "Helvetica", label: "Helvetica" },
+  { value: "Georgia", label: "Georgia" },
+  { value: "Times New Roman", label: "Times New Roman" },
+  { value: "Verdana", label: "Verdana" },
+  { value: "Tahoma", label: "Tahoma" },
+  { value: "Trebuchet MS", label: "Trebuchet MS" },
+  { value: "Segoe UI", label: "Segoe UI" },
+  { value: "system-ui", label: "System UI" },
+  { value: "Courier Prime", label: "Courier Prime" },
 ];
 
 export const StyleTypographyPanel: React.FC = () => {
@@ -147,33 +147,30 @@ export const StyleTypographyPanel: React.FC = () => {
 
         {/* Bold / Italic / Reset */}
         <div className="flex gap-2">
-          {/* Bold */}
           <Button
             variant={safeFont.weight === "bold" ? "default" : "outline"}
             onClick={() =>
               updateFont(sectionId, type, key, {
                 weight: safeFont.weight === "bold" ? "normal" : "bold",
-                style: safeFont.style, // nicht überschreiben
+                style: safeFont.style,
               })
             }
           >
             B
           </Button>
 
-          {/* Italic */}
           <Button
             variant={safeFont.style === "italic" ? "default" : "outline"}
             onClick={() =>
               updateFont(sectionId, type, key, {
                 style: safeFont.style === "italic" ? "normal" : "italic",
-                weight: safeFont.weight, // nicht überschreiben
+                weight: safeFont.weight,
               })
             }
           >
             I
           </Button>
 
-          {/* Reset Regular */}
           <Button
             variant={
               safeFont.weight === "normal" && safeFont.style === "normal"
