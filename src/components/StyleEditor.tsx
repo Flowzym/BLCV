@@ -28,7 +28,9 @@ export const StyleEditor: React.FC<StyleEditorProps> = ({
   const [activeSection, setActiveSection] = useState(sections[0]);
 
   const handleConfigChange = (updates: Partial<StyleConfig>) => {
+    console.log('StyleEditor: handleConfigChange called with updates:', updates);
     const newConfig = { ...config, ...updates };
+    console.log('StyleEditor: calling onChange with newConfig:', newConfig);
     onChange(newConfig);
   };
 
@@ -60,7 +62,7 @@ export const StyleEditor: React.FC<StyleEditorProps> = ({
                     colors: {
                       ...config.colors,
                       primary: preset.primary,
-                      secondary: preset.accent,
+                      accent: preset.accent,
                     },
                   })
                 }
@@ -92,7 +94,7 @@ export const StyleEditor: React.FC<StyleEditorProps> = ({
           <div className="flex items-center space-x-2">
             <input
               type="color"
-              value={config.colors?.primary || "#1e40af"}
+              value={config.colors?.primary || config.primaryColor || "#1e40af"}
               onChange={(e) =>
                 handleConfigChange({
                   colors: { ...config.colors, primary: e.target.value },
@@ -102,7 +104,7 @@ export const StyleEditor: React.FC<StyleEditorProps> = ({
             />
             <input
               type="text"
-              value={config.colors?.primary || "#1e40af"}
+              value={config.colors?.primary || config.primaryColor || "#1e40af"}
               onChange={(e) =>
                 handleConfigChange({
                   colors: { ...config.colors, primary: e.target.value },
@@ -121,20 +123,20 @@ export const StyleEditor: React.FC<StyleEditorProps> = ({
           <div className="flex items-center space-x-2">
             <input
               type="color"
-              value={config.colors?.secondary || "#3b82f6"}
+              value={config.colors?.accent || config.accentColor || "#3b82f6"}
               onChange={(e) =>
                 handleConfigChange({
-                  colors: { ...config.colors, secondary: e.target.value },
+                  colors: { ...config.colors, accent: e.target.value },
                 })
               }
               className="w-8 h-8 border rounded cursor-pointer"
             />
             <input
               type="text"
-              value={config.colors?.secondary || "#3b82f6"}
+              value={config.colors?.accent || config.accentColor || "#3b82f6"}
               onChange={(e) =>
                 handleConfigChange({
-                  colors: { ...config.colors, secondary: e.target.value },
+                  colors: { ...config.colors, accent: e.target.value },
                 })
               }
               className="flex-1 px-2 py-1 text-xs font-mono border rounded"

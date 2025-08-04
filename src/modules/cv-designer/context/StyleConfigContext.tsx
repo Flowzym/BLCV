@@ -16,6 +16,11 @@ const defaultStyleConfig: StyleConfig = {
   colors: {
     primary: "#1e40af",
     secondary: "#3b82f6",
+    accent: "#3b82f6",
+    text: "#333333",
+    textSecondary: "#6b7280",
+    background: "#ffffff",
+    border: "#e5e7eb"
     background: "#ffffff",
     text: "#333333",
   },
@@ -28,6 +33,19 @@ const defaultStyleConfig: StyleConfig = {
   borderWidth: 1,
   sections: { // NEU: Default-Sektionen mit Header- und Content-Fonts
     profil: {
+  // Legacy properties for backward compatibility - these will be synced with colors.*
+  primaryColor: "#1e40af",
+  accentColor: "#3b82f6", 
+  backgroundColor: "#ffffff",
+  textColor: "#333333",
+  fontFamily: "Inter",
+  fontSize: "medium",
+  lineHeight: 1.6,
+  margin: "normal",
+  borderRadius: "8px",
+  sectionSpacing: 24,
+  snapSize: 20,
+  widthPercent: 100,
       sectionId: "profil",
       font: { // Allgemeiner Font für Profil-Inhalt
         family: "Inter", 
@@ -162,17 +180,44 @@ export const StyleConfigProvider = ({ children }: { children: ReactNode }) => {
     console.log('StyleConfigContext: merging with existing config to preserve sections');
     
     // Merge with existing config to preserve sections that might not be in the update
-    const mergedConfig = {
+    let mergedConfig = {
       ...styleConfig,
       ...config,
+      colors: {
+        ...styleConfig.colors,
+        ...config.colors
+      },
       sections: {
         ...styleConfig.sections,
         ...config.sections
       }
     };
     
+    // Sync legacy properties with colors structure for backward compatibility
+    if (mergedConfig.colors) {
+      mergedConfig.primaryColor = mergedConfig.colors.primary;
+      mergedConfig.accentColor = mergedConfig.colors.accent;
+      mergedConfig.backgroundColor = mergedConfig.colors.background;
+      mergedConfig.textColor = mergedConfig.colors.text;
+    }
+    
+    // Sync colors structure with legacy properties if they were updated directly
+    if (config.primaryColor && !config.colors?.primary) {
+      mergedConfig.colors = { ...mergedConfig.colors, primary: config.primaryColor };
+    }
+    if (config.accentColor && !config.colors?.accent) {
+      mergedConfig.colors = { ...mergedConfig.colors, accent: config.accentColor };
+    }
+    if (config.backgroundColor && !config.colors?.background) {
+      mergedConfig.colors = { ...mergedConfig.colors, background: config.backgroundColor };
+    }
+    if (config.textColor && !config.colors?.text) {
+      mergedConfig.colors = { ...mergedConfig.colors, text: config.textColor };
+    }
+    
     console.log('StyleConfigContext: final merged config:', mergedConfig);
     console.log('StyleConfigContext: final merged sections:', mergedConfig.sections);
+    console.log('StyleConfigContext: final merged colors:', mergedConfig.colors);
     setStyleConfig(mergedConfig);
   };
 

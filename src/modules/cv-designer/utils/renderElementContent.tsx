@@ -139,7 +139,7 @@ export const RenderElementContent: React.FC<Props> = ({
       <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
         {skills.slice(0, maxSkills).map((skill, i) =>
           applyFontStyle(skill, {
-            background: style.accentColor || "#3b82f6",
+            background: style.colors?.accent || style.accentColor || "#3b82f6",
             color: "white",
             padding: "2px 6px",
             borderRadius: "8px",
