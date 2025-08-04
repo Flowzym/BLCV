@@ -4,7 +4,7 @@ import { KIModelSettings } from '../types/KIModelSettings';
 import {
   Accordion,
   AccordionItem,
-  AccordionHeader,
+  
   AccordionContent,
 } from './Accordion';
 import EditableText from './EditableText';
