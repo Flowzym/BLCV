@@ -1,5 +1,3 @@
-// 📄 src/modules/cv-designer/components/CVPreview.tsx
-
 /**
  * CV Preview – rendert LayoutElements im A4-Format
  * Nutzt StyleConfig, Templates & Context-Daten
@@ -81,6 +79,7 @@ const DebugOverlay = ({
   </div>
 );
 
+/* ---------- Section Renderer ---------- */
 const SectionRenderer = ({
   element,
   styleConfig,
@@ -90,18 +89,27 @@ const SectionRenderer = ({
 }) => {
   const elementStyle = renderElementToCanvas(element, styleConfig);
 
+  // Header-Font Override (kommt aus styleConfig.sections[section].fields.header.font)
+  const headerFont =
+    styleConfig.sections?.[element.type]?.fields?.header?.font || {
+      size: 14,
+      weight: "600",
+      color: styleConfig.primaryColor || "#1e40af",
+      lineHeight: 1.2,
+    };
+
   return (
     <div key={element.id} style={elementStyle}>
       {element.title && element.type !== "photo" && (
         <h3
           style={{
-            fontSize: "1em",
-            fontWeight: "600",
+            fontSize: headerFont.size ? `${headerFont.size}px` : "14px",
+            fontWeight: headerFont.weight || "600",
             marginBottom: "6px",
-            color: styleConfig.primaryColor || "#1e40af",
+            color: headerFont.color || styleConfig.primaryColor || "#1e40af",
             borderBottom: `1px solid ${styleConfig.accentColor || "#3b82f6"}`,
             paddingBottom: "2px",
-            lineHeight: "1.2",
+            lineHeight: headerFont.lineHeight || 1.2,
           }}
         >
           {element.title}
@@ -263,8 +271,7 @@ const CVPreview: React.FC<CVPreviewProps> = ({
 
         case "kenntnisse":
         case "skills":
-          content =
-            "JavaScript, React, TypeScript, Node.js, Python, SQL, Git, Docker";
+          content = "JavaScript, React, TypeScript, Node.js, Python, SQL, Git, Docker";
           break;
 
         case "softskills":
