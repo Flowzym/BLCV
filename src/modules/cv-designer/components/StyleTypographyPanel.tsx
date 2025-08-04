@@ -252,6 +252,10 @@ export const StyleTypographyPanel: React.FC = () => {
             value={effectiveFont.family}
             onChange={(e) => updateFont(sectionId, type, key, { family: e.target.value })}
               console.log('🔧 Font family changed to:', e.target.value);
+            onChange={(e) => {
+              console.log('🔧 Font family changed to:', e.target.value);
+              updateFont(sectionId, type, key, { family: e.target.value });
+            }}
             className={`w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 ${
               isExplicitFamily ? 'bg-orange-50 border-orange-300' : 'bg-white border-gray-300'
             }`}
