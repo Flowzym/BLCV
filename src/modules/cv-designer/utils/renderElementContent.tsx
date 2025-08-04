@@ -1,3 +1,4 @@
+// 📄 src/modules/cv-designer/utils/RenderElementContent.tsx
 import React from "react";
 import { LayoutElement } from "../types/section";
 import { StyleConfig, FontConfig } from "../../../types/cv-designer";
@@ -57,17 +58,20 @@ export const RenderElementContent: React.FC<Props> = ({
     content: React.ReactNode,
     extraStyle: React.CSSProperties = {}
   ) => {
+    // ✅ Einheitliche Fallback-Kette
     const FONT_FALLBACKS =
       '"Inter", "Roboto", Arial, Helvetica, Georgia, Verdana, Tahoma, "Times New Roman", "Courier New", sans-serif';
 
-    // ✅ Gewicht und Kursiv getrennt auswerten
+    // ✅ Gewicht und Kursiv getrennt
     const fontWeight: React.CSSProperties["fontWeight"] =
       effectiveFontConfig?.weight ?? "normal";
     const fontStyle: React.CSSProperties["fontStyle"] =
       effectiveFontConfig?.style ?? "normal";
 
     const styleObj: React.CSSProperties = {
-      fontFamily: effectiveFontConfig?.family,
+      fontFamily: effectiveFontConfig?.family
+        ? `${effectiveFontConfig.family}, ${FONT_FALLBACKS}`
+        : FONT_FALLBACKS,
       fontSize: effectiveFontConfig?.size
         ? `${effectiveFontConfig.size}px`
         : undefined,
