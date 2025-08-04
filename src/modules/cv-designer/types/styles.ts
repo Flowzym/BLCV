@@ -6,7 +6,8 @@
 export interface FontConfig {
   family: string;
   size: number;
-  weight: number | string;
+  weight: number | "normal" | "bold";  // Gewicht nur für Stärke
+  style?: "normal" | "italic";         // 🆕 Kursiv-Support
   lineHeight: number;
   letterSpacing?: number;
 }
@@ -31,7 +32,7 @@ export interface SpacingConfig {
 
 export interface BorderConfig {
   width: number;
-  style: 'solid' | 'dashed' | 'dotted' | 'none';
+  style: "solid" | "dashed" | "dotted" | "none";
   radius: number;
 }
 
