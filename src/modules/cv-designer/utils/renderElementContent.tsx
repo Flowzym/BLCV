@@ -19,6 +19,8 @@ export const RenderElementContent: React.FC<Props> = ({
 }) => {
   console.log("RenderElementContent: element.type:", element.type);
   console.log("RenderElementContent: field prop (contentFieldKey):", field);
+  console.log('RenderElementContent: style.colors:', style.colors);
+  console.log('RenderElementContent: style.sections for', element.type, ':', style.sections?.[element.type]);
 
   // 1. Field-spezifisches FontConfig
   let effectiveFontConfig: FontConfig | undefined;
@@ -60,8 +62,9 @@ export const RenderElementContent: React.FC<Props> = ({
       color:
         effectiveFontConfig?.color ||
         style.sections?.[element.type]?.color ||
-        (field === "header" ? style.colors?.primary : style.colors?.text) ||
-        style.textColor,
+        (field === "header" 
+          ? (style.colors && style.colors.primary) || style.primaryColor || "#1e40af"
+          : (style.colors && style.colors.text) || style.textColor || "#333333"),
       letterSpacing:
         effectiveFontConfig?.letterSpacing !== undefined
           ? `${effectiveFontConfig.letterSpacing}px`
@@ -87,7 +90,7 @@ export const RenderElementContent: React.FC<Props> = ({
           height: "100%",
           objectFit: "cover",
           borderRadius: "50%",
-          border: `2px solid ${style.colors?.accent || "#e5e7eb"}`,
+          border: `2px solid ${(style.colors && style.colors.accent) || style.accentColor || "#e5e7eb"}`,
         }}
       />
     ) : (
@@ -96,13 +99,13 @@ export const RenderElementContent: React.FC<Props> = ({
           width: "100%",
           height: "100%",
           borderRadius: "50%",
-          backgroundColor: style.colors?.background || "#f3f4f6",
-          border: `2px dashed ${style.colors?.accent || "#d1d5db"}`,
+          backgroundColor: (style.colors && style.colors.background) || style.backgroundColor || "#f3f4f6",
+          border: `2px dashed ${(style.colors && style.colors.accent) || style.accentColor || "#d1d5db"}`,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           fontSize: "0.6em",
-          color: style.colors?.textSecondary || "#6b7280",
+          color: (style.colors && style.colors.textSecondary) || "#6b7280",
           textAlign: "center",
         }}
       >
@@ -116,7 +119,7 @@ export const RenderElementContent: React.FC<Props> = ({
   if (["kenntnisse", "skills", "softskills"].includes(element.type)) {
     if (!element.content) {
       return applyFontStyle(
-        <div style={{ fontStyle: "italic", fontSize: "0.8em", color: style.colors?.textSecondary || "#9ca3af" }}>
+        <div style={{ fontStyle: "italic", fontSize: "0.8em", color: (style.colors && style.colors.textSecondary) || "#9ca3af" }}>
           style={{
             fontStyle: "italic",
             fontSize: "0.8em",
@@ -133,11 +136,12 @@ export const RenderElementContent: React.FC<Props> = ({
       .map((s) => s.trim())
       .filter(Boolean);
 
+    console.log('RenderElementContent: Rendering skills with accent color:', (style.colors && style.colors.accent) || style.accentColor);
     return (
       <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
         {skills.slice(0, maxSkills).map((skill, i) =>
           applyFontStyle(skill, {
-            background: style.colors?.accent || "#3b82f6",
+            background: (style.colors && style.colors.accent) || style.accentColor || "#3b82f6",
             color: "white",
             padding: "2px 6px",
             borderRadius: "8px",
@@ -148,7 +152,7 @@ export const RenderElementContent: React.FC<Props> = ({
         )}
         {skills.length > maxSkills &&
           applyFontStyle(`+${skills.length - maxSkills}`, {
-            background: style.colors?.textSecondary || "#6b7280",
+            background: (style.colors && style.colors.textSecondary) || "#6b7280",
             color: "white",
             padding: "2px 6px",
             borderRadius: "8px",
@@ -159,11 +163,12 @@ export const RenderElementContent: React.FC<Props> = ({
   }
 
   /* -------- Standard Text -------- */
+  console.log('RenderElementContent: Processing standard text element, content length:', element.content?.length || 0);
   return element.content
     ? applyFontStyle(element.content)
     : applyFontStyle("– Keine Daten –", {
         fontStyle: "italic",
         fontSize: "0.8em",
-        color: style.colors?.textSecondary || "#9ca3af",
+        color: (style.colors && style.colors.textSecondary) || "#9ca3af",
       });
 };

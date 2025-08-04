@@ -70,7 +70,9 @@ export interface CanvasElementData {
 }
 
 export function renderElementToCanvas(element: LayoutElement, style: StyleConfig): CanvasElementData {
-  console.log('renderElementToCanvas: element.type:', element.type, 'style.colors:', style.colors);
+  console.log('renderElementToCanvas: element.type:', element.type);
+  console.log('renderElementToCanvas: style.colors:', style.colors);
+  console.log('renderElementToCanvas: legacy colors - primaryColor:', style.primaryColor, 'accentColor:', style.accentColor);
   
   return {
     id: element.id,

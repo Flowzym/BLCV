@@ -335,7 +335,7 @@ const CVPreview: React.FC<CVPreviewProps> = ({
     position: "relative",
     width: A4_WIDTH,
     height: A4_HEIGHT,
-    backgroundColor: safeStyleConfig.colors?.background || "#ffffff",
+    backgroundColor: (safeStyleConfig.colors && safeStyleConfig.colors.background) || safeStyleConfig.backgroundColor || "#ffffff",
     fontFamily: safeStyleConfig.font?.family || "Inter",
     fontSize:
       safeStyleConfig.font?.size === "small"
@@ -344,7 +344,7 @@ const CVPreview: React.FC<CVPreviewProps> = ({
         ? "14px"
         : "12px",
     lineHeight: safeStyleConfig.lineHeight || 1.5,
-    color: safeStyleConfig.textColor || "#333333",
+    color: (safeStyleConfig.colors && safeStyleConfig.colors.text) || safeStyleConfig.textColor || "#333333",
     border: "1px solid #e5e7eb",
     borderRadius: "4px",
     overflow: "hidden",
