@@ -35,11 +35,11 @@ export const StyleEditor: React.FC<StyleEditorProps> = ({
   };
 
   const colorPresets = [
-    { name: "Professional Blue", primary: "#1e40af", accent: "#3b82f6" },
-    { name: "Corporate Gray", primary: "#374151", accent: "#6b7280" },
-    { name: "Modern Green", primary: "#059669", accent: "#10b981" },
-    { name: "Creative Purple", primary: "#7c3aed", accent: "#a855f7" },
-    { name: "Classic Black", primary: "#000000", accent: "#404040" },
+    { name: "Professional Blue", primary: "#1e40af", accent: "#3b82f6", background: "#ffffff", text: "#333333" },
+    { name: "Corporate Gray", primary: "#374151", accent: "#6b7280", background: "#ffffff", text: "#1f2937" },
+    { name: "Modern Green", primary: "#059669", accent: "#10b981", background: "#ffffff", text: "#333333" },
+    { name: "Creative Purple", primary: "#7c3aed", accent: "#a855f7", background: "#ffffff", text: "#333333" },
+    { name: "Classic Black", primary: "#000000", accent: "#404040", background: "#ffffff", text: "#1f2937" },
   ];
 
   /** ---------- Farben ---------- */
@@ -58,18 +58,20 @@ export const StyleEditor: React.FC<StyleEditorProps> = ({
               <button
                 key={index}
                 onClick={() => {
-                  console.log('StyleEditor: Color preset clicked:', preset.name, 'primary:', preset.primary, 'accent:', preset.accent);
+                  console.log('StyleEditor: Color preset clicked:', preset.name, 'colors:', {
+                    primary: preset.primary,
+                    accent: preset.accent,
+                    background: preset.background,
+                    text: preset.text
+                  });
                   handleConfigChange({
                     colors: {
                       ...(config.colors || {}),
                       primary: preset.primary,
                       accent: preset.accent,
+                      background: preset.background,
+                      text: preset.text,
                     },
-                  });
-                  console.log('StyleEditor: After preset click, config.colors should be:', {
-                    ...(config.colors || {}),
-                    primary: preset.primary,
-                    accent: preset.accent,
                   });
                 }}
                 className="flex items-center space-x-3 p-2 border rounded-lg hover:bg-gray-50 text-left"
@@ -100,7 +102,7 @@ export const StyleEditor: React.FC<StyleEditorProps> = ({
           <div className="flex items-center space-x-2">
             <input
               type="color"
-              value={(config.colors && config.colors.primary) || config.primaryColor || "#1e40af"}
+              value={config.colors?.primary || config.primaryColor || "#1e40af"}
               onChange={(e) => {
                 console.log('StyleEditor: Primary color changed to:', e.target.value);
                 handleConfigChange({
@@ -114,7 +116,7 @@ export const StyleEditor: React.FC<StyleEditorProps> = ({
             />
             <input
               type="text"
-              value={(config.colors && config.colors.primary) || config.primaryColor || "#1e40af"}
+              value={config.colors?.primary || config.primaryColor || "#1e40af"}
               onChange={(e) => {
                 console.log('StyleEditor: Primary color text input changed to:', e.target.value);
                 handleConfigChange({
@@ -137,7 +139,7 @@ export const StyleEditor: React.FC<StyleEditorProps> = ({
           <div className="flex items-center space-x-2">
             <input
               type="color"
-              value={(config.colors && config.colors.accent) || config.accentColor || "#3b82f6"}
+              value={config.colors?.accent || config.accentColor || "#3b82f6"}
               onChange={(e) => {
                 console.log('StyleEditor: Accent color changed to:', e.target.value);
                 handleConfigChange({
@@ -151,7 +153,7 @@ export const StyleEditor: React.FC<StyleEditorProps> = ({
             />
             <input
               type="text"
-              value={(config.colors && config.colors.accent) || config.accentColor || "#3b82f6"}
+              value={config.colors?.accent || config.accentColor || "#3b82f6"}
               onChange={(e) => {
                 console.log('StyleEditor: Accent color text input changed to:', e.target.value);
                 handleConfigChange({
@@ -177,7 +179,7 @@ export const StyleEditor: React.FC<StyleEditorProps> = ({
           <div className="flex items-center space-x-2">
             <input
               type="color"
-              value={(config.colors && config.colors.background) || config.backgroundColor || "#ffffff"}
+              value={config.colors?.background || config.backgroundColor || "#ffffff"}
               onChange={(e) => {
                 console.log('StyleEditor: Background color changed to:', e.target.value);
                 handleConfigChange({
@@ -191,7 +193,7 @@ export const StyleEditor: React.FC<StyleEditorProps> = ({
             />
             <input
               type="text"
-              value={(config.colors && config.colors.background) || config.backgroundColor || "#ffffff"}
+              value={config.colors?.background || config.backgroundColor || "#ffffff"}
               onChange={(e) => {
                 console.log('StyleEditor: Background color text input changed to:', e.target.value);
                 handleConfigChange({
@@ -214,7 +216,7 @@ export const StyleEditor: React.FC<StyleEditorProps> = ({
           <div className="flex items-center space-x-2">
             <input
               type="color"
-              value={(config.colors && config.colors.text) || config.textColor || "#000000"}
+              value={config.colors?.text || config.textColor || "#333333"}
               onChange={(e) => {
                 console.log('StyleEditor: Text color changed to:', e.target.value);
                 handleConfigChange({
@@ -228,7 +230,7 @@ export const StyleEditor: React.FC<StyleEditorProps> = ({
             />
             <input
               type="text"
-              value={(config.colors && config.colors.text) || config.textColor || "#000000"}
+              value={config.colors?.text || config.textColor || "#333333"}
               onChange={(e) => {
                 console.log('StyleEditor: Text color text input changed to:', e.target.value);
                 handleConfigChange({
@@ -239,7 +241,7 @@ export const StyleEditor: React.FC<StyleEditorProps> = ({
                 });
               }}
               className="flex-1 px-2 py-1 text-xs font-mono border rounded"
-              placeholder="#000000"
+              placeholder="#333333"
             />
           </div>
         </div>
@@ -267,10 +269,10 @@ export const StyleEditor: React.FC<StyleEditorProps> = ({
             <button
               key={margin}
               onClick={() =>
-                handleConfigChange({ spacing: { ...config.spacing, margin: margin as any } })
+                handleConfigChange({ margin: margin as any })
               }
               className={`px-3 py-2 text-sm border rounded-lg transition-colors capitalize ${
-                config.spacing?.margin === margin
+                config.margin === margin
                   ? "bg-blue-600 text-white border-blue-600"
                   : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
               }`}
@@ -299,9 +301,9 @@ export const StyleEditor: React.FC<StyleEditorProps> = ({
           <div className="flex justify-between">
             <span>Sektionsabstand:</span>
             <span className="font-medium">
-              {config.spacing?.margin === "compact"
+              {config.margin === "compact"
                 ? "16px"
-                : config.spacing?.margin === "normal"
+                : config.margin === "normal"
                 ? "24px"
                 : "32px"}
             </span>
@@ -309,9 +311,9 @@ export const StyleEditor: React.FC<StyleEditorProps> = ({
           <div className="flex justify-between">
             <span>Elementabstand:</span>
             <span className="font-medium">
-              {config.spacing?.margin === "compact"
+              {config.margin === "compact"
                 ? "8px"
-                : config.spacing?.margin === "normal"
+                : config.margin === "normal"
                 ? "12px"
                 : "16px"}
             </span>

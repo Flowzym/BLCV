@@ -48,6 +48,37 @@ export const RenderElementContent: React.FC<Props> = ({
 
   console.log("final effectiveFontConfig:", effectiveFontConfig);
 
+  // 🟢 Robuste Farbzugriffe mit Fallback-Kette
+  const getPrimaryColor = () => {
+    const color = style.colors?.primary || style.primaryColor || "#1e40af";
+    console.log("RenderElementContent: getPrimaryColor result:", color);
+    return color;
+  };
+
+  const getAccentColor = () => {
+    const color = style.colors?.accent || style.accentColor || "#3b82f6";
+    console.log("RenderElementContent: getAccentColor result:", color);
+    return color;
+  };
+
+  const getBackgroundColor = () => {
+    const color = style.colors?.background || style.backgroundColor || "#ffffff";
+    console.log("RenderElementContent: getBackgroundColor result:", color);
+    return color;
+  };
+
+  const getTextColor = () => {
+    const color = style.colors?.text || style.textColor || "#333333";
+    console.log("RenderElementContent: getTextColor result:", color);
+    return color;
+  };
+
+  const getSecondaryTextColor = () => {
+    const color = style.colors?.textSecondary || "#9ca3af";
+    console.log("RenderElementContent: getSecondaryTextColor result:", color);
+    return color;
+  };
+
   // Hilfsfunktion: Fonts + Farben anwenden
   const applyFontStyle = (
     content: React.ReactNode,
@@ -63,8 +94,8 @@ export const RenderElementContent: React.FC<Props> = ({
         effectiveFontConfig?.color ||
         style.sections?.[element.type]?.color ||
         (field === "header" 
-          ? (style.colors && style.colors.primary) || style.primaryColor || "#1e40af"
-          : (style.colors && style.colors.text) || style.textColor || "#333333"),
+          ? getPrimaryColor()
+          : getTextColor()),
       letterSpacing:
         effectiveFontConfig?.letterSpacing !== undefined
           ? `${effectiveFontConfig.letterSpacing}px`
@@ -72,12 +103,12 @@ export const RenderElementContent: React.FC<Props> = ({
       lineHeight: effectiveFontConfig?.lineHeight,
     };
 
-    console.log("applied fontStyle:", fontStyle);
+    console.log("RenderElementContent: applied fontStyle:", fontStyle);
 
     return <span style={{ ...extraStyle, ...fontStyle }}>{content}</span>;
   };
 
-  console.log("About to process element type:", element.type);
+  console.log("RenderElementContent: About to process element type:", element.type);
 
   /* -------- Foto -------- */
   if (element.type === "photo") {
@@ -90,7 +121,7 @@ export const RenderElementContent: React.FC<Props> = ({
           height: "100%",
           objectFit: "cover",
           borderRadius: "50%",
-          border: `2px solid ${(style.colors && style.colors.accent) || style.accentColor || "#e5e7eb"}`,
+          border: `2px solid ${getAccentColor()}`,
         }}
       />
     ) : (
@@ -99,13 +130,13 @@ export const RenderElementContent: React.FC<Props> = ({
           width: "100%",
           height: "100%",
           borderRadius: "50%",
-          backgroundColor: (style.colors && style.colors.background) || style.backgroundColor || "#f3f4f6",
-          border: `2px dashed ${(style.colors && style.colors.accent) || style.accentColor || "#d1d5db"}`,
+          backgroundColor: getBackgroundColor(),
+          border: `2px dashed ${getAccentColor()}`,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           fontSize: "0.6em",
-          color: (style.colors && style.colors.textSecondary) || "#6b7280",
+          color: getSecondaryTextColor(),
           textAlign: "center",
         }}
       >
@@ -122,7 +153,7 @@ export const RenderElementContent: React.FC<Props> = ({
         <div style={{ 
           fontStyle: "italic", 
           fontSize: "0.8em", 
-          color: style.colors?.textSecondary || "#9ca3af" 
+          color: getSecondaryTextColor()
         }}>
           – Keine Fähigkeiten –
         </div>
@@ -134,28 +165,38 @@ export const RenderElementContent: React.FC<Props> = ({
       .map((s) => s.trim())
       .filter(Boolean);
 
-    console.log('RenderElementContent: Rendering skills with accent color:', (style.colors && style.colors.accent) || style.accentColor);
+    console.log('RenderElementContent: Rendering skills with accent color:', getAccentColor());
     return (
       <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
-        {skills.slice(0, maxSkills).map((skill, i) =>
-          applyFontStyle(skill, {
-            background: (style.colors && style.colors.accent) || style.accentColor || "#3b82f6",
-            color: "white",
-            padding: "2px 6px",
-            borderRadius: "8px",
-            fontSize: "0.7em",
-            fontWeight: "500",
-            whiteSpace: "nowrap",
-          })
+        {skills.slice(0, maxSkills).map((skill, i) => (
+          <span
+            key={i}
+            style={{
+              background: getAccentColor(),
+              color: "white",
+              padding: "2px 6px",
+              borderRadius: "8px",
+              fontSize: "0.7em",
+              fontWeight: "500",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {skill}
+          </span>
+        ))}
+        {skills.length > maxSkills && (
+          <span
+            style={{
+              background: getSecondaryTextColor(),
+              color: "white",
+              padding: "2px 6px",
+              borderRadius: "8px",
+              fontSize: "0.7em",
+            }}
+          >
+            +{skills.length - maxSkills}
+          </span>
         )}
-        {skills.length > maxSkills &&
-          applyFontStyle(`+${skills.length - maxSkills}`, {
-            background: (style.colors && style.colors.textSecondary) || "#6b7280",
-            color: "white",
-            padding: "2px 6px",
-            borderRadius: "8px",
-            fontSize: "0.7em",
-          })}
       </div>
     );
   }
@@ -167,6 +208,6 @@ export const RenderElementContent: React.FC<Props> = ({
     : applyFontStyle("– Keine Daten –", {
         fontStyle: "italic",
         fontSize: "0.8em",
-        color: (style.colors && style.colors.textSecondary) || "#9ca3af",
+        color: getSecondaryTextColor(),
       });
 };

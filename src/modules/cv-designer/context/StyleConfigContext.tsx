@@ -1,11 +1,62 @@
 import React, { createContext, useContext, useState, ReactNode } from "react";
 import { StyleConfig } from "../types/styles";
- 
+
 /**
- * 🟢 Default-StyleConfig – verhindert undefined-Werte
+ * 🟢 Hilfsfunktion: Normalisiert colors-Objekt aus Root-Level Properties
+ */
+function normalizeColors(config: StyleConfig): StyleConfig {
+  console.log('StyleConfigContext: normalizeColors - input config:', {
+    hasColors: !!config.colors,
+    primaryColor: config.primaryColor,
+    accentColor: config.accentColor,
+    backgroundColor: config.backgroundColor,
+    textColor: config.textColor
+  });
+
+  // Stelle sicher, dass colors-Objekt existiert
+  if (!config.colors) {
+    config.colors = {};
+  }
+
+  // Migriere Root-Level → colors.* (falls colors.* noch nicht gesetzt)
+  if (!config.colors.primary && config.primaryColor) {
+    config.colors.primary = config.primaryColor;
+  }
+  if (!config.colors.accent && config.accentColor) {
+    config.colors.accent = config.accentColor;
+  }
+  if (!config.colors.background && config.backgroundColor) {
+    config.colors.background = config.backgroundColor;
+  }
+  if (!config.colors.text && config.textColor) {
+    config.colors.text = config.textColor;
+  }
+
+  // Setze Defaults falls Werte fehlen
+  if (!config.colors.primary) config.colors.primary = "#1e40af";
+  if (!config.colors.accent) config.colors.accent = "#3b82f6";
+  if (!config.colors.background) config.colors.background = "#ffffff";
+  if (!config.colors.text) config.colors.text = "#333333";
+  if (!config.colors.secondary) config.colors.secondary = "#6b7280";
+  if (!config.colors.textSecondary) config.colors.textSecondary = "#9ca3af";
+  if (!config.colors.border) config.colors.border = "#e5e7eb";
+
+  // Spiegle colors.* → Root-Level für Backward Compatibility
+  config.primaryColor = config.colors.primary;
+  config.accentColor = config.colors.accent;
+  config.backgroundColor = config.colors.background;
+  config.textColor = config.colors.text;
+
+  console.log('StyleConfigContext: normalizeColors - output colors:', config.colors);
+  
+  return config;
+}
+
+/**
+ * 🟢 Default-StyleConfig mit vollständigem colors-Objekt
  */
 const defaultStyleConfig: StyleConfig = {
-  // Legacy properties for backward compatibility - these will be synced with colors.*
+  // Legacy properties for backward compatibility
   primaryColor: "#1e40af",
   accentColor: "#3b82f6", 
   backgroundColor: "#ffffff",
@@ -24,33 +75,23 @@ const defaultStyleConfig: StyleConfig = {
     family: "Inter",
     size: 12,
     weight: "normal",
-    color: "#000000",
+    color: "#333333",
     letterSpacing: 0,
     lineHeight: 1.6,
   },
   colors: {
-    primary: "#1e40af", // Beispielwert
+    primary: "#1e40af",
     accent: "#3b82f6",
-    textSecondary: "#6b7280",
+    background: "#ffffff",
+    text: "#333333",
+    secondary: "#6b7280",
+    textSecondary: "#9ca3af",
     border: "#e5e7eb",
   },
-  sections: { // NEU: Default-Sektionen mit Header- und Content-Fonts
+  sections: {
     profil: {
-  // Legacy properties for backward compatibility - these will be synced with colors.*
-  primaryColor: "#1e40af",
-  accentColor: "#3b82f6", 
-  backgroundColor: "#ffffff",
-  textColor: "#333333",
-  fontFamily: "Inter",
-  fontSize: "medium",
-  lineHeight: 1.6,
-  margin: "normal",
-  borderRadius: "8px",
-  sectionSpacing: 24,
-  snapSize: 20,
-  widthPercent: 100,
       sectionId: "profil",
-      font: { // Allgemeiner Font für Profil-Inhalt
+      font: { 
         family: "Inter", 
         size: 12, 
         weight: "normal", 
@@ -58,7 +99,7 @@ const defaultStyleConfig: StyleConfig = {
         lineHeight: 1.6,
         letterSpacing: 0
       },
-      header: { // Font für Profil-Überschrift
+      header: { 
         font: { 
           family: "Inter", 
           size: 16, 
@@ -68,7 +109,7 @@ const defaultStyleConfig: StyleConfig = {
           letterSpacing: 0
         }
       },
-      fields: {} // Feldspezifische Fonts können hier definiert werden
+      fields: {}
     },
     erfahrung: {
       sectionId: "erfahrung",
@@ -173,14 +214,16 @@ const StyleConfigContext = createContext<StyleConfigContextValue | undefined>(
 
 export const StyleConfigProvider = ({ children }: { children: ReactNode }) => {
   const [styleConfig, setStyleConfig] = useState<StyleConfig>(
-    defaultStyleConfig
+    normalizeColors(defaultStyleConfig)
   );
 
   const updateStyleConfig = (config: StyleConfig) => {
     console.log('StyleConfigContext: updateStyleConfig called with:', config);
-    console.log('StyleConfigContext: config.colors in incoming config:', config.colors);
+    console.log('StyleConfigContext: input config.colors:', config.colors);
     
     setStyleConfig(prevConfig => {
+      console.log('StyleConfigContext: prevConfig.colors before merge:', prevConfig.colors);
+      
       // Deep merge to preserve all existing data
       const mergedConfig = {
         ...prevConfig,
@@ -195,33 +238,20 @@ export const StyleConfigProvider = ({ children }: { children: ReactNode }) => {
         },
       };
       
-      // Sync colors.* to legacy properties for backward compatibility
-      if (mergedConfig.colors) {
-        if (mergedConfig.colors.primary) mergedConfig.primaryColor = mergedConfig.colors.primary;
-        if (mergedConfig.colors.accent) mergedConfig.accentColor = mergedConfig.colors.accent;
-        if (mergedConfig.colors.background) mergedConfig.backgroundColor = mergedConfig.colors.background;
-        if (mergedConfig.colors.text) mergedConfig.textColor = mergedConfig.colors.text;
-      }
+      // Normalisiere das Ergebnis
+      const normalizedConfig = normalizeColors(mergedConfig);
       
-      // Sync legacy properties to colors.* (fallback for old code)
-      if (!mergedConfig.colors) mergedConfig.colors = {};
-      if (mergedConfig.primaryColor && !mergedConfig.colors.primary) mergedConfig.colors.primary = mergedConfig.primaryColor;
-      if (mergedConfig.accentColor && !mergedConfig.colors.accent) mergedConfig.colors.accent = mergedConfig.accentColor;
-      if (mergedConfig.backgroundColor && !mergedConfig.colors.background) mergedConfig.colors.background = mergedConfig.backgroundColor;
-      if (mergedConfig.textColor && !mergedConfig.colors.text) mergedConfig.colors.text = mergedConfig.textColor;
+      console.log('StyleConfigContext: final merged colors:', normalizedConfig.colors);
+      console.log('StyleConfigContext: final merged sections:', Object.keys(normalizedConfig.sections || {}));
       
-      console.log('StyleConfigContext: final merged colors:', mergedConfig.colors);
-      console.log('StyleConfigContext: final merged sections:', Object.keys(mergedConfig.sections || {}));
-      
-      return mergedConfig;
+      return normalizedConfig;
     });
   };
 
   const resetStyleConfig = () => {
     console.log('StyleConfigContext: resetStyleConfig called, resetting to default');
-    console.log('StyleConfigContext: default sections:', defaultStyleConfig.sections);
     console.log('StyleConfigContext: default colors:', defaultStyleConfig.colors);
-    setStyleConfig(defaultStyleConfig);
+    setStyleConfig(normalizeColors({ ...defaultStyleConfig }));
   };
 
   return (
