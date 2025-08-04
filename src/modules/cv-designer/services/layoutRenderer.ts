@@ -111,8 +111,8 @@ export function renderElementToDocx(element: LayoutElement, style: StyleConfig):
           children: [
             new TextRun({
               text: line.trim(),
-              size: (effectiveFont.size || 12) * 2,
-              color: (effectiveFont.color || '#000000').replace('#', ''),
+              size: effectiveFont.size * 2,
+              color: effectiveFont.color.replace('#', ''),
               font: docxFontFamily,
               bold: effectiveFont.weight === "bold",
               italics: effectiveFont.style === "italic"
@@ -154,12 +154,12 @@ export function renderElementToPdf(element: LayoutElement, style: StyleConfig): 
     position: { x: element.x, y: element.y, width: element.width, height: element.height || 100 },
     style: {
       fontFamily: pdfFontFamily,
-      fontSize: effectiveFont.size || 12,
-      color: effectiveFont.color || '#000000',
+      fontSize: effectiveFont.size,
+      color: effectiveFont.color,
       backgroundColor: style.backgroundColor || '#ffffff',
       padding: calculatePadding(style.margin),
       borderRadius: parseInt(style.borderRadius?.replace('px', '') || '0'),
-      lineHeight: effectiveFont.lineHeight || 1.6
+      lineHeight: effectiveFont.lineHeight
     },
     content: {
       text: element.content || '',

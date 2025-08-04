@@ -28,7 +28,7 @@ export function mapFontSizeToPixels(fontSize?: string): number {
 
 /**
  * Central function to calculate effective font configuration
- * Implements inheritance chain: defaults → global → allHeaders → section → field
+ * Implements inheritance chain: defaults → global → allHeaders → name → section → field
  * Only !== undefined values override previous values
  */
 export function getEffectiveFontConfig(

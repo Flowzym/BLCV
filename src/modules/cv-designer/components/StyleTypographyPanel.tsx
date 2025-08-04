@@ -18,32 +18,33 @@ import {
   resetFontConfig,
   defaultFont,
 } from "../utils/fontUtils";
+import { Lock, Unlock, RotateCcw, Eye } from "lucide-react";
 
 // Only content sections - globals are handled separately
 const contentSections: Record<string, string[]> = {
   profil: ["header", "name", "adresse", "mail", "telefon"],
   erfahrung: ["header", "position", "firma", "zeitraum", "taetigkeiten"],
   ausbildung: ["header", "abschluss", "institution", "zeitraum"],
-  skills: ["header", "skillname", "level"],
+  kenntnisse: ["header", "skillname", "level"],
+  softskills: ["header", "skillname", "level"],
 };
 
 const FONT_FAMILIES = [
-  { value: "Inter", label: "Inter" },
-  { value: "Roboto", label: "Roboto" },
-  { value: "Open Sans", label: "Open Sans" },
-  { value: "Lato", label: "Lato" },
-  { value: "Montserrat", label: "Montserrat" },
-  { value: "Source Sans Pro", label: "Source Sans Pro" },
-  { value: "Arial", label: "Arial" },
-  { value: "Helvetica", label: "Helvetica" },
-  { value: "Georgia", label: "Georgia" },
-  { value: "Times New Roman", label: "Times New Roman" },
-  { value: "Verdana", label: "Verdana" },
-  { value: "Tahoma", label: "Tahoma" },
-  { value: "Trebuchet MS", label: "Trebuchet MS" },
-  { value: "Segoe UI", label: "Segoe UI" },
-  { value: "system-ui", label: "System UI" },
-  { value: "Courier Prime", label: "Courier Prime" },
+  { value: "Inter", label: "Inter", category: "Sans-Serif" },
+  { value: "Roboto", label: "Roboto", category: "Sans-Serif" },
+  { value: "Open Sans", label: "Open Sans", category: "Sans-Serif" },
+  { value: "Lato", label: "Lato", category: "Sans-Serif" },
+  { value: "Montserrat", label: "Montserrat", category: "Sans-Serif" },
+  { value: "Source Sans Pro", label: "Source Sans Pro", category: "Sans-Serif" },
+  { value: "Arial", label: "Arial", category: "System" },
+  { value: "Helvetica", label: "Helvetica", category: "System" },
+  { value: "Georgia", label: "Georgia", category: "Serif" },
+  { value: "Times New Roman", label: "Times New Roman", category: "Serif" },
+  { value: "Verdana", label: "Verdana", category: "System" },
+  { value: "Tahoma", label: "Tahoma", category: "System" },
+  { value: "Trebuchet MS", label: "Trebuchet MS", category: "System" },
+  { value: "Segoe UI", label: "Segoe UI", category: "System" },
+  { value: "Courier Prime", label: "Courier Prime", category: "Monospace" },
 ];
 
 export const StyleTypographyPanel: React.FC = () => {
@@ -103,6 +104,7 @@ export const StyleTypographyPanel: React.FC = () => {
           [sectionId]: {
             ...currentSection,
             header: {
+              ...currentSection.header,
               font: {
                 ...currentSection.header?.font,
                 ...updates,
@@ -133,6 +135,7 @@ export const StyleTypographyPanel: React.FC = () => {
             fields: {
               ...currentSection.fields,
               [key]: {
+                ...currentSection.fields?.[key],
                 font: {
                   ...currentSection.fields?.[key]?.font,
                   ...updates,
@@ -179,170 +182,227 @@ export const StyleTypographyPanel: React.FC = () => {
     const isExplicitWeight = isFontPropertyExplicit(sectionId, key, type, 'weight', styleConfig);
     const isExplicitStyle = isFontPropertyExplicit(sectionId, key, type, 'style', styleConfig);
     const isExplicitColor = isFontPropertyExplicit(sectionId, key, type, 'color', styleConfig);
+    const isExplicitLetterSpacing = isFontPropertyExplicit(sectionId, key, type, 'letterSpacing', styleConfig);
+    const isExplicitLineHeight = isFontPropertyExplicit(sectionId, key, type, 'lineHeight', styleConfig);
+
+    const hasAnyExplicit = isExplicitFamily || isExplicitSize || isExplicitWeight || 
+                          isExplicitStyle || isExplicitColor || isExplicitLetterSpacing || 
+                          isExplicitLineHeight;
 
     return (
-      <div key={`${sectionId}-${type}-${key}`} className="space-y-3 border p-3 rounded-md mb-3">
+      <div key={`${sectionId}-${type}-${key}`} className="space-y-4 border rounded-lg p-4 bg-white">
         <div className="flex items-center justify-between">
-          <h4 className="text-sm font-semibold text-gray-700">{title}</h4>
+          <h4 className="text-sm font-semibold text-gray-900">{title}</h4>
           <div className="flex items-center space-x-2">
             {/* Inheritance indicators */}
-            {!isExplicitFamily && (
-              <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                Font: inherited
+            {!hasAnyExplicit && (
+              <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded flex items-center">
+                <Eye className="w-3 h-3 mr-1" />
+                Geerbt
               </span>
             )}
-            {!isExplicitSize && (
-              <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                Size: inherited
+            {hasAnyExplicit && (
+              <span className="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded flex items-center">
+                <Lock className="w-3 h-3 mr-1" />
+                Überschrieben
               </span>
             )}
-            {!isExplicitColor && (
-              <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">
-                Color: inherited
-              </span>
-            )}
+            {/* Reset button */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => resetFont(sectionId, type, key)}
+              disabled={!hasAnyExplicit}
+              className="h-6 px-2"
+              title="Auf Vererbung zurücksetzen"
+            >
+              <RotateCcw className="w-3 h-3" />
+            </Button>
           </div>
         </div>
 
         {/* Font Family */}
-        <div>
-          <Label>Schriftart</Label>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label className="text-sm font-medium">Schriftart</Label>
+            {isExplicitFamily && (
+              <span className="text-xs text-orange-600 bg-orange-50 px-1 rounded">Explizit</span>
+            )}
+          </div>
           <select
             value={effectiveFont.family}
             onChange={(e) => updateFont(sectionId, type, key, { family: e.target.value })}
-            className={`w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 ${
-              isExplicitFamily ? 'bg-yellow-50 border-yellow-300' : 'bg-white'
+            className={`w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 ${
+              isExplicitFamily ? 'bg-orange-50 border-orange-300' : 'bg-white border-gray-300'
             }`}
           >
             {FONT_FAMILIES.map((fontFamily) => (
               <option key={fontFamily.value} value={fontFamily.value}>
-                {fontFamily.label}
+                {fontFamily.label} ({fontFamily.category})
               </option>
             ))}
           </select>
         </div>
 
         {/* Font Size */}
-        <div className="flex items-center gap-2">
-          <Label>Größe</Label>
-          <Input
-            type="number"
-            value={effectiveFont.size}
-            onChange={(e) =>
-              updateFont(sectionId, type, key, {
-                size: parseInt(e.target.value, 10) || defaultFont.size,
-              })
-            }
-            className={`w-20 ${
-              isExplicitSize ? 'bg-yellow-50 border-yellow-300' : 'bg-white'
-            }`}
-            min={8}
-            max={72}
-          />
-          <span className="text-xs text-gray-500">px</span>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label className="text-sm font-medium">Schriftgröße (px)</Label>
+            {isExplicitSize && (
+              <span className="text-xs text-orange-600 bg-orange-50 px-1 rounded">Explizit</span>
+            )}
+          </div>
+          <div className="flex items-center space-x-3">
+            <Input
+              type="number"
+              value={effectiveFont.size}
+              onChange={(e) =>
+                updateFont(sectionId, type, key, {
+                  size: parseInt(e.target.value, 10) || defaultFont.size,
+                })
+              }
+              className={`w-20 ${
+                isExplicitSize ? 'bg-orange-50 border-orange-300' : 'bg-white border-gray-300'
+              }`}
+              min={8}
+              max={72}
+            />
+            <div className="flex-1">
+              <Slider
+                min={8}
+                max={72}
+                step={1}
+                value={[effectiveFont.size]}
+                onValueChange={(value) => updateFont(sectionId, type, key, { size: value[0] })}
+                className="w-full"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Font Weight & Style */}
+        <div className="space-y-2">
+          <Label className="text-sm font-medium">Schriftstil</Label>
+          <div className="flex items-center space-x-2">
+            <Button
+              variant={effectiveFont.weight === "bold" ? "default" : "outline"}
+              size="sm"
+              onClick={() =>
+                updateFont(sectionId, type, key, {
+                  weight: effectiveFont.weight === "bold" ? "normal" : "bold",
+                })
+              }
+              className={`${isExplicitWeight ? 'ring-2 ring-orange-300' : ''}`}
+            >
+              <strong>B</strong>
+            </Button>
+
+            <Button
+              variant={effectiveFont.style === "italic" ? "default" : "outline"}
+              size="sm"
+              onClick={() =>
+                updateFont(sectionId, type, key, {
+                  style: effectiveFont.style === "italic" ? "normal" : "italic",
+                })
+              }
+              className={`${isExplicitStyle ? 'ring-2 ring-orange-300' : ''}`}
+            >
+              <em>I</em>
+            </Button>
+
+            {(isExplicitWeight || isExplicitStyle) && (
+              <span className="text-xs text-orange-600 bg-orange-50 px-1 rounded">Explizit</span>
+            )}
+          </div>
         </div>
 
         {/* Font Color */}
-        <div className="flex items-center gap-2">
-          <Label>Farbe</Label>
-          <Input
-            type="color"
-            value={effectiveFont.color}
-            onChange={(e) => updateFont(sectionId, type, key, { color: e.target.value })}
-            className={`w-12 h-8 p-0 border-none ${
-              isExplicitColor ? 'ring-2 ring-yellow-300' : ''
-            }`}
-            style={{ backgroundColor: effectiveFont.color }}
-          />
-          <Input
-            type="text"
-            value={effectiveFont.color}
-            onChange={(e) => updateFont(sectionId, type, key, { color: e.target.value })}
-            className={`w-24 text-xs font-mono ${
-              isExplicitColor ? 'bg-yellow-50 border-yellow-300' : 'bg-white'
-            }`}
-            placeholder="#333333"
-          />
-        </div>
-
-        {/* Font Weight & Style Controls */}
-        <div className="flex gap-2">
-          <Button
-            variant={effectiveFont.weight === "bold" ? "default" : "outline"}
-            size="sm"
-            onClick={() =>
-              updateFont(sectionId, type, key, {
-                weight: effectiveFont.weight === "bold" ? "normal" : "bold",
-              })
-            }
-            className={isExplicitWeight ? 'ring-2 ring-yellow-300' : ''}
-          >
-            <strong>B</strong>
-          </Button>
-
-          <Button
-            variant={effectiveFont.style === "italic" ? "default" : "outline"}
-            size="sm"
-            onClick={() =>
-              updateFont(sectionId, type, key, {
-                style: effectiveFont.style === "italic" ? "normal" : "italic",
-              })
-            }
-            className={isExplicitStyle ? 'ring-2 ring-yellow-300' : ''}
-          >
-            <em>I</em>
-          </Button>
-
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => resetFont(sectionId, type, key)}
-            title="Reset to inherit from parent"
-          >
-            Reset
-          </Button>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label className="text-sm font-medium">Textfarbe</Label>
+            {isExplicitColor && (
+              <span className="text-xs text-orange-600 bg-orange-50 px-1 rounded">Explizit</span>
+            )}
+          </div>
+          <div className="flex items-center space-x-3">
+            <input
+              type="color"
+              value={effectiveFont.color}
+              onChange={(e) => updateFont(sectionId, type, key, { color: e.target.value })}
+              className={`w-12 h-8 rounded border cursor-pointer ${
+                isExplicitColor ? 'ring-2 ring-orange-300' : ''
+              }`}
+            />
+            <Input
+              type="text"
+              value={effectiveFont.color}
+              onChange={(e) => updateFont(sectionId, type, key, { color: e.target.value })}
+              className={`flex-1 font-mono text-sm ${
+                isExplicitColor ? 'bg-orange-50 border-orange-300' : 'bg-white border-gray-300'
+              }`}
+              placeholder="#333333"
+            />
+          </div>
         </div>
 
         {/* Letter Spacing */}
-        <div>
-          <Label>Buchstabenabstand: {effectiveFont.letterSpacing ?? 0}px</Label>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label className="text-sm font-medium">
+              Buchstabenabstand: {(effectiveFont.letterSpacing ?? 0).toFixed(1)}px
+            </Label>
+            {isExplicitLetterSpacing && (
+              <span className="text-xs text-orange-600 bg-orange-50 px-1 rounded">Explizit</span>
+            )}
+          </div>
           <Slider
             min={-2}
             max={5}
             step={0.1}
             value={[effectiveFont.letterSpacing ?? 0]}
             onValueChange={(v) => updateFont(sectionId, type, key, { letterSpacing: v[0] })}
-            className={isFontPropertyExplicit(sectionId, key, type, 'letterSpacing', styleConfig) ? 'accent-yellow-500' : ''}
+            className={`${isExplicitLetterSpacing ? 'accent-orange-500' : ''}`}
           />
         </div>
 
         {/* Line Height */}
-        <div>
-          <Label>Zeilenabstand: {effectiveFont.lineHeight ?? 1.6}</Label>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label className="text-sm font-medium">
+              Zeilenabstand: {(effectiveFont.lineHeight ?? 1.6).toFixed(1)}
+            </Label>
+            {isExplicitLineHeight && (
+              <span className="text-xs text-orange-600 bg-orange-50 px-1 rounded">Explizit</span>
+            )}
+          </div>
           <Slider
             min={1}
             max={2.5}
             step={0.1}
             value={[effectiveFont.lineHeight ?? 1.6]}
             onValueChange={(v) => updateFont(sectionId, type, key, { lineHeight: v[0] })}
-            className={isFontPropertyExplicit(sectionId, key, type, 'lineHeight', styleConfig) ? 'accent-yellow-500' : ''}
+            className={`${isExplicitLineHeight ? 'accent-orange-500' : ''}`}
           />
         </div>
 
         {/* Preview */}
-        <div 
-          className="bg-gray-50 p-3 rounded border"
-          style={{
-            fontFamily: effectiveFont.family,
-            fontSize: `${effectiveFont.size}px`,
-            fontWeight: effectiveFont.weight,
-            fontStyle: effectiveFont.style,
-            color: effectiveFont.color,
-            letterSpacing: `${effectiveFont.letterSpacing || 0}px`,
-            lineHeight: effectiveFont.lineHeight,
-          }}
-        >
-          {type === "header" ? "Überschrift Beispiel" : "Beispieltext für diese Einstellung"}
+        <div className="bg-gray-50 rounded-lg p-3 border">
+          <Label className="text-xs text-gray-600 mb-2 block">Vorschau:</Label>
+          <div 
+            style={{
+              fontFamily: effectiveFont.family,
+              fontSize: `${effectiveFont.size}px`,
+              fontWeight: effectiveFont.weight,
+              fontStyle: effectiveFont.style,
+              color: effectiveFont.color,
+              letterSpacing: `${effectiveFont.letterSpacing || 0}px`,
+              lineHeight: effectiveFont.lineHeight,
+            }}
+          >
+            {type === "header" ? "Überschrift Beispiel" : 
+             key === "name" ? "Max Mustermann" :
+             "Beispieltext für diese Einstellung"}
+          </div>
         </div>
       </div>
     );
@@ -350,11 +410,13 @@ export const StyleTypographyPanel: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <h3 className="font-medium text-gray-900">Typografie pro Bereich & Subfeld</h3>
+      <h3 className="font-medium text-gray-900">Typografie-Einstellungen</h3>
       
       {/* Global Settings Section */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h4 className="font-medium text-blue-900 mb-4">🌐 Globale Einstellungen</h4>
+        <h4 className="font-medium text-blue-900 mb-4 flex items-center">
+          🌐 Globale Einstellungen
+        </h4>
         
         {/* All Headers Global */}
         <div className="mb-6">
@@ -370,52 +432,72 @@ export const StyleTypographyPanel: React.FC = () => {
       </div>
 
       {/* Content Sections */}
-      <Accordion type="multiple" className="space-y-2">
-        {Object.entries(contentSections).map(([sectionId, fields]) => (
-          <AccordionItem key={sectionId} value={sectionId}>
-            <AccordionTrigger className="capitalize">
-              {sectionId}
-              {/* Show inheritance indicators */}
-              <div className="flex items-center space-x-1 ml-2">
-                {!getLocalFontConfig(sectionId, null, "header", styleConfig) && (
-                  <span className="text-xs text-blue-600 bg-blue-100 px-1 rounded">
-                    Header: inherited
-                  </span>
-                )}
-                {!getLocalFontConfig(sectionId, null, "content", styleConfig) && (
-                  <span className="text-xs text-green-600 bg-green-100 px-1 rounded">
-                    Content: inherited
-                  </span>
-                )}
-              </div>
-            </AccordionTrigger>
-            <AccordionContent>
-              {/* Section Header */}
-              {renderFontEditor(sectionId, "header", null, "Überschrift")}
-              
-              {/* Section Content */}
-              {renderFontEditor(sectionId, "content", null, "Allgemeiner Inhalt")}
-              
-              {/* Section Fields */}
-              {fields
-                .filter((field) => field !== "header")
-                .map((fieldKey) => 
-                  renderFontEditor(sectionId, "field", fieldKey, `Feld: ${fieldKey}`)
-                )}
-            </AccordionContent>
-          </AccordionItem>
-        ))}
-      </Accordion>
+      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+        <h4 className="font-medium text-gray-900 mb-4 flex items-center">
+          📝 Individuelle Sektions-Einstellungen
+        </h4>
+        
+        <Accordion type="multiple" className="space-y-2">
+          {Object.entries(contentSections).map(([sectionId, fields]) => (
+            <AccordionItem key={sectionId} value={sectionId} className="border rounded-lg">
+              <AccordionTrigger className="px-4 py-3 hover:bg-gray-50">
+                <div className="flex items-center justify-between w-full">
+                  <span className="capitalize font-medium">{sectionId}</span>
+                  <div className="flex items-center space-x-1 mr-4">
+                    {/* Show inheritance indicators */}
+                    {!getLocalFontConfig(sectionId, null, "header", styleConfig) && (
+                      <span className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">
+                        Header: geerbt
+                      </span>
+                    )}
+                    {!getLocalFontConfig(sectionId, null, "content", styleConfig) && (
+                      <span className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">
+                        Content: geerbt
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="px-4 pb-4">
+                <div className="space-y-4">
+                  {/* Section Header */}
+                  <div>
+                    <h6 className="text-sm font-medium text-gray-700 mb-2">Überschrift</h6>
+                    {renderFontEditor(sectionId, "header", null, `${sectionId} - Überschrift`)}
+                  </div>
+                  
+                  {/* Section Content */}
+                  <div>
+                    <h6 className="text-sm font-medium text-gray-700 mb-2">Allgemeiner Inhalt</h6>
+                    {renderFontEditor(sectionId, "content", null, `${sectionId} - Inhalt`)}
+                  </div>
+                  
+                  {/* Section Fields */}
+                  {fields
+                    .filter((field) => field !== "header")
+                    .map((fieldKey) => (
+                      <div key={fieldKey}>
+                        <h6 className="text-sm font-medium text-gray-700 mb-2">Feld: {fieldKey}</h6>
+                        {renderFontEditor(sectionId, "field", fieldKey, `${sectionId} - ${fieldKey}`)}
+                      </div>
+                    ))}
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          ))}
+        </Accordion>
+      </div>
 
       {/* Debug Information */}
       <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
         <h4 className="font-medium text-gray-900 mb-3">🔍 Debug Information</h4>
-        <div className="text-xs text-gray-600 space-y-1">
+        <div className="text-xs text-gray-600 space-y-1 font-mono">
           <div>Global Font: {styleConfig.font?.family || 'undefined'}</div>
           <div>Global FontSize: {styleConfig.fontSize || 'undefined'}</div>
           <div>AllHeaders Font: {styleConfig.sections?.allHeaders?.header?.font?.family || 'undefined'}</div>
           <div>Name Font: {styleConfig.sections?.name?.font?.family || 'undefined'}</div>
           <div>Profil Header Font: {styleConfig.sections?.profil?.header?.font?.family || 'undefined'}</div>
+          <div>Profil Name Font: {styleConfig.sections?.profil?.fields?.name?.font?.family || 'undefined'}</div>
         </div>
       </div>
     </div>

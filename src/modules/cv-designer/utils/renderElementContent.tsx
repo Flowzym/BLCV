@@ -4,7 +4,7 @@ import React from "react";
 import { LayoutElement } from "../types/section";
 import { StyleConfig } from "../../../types/cv-designer";
 import { getFontFamilyWithFallback } from "./fonts";
-import { getEffectiveFontConfig } from "./fontUtils";
+import { getEffectiveFontConfig } from "../utils/fontUtils";
 
 interface Props {
   element: LayoutElement;
@@ -52,18 +52,18 @@ export const RenderElementContent: React.FC<Props> = ({
     content: React.ReactNode,
     extraStyle: React.CSSProperties = {}
   ) => {
-    const fontFamilyWithFallbacks = getFontFamilyWithFallback(effectiveFontConfig?.family);
+    const fontFamilyWithFallbacks = getFontFamilyWithFallback(effectiveFontConfig.family);
 
     const styleObj: React.CSSProperties = {
       fontFamily: fontFamilyWithFallbacks,
-      fontSize: effectiveFontConfig?.size ? `${effectiveFontConfig.size}px` : undefined,
-      fontWeight: effectiveFontConfig?.weight ?? "normal",
-      fontStyle: effectiveFontConfig?.style ?? "normal",
-      color: effectiveFontConfig?.color || getTextColor(),
-      letterSpacing: effectiveFontConfig?.letterSpacing !== undefined 
+      fontSize: `${effectiveFontConfig.size}px`,
+      fontWeight: effectiveFontConfig.weight,
+      fontStyle: effectiveFontConfig.style,
+      color: effectiveFontConfig.color,
+      letterSpacing: effectiveFontConfig.letterSpacing !== undefined 
         ? `${effectiveFontConfig.letterSpacing}px` 
         : undefined,
-      lineHeight: effectiveFontConfig?.lineHeight,
+      lineHeight: effectiveFontConfig.lineHeight,
       ...extraStyle,
     };
 

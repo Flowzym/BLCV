@@ -217,8 +217,8 @@ async function generateSectionParagraphs(
           new TextRun({
             text: section.title,
             bold: true,
-            size: (effectiveTitleFont.size || 13) * 2, // Convert to half-points
-            color: (effectiveTitleFont.color || '#1e40af').replace('#', ''),
+            size: effectiveTitleFont.size * 2, // Convert to half-points
+            color: effectiveTitleFont.color.replace('#', ''),
             font: titleFontFamily
           })
         ],
@@ -242,8 +242,8 @@ async function generateSectionParagraphs(
           children: [
             new TextRun({
               text: line.trim(),
-              size: (effectiveContentFont.size || 12) * 2, // Convert to half-points
-              color: (effectiveContentFont.color || '#000000').replace('#', ''),
+              size: effectiveContentFont.size * 2, // Convert to half-points
+              color: effectiveContentFont.color.replace('#', ''),
               font: contentFontFamily
             })
           ],

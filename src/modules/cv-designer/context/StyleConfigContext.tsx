@@ -138,16 +138,23 @@ export const StyleConfigProvider = ({ children }: { children: ReactNode }) => {
   const updateStyleConfig = (
     config: Partial<StyleConfig> & { sectionId?: string }
   ) => {
+    console.log('updateStyleConfig called with:', config);
+    
     setStyleConfig((prevConfig) => {
+      console.log('updateStyleConfig - prevConfig:', prevConfig);
+      
       let mergedConfig: StyleConfig;
 
       if (config.sectionId) {
         const { sectionId, ...rest } = config;
+        console.log(`updateStyleConfig - updating section ${sectionId} with:`, rest);
+        
         mergedConfig = {
           ...prevConfig,
           sections: {
             ...prevConfig.sections,
             [sectionId]: {
+              sectionId,
               ...prevConfig.sections?.[sectionId],
               ...rest,
               font: {
@@ -157,6 +164,10 @@ export const StyleConfigProvider = ({ children }: { children: ReactNode }) => {
               header: {
                 ...prevConfig.sections?.[sectionId]?.header,
                 ...(rest as any).header,
+                font: {
+                  ...prevConfig.sections?.[sectionId]?.header?.font,
+                  ...(rest as any).header?.font,
+                },
               },
               fields: {
                 ...prevConfig.sections?.[sectionId]?.fields,
@@ -166,6 +177,8 @@ export const StyleConfigProvider = ({ children }: { children: ReactNode }) => {
           },
         };
       } else {
+        console.log('updateStyleConfig - updating global config with:', config);
+        
         mergedConfig = {
           ...prevConfig,
           ...config,
@@ -188,6 +201,7 @@ export const StyleConfigProvider = ({ children }: { children: ReactNode }) => {
         };
       }
 
+      console.log('updateStyleConfig - mergedConfig:', mergedConfig);
       return normalizeColors(mergedConfig);
     });
   };
