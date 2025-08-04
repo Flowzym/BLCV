@@ -18,8 +18,9 @@ export const RenderElementContent: React.FC<Props> = ({
   field,
   maxSkills = 8,
 }) => {
-  // 1. Field-spezifisches FontConfig
   let effectiveFontConfig: FontConfig | undefined;
+
+  // 1. Field-spezifisches FontConfig
   if (field) {
     effectiveFontConfig = style.sections?.[element.type]?.fields?.[field]?.font;
   }
@@ -33,7 +34,20 @@ export const RenderElementContent: React.FC<Props> = ({
     }
   }
 
-  // 3. Globales FontConfig
+  // 3. Sonderfälle: globale Tabs ("allHeaders", "name")
+  if (!effectiveFontConfig) {
+    if (field === "header" && style.sections) {
+      // Fallback: globaler "allHeaders"
+      effectiveFontConfig = Object.values(style.sections)
+        .map((sec: any) => sec?.header?.font)
+        .find(Boolean);
+    }
+    if (element.type === "profil" && field === "name") {
+      effectiveFontConfig = style.sections?.profil?.fields?.name?.font;
+    }
+  }
+
+  // 4. Globales FontConfig
   if (!effectiveFontConfig) {
     effectiveFontConfig = style.font;
   }
@@ -66,10 +80,6 @@ export const RenderElementContent: React.FC<Props> = ({
 
     const fontFamilyWithFallbacks = getFontFamilyWithFallback(
       effectiveFontConfig?.family
-    );
-    console.log(
-      "RenderElementContent: fontFamily with fallbacks:",
-      fontFamilyWithFallbacks
     );
 
     const styleObj: React.CSSProperties = {
@@ -151,7 +161,7 @@ export const RenderElementContent: React.FC<Props> = ({
 
     return (
       <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
-        {skills.slice(0, maxSkills).map((skill) =>
+        {skills.slice(0, maxSkills).map((skill, i) =>
           applyFontStyle(skill, {
             background: getAccentColor(),
             color: "white",
