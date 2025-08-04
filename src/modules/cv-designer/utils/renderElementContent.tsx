@@ -34,17 +34,19 @@ export const RenderElementContent: React.FC<Props> = ({
     }
   }
 
-  // 3. Sonderfälle: globale Tabs ("allHeaders", "name")
-  if (!effectiveFontConfig) {
-    if (field === "header" && style.sections) {
-      // Fallback: globaler "allHeaders"
-      effectiveFontConfig = Object.values(style.sections)
-        .map((sec: any) => sec?.header?.font)
-        .find(Boolean);
-    }
-    if (element.type === "profil" && field === "name") {
-      effectiveFontConfig = style.sections?.profil?.fields?.name?.font;
-    }
+  // 3. Globale Overrides berücksichtigen
+  if (field === "header" && style.sections?.allHeaders?.header?.font) {
+    effectiveFontConfig = {
+      ...effectiveFontConfig,
+      ...style.sections.allHeaders.header.font,
+    };
+  }
+
+  if (element.type === "profil" && field === "name") {
+    effectiveFontConfig = {
+      ...effectiveFontConfig,
+      ...style.sections?.name?.font,
+    };
   }
 
   // 4. Globales FontConfig
@@ -81,6 +83,12 @@ export const RenderElementContent: React.FC<Props> = ({
     const fontFamilyWithFallbacks = getFontFamilyWithFallback(
       effectiveFontConfig?.family
     );
+
+    console.log("RenderElementContent applyFontStyle", {
+      elementType: element.type,
+      field,
+      effectiveFontConfig,
+    });
 
     const styleObj: React.CSSProperties = {
       fontFamily: fontFamilyWithFallbacks,
@@ -161,7 +169,7 @@ export const RenderElementContent: React.FC<Props> = ({
 
     return (
       <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
-        {skills.slice(0, maxSkills).map((skill, i) =>
+        {skills.slice(0, maxSkills).map((skill) =>
           applyFontStyle(skill, {
             background: getAccentColor(),
             color: "white",
