@@ -67,14 +67,23 @@ export interface CanvasElementData {
   width: number
   height: number
   content: string
-  style: StyleConfig
+  style: any
 }
 
 export function renderElementToCanvas(element: LayoutElement, style: StyleConfig): CanvasElementData {
   console.log('renderElementToCanvas: element.type:', element.type);
   console.log('renderElementToCanvas: style.colors:', style.colors);
   console.log('renderElementToCanvas: legacy colors - primaryColor:', style.primaryColor, 'accentColor:', style.accentColor);
-  
+
+  // ✅ Fonts aus StyleConfig via Utility mit Fallbacks
+  const fontFamily = getFontFamilyWithFallback(style.font?.family)
+  const fontWeight = style.font?.weight || "normal"
+  const fontStyle = style.font?.style || "normal"
+  const fontSize = style.font?.size ? `${style.font.size}px` : "12px"
+  const color = style.font?.color || style.textColor || "#000000"
+  const lineHeight = style.font?.lineHeight || 1.6
+  const letterSpacing = style.font?.letterSpacing ? `${style.font.letterSpacing}px` : "0px"
+
   return {
     id: element.id,
     type: element.type,
@@ -83,7 +92,16 @@ export function renderElementToCanvas(element: LayoutElement, style: StyleConfig
     width: element.width,
     height: element.height || 100,
     content: element.content || '',
-    style
+    style: {
+      ...style,
+      fontFamily,
+      fontWeight,
+      fontStyle,
+      fontSize,
+      color,
+      lineHeight,
+      letterSpacing
+    }
   }
 }
 
@@ -91,9 +109,10 @@ export function renderElementToCanvas(element: LayoutElement, style: StyleConfig
 export function renderElementToDocx(element: LayoutElement, style: StyleConfig): Paragraph[] {
   const fontSize = calculateFontSize(style.fontSize)
   const leftMargin = Math.round(element.x * 20)
-  const docxFontFamily = getFontFamilyWithFallback(style.fontFamily).split(',')[0].replace(/"/g, '').trim();
+  // ✅ Nur den ersten Font aus der Fallback-Kette
+  const docxFontFamily = getFontFamilyWithFallback(style.font?.family).split(',')[0].replace(/"/g, '').trim()
   console.log('layoutRenderer DOCX: Using font:', docxFontFamily, 'for element:', element.type);
-  
+
   const paragraphs: Paragraph[] = []
 
   if (element.content) {
@@ -106,7 +125,9 @@ export function renderElementToDocx(element: LayoutElement, style: StyleConfig):
               text: line.trim(),
               size: fontSize * 2,
               color: (style.textColor || '#000000').replace('#', ''),
-              font: docxFontFamily
+              font: docxFontFamily,
+              bold: style.font?.weight === "bold",
+              italics: style.font?.style === "italic"
             })
           ],
           indent: { left: leftMargin }
@@ -136,9 +157,9 @@ export interface PDFElementData {
 
 export function renderElementToPdf(element: LayoutElement, style: StyleConfig): PDFElementData {
   // ✅ Font-Familie für PDF (nur erster Wert der Fallback-Kette)
-  const pdfFontFamily = getFontFamilyWithFallback(style.fontFamily).split(',')[0].replace(/"/g, '').trim();
+  const pdfFontFamily = getFontFamilyWithFallback(style.font?.family).split(',')[0].replace(/"/g, '').trim()
   console.log('layoutRenderer PDF: Using font:', pdfFontFamily, 'for element:', element.type);
-  
+
   return {
     id: element.id,
     type: element.type,
@@ -146,11 +167,11 @@ export function renderElementToPdf(element: LayoutElement, style: StyleConfig): 
     style: {
       fontFamily: pdfFontFamily,
       fontSize: calculateFontSize(style.fontSize),
-      color: style.textColor || '#000000',
+      color: style.font?.color || style.textColor || '#000000',
       backgroundColor: style.backgroundColor || '#ffffff',
       padding: calculatePadding(style.margin),
       borderRadius: parseInt(style.borderRadius?.replace('px', '') || '0'),
-      lineHeight: style.lineHeight
+      lineHeight: style.font?.lineHeight || 1.6
     },
     content: {
       text: element.content || '',
