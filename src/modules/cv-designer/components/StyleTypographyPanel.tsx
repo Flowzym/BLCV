@@ -66,7 +66,6 @@ export const StyleTypographyPanel: React.FC = () => {
     updates: Partial<FontConfig>
   ) => {
     if (sectionId === "allHeaders") {
-      // 🟢 Updates auf alle Section-Header anwenden
       const newSections: any = {};
       Object.keys(styleConfig.sections || {}).forEach((secId) => {
         newSections[secId] = {
@@ -91,7 +90,6 @@ export const StyleTypographyPanel: React.FC = () => {
     }
 
     if (sectionId === "name") {
-      // 🟢 Nur das Namensfeld unter profil anpassen
       const prev = styleConfig.sections?.profil?.fields?.name?.font;
       const merged: FontConfig = {
         ...defaultFont,
@@ -114,7 +112,7 @@ export const StyleTypographyPanel: React.FC = () => {
       return;
     }
 
-    // 🟢 Normale Sections
+    // normale Sections
     const prev =
       type === "header"
         ? styleConfig.sections?.[sectionId]?.header?.font
@@ -161,9 +159,6 @@ export const StyleTypographyPanel: React.FC = () => {
     });
   };
 
-  /**
-   * Render: auch hier Standardfarben abhängig von Design erben
-   */
   const renderFontEditor = (
     sectionId: string,
     type: "header" | "content" | "field",
@@ -171,7 +166,7 @@ export const StyleTypographyPanel: React.FC = () => {
     font: FontConfig = defaultFont
   ) => {
     // 🔹 Farbe aus Design erben, auch bei globalen Tabs
-    let inheritedColor =
+    const inheritedColor =
       sectionId === "allHeaders"
         ? styleConfig.colors?.primary || styleConfig.primaryColor || defaultFont.color
         : sectionId === "name"
@@ -183,8 +178,9 @@ export const StyleTypographyPanel: React.FC = () => {
     const safeFont: FontConfig = {
       ...defaultFont,
       ...font,
-      color: font.color || inheritedColor,
     };
+
+    const effectiveColor = font.color || inheritedColor;
 
     const editorTitle =
       sectionId === "allHeaders"
@@ -241,7 +237,7 @@ export const StyleTypographyPanel: React.FC = () => {
           <Label>Farbe</Label>
           <Input
             type="color"
-            value={safeFont.color}
+            value={effectiveColor}
             onChange={(e) => updateFont(sectionId, type, key, { color: e.target.value })}
             className="w-12 h-8 p-0 border-none"
           />
