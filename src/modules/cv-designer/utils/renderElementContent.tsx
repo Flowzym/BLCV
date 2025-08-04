@@ -1,4 +1,4 @@
-// 📄 src/modules/cv-designer/components/RenderElementContent.tsx
+// 📄 src/modules/cv-designer/utils/RenderElementContent.tsx
 
 import React from "react";
 import { LayoutElement } from "../types/section";
@@ -7,7 +7,7 @@ import { StyleConfig, FontConfig } from "../../../types/cv-designer";
 interface Props {
   element: LayoutElement;
   style: StyleConfig;
-  field?: string; // 🔑 Subfeld-Key
+  field?: string; // Subfeld-Key
   maxSkills?: number;
 }
 
@@ -38,7 +38,7 @@ export const RenderElementContent: React.FC<Props> = ({
     effectiveFontConfig = style.font;
   }
 
-  // 🟢 Einheitliche Farb-Getter
+  // ---------------- Farb-Getter ----------------
   const getPrimaryColor = () =>
     style.colors?.primary || style.primaryColor || "#1e40af";
 
@@ -54,19 +54,18 @@ export const RenderElementContent: React.FC<Props> = ({
   const getSecondaryTextColor = () =>
     style.colors?.textSecondary || "#9ca3af";
 
-  // Hilfsfunktion: Fonts + Farben anwenden
+  // ---------------- Font anwenden ----------------
   const applyFontStyle = (
     content: React.ReactNode,
     extraStyle: React.CSSProperties = {}
   ) => {
     const fontStyle: React.CSSProperties = {
-      fontFamily:
-        effectiveFontConfig?.family || style.font?.family || "Inter",
+      fontFamily: effectiveFontConfig?.family || style.fontFamily || "Inter",
       fontSize: effectiveFontConfig?.size
         ? `${effectiveFontConfig.size}px`
         : undefined,
       fontWeight: effectiveFontConfig?.weight || "normal",
-      fontStyle: effectiveFontConfig?.style || "normal", // NEU: italic support
+      fontStyle: effectiveFontConfig?.style || "normal", // 🆕 italic support
       color:
         effectiveFontConfig?.color ||
         (field === "header" ? getPrimaryColor() : getTextColor()),
@@ -74,8 +73,7 @@ export const RenderElementContent: React.FC<Props> = ({
         effectiveFontConfig?.letterSpacing !== undefined
           ? `${effectiveFontConfig.letterSpacing}px`
           : undefined,
-      lineHeight:
-        effectiveFontConfig?.lineHeight || style.font?.lineHeight || 1.6,
+      lineHeight: effectiveFontConfig?.lineHeight,
     };
 
     return <span style={{ ...extraStyle, ...fontStyle }}>{content}</span>;
