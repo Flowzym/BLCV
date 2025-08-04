@@ -1,5 +1,5 @@
 /**
- * Font Utilities - Central font inheritance and effective config calculation
+ * Font Utilities - Zentrale Font-Vererbung und effektive Konfiguration
  */
 
 import { StyleConfig, FontConfig, SectionStyleOverride } from "../types/styles";
@@ -27,9 +27,9 @@ export function mapFontSizeToPixels(fontSize?: string): number {
 }
 
 /**
- * Central function to calculate effective font configuration
- * Implements inheritance chain: defaults → global → allHeaders → name → section → field
- * Only !== undefined values override previous values
+ * 🎯 ZENTRALE UTILITY: Berechnet effektive Font-Konfiguration
+ * Vererbungsreihenfolge: default → global → allHeaders → name → section → field
+ * Nur !== undefined Werte überschreiben vorherige Werte
  */
 export function getEffectiveFontConfig(
   sectionId: string,
@@ -37,23 +37,23 @@ export function getEffectiveFontConfig(
   type: "header" | "content" | "field",
   styleConfig: StyleConfig
 ): FontConfig {
-  console.log(`getEffectiveFontConfig: calculating for ${sectionId}.${type}.${fieldKey || 'null'}`);
+  console.log(`🔍 getEffectiveFontConfig: calculating for ${sectionId}.${type}.${fieldKey || 'null'}`);
   
   // Step 1: Start with defaults
   let effective: FontConfig = { ...defaultFont };
   console.log('Step 1 - defaults:', effective);
 
-  // Step 2: Apply global base font (if exists)
+  // Step 2: Apply global base font (styleConfig.font)
   if (styleConfig.font) {
     effective = mergeFont(effective, styleConfig.font);
     console.log('Step 2 - global font:', effective);
   }
 
-  // Step 3: Apply global fontSize enum mapping
+  // Step 3: Apply global fontSize enum mapping (styleConfig.fontSize)
   if (styleConfig.fontSize) {
     const mappedSize = mapFontSizeToPixels(styleConfig.fontSize);
     effective = mergeFont(effective, { size: mappedSize });
-    console.log('Step 3 - global fontSize mapping:', effective);
+    console.log('Step 3 - global fontSize mapping:', effective, 'from enum:', styleConfig.fontSize);
   }
 
   // Step 4: Apply allHeaders (for header types only)
@@ -96,7 +96,13 @@ export function getEffectiveFontConfig(
     console.log('Step 8 - color inheritance:', effective);
   }
 
-  console.log(`getEffectiveFontConfig: final result for ${sectionId}.${type}.${fieldKey || 'null'}:`, effective);
+  // 🎯 WICHTIG: Sicherstellen, dass fontSize immer numerisch in px ist
+  if (typeof effective.size === 'string') {
+    effective.size = mapFontSizeToPixels(effective.size);
+    console.log('Step 9 - fontSize conversion to px:', effective.size);
+  }
+
+  console.log(`✅ getEffectiveFontConfig: FINAL result for ${sectionId}.${type}.${fieldKey || 'null'}:`, effective);
   return effective;
 }
 

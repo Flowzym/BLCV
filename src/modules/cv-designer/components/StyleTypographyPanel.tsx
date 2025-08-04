@@ -59,15 +59,18 @@ export const StyleTypographyPanel: React.FC = () => {
     key: string | null,
     updates: Partial<FontConfig>
   ) => {
-    console.log(`updateFont: ${sectionId}.${type}.${key || 'null'}`, updates);
+    console.log(`🔧 updateFont: ${sectionId}.${type}.${key || 'null'}`, updates);
 
     // Global sections (allHeaders, name)
     if (sectionId === "allHeaders") {
+      console.log('🔧 updateFont: updating allHeaders with:', updates);
       updateStyleConfig({
         sections: {
           ...styleConfig.sections,
           allHeaders: {
+            ...styleConfig.sections?.allHeaders,
             header: {
+              ...styleConfig.sections?.allHeaders?.header,
               font: {
                 ...styleConfig.sections?.allHeaders?.header?.font,
                 ...updates,
@@ -80,10 +83,12 @@ export const StyleTypographyPanel: React.FC = () => {
     }
 
     if (sectionId === "name") {
+      console.log('🔧 updateFont: updating name with:', updates);
       updateStyleConfig({
         sections: {
           ...styleConfig.sections,
           name: {
+            ...styleConfig.sections?.name,
             font: {
               ...styleConfig.sections?.name?.font,
               ...updates,
@@ -94,8 +99,20 @@ export const StyleTypographyPanel: React.FC = () => {
       return;
     }
 
+    // 🎯 GLOBAL FONT UPDATE (für globale Basis-Font-Einstellungen)
+    if (sectionId === "global") {
+      console.log('🔧 updateFont: updating global font with:', updates);
+      updateStyleConfig({
+        font: {
+          ...styleConfig.font,
+          ...updates,
+        },
+      });
+      return;
+    }
     // Regular sections
     const currentSection = styleConfig.sections?.[sectionId] || {};
+    console.log(`🔧 updateFont: updating regular section ${sectionId} with:`, updates);
     
     if (type === "header") {
       updateStyleConfig({
@@ -156,7 +173,7 @@ export const StyleTypographyPanel: React.FC = () => {
     type: "header" | "content" | "field",
     key: string | null
   ) => {
-    console.log(`resetFont: ${sectionId}.${type}.${key || 'null'}`);
+    console.log(`🔄 resetFont: ${sectionId}.${type}.${key || 'null'}`);
     const resetConfig = resetFontConfig(sectionId, key, type);
     updateFont(sectionId, type, key, resetConfig);
   };
@@ -189,6 +206,8 @@ export const StyleTypographyPanel: React.FC = () => {
                           isExplicitStyle || isExplicitColor || isExplicitLetterSpacing || 
                           isExplicitLineHeight;
 
+    console.log(`🎨 renderFontEditor: ${sectionId}.${type}.${key || 'null'} - effectiveFont:`, effectiveFont);
+    console.log(`🎨 renderFontEditor: hasAnyExplicit=${hasAnyExplicit}, isExplicitFamily=${isExplicitFamily}, isExplicitSize=${isExplicitSize}`);
     return (
       <div key={`${sectionId}-${type}-${key}`} className="space-y-4 border rounded-lg p-4 bg-white">
         <div className="flex items-center justify-between">
@@ -232,6 +251,7 @@ export const StyleTypographyPanel: React.FC = () => {
           <select
             value={effectiveFont.family}
             onChange={(e) => updateFont(sectionId, type, key, { family: e.target.value })}
+              console.log('🔧 Font family changed to:', e.target.value);
             className={`w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 ${
               isExplicitFamily ? 'bg-orange-50 border-orange-300' : 'bg-white border-gray-300'
             }`}
@@ -257,9 +277,9 @@ export const StyleTypographyPanel: React.FC = () => {
               type="number"
               value={effectiveFont.size}
               onChange={(e) =>
-                updateFont(sectionId, type, key, {
-                  size: parseInt(e.target.value, 10) || defaultFont.size,
-                })
+                const newSize = parseInt(e.target.value, 10) || defaultFont.size;
+                console.log('🔧 Font size changed to:', newSize);
+                updateFont(sectionId, type, key, { size: newSize });
               }
               className={`w-20 ${
                 isExplicitSize ? 'bg-orange-50 border-orange-300' : 'bg-white border-gray-300'
@@ -273,7 +293,10 @@ export const StyleTypographyPanel: React.FC = () => {
                 max={72}
                 step={1}
                 value={[effectiveFont.size]}
-                onValueChange={(value) => updateFont(sectionId, type, key, { size: value[0] })}
+                onValueChange={(value) => {
+                  console.log('🔧 Font size slider changed to:', value[0]);
+                  updateFont(sectionId, type, key, { size: value[0] });
+                }}
                 className="w-full"
               />
             </div>
@@ -288,9 +311,9 @@ export const StyleTypographyPanel: React.FC = () => {
               variant={effectiveFont.weight === "bold" ? "default" : "outline"}
               size="sm"
               onClick={() =>
-                updateFont(sectionId, type, key, {
-                  weight: effectiveFont.weight === "bold" ? "normal" : "bold",
-                })
+                const newWeight = effectiveFont.weight === "bold" ? "normal" : "bold";
+                console.log('🔧 Font weight changed to:', newWeight);
+                updateFont(sectionId, type, key, { weight: newWeight });
               }
               className={`${isExplicitWeight ? 'ring-2 ring-orange-300' : ''}`}
             >
@@ -301,9 +324,9 @@ export const StyleTypographyPanel: React.FC = () => {
               variant={effectiveFont.style === "italic" ? "default" : "outline"}
               size="sm"
               onClick={() =>
-                updateFont(sectionId, type, key, {
-                  style: effectiveFont.style === "italic" ? "normal" : "italic",
-                })
+                const newStyle = effectiveFont.style === "italic" ? "normal" : "italic";
+                console.log('🔧 Font style changed to:', newStyle);
+                updateFont(sectionId, type, key, { style: newStyle });
               }
               className={`${isExplicitStyle ? 'ring-2 ring-orange-300' : ''}`}
             >
@@ -328,7 +351,10 @@ export const StyleTypographyPanel: React.FC = () => {
             <input
               type="color"
               value={effectiveFont.color}
-              onChange={(e) => updateFont(sectionId, type, key, { color: e.target.value })}
+              onChange={(e) => {
+                console.log('🔧 Font color changed to:', e.target.value);
+                updateFont(sectionId, type, key, { color: e.target.value });
+              }}
               className={`w-12 h-8 rounded border cursor-pointer ${
                 isExplicitColor ? 'ring-2 ring-orange-300' : ''
               }`}
@@ -336,7 +362,10 @@ export const StyleTypographyPanel: React.FC = () => {
             <Input
               type="text"
               value={effectiveFont.color}
-              onChange={(e) => updateFont(sectionId, type, key, { color: e.target.value })}
+              onChange={(e) => {
+                console.log('🔧 Font color text changed to:', e.target.value);
+                updateFont(sectionId, type, key, { color: e.target.value });
+              }}
               className={`flex-1 font-mono text-sm ${
                 isExplicitColor ? 'bg-orange-50 border-orange-300' : 'bg-white border-gray-300'
               }`}
@@ -360,7 +389,10 @@ export const StyleTypographyPanel: React.FC = () => {
             max={5}
             step={0.1}
             value={[effectiveFont.letterSpacing ?? 0]}
-            onValueChange={(v) => updateFont(sectionId, type, key, { letterSpacing: v[0] })}
+            onValueChange={(v) => {
+              console.log('🔧 Letter spacing changed to:', v[0]);
+              updateFont(sectionId, type, key, { letterSpacing: v[0] });
+            }}
             className={`${isExplicitLetterSpacing ? 'accent-orange-500' : ''}`}
           />
         </div>
@@ -380,7 +412,10 @@ export const StyleTypographyPanel: React.FC = () => {
             max={2.5}
             step={0.1}
             value={[effectiveFont.lineHeight ?? 1.6]}
-            onValueChange={(v) => updateFont(sectionId, type, key, { lineHeight: v[0] })}
+            onValueChange={(v) => {
+              console.log('🔧 Line height changed to:', v[0]);
+              updateFont(sectionId, type, key, { lineHeight: v[0] });
+            }}
             className={`${isExplicitLineHeight ? 'accent-orange-500' : ''}`}
           />
         </div>
@@ -418,6 +453,12 @@ export const StyleTypographyPanel: React.FC = () => {
           🌐 Globale Einstellungen
         </h4>
         
+        {/* Globale Basis-Font-Einstellungen */}
+        <div className="mb-6">
+          <h5 className="text-sm font-medium text-blue-800 mb-3">Basis-Schriftart (Global)</h5>
+          {renderFontEditor("global", "content", null, "Globale Basis-Schriftart für alle Texte")}
+        </div>
+
         {/* All Headers Global */}
         <div className="mb-6">
           <h5 className="text-sm font-medium text-blue-800 mb-3">Alle Überschriften (Global)</h5>
@@ -492,6 +533,8 @@ export const StyleTypographyPanel: React.FC = () => {
       <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
         <h4 className="font-medium text-gray-900 mb-3">🔍 Debug Information</h4>
         <div className="text-xs text-gray-600 space-y-1 font-mono">
+          <div>Global Font Family: {styleConfig.font?.family || 'undefined'}</div>
+          <div>Global Font Size: {styleConfig.font?.size || 'undefined'}</div>
           <div>Global Font: {styleConfig.font?.family || 'undefined'}</div>
           <div>Global FontSize: {styleConfig.fontSize || 'undefined'}</div>
           <div>AllHeaders Font: {styleConfig.sections?.allHeaders?.header?.font?.family || 'undefined'}</div>

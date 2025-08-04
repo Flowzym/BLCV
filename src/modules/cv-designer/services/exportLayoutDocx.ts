@@ -318,7 +318,7 @@ export function renderElementToDocx(element: LayoutElement, style: StyleConfig):
   const effectiveFont = getEffectiveFontConfig(element.type, null, 'content', style);
   const leftMargin = Math.round(element.x * 20)
   const elementFontFamily = getFontFamilyWithFallback(effectiveFont.family).split(',')[0].replace(/"/g, '').trim();
-  console.log('DOCX Export: Element font:', elementFontFamily, 'for element:', element.type);
+  console.log('📄 DOCX Export: Element font:', elementFontFamily, 'fontSize:', effectiveFont.size, 'for element:', element.type);
   
   const paragraphs: Paragraph[] = []
 
@@ -329,9 +329,11 @@ export function renderElementToDocx(element: LayoutElement, style: StyleConfig):
         children: [
           new TextRun({
             text: line.trim(),
-            size: (effectiveFont.size || 12) * 2,
+            size: effectiveFont.size * 2, // Convert px to half-points for DOCX
             color: (effectiveFont.color || '#000000').replace('#', ''),
-            font: elementFontFamily
+            font: elementFontFamily,
+            bold: effectiveFont.weight === "bold",
+            italics: effectiveFont.style === "italic"
           })
         ],
         indent: { left: leftMargin }

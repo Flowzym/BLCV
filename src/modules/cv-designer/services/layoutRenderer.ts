@@ -99,7 +99,7 @@ export function renderElementToDocx(element: LayoutElement, style: StyleConfig):
   const effectiveFont = getEffectiveFontConfig(element.type, null, 'content', style);
   const leftMargin = Math.round(element.x * 20)
   const docxFontFamily = getFontFamilyWithFallback(effectiveFont.family).split(',')[0].replace(/"/g, '').trim()
-  console.log('layoutRenderer DOCX: Using font:', docxFontFamily, 'for element:', element.type);
+  console.log('📄 layoutRenderer DOCX: Using font:', docxFontFamily, 'fontSize:', effectiveFont.size, 'for element:', element.type);
 
   const paragraphs: Paragraph[] = []
 
@@ -111,7 +111,7 @@ export function renderElementToDocx(element: LayoutElement, style: StyleConfig):
           children: [
             new TextRun({
               text: line.trim(),
-              size: effectiveFont.size * 2,
+              size: effectiveFont.size * 2, // Convert px to half-points
               color: effectiveFont.color.replace('#', ''),
               font: docxFontFamily,
               bold: effectiveFont.weight === "bold",
@@ -146,7 +146,7 @@ export interface PDFElementData {
 export function renderElementToPdf(element: LayoutElement, style: StyleConfig): PDFElementData {
   const effectiveFont = getEffectiveFontConfig(element.type, null, 'content', style);
   const pdfFontFamily = getFontFamilyWithFallback(effectiveFont.family).split(',')[0].replace(/"/g, '').trim()
-  console.log('layoutRenderer PDF: Using font:', pdfFontFamily, 'for element:', element.type);
+  console.log('📄 layoutRenderer PDF: Using font:', pdfFontFamily, 'fontSize:', effectiveFont.size, 'for element:', element.type);
 
   return {
     id: element.id,
@@ -154,7 +154,7 @@ export function renderElementToPdf(element: LayoutElement, style: StyleConfig): 
     position: { x: element.x, y: element.y, width: element.width, height: element.height || 100 },
     style: {
       fontFamily: pdfFontFamily,
-      fontSize: effectiveFont.size,
+      fontSize: effectiveFont.size, // Already in px
       color: effectiveFont.color,
       backgroundColor: style.backgroundColor || '#ffffff',
       padding: calculatePadding(style.margin),

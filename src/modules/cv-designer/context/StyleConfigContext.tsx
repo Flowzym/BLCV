@@ -182,13 +182,14 @@ export const StyleConfigProvider = ({ children }: { children: ReactNode }) => {
         mergedConfig = {
           ...prevConfig,
           ...config,
-          colors: {
-            ...prevConfig.colors,
-            ...(config.colors || {}),
-          },
+          // 🎯 KRITISCH: Globale Font-Eigenschaften korrekt mergen
           font: {
             ...prevConfig.font,
             ...(config.font || {}),
+          },
+          colors: {
+            ...prevConfig.colors,
+            ...(config.colors || {}),
           },
           globalHeaders: {
             ...prevConfig.globalHeaders,
@@ -202,6 +203,9 @@ export const StyleConfigProvider = ({ children }: { children: ReactNode }) => {
       }
 
       console.log('updateStyleConfig - mergedConfig:', mergedConfig);
+      console.log('🔧 updateStyleConfig - mergedConfig.font:', mergedConfig.font);
+      console.log('🔧 updateStyleConfig - mergedConfig.fontSize:', mergedConfig.fontSize);
+      console.log('🔧 updateStyleConfig - mergedConfig.sections?.allHeaders:', mergedConfig.sections?.allHeaders);
       return normalizeColors(mergedConfig);
     });
   };

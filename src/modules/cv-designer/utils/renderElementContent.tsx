@@ -19,7 +19,7 @@ export const RenderElementContent: React.FC<Props> = ({
   field,
   maxSkills = 8,
 }) => {
-  console.log(`RenderElementContent: rendering ${element.type}.${field || 'content'}`);
+  console.log(`🎨 RenderElementContent: rendering ${element.type}.${field || 'content'}`);
 
   // Get effective font configuration using central utility
   const effectiveFontConfig = getEffectiveFontConfig(
@@ -29,7 +29,8 @@ export const RenderElementContent: React.FC<Props> = ({
     style
   );
 
-  console.log(`RenderElementContent: effective font for ${element.type}.${field || 'content'}:`, effectiveFontConfig);
+  console.log(`🎨 RenderElementContent: effective font for ${element.type}.${field || 'content'}:`, effectiveFontConfig);
+  console.log(`🎨 RenderElementContent: fontFamily=${effectiveFontConfig.family}, fontSize=${effectiveFontConfig.size}px`);
 
   // Color getters with robust fallback chains
   const getPrimaryColor = () =>
@@ -55,8 +56,9 @@ export const RenderElementContent: React.FC<Props> = ({
     const fontFamilyWithFallbacks = getFontFamilyWithFallback(effectiveFontConfig.family);
 
     const styleObj: React.CSSProperties = {
+      // 🎯 KRITISCH: Inline-Styles für Font-Eigenschaften verwenden (überschreibt Tailwind)
       fontFamily: fontFamilyWithFallbacks,
-      fontSize: `${effectiveFontConfig.size}px`,
+      fontSize: `${effectiveFontConfig.size}px !important`,
       fontWeight: effectiveFontConfig.weight,
       fontStyle: effectiveFontConfig.style,
       color: effectiveFontConfig.color,
@@ -67,7 +69,7 @@ export const RenderElementContent: React.FC<Props> = ({
       ...extraStyle,
     };
 
-    console.log(`RenderElementContent: applied fontStyle for ${element.type}.${field || 'content'}:`, styleObj);
+    console.log(`🎨 RenderElementContent: applied fontStyle for ${element.type}.${field || 'content'}:`, styleObj);
 
     return <span style={styleObj}>{content}</span>;
   };
