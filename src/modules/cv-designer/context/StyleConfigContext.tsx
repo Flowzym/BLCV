@@ -5,12 +5,10 @@ import { StyleConfig } from "../types/styles";
  * 🟢 Hilfsfunktion: Normalisiert colors-Objekt aus Root-Level Properties
  */
 function normalizeColors(config: StyleConfig): StyleConfig {
-  // Stelle sicher, dass colors-Objekt existiert
   if (!config.colors) {
     config.colors = {};
   }
 
-  // Migriere Root-Level → colors.* (falls colors.* noch nicht gesetzt)
   if (!config.colors.primary && config.primaryColor) {
     config.colors.primary = config.primaryColor;
   }
@@ -24,7 +22,6 @@ function normalizeColors(config: StyleConfig): StyleConfig {
     config.colors.text = config.textColor;
   }
 
-  // Setze Defaults falls Werte fehlen
   if (!config.colors.primary) config.colors.primary = "#1e40af";
   if (!config.colors.accent) config.colors.accent = "#3b82f6";
   if (!config.colors.background) config.colors.background = "#ffffff";
@@ -33,7 +30,6 @@ function normalizeColors(config: StyleConfig): StyleConfig {
   if (!config.colors.textSecondary) config.colors.textSecondary = "#9ca3af";
   if (!config.colors.border) config.colors.border = "#e5e7eb";
 
-  // Spiegle colors.* → Root-Level für Backward Compatibility
   config.primaryColor = config.colors.primary;
   config.accentColor = config.colors.accent;
   config.backgroundColor = config.colors.background;
@@ -46,7 +42,6 @@ function normalizeColors(config: StyleConfig): StyleConfig {
  * 🟢 Default-StyleConfig mit vollständigem colors-Objekt
  */
 const defaultStyleConfig: StyleConfig = {
-  // Legacy properties (nur Fallbacks)
   primaryColor: "#1e40af",
   accentColor: "#3b82f6",
   backgroundColor: "#ffffff",
@@ -60,7 +55,6 @@ const defaultStyleConfig: StyleConfig = {
   snapSize: 20,
   widthPercent: 100,
 
-  // Neue Properties
   font: {
     family: "Inter",
     size: 12,
@@ -114,7 +108,9 @@ const defaultStyleConfig: StyleConfig = {
 
 interface StyleConfigContextValue {
   styleConfig: StyleConfig;
-  updateStyleConfig: (config: Partial<StyleConfig>) => void;
+  updateStyleConfig: (
+    config: Partial<StyleConfig> & { sectionId?: string }
+  ) => void;
   resetStyleConfig: () => void;
 }
 
@@ -127,20 +123,57 @@ export const StyleConfigProvider = ({ children }: { children: ReactNode }) => {
     normalizeColors(defaultStyleConfig)
   );
 
-  const updateStyleConfig = (config: Partial<StyleConfig>) => {
+  const updateStyleConfig = (
+    config: Partial<StyleConfig> & { sectionId?: string }
+  ) => {
     setStyleConfig((prevConfig) => {
-      const mergedConfig: StyleConfig = {
-        ...prevConfig,
-        ...config,
-        colors: {
-          ...prevConfig.colors,
-          ...(config.colors || {}),
-        },
-        sections: {
-          ...prevConfig.sections,
-          ...(config.sections || {}),
-        },
-      };
+      let mergedConfig: StyleConfig;
+
+      if (config.sectionId) {
+        // 🟢 Section-spezifisches Update
+        const { sectionId, ...rest } = config;
+        mergedConfig = {
+          ...prevConfig,
+          sections: {
+            ...prevConfig.sections,
+            [sectionId]: {
+              ...prevConfig.sections?.[sectionId],
+              ...rest,
+              font: {
+                ...prevConfig.sections?.[sectionId]?.font,
+                ...(rest as any).font,
+              },
+              header: {
+                ...prevConfig.sections?.[sectionId]?.header,
+                ...(rest as any).header,
+              },
+              fields: {
+                ...prevConfig.sections?.[sectionId]?.fields,
+                ...(rest as any).fields,
+              },
+            },
+          },
+        };
+      } else {
+        // 🟢 Globales Update
+        mergedConfig = {
+          ...prevConfig,
+          ...config,
+          colors: {
+            ...prevConfig.colors,
+            ...(config.colors || {}),
+          },
+          font: {
+            ...prevConfig.font,
+            ...(config.font || {}),
+          },
+          sections: {
+            ...prevConfig.sections,
+            ...(config.sections || {}),
+          },
+        };
+      }
+
       return normalizeColors(mergedConfig);
     });
   };
@@ -158,7 +191,6 @@ export const StyleConfigProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
-// 🟢 Named Export wieder da!
 export const useStyleConfig = () => {
   const context = useContext(StyleConfigContext);
   if (!context) {
