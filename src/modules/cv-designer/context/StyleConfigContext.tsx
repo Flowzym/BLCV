@@ -1,14 +1,26 @@
 import React, { createContext, useContext, useState, ReactNode } from "react";
 import { StyleConfig } from "../types/styles";
 
+/**
+ * 🟢 Hilfsfunktion: Normalisiert colors-Objekt aus Root-Level Properties
+ */
 function normalizeColors(config: StyleConfig): StyleConfig {
   if (!config.colors) {
     config.colors = {};
   }
-  if (!config.colors.primary && config.primaryColor) config.colors.primary = config.primaryColor;
-  if (!config.colors.accent && config.accentColor) config.colors.accent = config.accentColor;
-  if (!config.colors.background && config.backgroundColor) config.colors.background = config.backgroundColor;
-  if (!config.colors.text && config.textColor) config.colors.text = config.textColor;
+
+  if (!config.colors.primary && config.primaryColor) {
+    config.colors.primary = config.primaryColor;
+  }
+  if (!config.colors.accent && config.accentColor) {
+    config.colors.accent = config.accentColor;
+  }
+  if (!config.colors.background && config.backgroundColor) {
+    config.colors.background = config.backgroundColor;
+  }
+  if (!config.colors.text && config.textColor) {
+    config.colors.text = config.textColor;
+  }
 
   if (!config.colors.primary) config.colors.primary = "#1e40af";
   if (!config.colors.accent) config.colors.accent = "#3b82f6";
@@ -26,6 +38,9 @@ function normalizeColors(config: StyleConfig): StyleConfig {
   return config;
 }
 
+/**
+ * 🟢 Default-StyleConfig mit vollständigem colors-Objekt
+ */
 const defaultStyleConfig: StyleConfig = {
   primaryColor: "#1e40af",
   accentColor: "#3b82f6",
@@ -39,6 +54,7 @@ const defaultStyleConfig: StyleConfig = {
   sectionSpacing: 24,
   snapSize: 20,
   widthPercent: 100,
+
   font: {
     family: "Inter",
     size: 12,
@@ -62,7 +78,7 @@ const defaultStyleConfig: StyleConfig = {
       font: { family: "Inter", size: 12, weight: "normal" },
       header: { font: { family: "Inter", size: 16, weight: "bold" } },
       fields: {
-        name: { font: { family: "Inter", size: 20, weight: "bold" } },
+        name: { font: { family: "Inter", size: 20, weight: "bold" } }, // 👈 Name Feld
       },
     },
     erfahrung: {
@@ -90,26 +106,38 @@ const defaultStyleConfig: StyleConfig = {
       fields: {},
     },
   },
-  globalHeaders: { font: { family: "Inter", size: 18, weight: "bold" } },
+  // 👇 neu: globalHeaders
+  globalHeaders: {
+    font: { family: "Inter", size: 16, weight: "bold", color: "#1e40af" },
+  },
 };
 
 interface StyleConfigContextValue {
   styleConfig: StyleConfig;
-  updateStyleConfig: (config: Partial<StyleConfig> & { sectionId?: string }) => void;
+  updateStyleConfig: (
+    config: Partial<StyleConfig> & { sectionId?: string }
+  ) => void;
   resetStyleConfig: () => void;
 
-  // 🔥 Für Click-to-Edit
   selectedElement: { sectionId: string; field?: string } | null;
-  setSelectedElement: (sel: { sectionId: string; field?: string } | null) => void;
+  setSelectedElement: (el: { sectionId: string; field?: string } | null) => void;
 }
 
-const StyleConfigContext = createContext<StyleConfigContextValue | undefined>(undefined);
+const StyleConfigContext = createContext<StyleConfigContextValue | undefined>(
+  undefined
+);
 
 export const StyleConfigProvider = ({ children }: { children: ReactNode }) => {
-  const [styleConfig, setStyleConfig] = useState<StyleConfig>(normalizeColors(defaultStyleConfig));
-  const [selectedElement, setSelectedElement] = useState<{ sectionId: string; field?: string } | null>(null);
+  const [styleConfig, setStyleConfig] = useState<StyleConfig>(
+    normalizeColors(defaultStyleConfig)
+  );
+  const [selectedElement, setSelectedElement] = useState<
+    { sectionId: string; field?: string } | null
+  >(null);
 
-  const updateStyleConfig = (config: Partial<StyleConfig> & { sectionId?: string }) => {
+  const updateStyleConfig = (
+    config: Partial<StyleConfig> & { sectionId?: string }
+  ) => {
     setStyleConfig((prevConfig) => {
       let mergedConfig: StyleConfig;
 
@@ -149,13 +177,13 @@ export const StyleConfigProvider = ({ children }: { children: ReactNode }) => {
             ...prevConfig.font,
             ...(config.font || {}),
           },
+          globalHeaders: {
+            ...prevConfig.globalHeaders,
+            ...(config.globalHeaders || {}),
+          },
           sections: {
             ...prevConfig.sections,
             ...(config.sections || {}),
-          },
-          globalHeaders: {
-            ...prevConfig.globalHeaders,
-            ...(config as any).globalHeaders,
           },
         };
       }
@@ -166,11 +194,18 @@ export const StyleConfigProvider = ({ children }: { children: ReactNode }) => {
 
   const resetStyleConfig = () => {
     setStyleConfig(normalizeColors({ ...defaultStyleConfig }));
-    setSelectedElement(null);
   };
 
   return (
-    <StyleConfigContext.Provider value={{ styleConfig, updateStyleConfig, resetStyleConfig, selectedElement, setSelectedElement }}>
+    <StyleConfigContext.Provider
+      value={{
+        styleConfig,
+        updateStyleConfig,
+        resetStyleConfig,
+        selectedElement,
+        setSelectedElement,
+      }}
+    >
       {children}
     </StyleConfigContext.Provider>
   );
