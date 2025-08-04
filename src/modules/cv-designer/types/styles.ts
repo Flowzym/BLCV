@@ -70,6 +70,10 @@ export interface ElementStyleOverride {
 
 export interface SectionStyleOverride {
   sectionId: string;
+  font?: FontConfig; // Allgemeiner Font für den Sektionsinhalt
+  header?: { // Spezifischer Font für Sektionsüberschriften
+    font?: FontConfig;
+  };
   styles: Record<string, string | number>;
   elementOverrides?: ElementStyleOverride[];
 }

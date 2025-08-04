@@ -30,49 +30,75 @@ const sectionFields: Record<string, string[]> = {
   skills: ["header", "skillname", "level"],
 };
 
+const FONT_FAMILIES = [
+  { value: "Inter", label: "Inter" },
+  { value: "Roboto", label: "Roboto" },
+  { value: "Arial", label: "Arial" },
+  { value: "Helvetica", label: "Helvetica" },
+  { value: "Georgia", label: "Georgia" },
+  { value: "Verdana", label: "Verdana" },
+  { value: "Tahoma", label: "Tahoma" },
+  { value: "Times New Roman", label: "Times New Roman" },
+  { value: "Courier New", label: "Courier New" },
+];
+
 export const StyleTypographyPanel: React.FC = () => {
   const { styleConfig, updateStyleConfig } = useStyleConfig();
 
   const updateFont = (
-    section: string,
-    field: string,
+    sectionId: string,
+    type: 'header' | 'content' | 'field', // NEU: Typ des zu aktualisierenden Fonts
+    key: string | null, // Für 'field' der fieldKey, sonst null
     updates: Partial<FontConfig>
   ) => {
-    const newConfig: StyleConfig = {
-      ...styleConfig,
-      sections: {
-        ...styleConfig.sections,
-        [section]: {
-          sectionId: section,
-          ...(styleConfig.sections?.[section] || {}),
-          fields: {
-            ...(styleConfig.sections?.[section]?.fields || {}),
-            [field]: {
-              ...(styleConfig.sections?.[section]?.fields?.[field] || {}),
-              font: {
-                ...(styleConfig.sections?.[section]?.fields?.[field]?.font ||
-                  defaultFont),
-                ...updates,
-              },
-            },
-          },
-        },
-      },
-    };
+    const newConfig: StyleConfig = { ...styleConfig };
+    if (!newConfig.sections) newConfig.sections = {};
+    if (!newConfig.sections[sectionId]) newConfig.sections[sectionId] = { sectionId: sectionId };
+
+    const currentSection = newConfig.sections[sectionId];
+
+    if (type === 'header') {
+      if (!currentSection.header) currentSection.header = {};
+      currentSection.header.font = { ...(currentSection.header.font || defaultFont), ...updates };
+    } else if (type === 'content') { // Allgemeiner Sektionsinhalt
+      currentSection.font = { ...(currentSection.font || defaultFont), ...updates };
+    } else if (type === 'field' && key) { // Spezifisches Feld
+      if (!currentSection.fields) currentSection.fields = {};
+      if (!currentSection.fields[key]) currentSection.fields[key] = {};
+      currentSection.fields[key]!.font = { ...(currentSection.fields[key]?.font || defaultFont), ...updates };
+    }
 
     updateStyleConfig(newConfig);
   };
 
-  const renderFieldEditor = (
-    section: string,
-    field: string,
+  const renderFontEditor = (
+    sectionId: string,
+    type: 'header' | 'content' | 'field',
+    key: string | null, // Für 'field' der fieldKey, sonst null
     font: FontConfig = defaultFont
   ) => {
     const safeFont = { ...defaultFont, ...font };
+    const editorTitle = type === 'header' ? "Überschrift" : (type === 'content' ? "Allgemeiner Inhalt" : key);
 
     return (
-      <div key={field} className="space-y-2 border p-3 rounded-md mb-3">
-        <h4 className="text-sm font-semibold text-gray-700">{field}</h4>
+      <div key={`${sectionId}-${type}-${key}`} className="space-y-2 border p-3 rounded-md mb-3">
+        <h4 className="text-sm font-semibold text-gray-700">{editorTitle}</h4>
+
+        {/* Schriftart */}
+        <div>
+          <Label>Schriftart</Label>
+          <select
+            value={safeFont.family}
+            onChange={(e) => updateFont(sectionId, type, key, { family: e.target.value })}
+            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+          >
+            {FONT_FAMILIES.map((fontFamily) => (
+              <option key={fontFamily.value} value={fontFamily.value}>
+                {fontFamily.label}
+              </option>
+            ))}
+          </select>
+        </div>
 
         {/* Schriftgröße */}
         <div className="flex items-center gap-2">
@@ -81,7 +107,7 @@ export const StyleTypographyPanel: React.FC = () => {
             type="number"
             value={safeFont.size}
             onChange={(e) =>
-              updateFont(section, field, {
+              updateFont(sectionId, type, key, {
                 size: parseInt(e.target.value, 10) || defaultFont.size,
               })
             }
@@ -97,7 +123,7 @@ export const StyleTypographyPanel: React.FC = () => {
             type="color"
             value={safeFont.color || defaultFont.color}
             onChange={(e) =>
-              updateFont(section, field, { color: e.target.value })
+              updateFont(sectionId, type, key, { color: e.target.value })
             }
             className="w-12 h-8 p-0 border-none"
           />
@@ -107,19 +133,19 @@ export const StyleTypographyPanel: React.FC = () => {
         <div className="flex gap-2">
           <Button
             variant={safeFont.weight === "bold" ? "default" : "outline"}
-            onClick={() => updateFont(section, field, { weight: "bold" })}
+            onClick={() => updateFont(sectionId, type, key, { weight: "bold" })}
           >
             B
           </Button>
           <Button
             variant={safeFont.weight === "italic" ? "default" : "outline"}
-            onClick={() => updateFont(section, field, { weight: "italic" })}
+            onClick={() => updateFont(sectionId, type, key, { weight: "italic" })}
           >
             I
           </Button>
           <Button
             variant={safeFont.weight === "normal" ? "default" : "outline"}
-            onClick={() => updateFont(section, field, { weight: "normal" })}
+            onClick={() => updateFont(sectionId, type, key, { weight: "normal" })}
           >
             R
           </Button>
@@ -134,7 +160,7 @@ export const StyleTypographyPanel: React.FC = () => {
             step={0.1}
             value={[safeFont.letterSpacing ?? 0]}
             onValueChange={(v) =>
-              updateFont(section, field, { letterSpacing: v[0] })
+              updateFont(sectionId, type, key, { letterSpacing: v[0] })
             }
           />
         </div>
@@ -148,7 +174,7 @@ export const StyleTypographyPanel: React.FC = () => {
             step={0.1}
             value={[safeFont.lineHeight ?? 1.6]}
             onValueChange={(v) =>
-              updateFont(section, field, { lineHeight: v[0] })
+              updateFont(sectionId, type, key, { lineHeight: v[0] })
             }
           />
         </div>
@@ -162,17 +188,24 @@ export const StyleTypographyPanel: React.FC = () => {
         Typografie pro Bereich & Subfeld
       </h3>
       <Accordion type="multiple" className="space-y-2">
-        {Object.entries(sectionFields).map(([section, fields]) => (
-          <AccordionItem key={section} value={section}>
+        {Object.entries(sectionFields).map(([sectionId, fields]) => (
+          <AccordionItem key={sectionId} value={sectionId}>
             <AccordionTrigger className="capitalize">
-              {section}
+              {sectionId}
             </AccordionTrigger>
             <AccordionContent>
-              {fields.map((field) => {
+              {/* Editor für die Sektions-Überschrift */}
+              {renderFontEditor(sectionId, 'header', null, styleConfig.sections?.[sectionId]?.header?.font || defaultFont)}
+
+              {/* Editor für den allgemeinen Sektionsinhalt */}
+              {renderFontEditor(sectionId, 'content', null, styleConfig.sections?.[sectionId]?.font || defaultFont)}
+
+              {/* Editoren für spezifische Felder */}
+              {fields.filter(field => field !== 'header').map((fieldKey) => {
                 const font =
-                  styleConfig.sections?.[section]?.fields?.[field]?.font ||
+                  styleConfig.sections?.[sectionId]?.fields?.[fieldKey]?.font ||
                   defaultFont;
-                return renderFieldEditor(section, field, font);
+                return renderFontEditor(sectionId, 'field', fieldKey, font);
               })}
             </AccordionContent>
           </AccordionItem>

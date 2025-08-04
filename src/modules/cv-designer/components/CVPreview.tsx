@@ -83,35 +83,23 @@ const SectionRenderer = ({
 }) => {
   const elementStyle = renderElementToCanvas(element, styleConfig);
 
-  // Header-Config
-  const headerFont =
-    styleConfig.sections?.[element.type]?.fields?.header?.font || {
-      size: 14,
-      weight: "600",
-      color: styleConfig.colors?.primary || "#1e40af",
-      lineHeight: 1.2,
-      letterSpacing: 0,
-    };
-
   return (
     <div key={element.id} style={elementStyle}>
+      {/* NEU: Render element.title via RenderElementContent mit field="header" */}
       {element.title && element.type !== "photo" && (
-        <h3
+        <div
           style={{
-            fontSize: headerFont.size ? `${headerFont.size}px` : "14px",
-            fontWeight: headerFont.weight || "600",
-            color: headerFont.color || styleConfig.colors?.primary || "#1e40af",
-            lineHeight: headerFont.lineHeight || 1.2,
-            letterSpacing: headerFont.letterSpacing
-              ? `${headerFont.letterSpacing}px`
-              : "0px",
             marginBottom: "6px",
             borderBottom: `1px solid ${styleConfig.colors?.secondary || "#3b82f6"}`,
             paddingBottom: "2px",
           }}
         >
-          {element.title}
-        </h3>
+          <RenderElementContent
+            element={{ ...element, content: element.title }} // Titel als Inhalt übergeben
+            style={styleConfig}
+            field="header" // Spezieller Feld-Key für Überschriften
+          />
+        </div>
       )}
 
       <div
@@ -123,11 +111,11 @@ const SectionRenderer = ({
           overflow: "hidden",
         }}
       >
-        {/* 🔑 field wird mitgegeben, damit Subfeld-Fonts wirken */}
+        {/* Bestehender Aufruf für element.content, jetzt mit field="content" */}
         <RenderElementContent
           element={element}
           style={styleConfig}
-          field={element.field}
+          field="content" // Spezieller Feld-Key für den Hauptinhalt
         />
       </div>
     </div>

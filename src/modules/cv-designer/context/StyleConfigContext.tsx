@@ -26,7 +26,118 @@ const defaultStyleConfig: StyleConfig = {
   borderRadius: 4,
   borderColor: "#e5e7eb",
   borderWidth: 1,
-  sections: {}, // 🆕 keine Felder = leeres Objekt
+  sections: { // NEU: Default-Sektionen mit Header- und Content-Fonts
+    profil: {
+      sectionId: "profil",
+      font: { // Allgemeiner Font für Profil-Inhalt
+        family: "Inter", 
+        size: 12, 
+        weight: "normal", 
+        color: "#333333", 
+        lineHeight: 1.6,
+        letterSpacing: 0
+      },
+      header: { // Font für Profil-Überschrift
+        font: { 
+          family: "Inter", 
+          size: 16, 
+          weight: "bold", 
+          color: "#1e40af",
+          lineHeight: 1.2,
+          letterSpacing: 0
+        }
+      },
+      fields: {} // Feldspezifische Fonts können hier definiert werden
+    },
+    erfahrung: {
+      sectionId: "erfahrung",
+      font: { 
+        family: "Inter", 
+        size: 12, 
+        weight: "normal", 
+        color: "#333333", 
+        lineHeight: 1.6,
+        letterSpacing: 0
+      },
+      header: { 
+        font: { 
+          family: "Inter", 
+          size: 16, 
+          weight: "bold", 
+          color: "#1e40af",
+          lineHeight: 1.2,
+          letterSpacing: 0
+        }
+      },
+      fields: {}
+    },
+    ausbildung: {
+      sectionId: "ausbildung",
+      font: { 
+        family: "Inter", 
+        size: 12, 
+        weight: "normal", 
+        color: "#333333", 
+        lineHeight: 1.6,
+        letterSpacing: 0
+      },
+      header: { 
+        font: { 
+          family: "Inter", 
+          size: 16, 
+          weight: "bold", 
+          color: "#1e40af",
+          lineHeight: 1.2,
+          letterSpacing: 0
+        }
+      },
+      fields: {}
+    },
+    kenntnisse: {
+      sectionId: "kenntnisse",
+      font: { 
+        family: "Inter", 
+        size: 12, 
+        weight: "normal", 
+        color: "#333333", 
+        lineHeight: 1.6,
+        letterSpacing: 0
+      },
+      header: { 
+        font: { 
+          family: "Inter", 
+          size: 16, 
+          weight: "bold", 
+          color: "#1e40af",
+          lineHeight: 1.2,
+          letterSpacing: 0
+        }
+      },
+      fields: {}
+    },
+    softskills: {
+      sectionId: "softskills",
+      font: { 
+        family: "Inter", 
+        size: 12, 
+        weight: "normal", 
+        color: "#333333", 
+        lineHeight: 1.6,
+        letterSpacing: 0
+      },
+      header: { 
+        font: { 
+          family: "Inter", 
+          size: 16, 
+          weight: "bold", 
+          color: "#1e40af",
+          lineHeight: 1.2,
+          letterSpacing: 0
+        }
+      },
+      fields: {}
+    }
+  },
 };
 
 interface StyleConfigContextValue {

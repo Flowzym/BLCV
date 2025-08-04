@@ -14,49 +14,54 @@ interface Props {
 export const RenderElementContent: React.FC<Props> = ({
   element,
   style,
-  field,
+  field, // Verwenden Sie 'field' als Prop-Namen
   maxSkills = 8,
 }) => {
-  // DEBUG: Detailed logging for font config flow
-  console.log('=== RenderElementContent DEBUG START ===');
+  // Debugging-Logs
   console.log('RenderElementContent: element.type:', element.type);
-  console.log('RenderElementContent: field prop received:', field);
-  console.log('RenderElementContent: element.field:', element.field);
-  
-  // Bestimme den effektiven fieldKey
-  const fieldKey = field || element.field || "default";
-  console.log('RenderElementContent: calculated fieldKey:', fieldKey);
-  
-  // Versuche fontConfig zu finden
-  const fontConfig = style.sections?.[element.type]?.fields?.[fieldKey]?.font;
-  console.log('RenderElementContent: style.sections?.[element.type]:', style.sections?.[element.type]);
-  console.log('RenderElementContent: style.sections?.[element.type]?.fields:', style.sections?.[element.type]?.fields);
-  console.log('RenderElementContent: style.sections?.[element.type]?.fields?.[fieldKey]:', style.sections?.[element.type]?.fields?.[fieldKey]);
-  console.log('RenderElementContent: retrieved fontConfig:', fontConfig);
+  console.log('RenderElementContent: field prop (contentFieldKey):', field);
+
+  // 1. Font für spezifisches Feld (z.B. 'profil.fields.name.font' oder 'profil.fields.header.font')
+  let effectiveFontConfig: FontConfig | undefined = undefined;
+  if (field) {
+    effectiveFontConfig = style.sections?.[element.type]?.fields?.[field]?.font;
+    console.log('RenderElementContent: field-specific fontConfig:', effectiveFontConfig);
+  }
+
+  // 2. Allgemeiner Font für die Sektion (z.B. 'profil.font')
+  if (!effectiveFontConfig) {
+    effectiveFontConfig = style.sections?.[element.type]?.font;
+    console.log('RenderElementContent: section-general fontConfig:', effectiveFontConfig);
+  }
+
+  // 3. Globaler Standard-Font
+  if (!effectiveFontConfig) {
+    effectiveFontConfig = style.font;
+    console.log('RenderElementContent: global fontConfig:', effectiveFontConfig);
+  }
+
+  console.log('RenderElementContent: final effectiveFontConfig:', effectiveFontConfig);
 
   const applyFontStyle = (
     content: React.ReactNode,
     extraStyle: React.CSSProperties = {}
   ) => {
-    if (!fontConfig) {
-      console.log('RenderElementContent: No fontConfig found, using default styling');
+    if (!effectiveFontConfig) {
+      console.log('RenderElementContent: No effectiveFontConfig found. Applying default styles.');
       return <span style={extraStyle}>{content}</span>;
     }
 
     const fontStyle: React.CSSProperties = {
-      fontSize: fontConfig.size ? `${fontConfig.size}px` : undefined,
-      fontWeight: fontConfig.weight || undefined,
-      color: fontConfig.color || undefined,
+      fontSize: effectiveFontConfig.size ? `${effectiveFontConfig.size}px` : undefined,
+      fontWeight: effectiveFontConfig.weight || undefined,
+      color: effectiveFontConfig.color || undefined,
       letterSpacing:
-        fontConfig.letterSpacing !== undefined
-          ? `${fontConfig.letterSpacing}px`
+        effectiveFontConfig.letterSpacing !== undefined
+          ? `${effectiveFontConfig.letterSpacing}px`
           : undefined,
-      lineHeight: fontConfig.lineHeight || undefined,
+      lineHeight: effectiveFontConfig.lineHeight || undefined,
     };
-    
-    console.log('RenderElementContent: calculated fontStyle object:', fontStyle);
-    console.log('RenderElementContent: final combined style:', { ...extraStyle, ...fontStyle });
-    console.log('=== RenderElementContent DEBUG END ===');
+    console.log('RenderElementContent: applied fontStyle:', fontStyle);
 
     return <span style={{ ...extraStyle, ...fontStyle }}>{content}</span>;
   };
