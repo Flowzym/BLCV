@@ -1,5 +1,3 @@
-// 📄 src/modules/cv-designer/components/StyleTypographyPanel.tsx
-
 import React from "react";
 import { useStyleConfig } from "../context/StyleConfigContext";
 import { StyleConfig, FontConfig } from "../types/styles";
@@ -26,8 +24,8 @@ const defaultFont: FontConfig = {
 
 // Section-Felder + globale Bereiche
 const sectionFields: Record<string, string[]> = {
-  allHeaders: ["header"], // NEU: globaler Bereich für alle Überschriften
-  name: ["field"],        // NEU: globaler Bereich für Name
+  allHeaders: ["header"], // global: alle Überschriften
+  name: ["field"],        // global: Name-Feld
   profil: ["header", "name", "adresse", "mail", "telefon"],
   erfahrung: ["header", "position", "firma", "zeitraum", "taetigkeiten"],
   ausbildung: ["header", "abschluss", "institution", "zeitraum"],
@@ -57,7 +55,7 @@ export const StyleTypographyPanel: React.FC = () => {
   const { styleConfig, updateStyleConfig } = useStyleConfig();
 
   /**
-   * Update-Funktion – behandelt auch Sonderfälle "allHeaders" & "name"
+   * Update-Funktion mit globaler Logik
    */
   const updateFont = (
     sectionId: string,
@@ -65,41 +63,29 @@ export const StyleTypographyPanel: React.FC = () => {
     key: string | null,
     updates: Partial<FontConfig>
   ) => {
+    // 🟢 Global: alle Überschriften
     if (sectionId === "allHeaders") {
-      const prev = styleConfig.sections?.allHeaders?.header?.font;
-      const merged: FontConfig = {
-        ...defaultFont,
-        ...(prev || {}),
-        ...updates,
-      };
+      const prev = styleConfig.global?.allHeaders || {};
+      const merged: FontConfig = { ...defaultFont, ...prev, ...updates };
 
       updateStyleConfig({
-        sections: {
-          ...styleConfig.sections,
-          allHeaders: { header: { font: merged } },
-        },
+        global: { ...styleConfig.global, allHeaders: merged },
       });
       return;
     }
 
+    // 🟢 Global: Name-Feld
     if (sectionId === "name") {
-      const prev = styleConfig.sections?.name?.font;
-      const merged: FontConfig = {
-        ...defaultFont,
-        ...(prev || {}),
-        ...updates,
-      };
+      const prev = styleConfig.global?.name || {};
+      const merged: FontConfig = { ...defaultFont, ...prev, ...updates };
 
       updateStyleConfig({
-        sections: {
-          ...styleConfig.sections,
-          name: { font: merged },
-        },
+        global: { ...styleConfig.global, name: merged },
       });
       return;
     }
 
-    // Normale Sections
+    // 🟢 Normale Sections
     const prev =
       type === "header"
         ? styleConfig.sections?.[sectionId]?.header?.font
@@ -116,7 +102,7 @@ export const StyleTypographyPanel: React.FC = () => {
       color:
         updates.color ??
         prev?.color ??
-        (type === "header" || sectionId === "allHeaders"
+        (type === "header"
           ? styleConfig.colors?.primary || styleConfig.primaryColor || defaultFont.color
           : styleConfig.colors?.text || styleConfig.textColor || defaultFont.color),
       letterSpacing: updates.letterSpacing ?? prev?.letterSpacing ?? defaultFont.letterSpacing,
@@ -147,7 +133,7 @@ export const StyleTypographyPanel: React.FC = () => {
   };
 
   /**
-   * Editor für einzelne Fonts
+   * Font Editor Rendering
    */
   const renderFontEditor = (
     sectionId: string,
@@ -311,7 +297,11 @@ export const StyleTypographyPanel: React.FC = () => {
                 sectionId,
                 "header",
                 null,
-                styleConfig.sections?.[sectionId]?.header?.font || defaultFont
+                sectionId === "allHeaders"
+                  ? styleConfig.global?.allHeaders || defaultFont
+                  : sectionId === "name"
+                  ? styleConfig.global?.name || defaultFont
+                  : styleConfig.sections?.[sectionId]?.header?.font || defaultFont
               )}
               {renderFontEditor(
                 sectionId,
@@ -323,8 +313,10 @@ export const StyleTypographyPanel: React.FC = () => {
                 .filter((field) => field !== "header")
                 .map((fieldKey) => {
                   const font =
-                    styleConfig.sections?.[sectionId]?.fields?.[fieldKey]?.font ||
-                    defaultFont;
+                    sectionId === "name"
+                      ? styleConfig.global?.name || defaultFont
+                      : styleConfig.sections?.[sectionId]?.fields?.[fieldKey]?.font ||
+                        defaultFont;
                   return renderFontEditor(sectionId, "field", fieldKey, font);
                 })}
             </AccordionContent>
