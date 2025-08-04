@@ -1,3 +1,5 @@
+// 📄 src/components/StyleEditor.tsx
+
 /**
  * Style Editor Component
  * Provides comprehensive styling controls for CV design
@@ -38,6 +40,7 @@ export const StyleEditor: React.FC<StyleEditorProps> = ({
     { name: "Classic Black", primary: "#000000", accent: "#404040" },
   ];
 
+  /** ---------- Farben ---------- */
   const renderColorsSection = () => (
     <div className="space-y-4">
       <h3 className="font-medium text-gray-900">Farben</h3>
@@ -86,44 +89,71 @@ export const StyleEditor: React.FC<StyleEditorProps> = ({
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Primärfarbe
           </label>
-          <input
-            type="color"
-            value={config.colors.primary}
-            onChange={(e) =>
-              handleConfigChange({
-                colors: { ...config.colors, primary: e.target.value },
-              })
-            }
-            className="w-12 h-8 p-0 border-none cursor-pointer"
-          />
+          <div className="flex items-center space-x-2">
+            <input
+              type="color"
+              value={config.colors?.primary || "#1e40af"}
+              onChange={(e) =>
+                handleConfigChange({
+                  colors: { ...config.colors, primary: e.target.value },
+                })
+              }
+              className="w-8 h-8 border rounded cursor-pointer"
+            />
+            <input
+              type="text"
+              value={config.colors?.primary || "#1e40af"}
+              onChange={(e) =>
+                handleConfigChange({
+                  colors: { ...config.colors, primary: e.target.value },
+                })
+              }
+              className="flex-1 px-2 py-1 text-xs font-mono border rounded"
+              placeholder="#1e40af"
+            />
+          </div>
         </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Akzentfarbe
+            Sekundärfarbe
           </label>
-          <input
-            type="color"
-            value={config.colors.secondary || "#3b82f6"}
-            onChange={(e) =>
-              handleConfigChange({
-                colors: { ...config.colors, secondary: e.target.value },
-              })
-            }
-            className="w-12 h-8 p-0 border-none cursor-pointer"
-          />
+          <div className="flex items-center space-x-2">
+            <input
+              type="color"
+              value={config.colors?.secondary || "#3b82f6"}
+              onChange={(e) =>
+                handleConfigChange({
+                  colors: { ...config.colors, secondary: e.target.value },
+                })
+              }
+              className="w-8 h-8 border rounded cursor-pointer"
+            />
+            <input
+              type="text"
+              value={config.colors?.secondary || "#3b82f6"}
+              onChange={(e) =>
+                handleConfigChange({
+                  colors: { ...config.colors, secondary: e.target.value },
+                })
+              }
+              className="flex-1 px-2 py-1 text-xs font-mono border rounded"
+              placeholder="#3b82f6"
+            />
+          </div>
         </div>
       </div>
     </div>
   );
 
-  /** ⬇️ Typografie → ausgelagert in eigenes Panel */
+  /** ---------- Typografie ---------- */
   const renderTypographySection = () => (
     <div className="space-y-4">
       <StyleTypographyPanel />
     </div>
   );
 
+  /** ---------- Layout ---------- */
   const renderLayoutSection = () => (
     <div className="space-y-4">
       <h3 className="font-medium text-gray-900">Layout</h3>
@@ -132,21 +162,23 @@ export const StyleEditor: React.FC<StyleEditorProps> = ({
           Seitenränder
         </label>
         <div className="grid grid-cols-3 gap-2">
-          {[16, 24, 32].map((margin) => (
+          {["compact", "normal", "wide"].map((margin) => (
             <button
               key={margin}
               onClick={() =>
-                handleConfigChange({
-                  spacing: { ...config.spacing, margin },
-                })
+                handleConfigChange({ spacing: { ...config.spacing, margin: margin as any } })
               }
-              className={`px-3 py-2 text-sm border rounded-lg transition-colors ${
+              className={`px-3 py-2 text-sm border rounded-lg transition-colors capitalize ${
                 config.spacing?.margin === margin
                   ? "bg-blue-600 text-white border-blue-600"
                   : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
               }`}
             >
-              {margin}px
+              {margin === "compact"
+                ? "Kompakt"
+                : margin === "normal"
+                ? "Normal"
+                : "Weit"}
             </button>
           ))}
         </div>
@@ -154,28 +186,38 @@ export const StyleEditor: React.FC<StyleEditorProps> = ({
     </div>
   );
 
+  /** ---------- Abstände ---------- */
   const renderSpacingSection = () => (
     <div className="space-y-4">
       <h3 className="font-medium text-gray-900">Abstände</h3>
       <div className="bg-gray-50 p-4 rounded-lg">
+        <p className="text-sm text-gray-600 mb-3">
+          Abstände werden automatisch basierend auf den Layout-Einstellungen berechnet.
+        </p>
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
             <span>Sektionsabstand:</span>
             <span className="font-medium">
-              {config.spacing?.margin ?? 24}px
+              {config.spacing?.margin === "compact"
+                ? "16px"
+                : config.spacing?.margin === "normal"
+                ? "24px"
+                : "32px"}
             </span>
           </div>
           <div className="flex justify-between">
-            <span>Padding:</span>
+            <span>Elementabstand:</span>
             <span className="font-medium">
-              {config.spacing?.padding ?? 12}px
+              {config.spacing?.margin === "compact"
+                ? "8px"
+                : config.spacing?.margin === "normal"
+                ? "12px"
+                : "16px"}
             </span>
           </div>
           <div className="flex justify-between">
             <span>Zeilenabstand:</span>
-            <span className="font-medium">
-              {config.font?.lineHeight ?? 1.6}
-            </span>
+            <span className="font-medium">{config.font?.lineHeight || 1.6}</span>
           </div>
         </div>
       </div>
