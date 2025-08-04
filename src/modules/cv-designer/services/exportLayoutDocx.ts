@@ -207,7 +207,7 @@ async function generateSectionParagraphs(
 
   // Section title
   if (section.title) {
-    const effectiveTitleFont = getEffectiveFontConfig('section', null, 'header', styles);
+    const effectiveTitleFont = getEffectiveFontConfig(section.type || 'profil', null, 'header', styles);
     const titleFontFamily = getFontFamilyWithFallback(effectiveTitleFont.family).split(',')[0].replace(/"/g, '').trim();
     console.log('DOCX Export: Section title font:', titleFontFamily);
     
@@ -232,7 +232,7 @@ async function generateSectionParagraphs(
   if (section.content) {
     const processedContent = processTextForExport(section.content);
     const contentLines = processedContent.split('\n').filter(line => line.trim());
-    const effectiveContentFont = getEffectiveFontConfig('section', null, 'content', styles);
+    const effectiveContentFont = getEffectiveFontConfig(section.type || 'profil', null, 'content', styles);
     const contentFontFamily = getFontFamilyWithFallback(effectiveContentFont.family).split(',')[0].replace(/"/g, '').trim();
     console.log('DOCX Export: Section content font:', contentFontFamily);
     

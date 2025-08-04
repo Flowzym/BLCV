@@ -1,5 +1,5 @@
 /**
- * Font Utilities - Zentrale Font-Vererbung und effektive Konfiguration
+ * Font Utilities - Vereinfachte Font-Vererbung ohne globale Einstellungen
  */
 
 import { StyleConfig, FontConfig, SectionStyleOverride } from "../types/styles";
@@ -28,7 +28,7 @@ export function mapFontSizeToPixels(fontSize?: string): number {
 
 /**
  * 🎯 ZENTRALE UTILITY: Berechnet effektive Font-Konfiguration
- * Vererbungsreihenfolge: default → global → allHeaders → name → section → field
+ * Vereinfachte Vererbungsreihenfolge: default → section → field
  * Nur !== undefined Werte überschreiben vorherige Werte
  */
 export function getEffectiveFontConfig(
@@ -43,63 +43,38 @@ export function getEffectiveFontConfig(
   let effective: FontConfig = { ...defaultFont };
   console.log('Step 1 - defaults:', effective);
 
-  // Step 2: Apply global base font (styleConfig.font)
-  if (styleConfig.font) {
-    effective = mergeFont(effective, styleConfig.font);
-    console.log('Step 2 - global font:', effective);
-  }
-
-  // Step 3: Apply global fontSize enum mapping (styleConfig.fontSize)
-  if (styleConfig.fontSize) {
-    const mappedSize = mapFontSizeToPixels(styleConfig.fontSize);
-    effective = mergeFont(effective, { size: mappedSize });
-    console.log('Step 3 - global fontSize mapping:', effective, 'from enum:', styleConfig.fontSize);
-  }
-
-  // Step 4: Apply allHeaders (for header types only)
-  if (type === "header" && styleConfig.sections?.allHeaders?.header?.font) {
-    effective = mergeFont(effective, styleConfig.sections.allHeaders.header.font);
-    console.log('Step 4 - allHeaders:', effective);
-  }
-
-  // Step 5: Apply global name (for name field only)
-  if (sectionId === "profil" && fieldKey === "name" && styleConfig.sections?.name?.font) {
-    effective = mergeFont(effective, styleConfig.sections.name.font);
-    console.log('Step 5 - global name:', effective);
-  }
-
-  // Step 6: Apply section-specific font
+  // Step 2: Apply section-specific font
   const sectionConfig = styleConfig.sections?.[sectionId];
   if (sectionConfig) {
     if (type === "header" && sectionConfig.header?.font) {
       effective = mergeFont(effective, sectionConfig.header.font);
-      console.log('Step 6a - section header:', effective);
+      console.log('Step 2a - section header:', effective);
     } else if (type === "content" && sectionConfig.font) {
       effective = mergeFont(effective, sectionConfig.font);
-      console.log('Step 6b - section content:', effective);
+      console.log('Step 2b - section content:', effective);
     }
   }
 
-  // Step 7: Apply field-specific font
+  // Step 3: Apply field-specific font
   if (fieldKey && sectionConfig?.fields?.[fieldKey]?.font) {
     effective = mergeFont(effective, sectionConfig.fields[fieldKey].font);
-    console.log('Step 7 - field specific:', effective);
+    console.log('Step 3 - field specific:', effective);
   }
 
-  // Step 8: Apply color inheritance from styleConfig.colors
+  // Step 4: Apply color inheritance from styleConfig.colors
   if (!effective.color || effective.color === defaultFont.color) {
     if (type === "header") {
       effective.color = styleConfig.colors?.primary || styleConfig.primaryColor || defaultFont.color;
     } else {
       effective.color = styleConfig.colors?.text || styleConfig.textColor || defaultFont.color;
     }
-    console.log('Step 8 - color inheritance:', effective);
+    console.log('Step 4 - color inheritance:', effective);
   }
 
   // 🎯 WICHTIG: Sicherstellen, dass fontSize immer numerisch in px ist
   if (typeof effective.size === 'string') {
     effective.size = mapFontSizeToPixels(effective.size);
-    console.log('Step 9 - fontSize conversion to px:', effective.size);
+    console.log('Step 5 - fontSize conversion to px:', effective.size);
   }
 
   console.log(`✅ getEffectiveFontConfig: FINAL result for ${sectionId}.${type}.${fieldKey || 'null'}:`, effective);
@@ -131,14 +106,6 @@ export function getLocalFontConfig(
   type: "header" | "content" | "field",
   styleConfig: StyleConfig
 ): Partial<FontConfig> | undefined {
-  if (sectionId === "allHeaders" && type === "header") {
-    return styleConfig.sections?.allHeaders?.header?.font;
-  }
-  
-  if (sectionId === "name") {
-    return styleConfig.sections?.name?.font;
-  }
-
   const sectionConfig = styleConfig.sections?.[sectionId];
   if (!sectionConfig) return undefined;
 

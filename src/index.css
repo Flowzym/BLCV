@@ -344,6 +344,17 @@
   }
 }
 
+/* Font Override für CV-Designer */
+.font-override {
+  font-family: inherit !important;
+  font-size: inherit !important;
+  font-weight: inherit !important;
+  font-style: inherit !important;
+  color: inherit !important;
+  letter-spacing: inherit !important;
+  line-height: inherit !important;
+}
+
 /* Fokus-Management */
 .profile-input:focus-within,
 .autocomplete-input:focus-within,

@@ -22,7 +22,7 @@ import {
 } from "../utils/fontUtils";
 import { Lock, RotateCcw, Eye } from "lucide-react";
 
-// Nur Content Sections – globale Settings werden separat gerendert
+// Content Sections mit ihren Feldern
 const contentSections: Record<string, string[]> = {
   profil: ["header", "name", "adresse", "mail", "telefon"],
   erfahrung: ["header", "position", "firma", "zeitraum", "taetigkeiten"],
@@ -63,51 +63,6 @@ export const StyleTypographyPanel: React.FC = () => {
   ) => {
     console.log(`🔧 updateFont: ${sectionId}.${type}.${key || "null"}`, updates);
 
-    if (sectionId === "allHeaders") {
-      updateStyleConfig({
-        sections: {
-          ...styleConfig.sections,
-          allHeaders: {
-            ...styleConfig.sections?.allHeaders,
-            header: {
-              ...styleConfig.sections?.allHeaders?.header,
-              font: {
-                ...styleConfig.sections?.allHeaders?.header?.font,
-                ...updates,
-              },
-            },
-          },
-        },
-      });
-      return;
-    }
-
-    if (sectionId === "name") {
-      updateStyleConfig({
-        sections: {
-          ...styleConfig.sections,
-          name: {
-            ...styleConfig.sections?.name,
-            font: {
-              ...styleConfig.sections?.name?.font,
-              ...updates,
-            },
-          },
-        },
-      });
-      return;
-    }
-
-    if (sectionId === "global") {
-      updateStyleConfig({
-        font: {
-          ...styleConfig.font,
-          ...updates,
-        },
-      });
-      return;
-    }
-
     const currentSection = styleConfig.sections?.[sectionId] || {};
 
     if (type === "header") {
@@ -116,6 +71,7 @@ export const StyleTypographyPanel: React.FC = () => {
           ...styleConfig.sections,
           [sectionId]: {
             ...currentSection,
+            sectionId,
             header: {
               ...currentSection.header,
               font: {
@@ -132,6 +88,7 @@ export const StyleTypographyPanel: React.FC = () => {
           ...styleConfig.sections,
           [sectionId]: {
             ...currentSection,
+            sectionId,
             font: {
               ...currentSection.font,
               ...updates,
@@ -145,6 +102,7 @@ export const StyleTypographyPanel: React.FC = () => {
           ...styleConfig.sections,
           [sectionId]: {
             ...currentSection,
+            sectionId,
             fields: {
               ...currentSection.fields,
               [key]: {
@@ -203,13 +161,13 @@ export const StyleTypographyPanel: React.FC = () => {
             {!hasAnyExplicit && (
               <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded flex items-center">
                 <Eye className="w-3 h-3 mr-1" />
-                Geerbt
+                Standard
               </span>
             )}
             {hasAnyExplicit && (
               <span className="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded flex items-center">
                 <Lock className="w-3 h-3 mr-1" />
-                Überschrieben
+                Angepasst
               </span>
             )}
             <Button
@@ -218,7 +176,7 @@ export const StyleTypographyPanel: React.FC = () => {
               onClick={() => resetFont(sectionId, type, key)}
               disabled={!hasAnyExplicit}
               className="h-6 px-2"
-              title="Auf Vererbung zurücksetzen"
+              title="Auf Standard zurücksetzen"
             >
               <RotateCcw className="w-3 h-3" />
             </Button>
@@ -404,29 +362,9 @@ export const StyleTypographyPanel: React.FC = () => {
     <div className="space-y-6">
       <h3 className="font-medium text-gray-900">Typografie-Einstellungen</h3>
 
-      {/* Globale Settings */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h4 className="font-medium text-blue-900 mb-4 flex items-center">🌐 Globale Einstellungen</h4>
-
-        <div className="mb-6">
-          <h5 className="text-sm font-medium text-blue-800 mb-3">Basis-Schriftart (Global)</h5>
-          {renderFontEditor("global", "content", null, "Globale Basis-Schriftart für alle Texte")}
-        </div>
-
-        <div className="mb-6">
-          <h5 className="text-sm font-medium text-blue-800 mb-3">Alle Überschriften (Global)</h5>
-          {renderFontEditor("allHeaders", "header", null, "Standard für alle Überschriften")}
-        </div>
-
-        <div>
-          <h5 className="text-sm font-medium text-blue-800 mb-3">Name-Feld (Global)</h5>
-          {renderFontEditor("name", "field", "name", "Profil-Name Styling")}
-        </div>
-      </div>
-
-      {/* Content Sections */}
+      {/* Section-basierte Einstellungen */}
       <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-        <h4 className="font-medium text-gray-900 mb-4 flex items-center">📝 Individuelle Sektions-Einstellungen</h4>
+        <h4 className="font-medium text-gray-900 mb-4 flex items-center">📝 Sektions-Einstellungen</h4>
 
         <Accordion type="multiple" className="space-y-2">
           {Object.entries(contentSections).map(([sectionId, fields]) => (

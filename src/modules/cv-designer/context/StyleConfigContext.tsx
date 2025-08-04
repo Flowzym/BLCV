@@ -39,7 +39,7 @@ function normalizeColors(config: StyleConfig): StyleConfig {
 }
 
 /**
- * 🟢 Default-StyleConfig mit vollständigem colors-Objekt
+ * 🟢 Default-StyleConfig ohne globale Font-Einstellungen
  */
 const defaultStyleConfig: StyleConfig = {
   primaryColor: "#1e40af",
@@ -55,14 +55,6 @@ const defaultStyleConfig: StyleConfig = {
   snapSize: 20,
   widthPercent: 100,
 
-  font: {
-    family: "Inter",
-    size: 12,
-    weight: "normal",
-    color: "#333333",
-    letterSpacing: 0,
-    lineHeight: 1.6,
-  },
   colors: {
     primary: "#1e40af",
     accent: "#3b82f6",
@@ -78,7 +70,7 @@ const defaultStyleConfig: StyleConfig = {
       font: { family: "Inter", size: 12, weight: "normal" },
       header: { font: { family: "Inter", size: 16, weight: "bold" } },
       fields: {
-        name: { font: { family: "Inter", size: 20, weight: "bold" } }, // 👈 Name Feld
+        name: { font: { family: "Inter", size: 20, weight: "bold" } },
       },
     },
     erfahrung: {
@@ -106,10 +98,6 @@ const defaultStyleConfig: StyleConfig = {
       fields: {},
     },
   },
-  // 👇 neu: globalHeaders
-  globalHeaders: {
-    font: { family: "Inter", size: 16, weight: "bold", color: "#1e40af" },
-  },
 };
 
 interface StyleConfigContextValue {
@@ -136,76 +124,27 @@ export const StyleConfigProvider = ({ children }: { children: ReactNode }) => {
   >(null);
 
   const updateStyleConfig = (
-    config: Partial<StyleConfig> & { sectionId?: string }
+    config: Partial<StyleConfig>
   ) => {
     console.log('updateStyleConfig called with:', config);
     
     setStyleConfig((prevConfig) => {
       console.log('updateStyleConfig - prevConfig:', prevConfig);
       
-      let mergedConfig: StyleConfig;
-
-      if (config.sectionId) {
-        const { sectionId, ...rest } = config;
-        console.log(`updateStyleConfig - updating section ${sectionId} with:`, rest);
-        
-        mergedConfig = {
-          ...prevConfig,
-          sections: {
-            ...prevConfig.sections,
-            [sectionId]: {
-              sectionId,
-              ...prevConfig.sections?.[sectionId],
-              ...rest,
-              font: {
-                ...prevConfig.sections?.[sectionId]?.font,
-                ...(rest as any).font,
-              },
-              header: {
-                ...prevConfig.sections?.[sectionId]?.header,
-                ...(rest as any).header,
-                font: {
-                  ...prevConfig.sections?.[sectionId]?.header?.font,
-                  ...(rest as any).header?.font,
-                },
-              },
-              fields: {
-                ...prevConfig.sections?.[sectionId]?.fields,
-                ...(rest as any).fields,
-              },
-            },
-          },
-        };
-      } else {
-        console.log('updateStyleConfig - updating global config with:', config);
-        
-        mergedConfig = {
-          ...prevConfig,
-          ...config,
-          // 🎯 KRITISCH: Globale Font-Eigenschaften korrekt mergen
-          font: {
-            ...prevConfig.font,
-            ...(config.font || {}),
-          },
-          colors: {
-            ...prevConfig.colors,
-            ...(config.colors || {}),
-          },
-          globalHeaders: {
-            ...prevConfig.globalHeaders,
-            ...(config.globalHeaders || {}),
-          },
-          sections: {
-            ...prevConfig.sections,
-            ...(config.sections || {}),
-          },
-        };
-      }
+      const mergedConfig: StyleConfig = {
+        ...prevConfig,
+        ...config,
+        colors: {
+          ...prevConfig.colors,
+          ...(config.colors || {}),
+        },
+        sections: {
+          ...prevConfig.sections,
+          ...(config.sections || {}),
+        },
+      };
 
       console.log('updateStyleConfig - mergedConfig:', mergedConfig);
-      console.log('🔧 updateStyleConfig - mergedConfig.font:', mergedConfig.font);
-      console.log('🔧 updateStyleConfig - mergedConfig.fontSize:', mergedConfig.fontSize);
-      console.log('🔧 updateStyleConfig - mergedConfig.sections?.allHeaders:', mergedConfig.sections?.allHeaders);
       return normalizeColors(mergedConfig);
     });
   };

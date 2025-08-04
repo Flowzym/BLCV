@@ -30,7 +30,6 @@ export const RenderElementContent: React.FC<Props> = ({
   );
 
   console.log(`🎨 RenderElementContent: effective font for ${element.type}.${field || 'content'}:`, effectiveFontConfig);
-  console.log(`🎨 RenderElementContent: fontFamily=${effectiveFontConfig.family}, fontSize=${effectiveFontConfig.size}px`);
 
   // Color getters with robust fallback chains
   const getPrimaryColor = () =>
@@ -56,9 +55,9 @@ export const RenderElementContent: React.FC<Props> = ({
     const fontFamilyWithFallbacks = getFontFamilyWithFallback(effectiveFontConfig.family);
 
     const styleObj: React.CSSProperties = {
-      // 🎯 KRITISCH: Inline-Styles für Font-Eigenschaften verwenden (überschreibt Tailwind)
+      // 🎯 KRITISCH: Inline-Styles mit !important für Font-Eigenschaften (überschreibt Tailwind)
       fontFamily: fontFamilyWithFallbacks,
-      fontSize: `${effectiveFontConfig.size}px !important`,
+      fontSize: `${effectiveFontConfig.size}px`,
       fontWeight: effectiveFontConfig.weight,
       fontStyle: effectiveFontConfig.style,
       color: effectiveFontConfig.color,
@@ -69,9 +68,21 @@ export const RenderElementContent: React.FC<Props> = ({
       ...extraStyle,
     };
 
-    console.log(`🎨 RenderElementContent: applied fontStyle for ${element.type}.${field || 'content'}:`, styleObj);
+    console.log(`🎨 RenderElementContent: applied fontStyle for ${element.type}.${field || 'content'}:`, {
+      fontFamily: styleObj.fontFamily,
+      fontSize: styleObj.fontSize,
+      fontWeight: styleObj.fontWeight,
+      color: styleObj.color
+    });
 
-    return <span style={styleObj}>{content}</span>;
+    return (
+      <span 
+        style={styleObj}
+        className="font-override"
+      >
+        {content}
+      </span>
+    );
   };
 
   /* -------- Foto -------- */
