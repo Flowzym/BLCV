@@ -148,14 +148,14 @@
 /* BOLT-UI-ANPASSUNG 2025-01-15: Quill Editor Styling - A4-Simulation */
 .ql-container {
   border: none !important;
-  font-family: "Roboto", Arial, sans-serif !important;
+  font-family: "Roboto", Arial, sans-serif;
   font-size: 14px !important;
   line-height: 1.6 !important;
 }
 
 .ql-editor {
   padding: 64px 72px !important; /* BOLT-UI-ANPASSUNG 2025-01-15: 3cm Ränder für A4 */
-  font-family: "Roboto", Arial, sans-serif !important;
+  font-family: "Roboto", Arial, sans-serif;
   font-size: 14px !important;
   line-height: 1.6 !important;
   color: #1f2937 !important;
