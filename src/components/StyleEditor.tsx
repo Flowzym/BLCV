@@ -4,8 +4,8 @@
  */
 
 import React, { useState } from "react";
-import { StyleConfig } from "@/modules/cv-designer/types/styles";
-import { StyleTypographyPanel } from "@/modules/cv-designer/components/StyleTypographyPanel";
+import { StyleConfig } from "@/types/cv-designer";
+import { StyleTypographyPanel } from "./StyleTypographyPanel";
 
 interface StyleEditorProps {
   config: StyleConfig;
@@ -36,6 +36,16 @@ export const StyleEditor: React.FC<StyleEditorProps> = ({
     { name: "Modern Green", primary: "#059669", accent: "#10b981" },
     { name: "Creative Purple", primary: "#7c3aed", accent: "#a855f7" },
     { name: "Classic Black", primary: "#000000", accent: "#404040" },
+  ];
+
+  const fontFamilies = [
+    "Inter",
+    "Roboto",
+    "Open Sans",
+    "Lato",
+    "Source Sans Pro",
+    "Poppins",
+    "Montserrat",
   ];
 
   const renderColorsSection = () => (
@@ -89,7 +99,7 @@ export const StyleEditor: React.FC<StyleEditorProps> = ({
           <div className="flex items-center space-x-2">
             <input
               type="color"
-              value={config.colors.primary}
+              value={config.colors?.primary || "#1e40af"}
               onChange={(e) =>
                 handleConfigChange({
                   colors: { ...config.colors, primary: e.target.value },
@@ -99,7 +109,7 @@ export const StyleEditor: React.FC<StyleEditorProps> = ({
             />
             <input
               type="text"
-              value={config.colors.primary}
+              value={config.colors?.primary || "#1e40af"}
               onChange={(e) =>
                 handleConfigChange({
                   colors: { ...config.colors, primary: e.target.value },
@@ -118,7 +128,7 @@ export const StyleEditor: React.FC<StyleEditorProps> = ({
           <div className="flex items-center space-x-2">
             <input
               type="color"
-              value={config.colors.secondary || "#3b82f6"}
+              value={config.colors?.secondary || "#3b82f6"}
               onChange={(e) =>
                 handleConfigChange({
                   colors: { ...config.colors, secondary: e.target.value },
@@ -128,7 +138,7 @@ export const StyleEditor: React.FC<StyleEditorProps> = ({
             />
             <input
               type="text"
-              value={config.colors.secondary || "#3b82f6"}
+              value={config.colors?.secondary || "#3b82f6"}
               onChange={(e) =>
                 handleConfigChange({
                   colors: { ...config.colors, secondary: e.target.value },
@@ -143,7 +153,7 @@ export const StyleEditor: React.FC<StyleEditorProps> = ({
     </div>
   );
 
-  /** ⬇️ Neu: Typografie kommt aus eigenem Panel */
+  /** ⬇️ Typografie-Panel auslagern */
   const renderTypographySection = () => (
     <div className="space-y-4">
       <StyleTypographyPanel />
@@ -158,21 +168,34 @@ export const StyleEditor: React.FC<StyleEditorProps> = ({
           Seitenränder
         </label>
         <div className="grid grid-cols-3 gap-2">
-          {[16, 24, 32].map((margin) => (
+          {["compact", "normal", "wide"].map((margin) => (
             <button
               key={margin}
               onClick={() =>
                 handleConfigChange({
-                  spacing: { ...config.spacing, margin },
+                  spacing: {
+                    ...config.spacing,
+                    margin:
+                      margin === "compact"
+                        ? 16
+                        : margin === "normal"
+                        ? 24
+                        : 32,
+                  },
                 })
               }
-              className={`px-3 py-2 text-sm border rounded-lg transition-colors ${
-                config.spacing?.margin === margin
+              className={`px-3 py-2 text-sm border rounded-lg transition-colors capitalize ${
+                config.spacing?.margin ===
+                (margin === "compact" ? 16 : margin === "normal" ? 24 : 32)
                   ? "bg-blue-600 text-white border-blue-600"
                   : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
               }`}
             >
-              {margin === 16 ? "Kompakt" : margin === 24 ? "Normal" : "Weit"}
+              {margin === "compact"
+                ? "Kompakt"
+                : margin === "normal"
+                ? "Normal"
+                : "Weit"}
             </button>
           ))}
         </div>
@@ -185,8 +208,7 @@ export const StyleEditor: React.FC<StyleEditorProps> = ({
       <h3 className="font-medium text-gray-900">Abstände</h3>
       <div className="bg-gray-50 p-4 rounded-lg">
         <p className="text-sm text-gray-600 mb-3">
-          Abstände werden automatisch basierend auf den Layout-Einstellungen
-          berechnet.
+          Abstände werden automatisch basierend auf den Layout-Einstellungen berechnet.
         </p>
         <div className="space-y-2 text-sm">
           <div className="flex justify-between">
@@ -208,7 +230,7 @@ export const StyleEditor: React.FC<StyleEditorProps> = ({
           <div className="flex justify-between">
             <span>Zeilenabstand:</span>
             <span className="font-medium">
-              {config.font.lineHeight || 1.6}
+              {config.font?.lineHeight ?? 1.6}
             </span>
           </div>
         </div>
