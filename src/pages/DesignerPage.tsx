@@ -1,5 +1,5 @@
 // 📄 src/pages/DesignerPage.tsx
-// Überarbeitet – Inline Editing, Export-Buttons, Template-Speicher-Hooks + Default-Template-Fallback
+// Überarbeitet – jetzt mit StyleConfigProvider um StyleEditor & Co.
 // UploadPanel jetzt mit internen Tabs (Basic, GPT, Assistant)
 
 import React, { useState, useEffect } from "react";
@@ -27,6 +27,7 @@ import UploadPanel from "../modules/cv-designer/components/UploadPanel";
 import { mapBetterLetterToDesignerWithTemplate } from "../modules/cv-designer/services/mapBetterLetterWithTemplate";
 import { useTemplateStorage } from "../modules/cv-designer/hooks/useTemplateStorage";
 import { ExportButtons } from "../modules/cv-designer/components/ExportButtons";
+import { StyleConfigProvider } from "../modules/cv-designer/context/StyleConfigContext"; // ✅ hinzugefügt
 
 function normalizeCVData(cvData: any) {
   if (!cvData?.personalData) return cvData;
@@ -178,58 +179,60 @@ export default function DesignerPage({
   };
 
   return (
-    <div className="w-full flex flex-col gap-6 py-8">
-      {/* Tabs header */}
-      <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
-        <div className="flex items-center gap-2 p-4 border-b border-gray-200">
-          <Palette className="w-6 h-6 text-orange-500" />
-          <h2 className="text-lg font-semibold text-gray-900">Lebenslauf Designer</h2>
-        </div>
-        <div className="border-b border-gray-200">
-          <nav className="flex space-x-6 px-4 overflow-x-auto">
-            {designerTabs.map(({ id, label, icon: Icon }) => (
-              <button
-                key={id}
-                onClick={() => setActiveDesignerTab(id)}
-                className={`py-3 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
-                  activeDesignerTab === id
-                    ? "border-orange-500 text-orange-600"
-                    : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
-                }`}
-              >
-                <span className="flex items-center gap-1">
-                  <Icon className="w-4 h-4" /> {label}
-                </span>
-              </button>
-            ))}
-          </nav>
-        </div>
-      </div>
-
-      {/* Main grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_3fr] gap-6">
-        {/* Left column (tools) */}
-        <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4">
-          {renderDesignToolContent()}
-        </div>
-
-        {/* Right column (preview)*/}
-        <div className="flex flex-col gap-4">
-          <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-              <Eye className="w-5 h-5 text-orange-500" /> Live‑Vorschau
-            </h3>
-            <ExportButtons layout={layoutElements} style={styleConfig} />
+    <StyleConfigProvider> {/* ✅ Wrapper hinzugefügt */}
+      <div className="w-full flex flex-col gap-6 py-8">
+        {/* Tabs header */}
+        <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
+          <div className="flex items-center gap-2 p-4 border-b border-gray-200">
+            <Palette className="w-6 h-6 text-orange-500" />
+            <h2 className="text-lg font-semibold text-gray-900">Lebenslauf Designer</h2>
           </div>
+          <div className="border-b border-gray-200">
+            <nav className="flex space-x-6 px-4 overflow-x-auto">
+              {designerTabs.map(({ id, label, icon: Icon }) => (
+                <button
+                  key={id}
+                  onClick={() => setActiveDesignerTab(id)}
+                  className={`py-3 px-1 border-b-2 font-medium text-sm whitespace-nowrap ${
+                    activeDesignerTab === id
+                      ? "border-orange-500 text-orange-600"
+                      : "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300"
+                  }`}
+                >
+                  <span className="flex items-center gap-1">
+                    <Icon className="w-4 h-4" /> {label}
+                  </span>
+                </button>
+              ))}
+            </nav>
+          </div>
+        </div>
+
+        {/* Main grid */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_3fr] gap-6">
+          {/* Left column (tools) */}
           <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4">
-            <CVPreview
-              styleConfig={styleConfig}
-              layoutElements={layoutElements}
-              templateName="classic"
-            />
+            {renderDesignToolContent()}
+          </div>
+
+          {/* Right column (preview)*/}
+          <div className="flex flex-col gap-4">
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <Eye className="w-5 h-5 text-orange-500" /> Live‑Vorschau
+              </h3>
+              <ExportButtons layout={layoutElements} style={styleConfig} />
+            </div>
+            <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4">
+              <CVPreview
+                styleConfig={styleConfig}
+                layoutElements={layoutElements}
+                templateName="classic"
+              />
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </StyleConfigProvider>
   );
 }
