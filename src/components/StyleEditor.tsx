@@ -57,7 +57,7 @@ export const StyleEditor: React.FC<StyleEditorProps> = ({
             {colorPresets.map((preset, index) => (
               <button
                 key={index}
-                onClick={() =>
+                onClick={() => {
                   console.log('StyleEditor: Color preset clicked:', preset.name, 'primary:', preset.primary, 'accent:', preset.accent);
                   handleConfigChange({
                     colors: {
@@ -101,29 +101,29 @@ export const StyleEditor: React.FC<StyleEditorProps> = ({
             <input
               type="color"
               value={(config.colors && config.colors.primary) || config.primaryColor || "#1e40af"}
-              onChange={(e) =>
+              onChange={(e) => {
                 console.log('StyleEditor: Primary color changed to:', e.target.value);
                 handleConfigChange({
                   colors: { 
                     ...(config.colors || {}), 
                     primary: e.target.value 
                   },
-                })
-              }
+                });
+              }}
               className="w-8 h-8 border rounded cursor-pointer"
             />
             <input
               type="text"
               value={(config.colors && config.colors.primary) || config.primaryColor || "#1e40af"}
-              onChange={(e) =>
+              onChange={(e) => {
                 console.log('StyleEditor: Primary color text input changed to:', e.target.value);
                 handleConfigChange({
                   colors: { 
                     ...(config.colors || {}), 
                     primary: e.target.value 
                   },
-                })
-              }
+                });
+              }}
               className="flex-1 px-2 py-1 text-xs font-mono border rounded"
               placeholder="#1e40af"
             />
@@ -138,29 +138,29 @@ export const StyleEditor: React.FC<StyleEditorProps> = ({
             <input
               type="color"
               value={(config.colors && config.colors.accent) || config.accentColor || "#3b82f6"}
-              onChange={(e) =>
+              onChange={(e) => {
                 console.log('StyleEditor: Accent color changed to:', e.target.value);
                 handleConfigChange({
                   colors: { 
                     ...(config.colors || {}), 
                     accent: e.target.value 
                   },
-                })
-              }
+                });
+              }}
               className="w-8 h-8 border rounded cursor-pointer"
             />
             <input
               type="text"
               value={(config.colors && config.colors.accent) || config.accentColor || "#3b82f6"}
-              onChange={(e) =>
+              onChange={(e) => {
                 console.log('StyleEditor: Accent color text input changed to:', e.target.value);
                 handleConfigChange({
                   colors: { 
                     ...(config.colors || {}), 
                     accent: e.target.value 
                   },
-                })
-              }
+                });
+              }}
               className="flex-1 px-2 py-1 text-xs font-mono border rounded"
               placeholder="#3b82f6"
             />
