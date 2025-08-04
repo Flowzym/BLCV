@@ -5,7 +5,7 @@
 
 import React, { useState } from "react";
 import { StyleConfig } from "@/types/cv-designer";
-import { StyleTypographyPanel } from "./StyleTypographyPanel";
+import { StyleTypographyPanel } from "@/modules/cv-designer/components/StyleTypographyPanel";
 
 interface StyleEditorProps {
   config: StyleConfig;
