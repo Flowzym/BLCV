@@ -8,6 +8,7 @@ import { SavedTemplate, TemplateSection } from '../types/template';
 import { LayoutElement, Section, LayoutGroup } from '../types/section';
 import { StyleConfig } from '../../../types/cv-designer';
 import { getFontFamilyWithFallback } from '../utils/fonts';
+import { getEffectiveFontConfig } from '../utils/fontUtils';
 import { 
   renderElementToDocx, 
   A4_WIDTH, 
@@ -206,7 +207,8 @@ async function generateSectionParagraphs(
 
   // Section title
   if (section.title) {
-    const titleFontFamily = getFontFamilyWithFallback(styles.fontFamily).split(',')[0].replace(/"/g, '').trim();
+    const effectiveTitleFont = getEffectiveFontConfig('section', null, 'header', styles);
+    const titleFontFamily = getFontFamilyWithFallback(effectiveTitleFont.family).split(',')[0].replace(/"/g, '').trim();
     console.log('DOCX Export: Section title font:', titleFontFamily);
     
     paragraphs.push(
@@ -215,8 +217,8 @@ async function generateSectionParagraphs(
           new TextRun({
             text: section.title,
             bold: true,
-            size: 26, // 13pt in half-points
-            color: (styles.primaryColor || '#1e40af').replace('#', ''),
+            size: (effectiveTitleFont.size || 13) * 2, // Convert to half-points
+            color: (effectiveTitleFont.color || '#1e40af').replace('#', ''),
             font: titleFontFamily
           })
         ],
@@ -230,7 +232,8 @@ async function generateSectionParagraphs(
   if (section.content) {
     const processedContent = processTextForExport(section.content);
     const contentLines = processedContent.split('\n').filter(line => line.trim());
-    const contentFontFamily = getFontFamilyWithFallback(styles.fontFamily).split(',')[0].replace(/"/g, '').trim();
+    const effectiveContentFont = getEffectiveFontConfig('section', null, 'content', styles);
+    const contentFontFamily = getFontFamilyWithFallback(effectiveContentFont.family).split(',')[0].replace(/"/g, '').trim();
     console.log('DOCX Export: Section content font:', contentFontFamily);
     
     for (const line of contentLines) {
@@ -239,8 +242,8 @@ async function generateSectionParagraphs(
           children: [
             new TextRun({
               text: line.trim(),
-              size: 24, // 12pt in half-points
-              color: (styles.textColor || '#000000').replace('#', ''),
+              size: (effectiveContentFont.size || 12) * 2, // Convert to half-points
+              color: (effectiveContentFont.color || '#000000').replace('#', ''),
               font: contentFontFamily
             })
           ],
@@ -312,9 +315,9 @@ function countLayoutElements(layout: LayoutElement[]): number {
 }
 
 export function renderElementToDocx(element: LayoutElement, style: StyleConfig): Paragraph[] {
-  const fontSize = calculateFontSize(style.fontSize)
+  const effectiveFont = getEffectiveFontConfig(element.type, null, 'content', style);
   const leftMargin = Math.round(element.x * 20)
-  const elementFontFamily = getFontFamilyWithFallback(style.fontFamily).split(',')[0].replace(/"/g, '').trim();
+  const elementFontFamily = getFontFamilyWithFallback(effectiveFont.family).split(',')[0].replace(/"/g, '').trim();
   console.log('DOCX Export: Element font:', elementFontFamily, 'for element:', element.type);
   
   const paragraphs: Paragraph[] = []
@@ -326,8 +329,8 @@ export function renderElementToDocx(element: LayoutElement, style: StyleConfig):
         children: [
           new TextRun({
             text: line.trim(),
-            size: fontSize * 2,
-            color: (style.textColor || '#000000').replace('#', ''),
+            size: (effectiveFont.size || 12) * 2,
+            color: (effectiveFont.color || '#000000').replace('#', ''),
             font: elementFontFamily
           })
         ],

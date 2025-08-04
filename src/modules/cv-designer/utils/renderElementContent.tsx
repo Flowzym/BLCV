@@ -2,8 +2,9 @@
 
 import React from "react";
 import { LayoutElement } from "../types/section";
-import { StyleConfig, FontConfig } from "../../../types/cv-designer";
+import { StyleConfig } from "../../../types/cv-designer";
 import { getFontFamilyWithFallback } from "./fonts";
+import { getEffectiveFontConfig } from "./fontUtils";
 
 interface Props {
   element: LayoutElement;
@@ -12,66 +13,25 @@ interface Props {
   maxSkills?: number;
 }
 
-/**
- * Hilfsfunktion: Merge-Strategie mit Priorität
- * 1. Defaults
- * 2. allHeaders / name (globale Defaults)
- * 3. Section-spezifische Fonts
- * 4. Field-spezifische Fonts
- */
-const mergeFonts = (
-  base: FontConfig,
-  overrides: (FontConfig | undefined)[]
-): FontConfig => {
-  let merged = { ...base };
-  for (const ov of overrides) {
-    if (ov) merged = { ...merged, ...ov };
-  }
-  return merged;
-};
-
 export const RenderElementContent: React.FC<Props> = ({
   element,
   style,
   field,
   maxSkills = 8,
 }) => {
-  // ---- Schritt 1: Basisfont aus globalem StyleConfig ----
-  const baseFont = style.font || {
-    family: "Inter",
-    size: 12,
-    weight: "normal",
-    style: "normal",
-    color: "#333333",
-    letterSpacing: 0,
-    lineHeight: 1.6,
-  };
+  console.log(`RenderElementContent: rendering ${element.type}.${field || 'content'}`);
 
-  // ---- Schritt 2: Globale Defaults (allHeaders, name) ----
-  const allHeadersFont =
-    field === "header" ? style.sections?.allHeaders?.header?.font : undefined;
+  // Get effective font configuration using central utility
+  const effectiveFontConfig = getEffectiveFontConfig(
+    element.type,
+    field,
+    field === "header" ? "header" : field ? "field" : "content",
+    style
+  );
 
-  const nameFont =
-    element.type === "profil" && field === "name"
-      ? style.sections?.name?.font
-      : undefined;
+  console.log(`RenderElementContent: effective font for ${element.type}.${field || 'content'}:`, effectiveFontConfig);
 
-  // ---- Schritt 3: Section-spezifisch ----
-  const sectionFont =
-    field === "header"
-      ? style.sections?.[element.type]?.header?.font
-      : field
-      ? style.sections?.[element.type]?.fields?.[field]?.font
-      : style.sections?.[element.type]?.font;
-
-  // ---- Schritt 4: Endgültiger Merge ----
-  const effectiveFontConfig = mergeFonts(baseFont, [
-    allHeadersFont,
-    nameFont,
-    sectionFont,
-  ]);
-
-  // ---------------- Farb-Getter ----------------
+  // Color getters with robust fallback chains
   const getPrimaryColor = () =>
     style.colors?.primary || style.primaryColor || "#1e40af";
 
@@ -87,38 +47,29 @@ export const RenderElementContent: React.FC<Props> = ({
   const getSecondaryTextColor = () =>
     style.colors?.textSecondary || "#9ca3af";
 
-  // ---------------- Font anwenden ----------------
+  // Apply font styling with effective config
   const applyFontStyle = (
     content: React.ReactNode,
     extraStyle: React.CSSProperties = {}
   ) => {
-    const fontWeight: React.CSSProperties["fontWeight"] =
-      effectiveFontConfig?.weight ?? "normal";
-    const fontStyle: React.CSSProperties["fontStyle"] =
-      effectiveFontConfig?.style ?? "normal";
-
-    const fontFamilyWithFallbacks = getFontFamilyWithFallback(
-      effectiveFontConfig?.family
-    );
+    const fontFamilyWithFallbacks = getFontFamilyWithFallback(effectiveFontConfig?.family);
 
     const styleObj: React.CSSProperties = {
       fontFamily: fontFamilyWithFallbacks,
-      fontSize: effectiveFontConfig?.size
-        ? `${effectiveFontConfig.size}px`
+      fontSize: effectiveFontConfig?.size ? `${effectiveFontConfig.size}px` : undefined,
+      fontWeight: effectiveFontConfig?.weight ?? "normal",
+      fontStyle: effectiveFontConfig?.style ?? "normal",
+      color: effectiveFontConfig?.color || getTextColor(),
+      letterSpacing: effectiveFontConfig?.letterSpacing !== undefined 
+        ? `${effectiveFontConfig.letterSpacing}px` 
         : undefined,
-      fontWeight,
-      fontStyle,
-      color:
-        effectiveFontConfig?.color ||
-        (field === "header" ? getPrimaryColor() : getTextColor()),
-      letterSpacing:
-        effectiveFontConfig?.letterSpacing !== undefined
-          ? `${effectiveFontConfig.letterSpacing}px`
-          : undefined,
       lineHeight: effectiveFontConfig?.lineHeight,
+      ...extraStyle,
     };
 
-    return <span style={{ ...extraStyle, ...styleObj }}>{content}</span>;
+    console.log(`RenderElementContent: applied fontStyle for ${element.type}.${field || 'content'}:`, styleObj);
+
+    return <span style={styleObj}>{content}</span>;
   };
 
   /* -------- Foto -------- */
@@ -180,8 +131,9 @@ export const RenderElementContent: React.FC<Props> = ({
 
     return (
       <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
-        {skills.slice(0, maxSkills).map((skill) =>
+        {skills.slice(0, maxSkills).map((skill, index) =>
           applyFontStyle(skill, {
+            key: index,
             background: getAccentColor(),
             color: "white",
             padding: "2px 6px",
