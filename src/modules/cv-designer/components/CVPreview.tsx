@@ -1,11 +1,5 @@
 // 📄 src/modules/cv-designer/components/CVPreview.tsx
 
-/**
- * CV Preview – rendert LayoutElements im A4-Format
- * Nutzt StyleConfig, Templates & Context-Daten
- * Features: Skalierung, DebugOverlay, LayoutValidation
- */
-
 import React from "react";
 import { LayoutElement } from "../types/section";
 import { StyleConfig } from "../../../types/cv-designer";
@@ -21,7 +15,6 @@ import {
 } from "../services/layoutRenderer";
 import { RenderElementContent } from "../utils/renderElementContent";
 
-/* ---------- Props ---------- */
 interface CVPreviewProps {
   sections?: LayoutElement[];
   layoutElements?: LayoutElement[];
@@ -33,7 +26,6 @@ interface CVPreviewProps {
   scale?: number;
 }
 
-/* ---------- Hilfskomponenten ---------- */
 const EmptyState = () => (
   <div
     style={{
@@ -81,7 +73,6 @@ const DebugOverlay = ({
   </div>
 );
 
-/* ---------- Section Renderer ---------- */
 const SectionRenderer = ({
   element,
   styleConfig,
@@ -91,7 +82,7 @@ const SectionRenderer = ({
 }) => {
   const elementStyle = renderElementToCanvas(element, styleConfig);
 
-  // Header-FontConfig aus styleConfig
+  // Header-Config
   const headerFont =
     styleConfig.sections?.[element.type]?.fields?.header?.font || {
       size: 14,
@@ -131,7 +122,7 @@ const SectionRenderer = ({
           overflow: "hidden",
         }}
       >
-        {/* 🔑 field wird übergeben, damit Subfeld-Styles wirken */}
+        {/* 🔑 field wird mitgegeben, damit Subfeld-Fonts wirken */}
         <RenderElementContent
           element={element}
           style={styleConfig}
@@ -142,7 +133,6 @@ const SectionRenderer = ({
   );
 };
 
-/* ---------- Hauptkomponente ---------- */
 const CVPreview: React.FC<CVPreviewProps> = ({
   sections,
   layoutElements = [],
@@ -155,7 +145,6 @@ const CVPreview: React.FC<CVPreviewProps> = ({
 }) => {
   const { personalData, berufserfahrung, ausbildung } = useLebenslauf();
 
-  // Template-Layout + Inhalte zusammenführen
   const sectionsToRender = React.useMemo(() => {
     let elementsToUse: LayoutElement[] = [];
 
@@ -176,7 +165,133 @@ const CVPreview: React.FC<CVPreviewProps> = ({
       );
     }
 
-    return elementsToUse;
+    return elementsToUse.map((el) => {
+      let content = "";
+
+      switch (el.type) {
+        case "profil":
+        case "personal": {
+          const personalInfo: string[] = [];
+          const fullName = [personalData?.titel, personalData?.vorname, personalData?.nachname]
+            .filter(Boolean)
+            .join(" ");
+          if (fullName) personalInfo.push(fullName);
+          if (personalData?.email) personalInfo.push(`📧 ${personalData.email}`);
+          if (personalData?.telefon) {
+            const phone = `${personalData.telefonVorwahl || ""} ${personalData.telefon}`.trim();
+            personalInfo.push(`📞 ${phone}`);
+          }
+          const address = [personalData?.adresse, personalData?.plz, personalData?.ort, personalData?.land]
+            .filter(Boolean)
+            .join(", ");
+          if (address) personalInfo.push(`📍 ${address}`);
+          content = personalInfo.join("\n") || "– Keine persönlichen Daten –";
+          break;
+        }
+
+        case "erfahrung":
+        case "experience":
+          if (berufserfahrung?.length > 0) {
+            content = berufserfahrung
+              .map((e) => {
+                const parts: string[] = [];
+                const position = Array.isArray(e.position)
+                  ? e.position.join(" / ")
+                  : e.position || "";
+                const companies = Array.isArray(e.companies)
+                  ? e.companies.join(" // ")
+                  : e.companies || "";
+                if (position && companies) parts.push(`${position}\n${companies}`);
+                else if (position) parts.push(position);
+                else if (companies) parts.push(companies);
+
+                const startDate =
+                  e.startMonth && e.startYear ? `${e.startMonth}.${e.startYear}` : e.startYear || "";
+                const endDate = e.isCurrent
+                  ? "heute"
+                  : e.endMonth && e.endYear
+                  ? `${e.endMonth}.${e.endYear}`
+                  : e.endYear || "";
+                if (startDate || endDate) {
+                  const zeitraum =
+                    startDate && endDate ? `${startDate} – ${endDate}` : startDate || endDate;
+                  parts.push(`(${zeitraum})`);
+                }
+
+                let result = parts.join("\n");
+                if (e.aufgabenbereiche?.length > 0) {
+                  const tasks = e.aufgabenbereiche.slice(0, 3);
+                  result += "\n\n• " + tasks.join("\n• ");
+                  if (e.aufgabenbereiche.length > 3)
+                    result += `\n• ... (+${e.aufgabenbereiche.length - 3} weitere)`;
+                }
+                return result;
+              })
+              .join("\n\n");
+          } else {
+            content = "– Keine Berufserfahrung –";
+          }
+          break;
+
+        case "ausbildung":
+        case "education":
+          if (ausbildung?.length > 0) {
+            content = ausbildung
+              .map((a) => {
+                const parts: string[] = [];
+                const ausbildungsart = Array.isArray(a.ausbildungsart)
+                  ? a.ausbildungsart.join(" / ")
+                  : a.ausbildungsart || "";
+                const abschluss = Array.isArray(a.abschluss)
+                  ? a.abschluss.join(" / ")
+                  : a.abschluss || "";
+                if (ausbildungsart && abschluss) parts.push(`${ausbildungsart}\n${abschluss}`);
+                else if (ausbildungsart) parts.push(ausbildungsart);
+                else if (abschluss) parts.push(abschluss);
+                const institution = Array.isArray(a.institution)
+                  ? a.institution.join(", ")
+                  : a.institution || "";
+                if (institution) parts.push(institution);
+                const startDate =
+                  a.startMonth && a.startYear ? `${a.startMonth}.${a.startYear}` : a.startYear || "";
+                const endDate = a.isCurrent
+                  ? "heute"
+                  : a.endMonth && a.endYear
+                  ? `${a.endMonth}.${a.endYear}`
+                  : a.endYear || "";
+                if (startDate || endDate) {
+                  const zeitraum =
+                    startDate && endDate ? `${startDate} – ${endDate}` : startDate || endDate;
+                  parts.push(`(${zeitraum})`);
+                }
+                return parts.join("\n");
+              })
+              .join("\n\n");
+          } else {
+            content = "– Keine Ausbildung –";
+          }
+          break;
+
+        case "kenntnisse":
+        case "skills":
+          content =
+            "JavaScript, React, TypeScript, Node.js, Python, SQL, Git, Docker";
+          break;
+
+        case "softskills":
+          content =
+            "Teamfähigkeit, Kommunikationsstärke, Problemlösungskompetenz, Organisationstalent";
+          break;
+
+        case "photo":
+          content = personalData?.profileImage || "";
+          break;
+
+        default:
+          content = el.content || "– Keine Daten –";
+      }
+      return { ...el, content };
+    });
   }, [layoutElements, sections, personalData, berufserfahrung, ausbildung, templateName]);
 
   const safeStyleConfig = styleConfig || defaultStyleConfig;
@@ -184,10 +299,7 @@ const CVPreview: React.FC<CVPreviewProps> = ({
     () => validateLayout(sectionsToRender, A4_WIDTH, A4_HEIGHT),
     [sectionsToRender]
   );
-  const layoutStats = React.useMemo(
-    () => getLayoutStats(sectionsToRender),
-    [sectionsToRender]
-  );
+  const layoutStats = React.useMemo(() => getLayoutStats(sectionsToRender), [sectionsToRender]);
   const actualScale = scale || 1;
 
   const containerStyle: React.CSSProperties = {
