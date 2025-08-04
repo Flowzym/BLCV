@@ -27,12 +27,12 @@ export const RenderElementContent: React.FC<Props> = ({ element, style, field, m
     }
   }
 
-  // 3. Globale Overrides
-  if (field === "header" && style.sections?.allHeaders?.header?.font) {
-    effectiveFontConfig = { ...effectiveFontConfig, ...style.sections.allHeaders.header.font };
+  // 3. Globale Defaults NUR wenn nichts gesetzt
+  if (!effectiveFontConfig && field === "header" && style.sections?.allHeaders?.header?.font) {
+    effectiveFontConfig = style.sections.allHeaders.header.font;
   }
-  if (element.type === "profil" && field === "name" && style.sections?.name?.font) {
-    effectiveFontConfig = { ...effectiveFontConfig, ...style.sections.name.font };
+  if (!effectiveFontConfig && element.type === "profil" && field === "name" && style.sections?.name?.font) {
+    effectiveFontConfig = style.sections.name.font;
   }
 
   // 4. Global default
