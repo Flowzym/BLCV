@@ -1,3 +1,5 @@
+// 📄 src/modules/cv-designer/components/RenderElementContent.tsx
+
 import React from "react";
 import { LayoutElement } from "../types/section";
 import { StyleConfig } from "../../../types/cv-designer";
@@ -5,7 +7,7 @@ import { StyleConfig } from "../../../types/cv-designer";
 interface Props {
   element: LayoutElement;
   style: StyleConfig;
-  field?: string;     // 🔑 neu: Subfeld
+  field?: string; // 🔑 Subfeld-Key
   maxSkills?: number;
 }
 
@@ -16,29 +18,29 @@ export const RenderElementContent: React.FC<Props> = ({
   maxSkills = 8,
 }) => {
   const fieldKey = field || element.field || "default";
-  const fontConfig =
-    style.sections?.[element.type]?.fields?.[fieldKey]?.font;
+  const fontConfig = style.sections?.[element.type]?.fields?.[fieldKey]?.font;
 
-  const applyFontStyle = (content: React.ReactNode) => {
-    if (!fontConfig) return content;
-    return (
-      <span
-        style={{
-          fontSize: fontConfig.size ? `${fontConfig.size}px` : undefined,
-          fontWeight: fontConfig.weight || undefined,
-          color: fontConfig.color || undefined,
-          letterSpacing:
-            fontConfig.letterSpacing !== undefined
-              ? `${fontConfig.letterSpacing}px`
-              : undefined,
-          lineHeight: fontConfig.lineHeight || undefined,
-        }}
-      >
-        {content}
-      </span>
-    );
+  const applyFontStyle = (
+    content: React.ReactNode,
+    extraStyle: React.CSSProperties = {}
+  ) => {
+    if (!fontConfig) return <span style={extraStyle}>{content}</span>;
+
+    const fontStyle: React.CSSProperties = {
+      fontSize: fontConfig.size ? `${fontConfig.size}px` : undefined,
+      fontWeight: fontConfig.weight || undefined,
+      color: fontConfig.color || undefined,
+      letterSpacing:
+        fontConfig.letterSpacing !== undefined
+          ? `${fontConfig.letterSpacing}px`
+          : undefined,
+      lineHeight: fontConfig.lineHeight || undefined,
+    };
+
+    return <span style={{ ...extraStyle, ...fontStyle }}>{content}</span>;
   };
 
+  /* -------- Foto -------- */
   if (element.type === "photo") {
     return element.content ? (
       <img
@@ -74,68 +76,52 @@ export const RenderElementContent: React.FC<Props> = ({
     );
   }
 
+  /* -------- Skills & Softskills -------- */
   if (["kenntnisse", "skills", "softskills"].includes(element.type)) {
     if (!element.content) {
-      return (
-        <div
-          style={{ color: "#9ca3af", fontStyle: "italic", fontSize: "0.8em" }}
-        >
+      return applyFontStyle(
+        <div style={{ fontStyle: "italic", fontSize: "0.8em", color: "#9ca3af" }}>
           – Keine Fähigkeiten –
         </div>
       );
     }
+
     const skills = element.content
       .split(/[,;\n]/)
       .map((s) => s.trim())
       .filter(Boolean);
+
     return (
       <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
         {skills.slice(0, maxSkills).map((skill, i) =>
-          applyFontStyle(
-            <span
-              key={i}
-              style={{
-                background: style.accentColor || "#3b82f6",
-                color: "white",
-                padding: "2px 6px",
-                borderRadius: "8px",
-                fontSize: "0.7em",
-                fontWeight: "500",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {skill}
-            </span>
-          )
+          applyFontStyle(skill, {
+            background: style.accentColor || "#3b82f6",
+            color: "white",
+            padding: "2px 6px",
+            borderRadius: "8px",
+            fontSize: "0.7em",
+            fontWeight: "500",
+            whiteSpace: "nowrap",
+          })
         )}
-        {skills.length > maxSkills && (
-          <span
-            style={{
-              background: "#6b7280",
-              color: "white",
-              padding: "2px 6px",
-              borderRadius: "8px",
-              fontSize: "0.7em",
-            }}
-          >
-            +{skills.length - maxSkills}
-          </span>
-        )}
+        {skills.length > maxSkills &&
+          applyFontStyle(`+${skills.length - maxSkills}`, {
+            background: "#6b7280",
+            color: "white",
+            padding: "2px 6px",
+            borderRadius: "8px",
+            fontSize: "0.7em",
+          })}
       </div>
     );
   }
 
+  /* -------- Standard Text -------- */
   return element.content
     ? applyFontStyle(element.content)
-    : applyFontStyle(
-        <div
-          style={{
-            color: "#9ca3af",
-            fontStyle: "italic",
-            fontSize: "0.8em",
-          }}
-        >
-          – Keine Daten –
-        </div>
-      );
+    : applyFontStyle("– Keine Daten –", {
+        fontStyle: "italic",
+        fontSize: "0.8em",
+        color: "#9ca3af",
+      });
 };
