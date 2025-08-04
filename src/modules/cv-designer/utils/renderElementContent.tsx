@@ -2,6 +2,7 @@
 import React from "react";
 import { LayoutElement } from "../types/section";
 import { StyleConfig, FontConfig } from "../../../types/cv-designer";
+// ✅ Vereinheitlicht: nur noch die zentrale fonts.ts verwenden
 import { getFontFamilyWithFallback } from "./fonts";
 
 interface Props {
@@ -66,8 +67,13 @@ export const RenderElementContent: React.FC<Props> = ({
       effectiveFontConfig?.style ?? "normal";
 
     // ✅ Einheitliche Font-Familie mit Fallbacks
-    const fontFamilyWithFallbacks = getFontFamilyWithFallback(effectiveFontConfig?.family);
-    console.log('RenderElementContent: fontFamily with fallbacks:', fontFamilyWithFallbacks);
+    const fontFamilyWithFallbacks = getFontFamilyWithFallback(
+      effectiveFontConfig?.family
+    );
+    console.log(
+      "RenderElementContent: fontFamily with fallbacks:",
+      fontFamilyWithFallbacks
+    );
 
     const styleObj: React.CSSProperties = {
       fontFamily: fontFamilyWithFallbacks,
