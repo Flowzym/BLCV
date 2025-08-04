@@ -9,7 +9,7 @@
  */
 export function getFontFamilyWithFallback(fontFamily?: string): string {
   const FALLBACKS =
-    '"Inter", "Roboto", Arial, Helvetica, Georgia, Verdana, Tahoma, "Times New Roman", "Courier New", sans-serif';
+    `"Inter", "Roboto", Arial, Helvetica, Georgia, Verdana, Tahoma, "Times New Roman", "Courier New", sans-serif`;
 
   if (!fontFamily || fontFamily.trim() === "") {
     return FALLBACKS;
