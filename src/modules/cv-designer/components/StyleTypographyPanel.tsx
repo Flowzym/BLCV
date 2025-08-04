@@ -57,6 +57,7 @@ export const StyleTypographyPanel: React.FC = () => {
       key,
       updates
     });
+    console.log('StyleTypographyPanel: current styleConfig.sections before update:', styleConfig.sections);
     
     const newConfig: StyleConfig = { ...styleConfig };
     if (!newConfig.sections) newConfig.sections = {};
@@ -78,6 +79,7 @@ export const StyleTypographyPanel: React.FC = () => {
       console.log('StyleTypographyPanel: Updated field font for', sectionId, key, ':', currentSection.fields[key]?.font);
     }
 
+    console.log('StyleTypographyPanel: newConfig.sections after update:', newConfig.sections);
     console.log('StyleTypographyPanel: About to call updateStyleConfig with newConfig:', newConfig);
     updateStyleConfig(newConfig);
   };

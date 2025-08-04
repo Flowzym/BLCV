@@ -19,7 +19,6 @@ import { useStyleConfig } from "../context/StyleConfigContext";
 interface CVPreviewProps {
   sections?: LayoutElement[];
   layoutElements?: LayoutElement[];
-  styleConfig?: StyleConfig;
   cvData?: any;
   templateName?: "classic" | "modern" | "minimal" | "creative";
   className?: string;
@@ -76,11 +75,12 @@ const DebugOverlay = ({
 
 const SectionRenderer = ({
   element,
-  styleConfig,
 }: {
   element: LayoutElement;
-  styleConfig: StyleConfig;
 }) => {
+  // Use context instead of prop drilling
+  const { styleConfig } = useStyleConfig();
+  
   console.log('SectionRenderer: Processing element:', {
     id: element.id,
     type: element.type,
@@ -147,7 +147,6 @@ const SectionRenderer = ({
 const CVPreview: React.FC<CVPreviewProps> = ({
   sections,
   layoutElements = [],
-  styleConfig,
   cvData,
   templateName = "classic",
   className = "",
@@ -158,13 +157,16 @@ const CVPreview: React.FC<CVPreviewProps> = ({
   console.log('CVPreview: Component render started with props:', {
     sectionsLength: sections?.length || 0,
     layoutElementsLength: layoutElements?.length || 0,
-    hasStyleConfig: !!styleConfig,
     templateName,
     className
   });
-  console.log('CVPreview: styleConfig received:', styleConfig);
-  console.log('CVPreview: styleConfig.sections:', styleConfig?.sections);
   console.log('CVPreview: layoutElements received:', layoutElements);
+  
+  // Use context instead of prop drilling
+  const { styleConfig } = useStyleConfig();
+  
+  console.log('CVPreview: styleConfig from context:', styleConfig);
+  console.log('CVPreview: styleConfig.sections from context:', styleConfig?.sections);
   
   const { personalData, berufserfahrung, ausbildung } = useLebenslauf();
 
@@ -329,6 +331,7 @@ const CVPreview: React.FC<CVPreviewProps> = ({
 
   const safeStyleConfig = styleConfig || defaultStyleConfig;
   console.log('CVPreview: Using safeStyleConfig:', safeStyleConfig);
+  console.log('CVPreview: safeStyleConfig.sections:', safeStyleConfig.sections);
   
   const layoutValidation = React.useMemo(
     () => validateLayout(sectionsToRender, A4_WIDTH, A4_HEIGHT),
@@ -370,7 +373,6 @@ const CVPreview: React.FC<CVPreviewProps> = ({
               <SectionRenderer
                 key={element.id}
                 element={element}
-                styleConfig={safeStyleConfig}
               />
             </>
           ))}

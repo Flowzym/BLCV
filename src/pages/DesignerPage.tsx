@@ -230,10 +230,9 @@ export default function DesignerPage({
               <ExportButtons layout={layoutElements} style={styleConfig} />
             </div>
             <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4">
-              {/* DEBUG: Log styleConfig before passing to CVPreview */}
-              {console.log('DesignerPage: styleConfig being passed to CVPreview:', styleConfig)}
+              {/* DEBUG: Log styleConfig but no longer pass it down manually */}
+              {console.log('DesignerPage: styleConfig exists but CVPreview will use useStyleConfig hook:', styleConfig)}
               <CVPreview
-                styleConfig={styleConfig}
                 layoutElements={layoutElements}
                 templateName="classic"
               />

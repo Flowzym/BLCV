@@ -22,17 +22,28 @@ export const RenderElementContent: React.FC<Props> = ({
   console.log('RenderElementContent: field prop (contentFieldKey):', field);
   console.log('RenderElementContent: element.content length:', element.content?.length || 0);
   console.log('RenderElementContent: element.title:', element.title);
+  console.log('RenderElementContent: style.sections available:', !!style.sections);
+  console.log('RenderElementContent: style.sections keys:', style.sections ? Object.keys(style.sections) : 'none');
 
   // 1. Font für spezifisches Feld (z.B. 'profil.fields.name.font' oder 'profil.fields.header.font')
   let effectiveFontConfig: FontConfig | undefined = undefined;
   if (field) {
     effectiveFontConfig = style.sections?.[element.type]?.fields?.[field]?.font;
     console.log('RenderElementContent: field-specific fontConfig:', effectiveFontConfig);
+    console.log('RenderElementContent: field lookup path:', `style.sections.${element.type}.fields.${field}.font`);
   }
 
   // 2. Allgemeiner Font für die Sektion (z.B. 'profil.font')
   if (!effectiveFontConfig) {
-    effectiveFontConfig = style.sections?.[element.type]?.font;
+    if (field === 'header') {
+      effectiveFontConfig = style.sections?.[element.type]?.header?.font;
+      console.log('RenderElementContent: section-header fontConfig:', effectiveFontConfig);
+      console.log('RenderElementContent: header lookup path:', `style.sections.${element.type}.header.font`);
+    } else {
+      effectiveFontConfig = style.sections?.[element.type]?.font;
+      console.log('RenderElementContent: section-general fontConfig:', effectiveFontConfig);
+      console.log('RenderElementContent: section lookup path:', `style.sections.${element.type}.font`);
+    }
     console.log('RenderElementContent: section-general fontConfig:', effectiveFontConfig);
   }
 
@@ -40,6 +51,7 @@ export const RenderElementContent: React.FC<Props> = ({
   if (!effectiveFontConfig) {
     effectiveFontConfig = style.font;
     console.log('RenderElementContent: global fontConfig:', effectiveFontConfig);
+    console.log('RenderElementContent: global lookup path:', 'style.font');
   }
 
   console.log('RenderElementContent: final effectiveFontConfig:', effectiveFontConfig);
@@ -150,6 +162,7 @@ export const RenderElementContent: React.FC<Props> = ({
 
   /* -------- Standard Text -------- */
   console.log('RenderElementContent: Processing standard text element, returning content:', element.content);
+  console.log('RenderElementContent: About to return with effectiveFontConfig:', effectiveFontConfig);
   return element.content
     ? applyFontStyle(element.content)
     : applyFontStyle("– Keine Daten –", {

@@ -159,12 +159,27 @@ export const StyleConfigProvider = ({ children }: { children: ReactNode }) => {
     // ✅ fix: fonts werden korrekt gespeichert
     console.log('StyleConfigContext: updateStyleConfig called with:', config);
     console.log('StyleConfigContext: sections in new config:', config.sections);
-    setStyleConfig(config);
+    console.log('StyleConfigContext: merging with existing config to preserve sections');
+    
+    // Merge with existing config to preserve sections that might not be in the update
+    const mergedConfig = {
+      ...styleConfig,
+      ...config,
+      sections: {
+        ...styleConfig.sections,
+        ...config.sections
+      }
+    };
+    
+    console.log('StyleConfigContext: final merged config:', mergedConfig);
+    console.log('StyleConfigContext: final merged sections:', mergedConfig.sections);
+    setStyleConfig(mergedConfig);
   };
 
   const resetStyleConfig = () => {
     // ✅ fix: fonts werden korrekt gespeichert
     console.log('StyleConfigContext: resetStyleConfig called, resetting to default');
+    console.log('StyleConfigContext: default sections:', defaultStyleConfig.sections);
     setStyleConfig(defaultStyleConfig);
   };
 
