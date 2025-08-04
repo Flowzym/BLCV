@@ -1,41 +1,44 @@
-// 📄 src/modules/cv-designer/utils/RenderElementContent.tsx
-
 import React from "react";
 import { LayoutElement } from "../types/section";
-import { StyleConfig, FontConfig } from "../../../types/cv-designer";
+import { StyleConfig } from "../../../types/cv-designer";
 
 interface Props {
   element: LayoutElement;
   style: StyleConfig;
+  field?: string;     // 🔑 neu: Subfeld
   maxSkills?: number;
-}
-
-/**
- * Hilfsfunktion: Stile aus FontConfig in CSS überführen
- */
-function fontToStyle(font: FontConfig | undefined): React.CSSProperties {
-  if (!font) return {};
-  return {
-    fontFamily: font.family || "inherit",
-    fontSize: font.size ? `${font.size}px` : undefined,
-    fontWeight: font.weight || "normal",
-    fontStyle: font.weight === "italic" ? "italic" : "normal",
-    color: font.color || "inherit",
-    letterSpacing:
-      font.letterSpacing !== undefined ? `${font.letterSpacing}px` : undefined,
-    lineHeight: font.lineHeight || "normal",
-  };
 }
 
 export const RenderElementContent: React.FC<Props> = ({
   element,
   style,
+  field,
   maxSkills = 8,
 }) => {
-  const fieldFont =
-    style.sections?.[element.type]?.fields?.[element.field || ""]?.font;
+  const fieldKey = field || element.field || "default";
+  const fontConfig =
+    style.sections?.[element.type]?.fields?.[fieldKey]?.font;
 
-  // Foto
+  const applyFontStyle = (content: React.ReactNode) => {
+    if (!fontConfig) return content;
+    return (
+      <span
+        style={{
+          fontSize: fontConfig.size ? `${fontConfig.size}px` : undefined,
+          fontWeight: fontConfig.weight || undefined,
+          color: fontConfig.color || undefined,
+          letterSpacing:
+            fontConfig.letterSpacing !== undefined
+              ? `${fontConfig.letterSpacing}px`
+              : undefined,
+          lineHeight: fontConfig.lineHeight || undefined,
+        }}
+      >
+        {content}
+      </span>
+    );
+  };
+
   if (element.type === "photo") {
     return element.content ? (
       <img
@@ -71,17 +74,11 @@ export const RenderElementContent: React.FC<Props> = ({
     );
   }
 
-  // Skills als Badges
   if (["kenntnisse", "skills", "softskills"].includes(element.type)) {
     if (!element.content) {
       return (
         <div
-          style={{
-            ...fontToStyle(fieldFont),
-            color: "#9ca3af",
-            fontStyle: "italic",
-            fontSize: "0.8em",
-          }}
+          style={{ color: "#9ca3af", fontStyle: "italic", fontSize: "0.8em" }}
         >
           – Keine Fähigkeiten –
         </div>
@@ -93,23 +90,24 @@ export const RenderElementContent: React.FC<Props> = ({
       .filter(Boolean);
     return (
       <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
-        {skills.slice(0, maxSkills).map((skill, i) => (
-          <span
-            key={i}
-            style={{
-              ...fontToStyle(fieldFont),
-              background: style.accentColor || "#3b82f6",
-              color: "white",
-              padding: "2px 6px",
-              borderRadius: "8px",
-              fontSize: "0.7em",
-              fontWeight: "500",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {skill}
-          </span>
-        ))}
+        {skills.slice(0, maxSkills).map((skill, i) =>
+          applyFontStyle(
+            <span
+              key={i}
+              style={{
+                background: style.accentColor || "#3b82f6",
+                color: "white",
+                padding: "2px 6px",
+                borderRadius: "8px",
+                fontSize: "0.7em",
+                fontWeight: "500",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {skill}
+            </span>
+          )
+        )}
         {skills.length > maxSkills && (
           <span
             style={{
@@ -127,19 +125,17 @@ export const RenderElementContent: React.FC<Props> = ({
     );
   }
 
-  // Standard
-  return element.content ? (
-    <div style={fontToStyle(fieldFont)}>{element.content}</div>
-  ) : (
-    <div
-      style={{
-        ...fontToStyle(fieldFont),
-        color: "#9ca3af",
-        fontStyle: "italic",
-        fontSize: "0.8em",
-      }}
-    >
-      – Keine Daten –
-    </div>
-  );
+  return element.content
+    ? applyFontStyle(element.content)
+    : applyFontStyle(
+        <div
+          style={{
+            color: "#9ca3af",
+            fontStyle: "italic",
+            fontSize: "0.8em",
+          }}
+        >
+          – Keine Daten –
+        </div>
+      );
 };
