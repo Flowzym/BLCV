@@ -1,3 +1,4 @@
+// ✅ fix: Fonts-Änderungen werden übergeben
 import React from "react";
 import { useStyleConfig } from "../context/StyleConfigContext";
 import { StyleConfig, FontConfig } from "../types/styles";
