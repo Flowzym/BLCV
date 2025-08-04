@@ -20,6 +20,8 @@ export const RenderElementContent: React.FC<Props> = ({
   // Debugging-Logs
   console.log('RenderElementContent: element.type:', element.type);
   console.log('RenderElementContent: field prop (contentFieldKey):', field);
+  console.log('RenderElementContent: element.content length:', element.content?.length || 0);
+  console.log('RenderElementContent: element.title:', element.title);
 
   // 1. Font für spezifisches Feld (z.B. 'profil.fields.name.font' oder 'profil.fields.header.font')
   let effectiveFontConfig: FontConfig | undefined = undefined;
@@ -66,8 +68,11 @@ export const RenderElementContent: React.FC<Props> = ({
     return <span style={{ ...extraStyle, ...fontStyle }}>{content}</span>;
   };
 
+  console.log('RenderElementContent: About to process element type:', element.type);
+
   /* -------- Foto -------- */
   if (element.type === "photo") {
+    console.log('RenderElementContent: Processing photo element');
     return element.content ? (
       <img
         src={element.content}
@@ -104,6 +109,7 @@ export const RenderElementContent: React.FC<Props> = ({
 
   /* -------- Skills & Softskills -------- */
   if (["kenntnisse", "skills", "softskills"].includes(element.type)) {
+    console.log('RenderElementContent: Processing skills/softskills element');
     if (!element.content) {
       return applyFontStyle(
         <div style={{ fontStyle: "italic", fontSize: "0.8em", color: "#9ca3af" }}>
@@ -143,6 +149,7 @@ export const RenderElementContent: React.FC<Props> = ({
   }
 
   /* -------- Standard Text -------- */
+  console.log('RenderElementContent: Processing standard text element, returning content:', element.content);
   return element.content
     ? applyFontStyle(element.content)
     : applyFontStyle("– Keine Daten –", {

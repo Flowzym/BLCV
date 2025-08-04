@@ -157,11 +157,14 @@ export const StyleConfigProvider = ({ children }: { children: ReactNode }) => {
 
   const updateStyleConfig = (config: StyleConfig) => {
     // ✅ fix: fonts werden korrekt gespeichert
+    console.log('StyleConfigContext: updateStyleConfig called with:', config);
+    console.log('StyleConfigContext: sections in new config:', config.sections);
     setStyleConfig(config);
   };
 
   const resetStyleConfig = () => {
     // ✅ fix: fonts werden korrekt gespeichert
+    console.log('StyleConfigContext: resetStyleConfig called, resetting to default');
     setStyleConfig(defaultStyleConfig);
   };
 

@@ -81,25 +81,41 @@ const SectionRenderer = ({
   element: LayoutElement;
   styleConfig: StyleConfig;
 }) => {
+  console.log('SectionRenderer: Processing element:', {
+    id: element.id,
+    type: element.type,
+    title: element.title,
+    contentLength: element.content?.length || 0,
+    hasTitle: !!element.title
+  });
+  
   const elementStyle = renderElementToCanvas(element, styleConfig);
 
   return (
     <div key={element.id} style={elementStyle}>
       {/* NEU: Render element.title via RenderElementContent mit field="header" */}
       {element.title && element.type !== "photo" && (
-        <div
-          style={{
-            marginBottom: "6px",
-            borderBottom: `1px solid ${styleConfig.colors?.secondary || "#3b82f6"}`,
-            paddingBottom: "2px",
-          }}
-        >
-          <RenderElementContent
-            element={{ ...element, content: element.title }} // Titel als Inhalt übergeben
-            style={styleConfig}
-            field="header" // Spezieller Feld-Key für Überschriften
-          />
-        </div>
+        <>
+          {console.log('SectionRenderer: About to render TITLE via RenderElementContent:', {
+            elementId: element.id,
+            elementType: element.type,
+            title: element.title,
+            field: 'header'
+          })}
+          <div
+            style={{
+              marginBottom: "6px",
+              borderBottom: `1px solid ${styleConfig.colors?.secondary || "#3b82f6"}`,
+              paddingBottom: "2px",
+            }}
+          >
+            <RenderElementContent
+              element={{ ...element, content: element.title }} // Titel als Inhalt übergeben
+              style={styleConfig}
+              field="header" // Spezieller Feld-Key für Überschriften
+            />
+          </div>
+        </>
       )}
 
       <div
@@ -111,6 +127,12 @@ const SectionRenderer = ({
           overflow: "hidden",
         }}
       >
+        {console.log('SectionRenderer: About to render CONTENT via RenderElementContent:', {
+          elementId: element.id,
+          elementType: element.type,
+          contentLength: element.content?.length || 0,
+          field: 'content'
+        })}
         {/* Bestehender Aufruf für element.content, jetzt mit field="content" */}
         <RenderElementContent
           element={element}
@@ -133,8 +155,16 @@ const CVPreview: React.FC<CVPreviewProps> = ({
   scale,
 }) => {
   // DEBUG: Log styleConfig received in CVPreview
+  console.log('CVPreview: Component render started with props:', {
+    sectionsLength: sections?.length || 0,
+    layoutElementsLength: layoutElements?.length || 0,
+    hasStyleConfig: !!styleConfig,
+    templateName,
+    className
+  });
   console.log('CVPreview: styleConfig received:', styleConfig);
   console.log('CVPreview: styleConfig.sections:', styleConfig?.sections);
+  console.log('CVPreview: layoutElements received:', layoutElements);
   
   const { personalData, berufserfahrung, ausbildung } = useLebenslauf();
 
@@ -287,7 +317,19 @@ const CVPreview: React.FC<CVPreviewProps> = ({
     });
   }, [layoutElements, sections, personalData, berufserfahrung, ausbildung, templateName]);
 
+  console.log('CVPreview: sectionsToRender built:', {
+    length: sectionsToRender.length,
+    elements: sectionsToRender.map(el => ({
+      id: el.id,
+      type: el.type,
+      title: el.title,
+      contentLength: el.content?.length || 0
+    }))
+  });
+
   const safeStyleConfig = styleConfig || defaultStyleConfig;
+  console.log('CVPreview: Using safeStyleConfig:', safeStyleConfig);
+  
   const layoutValidation = React.useMemo(
     () => validateLayout(sectionsToRender, A4_WIDTH, A4_HEIGHT),
     [sectionsToRender]
@@ -320,13 +362,17 @@ const CVPreview: React.FC<CVPreviewProps> = ({
   return (
     <div className={`cv-preview ${className}`}>
       <div style={{ display: "flex", justifyContent: "center", padding: "20px" }}>
+        {console.log('CVPreview: About to render container with', sectionsToRender.length, 'sections')}
         <div style={containerStyle}>
           {sectionsToRender.map((element) => (
-            <SectionRenderer
-              key={element.id}
-              element={element}
-              styleConfig={safeStyleConfig}
-            />
+            <>
+              {console.log('CVPreview: Mapping element for SectionRenderer:', element.id, element.type)}
+              <SectionRenderer
+                key={element.id}
+                element={element}
+                styleConfig={safeStyleConfig}
+              />
+            </>
           ))}
 
           {sectionsToRender.length === 0 && <EmptyState />}

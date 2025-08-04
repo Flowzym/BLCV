@@ -51,6 +51,13 @@ export const StyleTypographyPanel: React.FC = () => {
     key: string | null, // Für 'field' der fieldKey, sonst null
     updates: Partial<FontConfig>
   ) => {
+    console.log('StyleTypographyPanel: updateFont called:', {
+      sectionId,
+      type,
+      key,
+      updates
+    });
+    
     const newConfig: StyleConfig = { ...styleConfig };
     if (!newConfig.sections) newConfig.sections = {};
     if (!newConfig.sections[sectionId]) newConfig.sections[sectionId] = { sectionId: sectionId };
@@ -60,14 +67,18 @@ export const StyleTypographyPanel: React.FC = () => {
     if (type === 'header') {
       if (!currentSection.header) currentSection.header = {};
       currentSection.header.font = { ...(currentSection.header.font || defaultFont), ...updates };
+      console.log('StyleTypographyPanel: Updated header font for', sectionId, ':', currentSection.header.font);
     } else if (type === 'content') { // Allgemeiner Sektionsinhalt
       currentSection.font = { ...(currentSection.font || defaultFont), ...updates };
+      console.log('StyleTypographyPanel: Updated content font for', sectionId, ':', currentSection.font);
     } else if (type === 'field' && key) { // Spezifisches Feld
       if (!currentSection.fields) currentSection.fields = {};
       if (!currentSection.fields[key]) currentSection.fields[key] = {};
       currentSection.fields[key]!.font = { ...(currentSection.fields[key]?.font || defaultFont), ...updates };
+      console.log('StyleTypographyPanel: Updated field font for', sectionId, key, ':', currentSection.fields[key]?.font);
     }
 
+    console.log('StyleTypographyPanel: About to call updateStyleConfig with newConfig:', newConfig);
     updateStyleConfig(newConfig);
   };
 

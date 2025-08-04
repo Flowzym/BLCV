@@ -181,6 +181,10 @@ export default function DesignerPage({
   return (
     <StyleConfigProvider> {/* ✅ Wrapper hinzugefügt */}
       <div className="w-full flex flex-col gap-6 py-8">
+        {/* DEBUG: Log DesignerPage render */}
+        {console.log('DesignerPage: Rendering with styleConfig:', styleConfig)}
+        {console.log('DesignerPage: layoutElements:', layoutElements)}
+        
         {/* Tabs header */}
         <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
           <div className="flex items-center gap-2 p-4 border-b border-gray-200">
@@ -214,6 +218,8 @@ export default function DesignerPage({
           <div className="bg-white border border-gray-200 rounded-lg shadow-sm p-4">
             {renderDesignToolContent()}
           </div>
+            {console.log('DesignerPage: layoutElements being passed to CVPreview:', layoutElements)}
+            {console.log('DesignerPage: About to render CVPreview with templateName:', 'classic')}
 
           {/* Right column (preview)*/}
           <div className="flex flex-col gap-4">
