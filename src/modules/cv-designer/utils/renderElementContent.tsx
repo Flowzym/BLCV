@@ -1,5 +1,4 @@
 // 📄 src/modules/cv-designer/utils/RenderElementContent.tsx
-
 import React from "react";
 import { LayoutElement } from "../types/section";
 import { StyleConfig, FontConfig } from "../../../types/cv-designer";
@@ -59,13 +58,19 @@ export const RenderElementContent: React.FC<Props> = ({
     content: React.ReactNode,
     extraStyle: React.CSSProperties = {}
   ) => {
+    // ✅ Fallback-Kette aus index.css übernehmen
+    const FONT_FALLBACKS =
+      '"Inter", "Roboto", Arial, Helvetica, Georgia, Verdana, Tahoma, "Times New Roman", "Courier New", sans-serif';
+
     const fontStyle: React.CSSProperties = {
-      fontFamily: effectiveFontConfig?.family || style.fontFamily || "Inter",
+      fontFamily: effectiveFontConfig?.family
+        ? `"${effectiveFontConfig.family}", ${FONT_FALLBACKS}`
+        : FONT_FALLBACKS,
       fontSize: effectiveFontConfig?.size
         ? `${effectiveFontConfig.size}px`
         : undefined,
       fontWeight: effectiveFontConfig?.weight || "normal",
-      fontStyle: effectiveFontConfig?.style || "normal", // 🆕 italic support
+      fontStyle: effectiveFontConfig?.style || "normal", // italic support
       color:
         effectiveFontConfig?.color ||
         (field === "header" ? getPrimaryColor() : getTextColor()),
