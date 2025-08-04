@@ -7,6 +7,7 @@ import { Document, Paragraph, TextRun, AlignmentType, HeadingLevel } from 'docx'
 import { SavedTemplate, TemplateSection } from '../types/template';
 import { LayoutElement, Section, LayoutGroup } from '../types/section';
 import { StyleConfig } from '../../../types/cv-designer';
+import { getFontFamilyWithFallback } from '../utils/fonts';
 import { 
   renderElementToDocx, 
   A4_WIDTH, 
@@ -205,6 +206,9 @@ async function generateSectionParagraphs(
 
   // Section title
   if (section.title) {
+    const titleFontFamily = getFontFamilyWithFallback(styles.fontFamily).split(',')[0].replace(/"/g, '').trim();
+    console.log('DOCX Export: Section title font:', titleFontFamily);
+    
     paragraphs.push(
       new Paragraph({
         children: [
@@ -212,7 +216,8 @@ async function generateSectionParagraphs(
             text: section.title,
             bold: true,
             size: 26, // 13pt in half-points
-            color: (styles.primaryColor || '#1e40af').replace('#', '')
+            color: (styles.primaryColor || '#1e40af').replace('#', ''),
+            font: titleFontFamily
           })
         ],
         heading: HeadingLevel.HEADING_2,
@@ -225,6 +230,8 @@ async function generateSectionParagraphs(
   if (section.content) {
     const processedContent = processTextForExport(section.content);
     const contentLines = processedContent.split('\n').filter(line => line.trim());
+    const contentFontFamily = getFontFamilyWithFallback(styles.fontFamily).split(',')[0].replace(/"/g, '').trim();
+    console.log('DOCX Export: Section content font:', contentFontFamily);
     
     for (const line of contentLines) {
       paragraphs.push(
@@ -233,7 +240,8 @@ async function generateSectionParagraphs(
             new TextRun({
               text: line.trim(),
               size: 24, // 12pt in half-points
-              color: (styles.textColor || '#000000').replace('#', '')
+              color: (styles.textColor || '#000000').replace('#', ''),
+              font: contentFontFamily
             })
           ],
           spacing: { after: 120 }
@@ -301,4 +309,32 @@ function countLayoutElements(layout: LayoutElement[]): number {
   }
   
   return count;
+}
+
+export function renderElementToDocx(element: LayoutElement, style: StyleConfig): Paragraph[] {
+  const fontSize = calculateFontSize(style.fontSize)
+  const leftMargin = Math.round(element.x * 20)
+  const elementFontFamily = getFontFamilyWithFallback(style.fontFamily).split(',')[0].replace(/"/g, '').trim();
+  console.log('DOCX Export: Element font:', elementFontFamily, 'for element:', element.type);
+  
+  const paragraphs: Paragraph[] = []
+
+  if (element.content) {
+    const lines = element.content.split('\n')
+    for (const line of lines) {
+      paragraphs.push(new Paragraph({
+        children: [
+          new TextRun({
+            text: line.trim(),
+            size: fontSize * 2,
+            color: (style.textColor || '#000000').replace('#', ''),
+            font: elementFontFamily
+          })
+        ],
+        indent: { left: leftMargin }
+      }))
+    }
+  }
+
+  return paragraphs
 }
