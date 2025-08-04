@@ -119,13 +119,11 @@ export const RenderElementContent: React.FC<Props> = ({
   if (["kenntnisse", "skills", "softskills"].includes(element.type)) {
     if (!element.content) {
       return applyFontStyle(
-        <div style={{ fontStyle: "italic", fontSize: "0.8em", color: (style.colors && style.colors.textSecondary) || "#9ca3af" }}>
-          style={{
-            fontStyle: "italic",
-            fontSize: "0.8em",
-            color: style.colors?.secondary || "#9ca3af",
-          }}
-        >
+        <div style={{ 
+          fontStyle: "italic", 
+          fontSize: "0.8em", 
+          color: style.colors?.textSecondary || "#9ca3af" 
+        }}>
           – Keine Fähigkeiten –
         </div>
       );

@@ -65,13 +65,13 @@ export const StyleEditor: React.FC<StyleEditorProps> = ({
                       primary: preset.primary,
                       accent: preset.accent,
                     },
-                  })
+                  });
                   console.log('StyleEditor: After preset click, config.colors should be:', {
                     ...(config.colors || {}),
                     primary: preset.primary,
                     accent: preset.accent,
                   });
-                }
+                }}
                 className="flex items-center space-x-3 p-2 border rounded-lg hover:bg-gray-50 text-left"
               >
                 <div className="flex space-x-1">
