@@ -80,15 +80,6 @@ const SectionRenderer = ({
 }) => {
   // Use context instead of prop drilling
   const { styleConfig } = useStyleConfig();
-  
-  console.log('SectionRenderer: Processing element:', {
-    id: element.id,
-    type: element.type,
-    title: element.title,
-    contentLength: element.content?.length || 0,
-    hasTitle: !!element.title
-  });
-  
   const elementStyle = renderElementToCanvas(element, styleConfig);
 
   return (
@@ -344,10 +335,10 @@ const CVPreview: React.FC<CVPreviewProps> = ({
     position: "relative",
     width: A4_WIDTH,
     height: A4_HEIGHT,
-    backgroundColor: safeStyleConfig.backgroundColor || "#ffffff",
-    fontFamily: safeStyleConfig.fontFamily || "Inter",
+    backgroundColor: safeStyleConfig.colors?.background || "#ffffff",
+    fontFamily: safeStyleConfig.font?.family || "Inter",
     fontSize:
-      safeStyleConfig.fontSize === "small"
+      safeStyleConfig.font?.size === "small"
         ? "10px"
         : safeStyleConfig.fontSize === "large"
         ? "14px"

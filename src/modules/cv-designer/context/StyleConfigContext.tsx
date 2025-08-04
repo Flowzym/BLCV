@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode } from "react";
 import { StyleConfig } from "../types/styles";
-
+ 
 /**
  * 🟢 Default-StyleConfig – verhindert undefined-Werte
  */
@@ -14,22 +14,8 @@ const defaultStyleConfig: StyleConfig = {
     lineHeight: 1.6,
   },
   colors: {
-    primary: "#1e40af",
-    secondary: "#3b82f6",
-    accent: "#3b82f6",
-    text: "#333333",
-    textSecondary: "#6b7280",
-    background: "#ffffff",
-    border: "#e5e7eb",
-    text: "#333333",
-  },
-  spacing: {
-    margin: 24,
-    padding: 12,
-  },
-  borderRadius: 4,
-  borderColor: "#e5e7eb",
-  borderWidth: 1,
+    primary: "#1e40af", // Beispielwert
+    secondary: "#3b82f6", // Beispielwert
   sections: { // NEU: Default-Sektionen mit Header- und Content-Fonts
     profil: {
   // Legacy properties for backward compatibility - these will be synced with colors.*
@@ -173,51 +159,18 @@ export const StyleConfigProvider = ({ children }: { children: ReactNode }) => {
   );
 
   const updateStyleConfig = (config: StyleConfig) => {
-    // ✅ fix: fonts werden korrekt gespeichert
-    console.log('StyleConfigContext: updateStyleConfig called with:', config);
-    console.log('StyleConfigContext: sections in new config:', config.sections);
-    console.log('StyleConfigContext: merging with existing config to preserve sections');
-    
-    // Merge with existing config to preserve sections that might not be in the update
-    let mergedConfig = {
-      ...styleConfig,
+    // Merge incoming config with current state, prioritizing incoming values
+    // This ensures that partial updates (e.g., only colors) are correctly applied
+    // without losing other parts of the config (e.g., sections, fonts).
+    setStyleConfig(prevConfig => ({
+      ...prevConfig,
       ...config,
-      colors: {
-        ...styleConfig.colors,
-        ...config.colors
+      colors: { // Deep merge colors object
+        ...prevConfig.colors,
+        ...config.colors,
       },
-      sections: {
-        ...styleConfig.sections,
-        ...config.sections
-      }
-    };
-    
-    // Sync legacy properties with colors structure for backward compatibility
-    if (mergedConfig.colors) {
-      mergedConfig.primaryColor = mergedConfig.colors.primary;
-      mergedConfig.accentColor = mergedConfig.colors.accent;
-      mergedConfig.backgroundColor = mergedConfig.colors.background;
-      mergedConfig.textColor = mergedConfig.colors.text;
-    }
-    
-    // Sync colors structure with legacy properties if they were updated directly
-    if (config.primaryColor && !config.colors?.primary) {
-      mergedConfig.colors = { ...mergedConfig.colors, primary: config.primaryColor };
-    }
-    if (config.accentColor && !config.colors?.accent) {
-      mergedConfig.colors = { ...mergedConfig.colors, accent: config.accentColor };
-    }
-    if (config.backgroundColor && !config.colors?.background) {
-      mergedConfig.colors = { ...mergedConfig.colors, background: config.backgroundColor };
-    }
-    if (config.textColor && !config.colors?.text) {
-      mergedConfig.colors = { ...mergedConfig.colors, text: config.textColor };
-    }
-    
-    console.log('StyleConfigContext: final merged config:', mergedConfig);
-    console.log('StyleConfigContext: final merged sections:', mergedConfig.sections);
-    console.log('StyleConfigContext: final merged colors:', mergedConfig.colors);
-    setStyleConfig(mergedConfig);
+      // Sections and fonts are already handled by their respective panels
+    }));
   };
 
   const resetStyleConfig = () => {

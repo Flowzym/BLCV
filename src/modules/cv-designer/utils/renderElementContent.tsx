@@ -87,7 +87,7 @@ export const RenderElementContent: React.FC<Props> = ({
           height: "100%",
           objectFit: "cover",
           borderRadius: "50%",
-          border: `2px solid ${style.colors?.accent || style.accentColor || "#e5e7eb"}`,
+          border: `2px solid ${style.colors?.accent || "#e5e7eb"}`,
         }}
       />
     ) : (
@@ -102,7 +102,7 @@ export const RenderElementContent: React.FC<Props> = ({
           alignItems: "center",
           justifyContent: "center",
           fontSize: "0.6em",
-          color: style.colors?.text || "#6b7280",
+          color: style.colors?.textSecondary || "#6b7280",
           textAlign: "center",
         }}
       >
@@ -116,7 +116,7 @@ export const RenderElementContent: React.FC<Props> = ({
   if (["kenntnisse", "skills", "softskills"].includes(element.type)) {
     if (!element.content) {
       return applyFontStyle(
-        <div
+        <div style={{ fontStyle: "italic", fontSize: "0.8em", color: style.colors?.textSecondary || "#9ca3af" }}>
           style={{
             fontStyle: "italic",
             fontSize: "0.8em",
@@ -148,7 +148,7 @@ export const RenderElementContent: React.FC<Props> = ({
         )}
         {skills.length > maxSkills &&
           applyFontStyle(`+${skills.length - maxSkills}`, {
-            background: "#6b7280",
+            background: style.colors?.textSecondary || "#6b7280",
             color: "white",
             padding: "2px 6px",
             borderRadius: "8px",
@@ -164,6 +164,6 @@ export const RenderElementContent: React.FC<Props> = ({
     : applyFontStyle("– Keine Daten –", {
         fontStyle: "italic",
         fontSize: "0.8em",
-        color: style.colors?.secondary || "#9ca3af",
+        color: style.colors?.textSecondary || "#9ca3af",
       });
 };

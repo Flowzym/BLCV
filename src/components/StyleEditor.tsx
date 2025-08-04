@@ -94,7 +94,7 @@ export const StyleEditor: React.FC<StyleEditorProps> = ({
           <div className="flex items-center space-x-2">
             <input
               type="color"
-              value={config.colors?.primary || config.primaryColor || "#1e40af"}
+              value={config.colors?.primary || "#1e40af"}
               onChange={(e) =>
                 handleConfigChange({
                   colors: { ...config.colors, primary: e.target.value },
@@ -104,7 +104,7 @@ export const StyleEditor: React.FC<StyleEditorProps> = ({
             />
             <input
               type="text"
-              value={config.colors?.primary || config.primaryColor || "#1e40af"}
+              value={config.colors?.primary || "#1e40af"}
               onChange={(e) =>
                 handleConfigChange({
                   colors: { ...config.colors, primary: e.target.value },
@@ -123,7 +123,7 @@ export const StyleEditor: React.FC<StyleEditorProps> = ({
           <div className="flex items-center space-x-2">
             <input
               type="color"
-              value={config.colors?.accent || config.accentColor || "#3b82f6"}
+              value={config.colors?.accent || "#3b82f6"}
               onChange={(e) =>
                 handleConfigChange({
                   colors: { ...config.colors, accent: e.target.value },
@@ -133,7 +133,7 @@ export const StyleEditor: React.FC<StyleEditorProps> = ({
             />
             <input
               type="text"
-              value={config.colors?.accent || config.accentColor || "#3b82f6"}
+              value={config.colors?.accent || "#3b82f6"}
               onChange={(e) =>
                 handleConfigChange({
                   colors: { ...config.colors, accent: e.target.value },
