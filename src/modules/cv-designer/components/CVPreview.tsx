@@ -336,7 +336,7 @@ const CVPreview: React.FC<CVPreviewProps> = ({
     width: A4_WIDTH,
     height: A4_HEIGHT,
     backgroundColor: (safeStyleConfig.colors && safeStyleConfig.colors.background) || safeStyleConfig.backgroundColor || "#ffffff",
-    fontFamily: safeStyleConfig.font?.family || "Inter",
+    /* ⬇️ fontFamily entfernt → nur RenderElementContent steuert Fonts */
     fontSize:
       safeStyleConfig.font?.size === "small"
         ? "10px"
