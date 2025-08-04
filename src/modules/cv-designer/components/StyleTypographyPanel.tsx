@@ -1,3 +1,5 @@
+// 📄 src/modules/cv-designer/components/StyleTypographyPanel.tsx
+
 import React from "react";
 import { useStyleConfig } from "../context/StyleConfigContext";
 import { StyleConfig, FontConfig } from "../types/styles";
@@ -59,36 +61,58 @@ export const StyleTypographyPanel: React.FC = () => {
     key: string | null,
     updates: Partial<FontConfig>
   ) => {
+    const prev =
+      type === "header"
+        ? styleConfig.sections?.[sectionId]?.header?.font
+        : type === "content"
+        ? styleConfig.sections?.[sectionId]?.font
+        : key
+        ? styleConfig.sections?.[sectionId]?.fields?.[key]?.font
+        : undefined;
+
+    // 👉 Nur fehlende Werte mit Defaults auffüllen
+    const merged: FontConfig = {
+      size: updates.size ?? prev?.size ?? defaultFont.size,
+      weight: updates.weight ?? prev?.weight ?? defaultFont.weight,
+      style: updates.style ?? prev?.style ?? defaultFont.style,
+      color: updates.color ?? prev?.color ?? defaultFont.color,
+      letterSpacing:
+        updates.letterSpacing ?? prev?.letterSpacing ?? defaultFont.letterSpacing,
+      lineHeight: updates.lineHeight ?? prev?.lineHeight ?? defaultFont.lineHeight,
+      family: updates.family ?? prev?.family ?? defaultFont.family,
+    };
+
     if (type === "header") {
-      const merged = {
-        ...defaultFont,
-        ...(styleConfig.sections?.[sectionId]?.header?.font || {}),
-        ...updates,
-      };
       updateStyleConfig({
-        sectionId,
-        header: { font: merged },
+        sections: {
+          ...styleConfig.sections,
+          [sectionId]: {
+            ...styleConfig.sections?.[sectionId],
+            header: { font: merged },
+          },
+        },
       });
     } else if (type === "content") {
-      const merged = {
-        ...defaultFont,
-        ...(styleConfig.sections?.[sectionId]?.font || {}),
-        ...updates,
-      };
       updateStyleConfig({
-        sectionId,
-        font: merged,
+        sections: {
+          ...styleConfig.sections,
+          [sectionId]: {
+            ...styleConfig.sections?.[sectionId],
+            font: merged,
+          },
+        },
       });
     } else if (type === "field" && key) {
-      const merged = {
-        ...defaultFont,
-        ...(styleConfig.sections?.[sectionId]?.fields?.[key]?.font || {}),
-        ...updates,
-      };
       updateStyleConfig({
-        sectionId,
-        fields: {
-          [key]: { font: merged },
+        sections: {
+          ...styleConfig.sections,
+          [sectionId]: {
+            ...styleConfig.sections?.[sectionId],
+            fields: {
+              ...(styleConfig.sections?.[sectionId]?.fields || {}),
+              [key]: { font: merged },
+            },
+          },
         },
       });
     }
@@ -102,11 +126,7 @@ export const StyleTypographyPanel: React.FC = () => {
   ) => {
     const safeFont = { ...defaultFont, ...font };
     const editorTitle =
-      type === "header"
-        ? "Überschrift"
-        : type === "content"
-        ? "Allgemeiner Inhalt"
-        : key;
+      type === "header" ? "Überschrift" : type === "content" ? "Allgemeiner Inhalt" : key;
 
     return (
       <div
@@ -120,12 +140,7 @@ export const StyleTypographyPanel: React.FC = () => {
           <Label>Schriftart</Label>
           <select
             value={safeFont.family}
-            onChange={(e) =>
-              updateFont(sectionId, type, key, {
-                ...safeFont, // 👈 alle bisherigen Werte beibehalten
-                family: e.target.value,
-              })
-            }
+            onChange={(e) => updateFont(sectionId, type, key, { family: e.target.value })}
             className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
           >
             {FONT_FAMILIES.map((fontFamily) => (
@@ -144,7 +159,6 @@ export const StyleTypographyPanel: React.FC = () => {
             value={safeFont.size}
             onChange={(e) =>
               updateFont(sectionId, type, key, {
-                ...safeFont,
                 size: parseInt(e.target.value, 10) || defaultFont.size,
               })
             }
@@ -159,12 +173,7 @@ export const StyleTypographyPanel: React.FC = () => {
           <Input
             type="color"
             value={safeFont.color || defaultFont.color}
-            onChange={(e) =>
-              updateFont(sectionId, type, key, {
-                ...safeFont,
-                color: e.target.value,
-              })
-            }
+            onChange={(e) => updateFont(sectionId, type, key, { color: e.target.value })}
             className="w-12 h-8 p-0 border-none"
           />
         </div>
@@ -175,8 +184,8 @@ export const StyleTypographyPanel: React.FC = () => {
             variant={safeFont.weight === "bold" ? "default" : "outline"}
             onClick={() =>
               updateFont(sectionId, type, key, {
-                ...safeFont,
                 weight: safeFont.weight === "bold" ? "normal" : "bold",
+                style: safeFont.style,
               })
             }
           >
@@ -187,8 +196,8 @@ export const StyleTypographyPanel: React.FC = () => {
             variant={safeFont.style === "italic" ? "default" : "outline"}
             onClick={() =>
               updateFont(sectionId, type, key, {
-                ...safeFont,
                 style: safeFont.style === "italic" ? "normal" : "italic",
+                weight: safeFont.weight,
               })
             }
           >
@@ -202,11 +211,7 @@ export const StyleTypographyPanel: React.FC = () => {
                 : "outline"
             }
             onClick={() =>
-              updateFont(sectionId, type, key, {
-                ...safeFont,
-                weight: "normal",
-                style: "normal",
-              })
+              updateFont(sectionId, type, key, { weight: "normal", style: "normal" })
             }
           >
             R
@@ -221,12 +226,7 @@ export const StyleTypographyPanel: React.FC = () => {
             max={5}
             step={0.1}
             value={[safeFont.letterSpacing ?? 0]}
-            onValueChange={(v) =>
-              updateFont(sectionId, type, key, {
-                ...safeFont,
-                letterSpacing: v[0],
-              })
-            }
+            onValueChange={(v) => updateFont(sectionId, type, key, { letterSpacing: v[0] })}
           />
         </div>
 
@@ -238,12 +238,7 @@ export const StyleTypographyPanel: React.FC = () => {
             max={2.5}
             step={0.1}
             value={[safeFont.lineHeight ?? 1.6]}
-            onValueChange={(v) =>
-              updateFont(sectionId, type, key, {
-                ...safeFont,
-                lineHeight: v[0],
-              })
-            }
+            onValueChange={(v) => updateFont(sectionId, type, key, { lineHeight: v[0] })}
           />
         </div>
       </div>
@@ -252,15 +247,11 @@ export const StyleTypographyPanel: React.FC = () => {
 
   return (
     <div className="space-y-4">
-      <h3 className="font-medium text-gray-900">
-        Typografie pro Bereich & Subfeld
-      </h3>
+      <h3 className="font-medium text-gray-900">Typografie pro Bereich & Subfeld</h3>
       <Accordion type="multiple" className="space-y-2">
         {Object.entries(sectionFields).map(([sectionId, fields]) => (
           <AccordionItem key={sectionId} value={sectionId}>
-            <AccordionTrigger className="capitalize">
-              {sectionId}
-            </AccordionTrigger>
+            <AccordionTrigger className="capitalize">{sectionId}</AccordionTrigger>
             <AccordionContent>
               {renderFontEditor(
                 sectionId,
