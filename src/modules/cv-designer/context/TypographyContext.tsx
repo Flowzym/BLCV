@@ -4,7 +4,6 @@
  */
 
 import React, { createContext, useContext, useReducer, useCallback, useEffect, ReactNode } from 'react';
-import { useReducer } from 'react';
 import { loadCVSuggestions, CVSuggestionConfig, ProfileSourceMapping } from '../services/supabaseService';
 import { deepMerge } from '@/lib/utils';
 
