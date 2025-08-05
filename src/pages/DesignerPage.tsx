@@ -159,7 +159,10 @@ function DesignerPageInner() {
         return (
           <TemplateSelector
             onSelect={(style, layout) => {
-              updateStyleConfig(style);
+              // Ensure complete style object is passed for deep merge
+              if (style) {
+                updateStyleConfig(style);
+              }
               setLayoutElements(layout);
             }}
             allowSave

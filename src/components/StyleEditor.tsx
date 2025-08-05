@@ -48,9 +48,13 @@ export const StyleEditor: React.FC<StyleEditorProps> = ({
                 key={index}
                 onClick={() => {
                   console.log("StyleEditor: Preset clicked →", preset);
+                  // Use complete config object for deep merge
                   handleConfigChange({
+                    primaryColor: preset.primary,
+                    accentColor: preset.accent,
+                    backgroundColor: preset.background,
+                    textColor: preset.text,
                     colors: {
-                      ...(styleConfig.colors || {}),
                       primary: preset.primary,
                       accent: preset.accent,
                       background: preset.background,

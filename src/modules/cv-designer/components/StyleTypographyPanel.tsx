@@ -189,7 +189,7 @@ export const StyleTypographyPanel: React.FC = () => {
           <select
             value={effectiveFont.family}
             onChange={(e) => {
-              console.log("🔧 Font family changed to:", e.target.value);
+              console.log('🔧 Font family changed to:', e.target.value);
               updateFont(sectionId, type, key, { family: e.target.value });
             }}
             className={`w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 ${
