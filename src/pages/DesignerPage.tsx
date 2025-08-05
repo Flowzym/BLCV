@@ -26,7 +26,7 @@ import { mapBetterLetterToDesignerWithTemplate } from "../modules/cv-designer/se
 import { useTemplateStorage } from "../modules/cv-designer/hooks/useTemplateStorage";
 import { ExportButtons } from "../modules/cv-designer/components/ExportButtons";
 import { StyleConfigProvider, useStyleConfig } from "../modules/cv-designer/context/StyleConfigContext";
-import { TypographyProvider } from "../modules/cv-designer/context/TypographyContext";
+import { TypographyProvider, useTypographyContext } from "../modules/cv-designer/context/TypographyContext";
 
 function normalizeCVData(cvData: any) {
   if (!cvData?.personalData) return cvData;
@@ -69,8 +69,9 @@ export default function DesignerPageWrapper() {
 function DesignerPageInner() {
   const [activeDesignerTab, setActiveDesignerTab] = useState<TabId>("layout-style");
   const { personalData, updatePersonalData } = useLebenslauf();
-  const { saveTemplate, templates } = useTemplateStorage();
+  const { saveTemplate, loadTemplate, templates } = useTemplateStorage();
   const { styleConfig, updateStyleConfig } = useStyleConfig();
+  const { bulkUpdate: bulkUpdateTypography, exportTypography } = useTypographyContext();
 
   const [layoutElements, setLayoutElements] = useState<LayoutElement[]>([]);
 
@@ -79,22 +80,50 @@ function DesignerPageInner() {
     if ((!templates || templates.length === 0) && layoutElements.length === 0) {
       const mapped = mapBetterLetterToDesignerWithTemplate({ personalData: {} }, "classic") ?? [];
       setLayoutElements(mapped);
+      
+      // Save template with both style and typography
+      const currentTypography = exportTypography();
       saveTemplate({
         id: "default-classic",
         name: "Classic Default",
         layout: mapped,
         style: styleConfig,
+        typography: currentTypography.sections
       });
     }
-  }, [templates, layoutElements, saveTemplate, styleConfig]);
+  }, [templates, layoutElements, saveTemplate, styleConfig, exportTypography]);
 
   const handleTemplateSave = () => {
+    const currentTypography = exportTypography();
     saveTemplate({
       id: Date.now().toString(),
       name: `${personalData?.vorname ?? "Template"} ${new Date().toLocaleDateString()}`,
       layout: layoutElements,
       style: styleConfig,
+      typography: currentTypography.sections
     });
+  };
+
+  const handleTemplateLoad = (template: any) => {
+    console.log('DesignerPage: Loading template with deep merge:', template.name);
+    
+    // Apply style config using deep merge
+    if (template.style) {
+      console.log('DesignerPage: Applying template style config');
+      updateStyleConfig(template.style);
+    }
+    
+    // Apply typography using bulk update with preservation logic
+    if (template.typography) {
+      console.log('DesignerPage: Applying template typography');
+      bulkUpdateTypography({ sections: template.typography });
+    }
+    
+    // Apply layout elements
+    if (template.layout) {
+      console.log('DesignerPage: Applying template layout');
+      setLayoutElements(template.layout);
+    }
   };
 
   const designerTabs: { id: TabId; label: string; icon: React.ElementType }[] = [
@@ -123,8 +152,6 @@ function DesignerPageInner() {
       case "colors":
         return (
           <StyleEditor
-            config={styleConfig}
-            onChange={updateStyleConfig}
             sections={
               activeDesignerTab === "layout-style"
                 ? ["layout", "spacing"]
@@ -161,15 +188,13 @@ function DesignerPageInner() {
       case "design-templates":
         return (
           <TemplateSelector
-            onSelect={(template) => {
-              handleTemplateLoad(template);
-            }}
+            onSelect={handleTemplateLoad}
             allowSave
             onSaveTemplate={handleTemplateSave}
           />
         );
       default:
-      updateStyleConfig(template.style);
+        return null;
     }
   };
 
