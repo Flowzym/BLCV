@@ -123,10 +123,12 @@ export const StyleConfigProvider = ({ children }: { children: ReactNode }) => {
     console.log("updateStyleConfig called with:", config);
 
     setStyleConfig((prevConfig) => {
-      // Use deep merge for nested objects like sections and colors
+      // Use deep merge to preserve nested properties
       const mergedConfig: StyleConfig = deepMerge(prevConfig, config);
 
       console.log("updateStyleConfig - mergedConfig:", mergedConfig);
+      
+      // Normalize colors after deep merge to ensure consistency
       return normalizeColors(mergedConfig);
     });
   };
