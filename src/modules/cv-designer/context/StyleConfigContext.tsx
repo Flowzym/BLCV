@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, ReactNode } from "react";
 import { StyleConfig } from "../types/styles";
+import { deepMerge } from "@/lib/utils";
 
 /**
  * Normalisiert Colors (falls alte Root-Properties gesetzt sind)
@@ -122,18 +123,8 @@ export const StyleConfigProvider = ({ children }: { children: ReactNode }) => {
     console.log("updateStyleConfig called with:", config);
 
     setStyleConfig((prevConfig) => {
-      const mergedConfig: StyleConfig = {
-        ...prevConfig,
-        ...config,
-        colors: {
-          ...prevConfig.colors,
-          ...(config.colors || {}),
-        },
-        sections: {
-          ...prevConfig.sections,
-          ...(config.sections || {}),
-        },
-      };
+      // Use deep merge for nested objects like sections and colors
+      const mergedConfig: StyleConfig = deepMerge(prevConfig, config);
 
       console.log("updateStyleConfig - mergedConfig:", mergedConfig);
       return normalizeColors(mergedConfig);
