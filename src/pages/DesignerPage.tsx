@@ -158,12 +158,8 @@ function DesignerPageInner() {
       case "design-templates":
         return (
           <TemplateSelector
-            onSelect={(style, layout) => {
-              // Ensure complete style object is passed for deep merge
-              if (style) {
-                updateStyleConfig(style);
-              }
-              setLayoutElements(layout);
+            onSelect={(template) => {
+              handleTemplateLoad(template);
             }}
             allowSave
             onSaveTemplate={handleTemplateSave}
