@@ -2,8 +2,8 @@ import React from "react";
 import { LayoutElement } from "../types/section";
 import { StyleConfig } from "../../../types/cv-designer";
 import { defaultStyleConfig } from "../config/defaultStyleConfig";
-import { useLebenslauf } from "@/components/LebenslaufContext";
 import { useTypography } from "../context/TypographyContext";
+import { useStyleConfig } from "../context/StyleConfigContext";
 import { mapBetterLetterToDesigner } from "../services/mapBetterLetterToDesigner";
 import {
   renderElementToCanvas,
@@ -14,6 +14,7 @@ import {
 } from "../services/layoutRenderer";
 import { RenderElementContent } from "../utils/renderElementContent";
 
+import { useLebenslauf } from "@/components/LebenslaufContext";
 interface CVPreviewProps {
   sections?: LayoutElement[];
   layoutElements?: LayoutElement[];
@@ -74,6 +75,7 @@ const DebugOverlay = ({
 const SectionRenderer = ({ element }: { element: LayoutElement }) => {
   const [headerTypography] = useTypography(element.type, 'header');
   const [contentTypography] = useTypography(element.type, 'content');
+  const { styleConfig } = useStyleConfig();
   const elementStyle = renderElementToCanvas(element, styleConfig);
 
 
@@ -91,15 +93,15 @@ const SectionRenderer = ({ element }: { element: LayoutElement }) => {
                 "#3b82f6"
               }`,
               paddingBottom: "2px",
-              fontFamily: getFontFamilyWithFallback(headerTypography.fontFamily),
-              fontSize: `${headerTypography.fontSize}px`,
-              fontWeight: headerTypography.fontWeight,
+              fontFamily: getFontFamilyWithFallback(headerTypography.fontFamily || 'Inter'),
+              fontSize: `${headerTypography.fontSize || 16}px`,
+              fontWeight: headerTypography.fontWeight || 'bold',
               fontStyle: headerTypography.italic ? 'italic' : 'normal',
-              color: headerTypography.textColor,
+              color: headerTypography.textColor || '#1e40af',
               letterSpacing: headerTypography.letterSpacing !== undefined 
                 ? `${headerTypography.letterSpacing}px` 
                 : undefined,
-              lineHeight: headerTypography.lineHeight,
+              lineHeight: headerTypography.lineHeight || 1.6,
             }}
           >
             {element.title}
@@ -368,20 +370,19 @@ const CVPreview: React.FC<CVPreviewProps> = ({
           sectionsToRender.length,
           "sections"
         )}
-        <div style={containerStyle}>
-          {sectionsToRender.map((element) => (
-            <>
+            fontFamily: getFontFamilyWithFallback(contentTypography.fontFamily || 'Inter'),
+            fontSize: `${contentTypography.fontSize || 12}px`,
+            fontWeight: contentTypography.fontWeight || 'normal',
               {console.log(
-                "CVPreview: Mapping element for SectionRenderer:",
+            color: contentTypography.textColor || '#333333',
                 element.id,
                 element.type
               )}
-              <SectionRenderer key={element.id} element={element} />
+            lineHeight: contentTypography.lineHeight || 1.6,
             </>
           ))}
 
           {sectionsToRender.length === 0 && <EmptyState />}
-          {showDebugBorders && (
             <DebugOverlay stats={layoutStats} validation={layoutValidation} />
           )}
         </div>

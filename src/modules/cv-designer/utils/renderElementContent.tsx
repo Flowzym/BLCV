@@ -2,20 +2,18 @@
 
 import React from "react";
 import { LayoutElement } from "../types/section";
-import { StyleConfig } from "../../../types/cv-designer";
 import { useTypography } from "../context/TypographyContext";
+import { useStyleConfig } from "../context/StyleConfigContext";
 import { getFontFamilyWithFallback } from "./fonts";
 
 interface Props {
   element: LayoutElement;
-  style: StyleConfig;
   field?: string; // Subfeld-Key (header, name, etc.)
   maxSkills?: number;
 }
 
 export const RenderElementContent: React.FC<Props> = ({
   element,
-  style,
   field,
   maxSkills = 8,
 }) => {
@@ -23,24 +21,27 @@ export const RenderElementContent: React.FC<Props> = ({
 
   // Get typography configuration from TypographyContext
   const [typography] = useTypography(element.type, field || 'content');
+  
+  // Get style configuration from StyleConfigContext (for colors only)
+  const { styleConfig } = useStyleConfig();
 
   console.log(`🎨 RenderElementContent: typography for ${element.type}.${field || 'content'}:`, typography);
 
   // Color getters with robust fallback chains
   const getPrimaryColor = () =>
-    style.colors?.primary || style.primaryColor || "#1e40af";
+    styleConfig.colors?.primary || styleConfig.primaryColor || "#1e40af";
 
   const getAccentColor = () =>
-    style.colors?.accent || style.accentColor || "#3b82f6";
+    styleConfig.colors?.accent || styleConfig.accentColor || "#3b82f6";
 
   const getBackgroundColor = () =>
-    style.colors?.background || style.backgroundColor || "#ffffff";
+    styleConfig.colors?.background || styleConfig.backgroundColor || "#ffffff";
 
   const getTextColor = () =>
-    style.colors?.text || style.textColor || "#333333";
+    styleConfig.colors?.text || styleConfig.textColor || "#333333";
 
   const getSecondaryTextColor = () =>
-    style.colors?.textSecondary || "#9ca3af";
+    styleConfig.colors?.textSecondary || "#9ca3af";
 
   // Apply font styling with typography from context
   const applyFontStyle = (
@@ -140,25 +141,30 @@ export const RenderElementContent: React.FC<Props> = ({
     return (
       <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
         {skills.slice(0, maxSkills).map((skill, index) =>
-          applyFontStyle(skill, {
-            key: index,
-            background: getAccentColor(),
-            color: "white",
-            padding: "2px 6px",
-            borderRadius: "8px",
-            fontSize: "0.7em",
-            fontWeight: "500",
-            whiteSpace: "nowrap",
-          })
+          applyFontStyle(
+            <span key={index}>{skill}</span>,
+            {
+              background: getAccentColor(),
+              color: "white",
+              padding: "2px 6px",
+              borderRadius: "8px",
+              fontSize: "0.7em",
+              fontWeight: "500",
+              whiteSpace: "nowrap",
+            }
+          )
         )}
         {skills.length > maxSkills &&
-          applyFontStyle(`+${skills.length - maxSkills}`, {
-            background: getSecondaryTextColor(),
-            color: "white",
-            padding: "2px 6px",
-            borderRadius: "8px",
-            fontSize: "0.7em",
-          })}
+          applyFontStyle(
+            <span key="more">+{skills.length - maxSkills}</span>,
+            {
+              background: getSecondaryTextColor(),
+              color: "white",
+              padding: "2px 6px",
+              borderRadius: "8px",
+              fontSize: "0.7em",
+            }
+          )}
       </div>
     );
   }

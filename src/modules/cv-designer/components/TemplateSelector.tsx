@@ -3,13 +3,12 @@ import {
   predefinedTemplates,
   getTemplateCategories,
 } from "../config/template_registry";
-import type { PredefinedTemplate } from "../config/template_registry";
 import TemplateThumbnail from "./TemplateThumbnail";
 import { useStyleConfig } from "../context/StyleConfigContext";
 import { useTypographyContext } from "../context/TypographyContext";
 
 interface TemplateSelectorProps {
-  onSelect: (template: PredefinedTemplate) => void;
+  onSelect: (template: any) => void;
   selectedTemplateId?: string;
   showCategories?: boolean;
   preserveUserTypography?: boolean;
@@ -30,10 +29,10 @@ export const TemplateSelector: React.FC<TemplateSelectorProps> = ({
       ? predefinedTemplates
       : predefinedTemplates.filter((tpl) => tpl.category === selectedCategory);
 
-  const handleTemplateSelect = (template: PredefinedTemplate) => {
+  const handleTemplateSelect = (template: any) => {
     // Apply template styles (colors, layout, spacing)
-    if (template.styleConfig) {
-      updateStyleConfig(template.styleConfig);
+    if (template.style) {
+      updateStyleConfig(template.style);
     }
     
     // Handle typography separately to preserve user changes
@@ -91,7 +90,7 @@ export const TemplateSelector: React.FC<TemplateSelectorProps> = ({
             key={tpl.id}
             name={tpl.name}
             layout={tpl.layout}
-            styleConfig={tpl.styleConfig}
+            styleConfig={tpl.style}
             isSelected={selectedTemplateId === tpl.id}
             onClick={() => handleTemplateSelect(tpl)}
           />
