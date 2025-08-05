@@ -5,26 +5,27 @@ import { StyleConfig } from "../types/styles";
 import { deepMerge } from "@/lib/utils";
 
 /**
- * Normalisiert Colors (falls alte Root-Properties gesetzt sind)
+ * Normalizes colors - simplified to one-direction only
+ * colors.* is the source of truth, no root-level mirroring
  */
 function normalizeColors(config: StyleConfig): StyleConfig {
-  // Initialize colors object if null or undefined
-  if (!config.colors) {
+  // Initialize colors object if it doesn't exist
+  if (!config.colors || typeof config.colors !== 'object') {
     config.colors = {};
   }
 
-  // Set defaults only for undefined values, preserve null values
+  // Set defaults only for undefined values, preserve null values explicitly
   if (config.colors.primary === undefined) {
-    config.colors.primary = config.primaryColor ?? "#1e40af";
+    config.colors.primary = "#1e40af";
   }
   if (config.colors.accent === undefined) {
-    config.colors.accent = config.accentColor ?? "#3b82f6";
+    config.colors.accent = "#3b82f6";
   }
   if (config.colors.background === undefined) {
-    config.colors.background = config.backgroundColor ?? "#ffffff";
+    config.colors.background = "#ffffff";
   }
   if (config.colors.text === undefined) {
-    config.colors.text = config.textColor ?? "#333333";
+    config.colors.text = "#333333";
   }
   if (config.colors.secondary === undefined) {
     config.colors.secondary = "#6b7280";
@@ -36,19 +37,8 @@ function normalizeColors(config: StyleConfig): StyleConfig {
     config.colors.border = "#e5e7eb";
   }
 
-  // Mirror to root-level properties only if not undefined
-  if (config.colors.primary !== undefined) {
-    config.primaryColor = config.colors.primary;
-  }
-  if (config.colors.accent !== undefined) {
-    config.accentColor = config.colors.accent;
-  }
-  if (config.colors.background !== undefined) {
-    config.backgroundColor = config.colors.background;
-  }
-  if (config.colors.text !== undefined) {
-    config.textColor = config.colors.text;
-  }
+  // Keep colors.* as source of truth - no root-level mirroring
+  // This prevents circular updates and simplifies the data flow
 
   return config;
 }
