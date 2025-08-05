@@ -1,8 +1,7 @@
 // 📄 src/modules/cv-designer/components/StyleTypographyPanel.tsx
 
 import React from "react";
-import { useStyleConfig } from "../context/StyleConfigContext";
-import { FontConfig } from "../types/styles";
+import { useTypography, useHasCustomTypography, useResetTypography } from "../context/TypographyContext";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Input } from "@/components/ui/input";
@@ -13,13 +12,6 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import {
-  getEffectiveFontConfig,
-  getLocalFontConfig,
-  isFontPropertyExplicit,
-  resetFontConfig,
-  defaultFont,
-} from "../utils/fontUtils";
 import { Lock, RotateCcw, Eye } from "lucide-react";
 
 // Content Sections mit ihren Feldern
@@ -50,109 +42,28 @@ const FONT_FAMILIES = [
 ];
 
 export const StyleTypographyPanel: React.FC = () => {
-  const { styleConfig, updateStyleConfig } = useStyleConfig();
-
-  /**
-   * Update font for specific section/field
-   */
-  const updateFont = (
-    sectionId: string,
-    type: "header" | "content" | "field",
-    key: string | null,
-    updates: Partial<FontConfig>
-  ) => {
-    console.log(`🔧 updateFont: ${sectionId}.${type}.${key || "null"}`, updates);
-
-    const currentSection = styleConfig.sections?.[sectionId] || {};
-
-    if (type === "header") {
-      updateStyleConfig({
-        sections: {
-          [sectionId]: {
-            sectionId,
-            header: {
-              font: {
-                ...updates,
-              },
-            },
-          },
-        },
-      });
-    } else if (type === "content") {
-      updateStyleConfig({
-        sections: {
-          [sectionId]: {
-            sectionId,
-            font: {
-              ...updates,
-            },
-          },
-        },
-      });
-    } else if (key) {
-      updateStyleConfig({
-        sections: {
-          [sectionId]: {
-            sectionId,
-            fields: {
-              [key]: {
-                font: {
-                  ...updates,
-                },
-              },
-            },
-          },
-        },
-      });
-    }
-  };
-
-  const resetFont = (
-    sectionId: string,
-    type: "header" | "content" | "field",
-    key: string | null
-  ) => {
-    const resetConfig = resetFontConfig(sectionId, key, type);
-    updateFont(sectionId, type, key, resetConfig);
-  };
+  const { resetField } = useResetTypography();
 
   const renderFontEditor = (
     sectionId: string,
-    type: "header" | "content" | "field",
-    key: string | null,
+    fieldKey: string,
     title: string
   ) => {
-    const effectiveFont = getEffectiveFontConfig(sectionId, key, type, styleConfig);
-
-    const isExplicitFamily = isFontPropertyExplicit(sectionId, key, type, "family", styleConfig);
-    const isExplicitSize = isFontPropertyExplicit(sectionId, key, type, "size", styleConfig);
-    const isExplicitWeight = isFontPropertyExplicit(sectionId, key, type, "weight", styleConfig);
-    const isExplicitStyle = isFontPropertyExplicit(sectionId, key, type, "style", styleConfig);
-    const isExplicitColor = isFontPropertyExplicit(sectionId, key, type, "color", styleConfig);
-    const isExplicitLetterSpacing = isFontPropertyExplicit(sectionId, key, type, "letterSpacing", styleConfig);
-    const isExplicitLineHeight = isFontPropertyExplicit(sectionId, key, type, "lineHeight", styleConfig);
-
-    const hasAnyExplicit =
-      isExplicitFamily ||
-      isExplicitSize ||
-      isExplicitWeight ||
-      isExplicitStyle ||
-      isExplicitColor ||
-      isExplicitLetterSpacing ||
-      isExplicitLineHeight;
+    const [typography, updateTypography] = useTypography(sectionId, fieldKey);
+    const hasCustomTypography = useHasCustomTypography(sectionId, fieldKey);
 
     return (
-      <div key={`${sectionId}-${type}-${key}`} className="space-y-4 border rounded-lg p-4 bg-white">
+      <div key={`${sectionId}-${fieldKey}`} className="space-y-4 border rounded-lg p-4 bg-white">
         <div className="flex items-center justify-between">
           <h4 className="text-sm font-semibold text-gray-900">{title}</h4>
           <div className="flex items-center space-x-2">
-            {!hasAnyExplicit && (
+            {!hasCustomTypography && (
               <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded flex items-center">
                 <Eye className="w-3 h-3 mr-1" />
                 Standard
               </span>
             )}
-            {hasAnyExplicit && (
+            {hasCustomTypography && (
               <span className="text-xs text-orange-600 bg-orange-50 px-2 py-1 rounded flex items-center">
                 <Lock className="w-3 h-3 mr-1" />
                 Angepasst
@@ -161,8 +72,8 @@ export const StyleTypographyPanel: React.FC = () => {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => resetFont(sectionId, type, key)}
-              disabled={!hasAnyExplicit}
+              onClick={() => resetField(sectionId, fieldKey)}
+              disabled={!hasCustomTypography}
               className="h-6 px-2"
               title="Auf Standard zurücksetzen"
             >
@@ -175,13 +86,13 @@ export const StyleTypographyPanel: React.FC = () => {
         <div className="space-y-2">
           <Label className="text-sm font-medium">Schriftart</Label>
           <select
-            value={effectiveFont.family}
+            value={typography.fontFamily || 'Inter'}
             onChange={(e) => {
               console.log('🔧 Font family changed to:', e.target.value);
-              updateFont(sectionId, type, key, { family: e.target.value });
+              updateTypography({ fontFamily: e.target.value });
             }}
             className={`w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-blue-500 ${
-              isExplicitFamily ? "bg-orange-50 border-orange-300" : "bg-white border-gray-300"
+              typography.fontFamily ? "bg-orange-50 border-orange-300" : "bg-white border-gray-300"
             }`}
           >
             {FONT_FAMILIES.map((fontFamily) => (
@@ -198,14 +109,14 @@ export const StyleTypographyPanel: React.FC = () => {
           <div className="flex items-center space-x-3">
             <Input
               type="number"
-              value={effectiveFont.size}
+              value={typography.fontSize || 12}
               onChange={(e) => {
-                const newSize = parseInt(e.target.value, 10) || defaultFont.size;
+                const newSize = parseInt(e.target.value, 10) || 12;
                 console.log("🔧 Font size changed to:", newSize);
-                updateFont(sectionId, type, key, { size: newSize });
+                updateTypography({ fontSize: newSize });
               }}
               className={`w-20 ${
-                isExplicitSize ? "bg-orange-50 border-orange-300" : "bg-white border-gray-300"
+                typography.fontSize ? "bg-orange-50 border-orange-300" : "bg-white border-gray-300"
               }`}
               min={8}
               max={72}
@@ -215,10 +126,10 @@ export const StyleTypographyPanel: React.FC = () => {
                 min={8}
                 max={72}
                 step={1}
-                value={[effectiveFont.size]}
+                value={[typography.fontSize || 12]}
                 onValueChange={(value) => {
                   console.log("🔧 Font size slider changed to:", value[0]);
-                  updateFont(sectionId, type, key, { size: value[0] });
+                  updateTypography({ fontSize: value[0] });
                 }}
               />
             </div>
@@ -230,27 +141,27 @@ export const StyleTypographyPanel: React.FC = () => {
           <Label className="text-sm font-medium">Schriftstil</Label>
           <div className="flex items-center space-x-2">
             <Button
-              variant={effectiveFont.weight === "bold" ? "default" : "outline"}
+              variant={typography.fontWeight === "bold" ? "default" : "outline"}
               size="sm"
               onClick={() => {
-                const newWeight = effectiveFont.weight === "bold" ? "normal" : "bold";
+                const newWeight = typography.fontWeight === "bold" ? "normal" : "bold";
                 console.log("🔧 Font weight changed to:", newWeight);
-                updateFont(sectionId, type, key, { weight: newWeight });
+                updateTypography({ fontWeight: newWeight });
               }}
-              className={`${isExplicitWeight ? "ring-2 ring-orange-300" : ""}`}
+              className={`${typography.fontWeight ? "ring-2 ring-orange-300" : ""}`}
             >
               <strong>B</strong>
             </Button>
 
             <Button
-              variant={effectiveFont.style === "italic" ? "default" : "outline"}
+              variant={typography.italic ? "default" : "outline"}
               size="sm"
               onClick={() => {
-                const newStyle = effectiveFont.style === "italic" ? "normal" : "italic";
-                console.log("🔧 Font style changed to:", newStyle);
-                updateFont(sectionId, type, key, { style: newStyle });
+                const newItalic = !typography.italic;
+                console.log("🔧 Font italic changed to:", newItalic);
+                updateTypography({ italic: newItalic });
               }}
-              className={`${isExplicitStyle ? "ring-2 ring-orange-300" : ""}`}
+              className={`${typography.italic ? "ring-2 ring-orange-300" : ""}`}
             >
               <em>I</em>
             </Button>
@@ -263,24 +174,24 @@ export const StyleTypographyPanel: React.FC = () => {
           <div className="flex items-center space-x-3">
             <input
               type="color"
-              value={effectiveFont.color}
+              value={typography.textColor || '#333333'}
               onChange={(e) => {
                 console.log("🔧 Font color changed to:", e.target.value);
-                updateFont(sectionId, type, key, { color: e.target.value });
+                updateTypography({ textColor: e.target.value });
               }}
               className={`w-12 h-8 rounded border cursor-pointer ${
-                isExplicitColor ? "ring-2 ring-orange-300" : ""
+                typography.textColor ? "ring-2 ring-orange-300" : ""
               }`}
             />
             <Input
               type="text"
-              value={effectiveFont.color}
+              value={typography.textColor || '#333333'}
               onChange={(e) => {
                 console.log("🔧 Font color text changed to:", e.target.value);
-                updateFont(sectionId, type, key, { color: e.target.value });
+                updateTypography({ textColor: e.target.value });
               }}
               className={`flex-1 font-mono text-sm ${
-                isExplicitColor ? "bg-orange-50 border-orange-300" : "bg-white border-gray-300"
+                typography.textColor ? "bg-orange-50 border-orange-300" : "bg-white border-gray-300"
               }`}
               placeholder="#333333"
             />
@@ -290,16 +201,16 @@ export const StyleTypographyPanel: React.FC = () => {
         {/* Letter Spacing */}
         <div className="space-y-2">
           <Label className="text-sm font-medium">
-            Buchstabenabstand: {(effectiveFont.letterSpacing ?? 0).toFixed(1)}px
+            Buchstabenabstand: {(typography.letterSpacing ?? 0).toFixed(1)}px
           </Label>
           <Slider
             min={-2}
             max={5}
             step={0.1}
-            value={[effectiveFont.letterSpacing ?? 0]}
+            value={[typography.letterSpacing ?? 0]}
             onValueChange={(v) => {
               console.log("🔧 Letter spacing changed to:", v[0]);
-              updateFont(sectionId, type, key, { letterSpacing: v[0] });
+              updateTypography({ letterSpacing: v[0] });
             }}
           />
         </div>
@@ -307,16 +218,16 @@ export const StyleTypographyPanel: React.FC = () => {
         {/* Line Height */}
         <div className="space-y-2">
           <Label className="text-sm font-medium">
-            Zeilenabstand: {(effectiveFont.lineHeight ?? 1.6).toFixed(1)}
+            Zeilenabstand: {(typography.lineHeight ?? 1.6).toFixed(1)}
           </Label>
           <Slider
             min={1}
             max={2.5}
             step={0.1}
-            value={[effectiveFont.lineHeight ?? 1.6]}
+            value={[typography.lineHeight ?? 1.6]}
             onValueChange={(v) => {
               console.log("🔧 Line height changed to:", v[0]);
-              updateFont(sectionId, type, key, { lineHeight: v[0] });
+              updateTypography({ lineHeight: v[0] });
             }}
           />
         </div>
@@ -326,18 +237,18 @@ export const StyleTypographyPanel: React.FC = () => {
           <Label className="text-xs text-gray-600 mb-2 block">Vorschau:</Label>
           <div
             style={{
-              fontFamily: effectiveFont.family,
-              fontSize: `${effectiveFont.size}px`,
-              fontWeight: effectiveFont.weight,
-              fontStyle: effectiveFont.style,
-              color: effectiveFont.color,
-              letterSpacing: `${effectiveFont.letterSpacing ?? 0}px`,
-              lineHeight: effectiveFont.lineHeight ?? 1.6,
+              fontFamily: typography.fontFamily || 'Inter',
+              fontSize: `${typography.fontSize || 12}px`,
+              fontWeight: typography.fontWeight || 'normal',
+              fontStyle: typography.italic ? 'italic' : 'normal',
+              color: typography.textColor || '#333333',
+              letterSpacing: `${typography.letterSpacing ?? 0}px`,
+              lineHeight: typography.lineHeight ?? 1.6,
             }}
           >
-            {type === "header"
+            {fieldKey === "header"
               ? "Überschrift Beispiel"
-              : key === "name"
+              : fieldKey === "name"
               ? "Max Mustermann"
               : "Beispieltext für diese Einstellung"}
           </div>
@@ -366,18 +277,18 @@ export const StyleTypographyPanel: React.FC = () => {
                 <div className="space-y-4">
                   <div>
                     <h6 className="text-sm font-medium text-gray-700 mb-2">Überschrift</h6>
-                    {renderFontEditor(sectionId, "header", null, `${sectionId} - Überschrift`)}
+                    {renderFontEditor(sectionId, "header", `${sectionId} - Überschrift`)}
                   </div>
                   <div>
                     <h6 className="text-sm font-medium text-gray-700 mb-2">Allgemeiner Inhalt</h6>
-                    {renderFontEditor(sectionId, "content", null, `${sectionId} - Inhalt`)}
+                    {renderFontEditor(sectionId, "content", `${sectionId} - Inhalt`)}
                   </div>
                   {fields
                     .filter((field) => field !== "header")
                     .map((fieldKey) => (
                       <div key={fieldKey}>
                         <h6 className="text-sm font-medium text-gray-700 mb-2">Feld: {fieldKey}</h6>
-                        {renderFontEditor(sectionId, "field", fieldKey, `${sectionId} - ${fieldKey}`)}
+                        {renderFontEditor(sectionId, fieldKey, `${sectionId} - ${fieldKey}`)}
                       </div>
                     ))}
                 </div>

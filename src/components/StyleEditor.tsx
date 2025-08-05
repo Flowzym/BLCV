@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { StyleTypographyPanel } from "@/modules/cv-designer/components/StyleTypographyPanel";
 import { useStyleConfig } from "@/modules/cv-designer/context/StyleConfigContext";
+import { TypographyProvider } from "@/modules/cv-designer/context/TypographyContext";
 import { StyleConfig } from "@/types/cv-designer";
 
 interface StyleEditorProps {
@@ -195,39 +196,41 @@ export const StyleEditor: React.FC<StyleEditorProps> = ({
   }
 
   return (
-    <div className="space-y-4">
-      {/* Section Navigation */}
-      <div className="border-b border-gray-200">
-        <nav className="flex space-x-0">
-          {sections.map((section) => (
-            <button
-              key={section}
-              onClick={() => setActiveSection(section)}
-              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors capitalize ${
-                activeSection === section
-                  ? "text-blue-600 border-blue-600"
-                  : "text-gray-500 hover:text-gray-700 border-transparent"
-              }`}
-            >
-              {section === "colors"
-                ? "Farben"
-                : section === "typography"
-                ? "Typografie"
-                : section === "layout"
-                ? "Layout"
-                : "Abstände"}
-            </button>
-          ))}
-        </nav>
-      </div>
+    <TypographyProvider>
+      <div className="space-y-4">
+        {/* Section Navigation */}
+        <div className="border-b border-gray-200">
+          <nav className="flex space-x-0">
+            {sections.map((section) => (
+              <button
+                key={section}
+                onClick={() => setActiveSection(section)}
+                className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors capitalize ${
+                  activeSection === section
+                    ? "text-blue-600 border-blue-600"
+                    : "text-gray-500 hover:text-gray-700 border-transparent"
+                }`}
+              >
+                {section === "colors"
+                  ? "Farben"
+                  : section === "typography"
+                  ? "Typografie"
+                  : section === "layout"
+                  ? "Layout"
+                  : "Abstände"}
+              </button>
+            ))}
+          </nav>
+        </div>
 
-      {/* Section Content */}
-      <div>
-        {activeSection === "colors" && renderColorsSection()}
-        {activeSection === "typography" && renderTypographySection()}
-        {activeSection === "layout" && renderLayoutSection()}
-        {activeSection === "spacing" && renderSpacingSection()}
+        {/* Section Content */}
+        <div>
+          {activeSection === "colors" && renderColorsSection()}
+          {activeSection === "typography" && renderTypographySection()}
+          {activeSection === "layout" && renderLayoutSection()}
+          {activeSection === "spacing" && renderSpacingSection()}
+        </div>
       </div>
-    </div>
+    </TypographyProvider>
   );
 };

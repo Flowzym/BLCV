@@ -26,6 +26,7 @@ import { mapBetterLetterToDesignerWithTemplate } from "../modules/cv-designer/se
 import { useTemplateStorage } from "../modules/cv-designer/hooks/useTemplateStorage";
 import { ExportButtons } from "../modules/cv-designer/components/ExportButtons";
 import { StyleConfigProvider, useStyleConfig } from "../modules/cv-designer/context/StyleConfigContext";
+import { TypographyProvider } from "../modules/cv-designer/context/TypographyContext";
 
 function normalizeCVData(cvData: any) {
   if (!cvData?.personalData) return cvData;
@@ -58,7 +59,9 @@ type TabId =
 export default function DesignerPageWrapper() {
   return (
     <StyleConfigProvider>
-      <DesignerPageInner />
+      <TypographyProvider>
+        <DesignerPageInner />
+      </TypographyProvider>
     </StyleConfigProvider>
   );
 }
@@ -166,7 +169,7 @@ function DesignerPageInner() {
           />
         );
       default:
-        return null;
+      updateStyleConfig(template.style);
     }
   };
 

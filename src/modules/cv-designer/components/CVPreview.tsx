@@ -3,6 +3,7 @@ import { LayoutElement } from "../types/section";
 import { StyleConfig } from "../../../types/cv-designer";
 import { defaultStyleConfig } from "../config/defaultStyleConfig";
 import { useLebenslauf } from "@/components/LebenslaufContext";
+import { useTypography } from "../context/TypographyContext";
 import { mapBetterLetterToDesigner } from "../services/mapBetterLetterToDesigner";
 import {
   renderElementToCanvas,
@@ -12,7 +13,6 @@ import {
   getLayoutStats,
 } from "../services/layoutRenderer";
 import { RenderElementContent } from "../utils/renderElementContent";
-import { useStyleConfig } from "../context/StyleConfigContext";
 
 interface CVPreviewProps {
   sections?: LayoutElement[];
@@ -72,40 +72,37 @@ const DebugOverlay = ({
 );
 
 const SectionRenderer = ({ element }: { element: LayoutElement }) => {
-  const { styleConfig } = useStyleConfig();
+  const [headerTypography] = useTypography(element.type, 'header');
+  const [contentTypography] = useTypography(element.type, 'content');
   const elementStyle = renderElementToCanvas(element, styleConfig);
 
-  // ➡️ Section-spezifische FontConfig ermitteln
-  const sectionFontConfig =
-    styleConfig.sections?.[element.type]?.font || styleConfig.font;
 
   return (
     <div key={element.id} style={elementStyle}>
       {/* TITLE */}
       {element.title && element.type !== "photo" && (
         <>
-          {console.log("SectionRenderer: About to render TITLE via RenderElementContent:", {
-            elementId: element.id,
-            elementType: element.type,
-            title: element.title,
-            field: "header",
-          })}
           <div
             style={{
               marginBottom: "6px",
               borderBottom: `1px solid ${
-                styleConfig.colors?.accent ||
-                styleConfig.accentColor ||
+                styleConfig?.colors?.accent ||
+                styleConfig?.accentColor ||
                 "#3b82f6"
               }`,
               paddingBottom: "2px",
+              fontFamily: getFontFamilyWithFallback(headerTypography.fontFamily),
+              fontSize: `${headerTypography.fontSize}px`,
+              fontWeight: headerTypography.fontWeight,
+              fontStyle: headerTypography.italic ? 'italic' : 'normal',
+              color: headerTypography.textColor,
+              letterSpacing: headerTypography.letterSpacing !== undefined 
+                ? `${headerTypography.letterSpacing}px` 
+                : undefined,
+              lineHeight: headerTypography.lineHeight,
             }}
           >
-            <RenderElementContent
-              element={{ ...element, content: element.title }}
-              style={{ ...styleConfig, font: sectionFontConfig }}
-              field="header"
-            />
+            {element.title}
           </div>
         </>
       )}
@@ -118,17 +115,20 @@ const SectionRenderer = ({ element }: { element: LayoutElement }) => {
               ? "calc(100% - 24px)"
               : "100%",
           overflow: "hidden",
+          fontFamily: getFontFamilyWithFallback(contentTypography.fontFamily),
+          fontSize: `${contentTypography.fontSize}px`,
+          fontWeight: contentTypography.fontWeight,
+          fontStyle: contentTypography.italic ? 'italic' : 'normal',
+          color: contentTypography.textColor,
+          letterSpacing: contentTypography.letterSpacing !== undefined 
+            ? `${contentTypography.letterSpacing}px` 
+            : undefined,
+          lineHeight: contentTypography.lineHeight,
         }}
       >
-        {console.log("SectionRenderer: About to render CONTENT via RenderElementContent:", {
-          elementId: element.id,
-          elementType: element.type,
-          contentLength: element.content?.length || 0,
-          field: "content",
-        })}
         <RenderElementContent
           element={element}
-          style={{ ...styleConfig, font: sectionFontConfig }}
+          style={styleConfig}
           field="content"
         />
       </div>

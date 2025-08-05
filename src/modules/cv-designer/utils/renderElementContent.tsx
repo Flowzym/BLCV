@@ -3,8 +3,8 @@
 import React from "react";
 import { LayoutElement } from "../types/section";
 import { StyleConfig } from "../../../types/cv-designer";
+import { useTypography } from "../context/TypographyContext";
 import { getFontFamilyWithFallback } from "./fonts";
-import { getEffectiveFontConfig } from "../utils/fontUtils";
 
 interface Props {
   element: LayoutElement;
@@ -21,15 +21,10 @@ export const RenderElementContent: React.FC<Props> = ({
 }) => {
   console.log(`🎨 RenderElementContent: rendering ${element.type}.${field || 'content'}`);
 
-  // Get effective font configuration using central utility
-  const effectiveFontConfig = getEffectiveFontConfig(
-    element.type,
-    field,
-    field === "header" ? "header" : field ? "field" : "content",
-    style
-  );
+  // Get typography configuration from TypographyContext
+  const [typography] = useTypography(element.type, field || 'content');
 
-  console.log(`🎨 RenderElementContent: effective font for ${element.type}.${field || 'content'}:`, effectiveFontConfig);
+  console.log(`🎨 RenderElementContent: typography for ${element.type}.${field || 'content'}:`, typography);
 
   // Color getters with robust fallback chains
   const getPrimaryColor = () =>
@@ -47,24 +42,24 @@ export const RenderElementContent: React.FC<Props> = ({
   const getSecondaryTextColor = () =>
     style.colors?.textSecondary || "#9ca3af";
 
-  // Apply font styling with effective config
+  // Apply font styling with typography from context
   const applyFontStyle = (
     content: React.ReactNode,
     extraStyle: React.CSSProperties = {}
   ) => {
-    const fontFamilyWithFallbacks = getFontFamilyWithFallback(effectiveFontConfig.family);
+    const fontFamilyWithFallbacks = getFontFamilyWithFallback(typography.fontFamily);
 
     const styleObj: React.CSSProperties = {
       // 🎯 KRITISCH: Inline-Styles mit !important für Font-Eigenschaften (überschreibt Tailwind)
       fontFamily: fontFamilyWithFallbacks,
-      fontSize: `${effectiveFontConfig.size}px`,
-      fontWeight: effectiveFontConfig.weight,
-      fontStyle: effectiveFontConfig.style,
-      color: effectiveFontConfig.color,
-      letterSpacing: effectiveFontConfig.letterSpacing !== undefined 
-        ? `${effectiveFontConfig.letterSpacing}px` 
+      fontSize: `${typography.fontSize}px`,
+      fontWeight: typography.fontWeight,
+      fontStyle: typography.italic ? 'italic' : 'normal',
+      color: typography.textColor,
+      letterSpacing: typography.letterSpacing !== undefined 
+        ? `${typography.letterSpacing}px` 
         : undefined,
-      lineHeight: effectiveFontConfig.lineHeight,
+      lineHeight: typography.lineHeight,
       ...extraStyle,
     };
 

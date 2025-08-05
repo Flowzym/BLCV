@@ -7,7 +7,7 @@ import { LayoutElement } from '../types/section'
 import { StyleConfig } from '../../../types/cv-designer'
 import { Paragraph, TextRun } from 'docx'
 import { getFontFamilyWithFallback } from '../utils/fonts'
-import { getEffectiveFontConfig } from '../utils/fontUtils'
+import { useTypography } from '../context/TypographyContext'
 
 // A4 constants
 export const A4_WIDTH = 595
@@ -95,11 +95,11 @@ export function renderElementToCanvas(element: LayoutElement, style: StyleConfig
 }
 
 // ---------------- DOCX ----------------
-export function renderElementToDocx(element: LayoutElement, style: StyleConfig): Paragraph[] {
-  const effectiveFont = getEffectiveFontConfig(element.type, null, 'content', style);
+export function renderElementToDocx(element: LayoutElement, style: StyleConfig, getTypography: (sectionId: string, fieldKey: string) => any): Paragraph[] {
+  const [typography] = getTypography(element.type, 'content');
   const leftMargin = Math.round(element.x * 20)
-  const docxFontFamily = getFontFamilyWithFallback(effectiveFont.family).split(',')[0].replace(/"/g, '').trim()
-  console.log('📄 layoutRenderer DOCX: Using font:', docxFontFamily, 'fontSize:', effectiveFont.size, 'for element:', element.type);
+  const docxFontFamily = getFontFamilyWithFallback(typography.fontFamily).split(',')[0].replace(/"/g, '').trim()
+  console.log('📄 layoutRenderer DOCX: Using font:', docxFontFamily, 'fontSize:', typography.fontSize, 'for element:', element.type);
 
   const paragraphs: Paragraph[] = []
 
@@ -111,11 +111,11 @@ export function renderElementToDocx(element: LayoutElement, style: StyleConfig):
           children: [
             new TextRun({
               text: line.trim(),
-              size: effectiveFont.size * 2, // Convert px to half-points
-              color: effectiveFont.color.replace('#', ''),
+              size: typography.fontSize * 2, // Convert px to half-points
+              color: typography.textColor.replace('#', ''),
               font: docxFontFamily,
-              bold: effectiveFont.weight === "bold",
-              italics: effectiveFont.style === "italic"
+              bold: typography.fontWeight === "bold",
+              italics: typography.italic
             })
           ],
           indent: { left: leftMargin }
@@ -143,10 +143,10 @@ export interface PDFElementData {
   content: { text: string; lines: string[] }
 }
 
-export function renderElementToPdf(element: LayoutElement, style: StyleConfig): PDFElementData {
-  const effectiveFont = getEffectiveFontConfig(element.type, null, 'content', style);
-  const pdfFontFamily = getFontFamilyWithFallback(effectiveFont.family).split(',')[0].replace(/"/g, '').trim()
-  console.log('📄 layoutRenderer PDF: Using font:', pdfFontFamily, 'fontSize:', effectiveFont.size, 'for element:', element.type);
+export function renderElementToPdf(element: LayoutElement, style: StyleConfig, getTypography: (sectionId: string, fieldKey: string) => any): PDFElementData {
+  const [typography] = getTypography(element.type, 'content');
+  const pdfFontFamily = getFontFamilyWithFallback(typography.fontFamily).split(',')[0].replace(/"/g, '').trim()
+  console.log('📄 layoutRenderer PDF: Using font:', pdfFontFamily, 'fontSize:', typography.fontSize, 'for element:', element.type);
 
   return {
     id: element.id,
@@ -154,12 +154,12 @@ export function renderElementToPdf(element: LayoutElement, style: StyleConfig): 
     position: { x: element.x, y: element.y, width: element.width, height: element.height || 100 },
     style: {
       fontFamily: pdfFontFamily,
-      fontSize: effectiveFont.size, // Already in px
-      color: effectiveFont.color,
+      fontSize: typography.fontSize, // Already in px
+      color: typography.textColor,
       backgroundColor: style.backgroundColor || '#ffffff',
       padding: calculatePadding(style.margin),
       borderRadius: parseInt(style.borderRadius?.replace('px', '') || '0'),
-      lineHeight: effectiveFont.lineHeight
+      lineHeight: typography.lineHeight
     },
     content: {
       text: element.content || '',
