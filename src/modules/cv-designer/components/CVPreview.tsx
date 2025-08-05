@@ -13,8 +13,8 @@ import {
   getLayoutStats,
 } from "../services/layoutRenderer";
 import { RenderElementContent } from "../utils/renderElementContent";
-
 import { useLebenslauf } from "@/components/LebenslaufContext";
+
 interface CVPreviewProps {
   sections?: LayoutElement[];
   layoutElements?: LayoutElement[];
@@ -72,41 +72,46 @@ const DebugOverlay = ({
   </div>
 );
 
+const getFontFamilyWithFallback = (fontFamily?: string) => {
+  if (!fontFamily) return "Inter, Arial, sans-serif";
+  return `${fontFamily}, Arial, sans-serif`;
+};
+
 const SectionRenderer = ({ element }: { element: LayoutElement }) => {
-  const [headerTypography] = useTypography(element.type, 'header');
-  const [contentTypography] = useTypography(element.type, 'content');
+  const [headerTypography] = useTypography(element.type, "header");
+  const [contentTypography] = useTypography(element.type, "content");
   const { styleConfig } = useStyleConfig();
   const elementStyle = renderElementToCanvas(element, styleConfig);
-
 
   return (
     <div key={element.id} style={elementStyle}>
       {/* TITLE */}
       {element.title && element.type !== "photo" && (
-        <>
-          <div
-            style={{
-              marginBottom: "6px",
-              borderBottom: `1px solid ${
-                styleConfig?.colors?.accent ||
-                styleConfig?.accentColor ||
-                "#3b82f6"
-              }`,
-              paddingBottom: "2px",
-              fontFamily: getFontFamilyWithFallback(headerTypography.fontFamily || 'Inter'),
-              fontSize: `${headerTypography.fontSize || 16}px`,
-              fontWeight: headerTypography.fontWeight || 'bold',
-              fontStyle: headerTypography.italic ? 'italic' : 'normal',
-              color: headerTypography.textColor || '#1e40af',
-              letterSpacing: headerTypography.letterSpacing !== undefined 
-                ? `${headerTypography.letterSpacing}px` 
+        <div
+          style={{
+            marginBottom: "6px",
+            borderBottom: `1px solid ${
+              styleConfig?.colors?.accent ||
+              styleConfig?.accentColor ||
+              "#3b82f6"
+            }`,
+            paddingBottom: "2px",
+            fontFamily: getFontFamilyWithFallback(
+              headerTypography.fontFamily || "Inter"
+            ),
+            fontSize: `${headerTypography.fontSize || 16}px`,
+            fontWeight: headerTypography.fontWeight || "bold",
+            fontStyle: headerTypography.italic ? "italic" : "normal",
+            color: headerTypography.textColor || "#1e40af",
+            letterSpacing:
+              headerTypography.letterSpacing !== undefined
+                ? `${headerTypography.letterSpacing}px`
                 : undefined,
-              lineHeight: headerTypography.lineHeight || 1.6,
-            }}
-          >
-            {element.title}
-          </div>
-        </>
+            lineHeight: headerTypography.lineHeight || 1.6,
+          }}
+        >
+          {element.title}
+        </div>
       )}
 
       {/* CONTENT */}
@@ -120,11 +125,12 @@ const SectionRenderer = ({ element }: { element: LayoutElement }) => {
           fontFamily: getFontFamilyWithFallback(contentTypography.fontFamily),
           fontSize: `${contentTypography.fontSize}px`,
           fontWeight: contentTypography.fontWeight,
-          fontStyle: contentTypography.italic ? 'italic' : 'normal',
+          fontStyle: contentTypography.italic ? "italic" : "normal",
           color: contentTypography.textColor,
-          letterSpacing: contentTypography.letterSpacing !== undefined 
-            ? `${contentTypography.letterSpacing}px` 
-            : undefined,
+          letterSpacing:
+            contentTypography.letterSpacing !== undefined
+              ? `${contentTypography.letterSpacing}px`
+              : undefined,
           lineHeight: contentTypography.lineHeight,
         }}
       >
@@ -147,18 +153,7 @@ const CVPreview: React.FC<CVPreviewProps> = ({
   showDebugBorders = false,
   scale,
 }) => {
-  console.log("CVPreview: Component render started with props:", {
-    sectionsLength: sections?.length || 0,
-    layoutElementsLength: layoutElements?.length || 0,
-    templateName,
-    className,
-  });
-  console.log("CVPreview: layoutElements received:", layoutElements);
-
   const { styleConfig } = useStyleConfig();
-  console.log("CVPreview: styleConfig from context:", styleConfig);
-  console.log("CVPreview: styleConfig.sections from context:", styleConfig?.sections);
-
   const { personalData, berufserfahrung, ausbildung } = useLebenslauf();
 
   const sectionsToRender = React.useMemo(() => {
@@ -188,16 +183,27 @@ const CVPreview: React.FC<CVPreviewProps> = ({
         case "profil":
         case "personal": {
           const personalInfo: string[] = [];
-          const fullName = [personalData?.titel, personalData?.vorname, personalData?.nachname]
+          const fullName = [
+            personalData?.titel,
+            personalData?.vorname,
+            personalData?.nachname,
+          ]
             .filter(Boolean)
             .join(" ");
           if (fullName) personalInfo.push(fullName);
           if (personalData?.email) personalInfo.push(`📧 ${personalData.email}`);
           if (personalData?.telefon) {
-            const phone = `${personalData.telefonVorwahl || ""} ${personalData.telefon}`.trim();
+            const phone = `${personalData.telefonVorwahl || ""} ${
+              personalData.telefon
+            }`.trim();
             personalInfo.push(`📞 ${phone}`);
           }
-          const address = [personalData?.adresse, personalData?.plz, personalData?.ort, personalData?.land]
+          const address = [
+            personalData?.adresse,
+            personalData?.plz,
+            personalData?.ort,
+            personalData?.land,
+          ]
             .filter(Boolean)
             .join(", ");
           if (address) personalInfo.push(`📍 ${address}`);
@@ -222,7 +228,9 @@ const CVPreview: React.FC<CVPreviewProps> = ({
                 else if (companies) parts.push(companies);
 
                 const startDate =
-                  e.startMonth && e.startYear ? `${e.startMonth}.${e.startYear}` : e.startYear || "";
+                  e.startMonth && e.startYear
+                    ? `${e.startMonth}.${e.startYear}`
+                    : e.startYear || "";
                 const endDate = e.isCurrent
                   ? "heute"
                   : e.endMonth && e.endYear
@@ -230,7 +238,9 @@ const CVPreview: React.FC<CVPreviewProps> = ({
                   : e.endYear || "";
                 if (startDate || endDate) {
                   const zeitraum =
-                    startDate && endDate ? `${startDate} – ${endDate}` : startDate || endDate;
+                    startDate && endDate
+                      ? `${startDate} – ${endDate}`
+                      : startDate || endDate;
                   parts.push(`(${zeitraum})`);
                 }
 
@@ -261,7 +271,8 @@ const CVPreview: React.FC<CVPreviewProps> = ({
                 const abschluss = Array.isArray(a.abschluss)
                   ? a.abschluss.join(" / ")
                   : a.abschluss || "";
-                if (ausbildungsart && abschluss) parts.push(`${ausbildungsart}\n${abschluss}`);
+                if (ausbildungsart && abschluss)
+                  parts.push(`${ausbildungsart}\n${abschluss}`);
                 else if (ausbildungsart) parts.push(ausbildungsart);
                 else if (abschluss) parts.push(abschluss);
                 const institution = Array.isArray(a.institution)
@@ -269,7 +280,9 @@ const CVPreview: React.FC<CVPreviewProps> = ({
                   : a.institution || "";
                 if (institution) parts.push(institution);
                 const startDate =
-                  a.startMonth && a.startYear ? `${a.startMonth}.${a.startYear}` : a.startYear || "";
+                  a.startMonth && a.startYear
+                    ? `${a.startMonth}.${a.startYear}`
+                    : a.startYear || "";
                 const endDate = a.isCurrent
                   ? "heute"
                   : a.endMonth && a.endYear
@@ -277,7 +290,9 @@ const CVPreview: React.FC<CVPreviewProps> = ({
                   : a.endYear || "";
                 if (startDate || endDate) {
                   const zeitraum =
-                    startDate && endDate ? `${startDate} – ${endDate}` : startDate || endDate;
+                    startDate && endDate
+                      ? `${startDate} – ${endDate}`
+                      : startDate || endDate;
                   parts.push(`(${zeitraum})`);
                 }
                 return parts.join("\n");
@@ -310,20 +325,7 @@ const CVPreview: React.FC<CVPreviewProps> = ({
     });
   }, [layoutElements, sections, personalData, berufserfahrung, ausbildung, templateName]);
 
-  console.log("CVPreview: sectionsToRender built:", {
-    length: sectionsToRender.length,
-    elements: sectionsToRender.map((el) => ({
-      id: el.id,
-      type: el.type,
-      title: el.title,
-      contentLength: el.content?.length || 0,
-    })),
-  });
-
   const safeStyleConfig = styleConfig || defaultStyleConfig;
-  console.log("CVPreview: Using safeStyleConfig:", safeStyleConfig);
-  console.log("CVPreview: safeStyleConfig.sections:", safeStyleConfig.sections);
-
   const layoutValidation = React.useMemo(
     () => validateLayout(sectionsToRender, A4_WIDTH, A4_HEIGHT),
     [sectionsToRender]
@@ -342,7 +344,6 @@ const CVPreview: React.FC<CVPreviewProps> = ({
       (safeStyleConfig.colors && safeStyleConfig.colors.background) ||
       safeStyleConfig.backgroundColor ||
       "#ffffff",
-    // ⬇️ fontFamily hier bewusst NICHT gesetzt
     fontSize:
       safeStyleConfig.font?.size === "small"
         ? "10px"
@@ -370,19 +371,13 @@ const CVPreview: React.FC<CVPreviewProps> = ({
           sectionsToRender.length,
           "sections"
         )}
-            fontFamily: getFontFamilyWithFallback(contentTypography.fontFamily || 'Inter'),
-            fontSize: `${contentTypography.fontSize || 12}px`,
-            fontWeight: contentTypography.fontWeight || 'normal',
-              {console.log(
-            color: contentTypography.textColor || '#333333',
-                element.id,
-                element.type
-              )}
-            lineHeight: contentTypography.lineHeight || 1.6,
-            </>
-          ))}
 
+        <div style={containerStyle}>
           {sectionsToRender.length === 0 && <EmptyState />}
+          {sectionsToRender.map((element) => (
+            <SectionRenderer key={element.id} element={element} />
+          ))}
+          {showDebugBorders && (
             <DebugOverlay stats={layoutStats} validation={layoutValidation} />
           )}
         </div>
