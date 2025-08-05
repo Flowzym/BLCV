@@ -8,33 +8,47 @@ import { deepMerge } from "@/lib/utils";
  * Normalisiert Colors (falls alte Root-Properties gesetzt sind)
  */
 function normalizeColors(config: StyleConfig): StyleConfig {
-  if (!config.colors) config.colors = {};
-
-  if (!config.colors.primary && config.primaryColor) {
-    config.colors.primary = config.primaryColor;
-  }
-  if (!config.colors.accent && config.accentColor) {
-    config.colors.accent = config.accentColor;
-  }
-  if (!config.colors.background && config.backgroundColor) {
-    config.colors.background = config.backgroundColor;
-  }
-  if (!config.colors.text && config.textColor) {
-    config.colors.text = config.textColor;
+  // Initialize colors object if null or undefined
+  if (!config.colors) {
+    config.colors = {};
   }
 
-  if (!config.colors.primary) config.colors.primary = "#1e40af";
-  if (!config.colors.accent) config.colors.accent = "#3b82f6";
-  if (!config.colors.background) config.colors.background = "#ffffff";
-  if (!config.colors.text) config.colors.text = "#333333";
-  if (!config.colors.secondary) config.colors.secondary = "#6b7280";
-  if (!config.colors.textSecondary) config.colors.textSecondary = "#9ca3af";
-  if (!config.colors.border) config.colors.border = "#e5e7eb";
+  // Set defaults only for undefined values, preserve null values
+  if (config.colors.primary === undefined) {
+    config.colors.primary = config.primaryColor ?? "#1e40af";
+  }
+  if (config.colors.accent === undefined) {
+    config.colors.accent = config.accentColor ?? "#3b82f6";
+  }
+  if (config.colors.background === undefined) {
+    config.colors.background = config.backgroundColor ?? "#ffffff";
+  }
+  if (config.colors.text === undefined) {
+    config.colors.text = config.textColor ?? "#333333";
+  }
+  if (config.colors.secondary === undefined) {
+    config.colors.secondary = "#6b7280";
+  }
+  if (config.colors.textSecondary === undefined) {
+    config.colors.textSecondary = "#9ca3af";
+  }
+  if (config.colors.border === undefined) {
+    config.colors.border = "#e5e7eb";
+  }
 
-  config.primaryColor = config.colors.primary;
-  config.accentColor = config.colors.accent;
-  config.backgroundColor = config.colors.background;
-  config.textColor = config.colors.text;
+  // Mirror to root-level properties only if not undefined
+  if (config.colors.primary !== undefined) {
+    config.primaryColor = config.colors.primary;
+  }
+  if (config.colors.accent !== undefined) {
+    config.accentColor = config.colors.accent;
+  }
+  if (config.colors.background !== undefined) {
+    config.backgroundColor = config.colors.background;
+  }
+  if (config.colors.text !== undefined) {
+    config.textColor = config.colors.text;
+  }
 
   return config;
 }
