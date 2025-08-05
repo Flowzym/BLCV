@@ -68,14 +68,10 @@ export const StyleTypographyPanel: React.FC = () => {
     if (type === "header") {
       updateStyleConfig({
         sections: {
-          ...styleConfig.sections,
           [sectionId]: {
-            ...currentSection,
             sectionId,
             header: {
-              ...currentSection.header,
               font: {
-                ...currentSection.header?.font,
                 ...updates,
               },
             },
@@ -85,12 +81,9 @@ export const StyleTypographyPanel: React.FC = () => {
     } else if (type === "content") {
       updateStyleConfig({
         sections: {
-          ...styleConfig.sections,
           [sectionId]: {
-            ...currentSection,
             sectionId,
             font: {
-              ...currentSection.font,
               ...updates,
             },
           },
@@ -99,16 +92,11 @@ export const StyleTypographyPanel: React.FC = () => {
     } else if (key) {
       updateStyleConfig({
         sections: {
-          ...styleConfig.sections,
           [sectionId]: {
-            ...currentSection,
             sectionId,
             fields: {
-              ...currentSection.fields,
               [key]: {
-                ...currentSection.fields?.[key],
                 font: {
-                  ...currentSection.fields?.[key]?.font,
                   ...updates,
                 },
               },
