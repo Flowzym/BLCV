@@ -13,6 +13,7 @@ import {
   getLayoutStats,
 } from "../services/layoutRenderer";
 import { RenderElementContent } from "../utils/renderElementContent";
+import { getFontFamilyWithFallback } from "../utils/getFontFamilyWithFallback";  // ✅ zentral importiert
 import { useLebenslauf } from "@/components/LebenslaufContext";
 
 interface CVPreviewProps {
@@ -71,11 +72,6 @@ const DebugOverlay = ({
     {validation.overlaps.length}
   </div>
 );
-
-const getFontFamilyWithFallback = (fontFamily?: string) => {
-  if (!fontFamily) return "Inter, Arial, sans-serif";
-  return `${fontFamily}, Arial, sans-serif`;
-};
 
 const SectionRenderer = ({ element }: { element: LayoutElement }) => {
   const [headerTypography] = useTypography(element.type, "header");
@@ -366,12 +362,6 @@ const CVPreview: React.FC<CVPreviewProps> = ({
   return (
     <div className={`cv-preview ${className}`}>
       <div style={{ display: "flex", justifyContent: "center", padding: "20px" }}>
-        {console.log(
-          "CVPreview: About to render container with",
-          sectionsToRender.length,
-          "sections"
-        )}
-
         <div style={containerStyle}>
           {sectionsToRender.length === 0 && <EmptyState />}
           {sectionsToRender.map((element) => (
