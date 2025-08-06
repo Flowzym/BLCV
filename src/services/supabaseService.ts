@@ -224,10 +224,21 @@ async function getDatabaseStats(
 
 }
 function isSupabaseConfigured(): boolean {
-  return Boolean(
-    import.meta.env.VITE_SUPABASE_URL &&
-    import.meta.env.VITE_SUPABASE_ANON_KEY
-  );
+  const url = import.meta.env.VITE_SUPABASE_URL;
+  const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+  
+  const isConfigured = Boolean(url && key);
+  
+  if (!isConfigured) {
+    console.debug('Supabase-Konfiguration:', {
+      hasUrl: !!url,
+      hasKey: !!key,
+      urlPreview: url ? `${url.substring(0, 20)}...` : 'nicht gesetzt',
+      keyPreview: key ? `${key.substring(0, 20)}...` : 'nicht gesetzt'
+    });
+  }
+  
+  return isConfigured;
 }
 
 async function loadProfileSuggestions(

@@ -9,6 +9,8 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  // Stelle sicher, dass Umgebungsvariablen korrekt geladen werden
+  envPrefix: 'VITE_',
   optimizeDeps: {
     exclude: ['lucide-react'],
   },

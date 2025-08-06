@@ -133,13 +133,23 @@ function Example() {
    npm install
    ```
 3. **Konfiguration:**
-   - `.env`-Datei für Supabase und KI-APIs anlegen:
+   - **Supabase-Konfiguration:** Kopieren Sie `.env.example` zu `.env` und tragen Sie Ihre Supabase-Daten ein:
      ```
-     VITE_SUPABASE_URL="Ihre_Supabase_URL"
-     VITE_SUPABASE_ANON_KEY="Ihr_Supabase_Anon_Key"
-     VITE_KI_API_URL="Ihre_LLM_Endpoint"
-     VITE_KI_API_KEY="Ihr_API_Key"
+     cp .env.example .env
      ```
+     Dann bearbeiten Sie die `.env`-Datei und ersetzen Sie die Platzhalter mit Ihren echten Supabase-Werten:
+     ```
+     VITE_SUPABASE_URL=https://ihr-projekt-id.supabase.co
+     VITE_SUPABASE_ANON_KEY=ihr-anon-key-hier
+     ```
+     
+     **Wo finde ich meine Supabase-Daten?**
+     - Gehen Sie zu [supabase.com](https://supabase.com) und loggen Sie sich ein
+     - Wählen Sie Ihr Projekt aus
+     - Gehen Sie zu Settings > API
+     - Kopieren Sie die "Project URL" als `VITE_SUPABASE_URL`
+     - Kopieren Sie den "anon public" Key als `VITE_SUPABASE_ANON_KEY`
+   
    - Weitere lokale KI-Modelle können in den Einstellungen hinzugefügt werden.
    - Supabase-Datenbank nach mitgelieferten Migrationsskripten einrichten.
    - Prompt-/Editor-Konfiguration über Settings importieren/anpassen.
@@ -149,6 +159,9 @@ function Example() {
    ```
 
    - Anwendung läuft auf [http://localhost:5173](http://localhost:5173)
+   
+   **Hinweis:** Falls Sie den Fehler "supabaseUrl is required" erhalten, überprüfen Sie Ihre `.env`-Datei und starten Sie den Dev-Server neu.
+
 5. **Produktions-Build:**
    ```bash
    npm run build
