@@ -9,24 +9,11 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
-  // Stelle sicher, dass Umgebungsvariablen korrekt geladen werden
-  envPrefix: 'VITE_',
-  optimizeDeps: {
-    exclude: ['lucide-react'],
-  },
-  define: {
-    global: 'globalThis',
+  css: {
+    // nutzt postcss.config.js
   },
   server: {
-    fs: {
-      allow: ['..'],
-    },
-  },
-  build: {
-    rollupOptions: {
-      output: {
-        manualChunks: undefined,
-      },
-    },
+    host: true,
+    port: 5173,
   },
 });
