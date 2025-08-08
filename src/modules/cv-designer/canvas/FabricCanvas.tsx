@@ -3,6 +3,7 @@ import fabric from '@/lib/fabric-shim';
 import { useDesignerStore } from "../store/designerStore";
 import { CanvasToolbar } from "../components/CanvasToolbar";
 import { useUndoRedoHotkeys } from "../hooks/useUndoRedoHotkeys";
+import { loadFabricImage } from "./imageLoader";
 
 function throttle<T extends (...args:any[])=>void>(fn:T, ms:number):T{
   let last = 0; let t:any=null;
@@ -20,7 +21,7 @@ export const FabricCanvas: React.FC = () => {
 
   useEffect(() => {
     if (!canvasRef.current) return;
-    const fabricCanvas = new fabric.Canvas(canvasRef.current, {
+    const fabricCanvas = new fabric.Canvas(canvasRef.current, { backgroundColor: '#ffffff',
       width: 595,
       height: 842,
       selection: true,
@@ -80,18 +81,36 @@ export const FabricCanvas: React.FC = () => {
         });
         textbox.set("data", { id: el.id });
         fabricCanvas.add(textbox);
+      
       } else if (el.kind === "photo") {
-        fabric.Image.fromURL((el as any).src, (img) => {
-          img.set({
-            left: el.frame.x,
-            top: el.frame.y,
-            scaleX: el.frame.width / (img.width || 1),
-            scaleY: el.frame.height / (img.height || 1),
-          });
-          (img as any).set("data", { id: el.id });
-          fabricCanvas.add(img);
-        });
-      }
+        const src = (el as any).src;
+        if (typeof src === "string" && src.trim().length > 0) {
+          loadFabricImage(src, fabric)
+            .then((img) => {
+              if (!img) return;
+              img.set({
+                left: el.frame.x,
+                top: el.frame.y,
+                scaleX: el.frame.width / ((img.width as number) || 1),
+                scaleY: el.frame.height / ((img.height as number) || 1),
+              });
+              (img as any).set("data", { id: el.id });
+              fabricCanvas.add(img);
+            })
+            .catch((e) => {
+              console.warn("[FabricCanvas] image load failed:", e);
+              // fallback: simple gray rect
+              const rect = new fabric.Rect({ left: el.frame.x, top: el.frame.y, width: el.frame.width, height: el.frame.height, fill: "#eee", stroke: "#f59e0b" });
+              (rect as any).set("data", { id: el.id });
+              fabricCanvas.add(rect);
+            });
+        } else {
+          // invalid src: draw placeholder
+          const rect = new fabric.Rect({ left: el.frame.x, top: el.frame.y, width: el.frame.width, height: el.frame.height, fill: "#eee", stroke: "#f59e0b" });
+          (rect as any).set("data", { id: el.id });
+          fabricCanvas.add(rect);
+        }
+}
     });
 
     return () => {
