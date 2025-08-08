@@ -1,9 +1,6 @@
 // Normalisiert den Fabric-Export (ESM/CJS, Vite) via Top-Level Await
 // Nutzung: import fabric from '@/lib/fabric-shim';
-// Hinweis: Vite/TS unterstützen top-level await out-of-the-box (module=esnext)
-
 let _fabric: any;
-
 try {
   const mod: any = await import('fabric');
   _fabric = (mod?.fabric ?? mod?.default ?? mod);
@@ -11,8 +8,6 @@ try {
   console.error('[fabric-shim] Konnte Modul "fabric" nicht laden:', e);
   _fabric = {};
 }
-
 const fabric = _fabric as any;
-
 export default fabric;
 export { fabric };

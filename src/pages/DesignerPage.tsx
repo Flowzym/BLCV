@@ -3,6 +3,7 @@ import React, { useEffect } from "react";
 import { DesignerShell } from "@/modules/cv-designer";
 import { useDocumentStore } from "@/store/DocumentStore";
 import { useDesignerStore } from "@/modules/cv-designer/store/designerStore";
+import "@/modules/cv-designer/store/augmentDesignerStore";
 
 /**
  * This page simply bridges the global DocumentStore with the local DesignerStore

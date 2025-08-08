@@ -40,6 +40,13 @@ export const KiPanel: React.FC = () => {
   const [viewOpen, setViewOpen] = React.useState(true);
 
   return (
+
+      {!hasAIEnv && (
+        <div className="mb-3 rounded border border-blue-300 bg-blue-50 p-2 text-sm text-blue-800">
+          KI ist deaktiviert: Keine ENV-Keys gefunden. Lege <code>VITE_OPENAI_API_KEY</code> (oder Mistral/Anthropic) in deiner <code>.env</code> an.
+        </div>
+      )}
+
     <div className="space-y-3">
       <div className="flex gap-2">
         <input
@@ -49,7 +56,7 @@ export const KiPanel: React.FC = () => {
           className="flex-1 border rounded px-2 py-1 text-sm"
         />
         <button
-          onClick={send}
+          disabled={!hasAIEnv} onClick={send}
           disabled={busy}
           className="border rounded px-3 py-1 text-sm"
         >{busy ? "Senden…" : "Senden"}</button>
@@ -58,7 +65,7 @@ export const KiPanel: React.FC = () => {
       <div>
         <button
           className="w-full text-left font-medium"
-          onClick={()=>setApplyOpen(!applyOpen)}
+          disabled={!hasAIEnv} onClick={()=>setApplyOpen(!applyOpen)}
         >▶ Vorschläge anwenden</button>
         {applyOpen && (
           <div className="mt-2 p-2 border rounded text-sm text-gray-600">
@@ -70,7 +77,7 @@ export const KiPanel: React.FC = () => {
       <div>
         <button
           className="w-full text-left font-medium"
-          onClick={()=>setViewOpen(!viewOpen)}
+          disabled={!hasAIEnv} onClick={()=>setViewOpen(!viewOpen)}
         >▶ Nur anzeigen (Log)</button>
         {viewOpen && (
           <ul className="mt-2 space-y-2">
@@ -94,3 +101,7 @@ export const KiPanel: React.FC = () => {
     </div>
   );
 };
+
+
+/* Guards to prevent network calls without ENV */
+const handleGuard = (fn:any)=> (...args:any[])=>{ if (!hasAIEnv) return; return fn?.(...args); };

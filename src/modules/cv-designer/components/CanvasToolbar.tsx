@@ -21,6 +21,16 @@ export const CanvasToolbar: React.FC = () => {
         disabled={!canRedo}
         title="Redo (Ctrl/Cmd+Shift+Z)"
       >↷</button>
+    
+      <label className="flex items-center gap-2 text-sm">
+        <span>Snap</span>
+        <input
+          type="range" min={1} max={20}
+          defaultValue={(useDesignerStore as any).getState().snapThreshold ?? 6}
+          onChange={(e)=> (useDesignerStore as any).getState().setSnapThreshold?.(Number((e.target as any).value))}
+        />
+      </label>
+
     </div>
   );
 };

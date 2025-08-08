@@ -1,9 +1,11 @@
+// src/modules/cv-designer/canvas/FabricCanvas.tsx
 import React, { useEffect, useRef } from "react";
 import fabric from '@/lib/fabric-shim';
 import { useDesignerStore } from "../store/designerStore";
 import { CanvasToolbar } from "../components/CanvasToolbar";
 import { useUndoRedoHotkeys } from "../hooks/useUndoRedoHotkeys";
 import { loadFabricImage } from "./imageLoader";
+import { genId } from '@/lib/id';
 
 function throttle<T extends (...args:any[])=>void>(fn:T, ms:number):T{
   let last = 0; let t:any=null;
@@ -25,6 +27,16 @@ export const FabricCanvas: React.FC = () => {
       width: 595,
       height: 842,
       selection: true,
+    });
+
+    // Vergibt eine stabile ID für jedes neu hinzugefügte Objekt
+    fabricCanvas.on("object:added", (e: fabric.IEvent<Event>) => {
+      try {
+        const obj = e.target as any;
+        if (!obj) return;
+        const data = (obj.data = obj.data || {});
+        if (!data.id) data.id = genId("el");
+      } catch {}
     });
 
     // Snap grid
@@ -110,7 +122,7 @@ export const FabricCanvas: React.FC = () => {
           (rect as any).set("data", { id: el.id });
           fabricCanvas.add(rect);
         }
-}
+      }
     });
 
     return () => {
