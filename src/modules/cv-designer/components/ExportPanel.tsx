@@ -1,34 +1,34 @@
 // src/modules/cv-designer/components/ExportPanel.tsx
 import React, { useState } from "react";
 import { useDesignerStore } from "../store/designerStore";
-// Optional services (guarded dynamic imports to avoid build break if not present)
+
 async function exportPdfSafe() {
   try {
     const svc = await import("../services/exportPdf");
-    return svc.exportAsPdf?.() ?? null;
+    if (typeof svc.exportPdf === "function") {
+      const st: any = (useDesignerStore as any).getState();
+      return svc.exportPdf(st.elements, st.tokens);
+    }
   } catch (e) {
     console.warn("[ExportPanel] exportPdf not available:", e);
-    return null;
   }
-}
-async function exportDocxSafe() {
-  try {
-    // prefer central exportService if available
-    const central = await import("@/services/exportService");
-    if (typeof central.exportDOCX === "function") return central.exportDOCX();
-  } catch {}
-  try {
-    const svc = await import("../services/exportDocx");
-    return svc.exportAsDocx?.() ?? null;
-  } catch (e) {
-    console.warn("[ExportPanel] exportDocx not available:", e);
-    return null;
-  }
+  return null;
 }
 
-type Props = {
-  className?: string;
-};
+async function exportDocxSafe() {
+  try {
+    const svc = await import("../services/exportDocx");
+    if (typeof svc.exportDocx === "function") {
+      const st: any = (useDesignerStore as any).getState();
+      return svc.exportDocx(st.elements, st.tokens);
+    }
+  } catch (e) {
+    console.warn("[ExportPanel] exportDocx not available:", e);
+  }
+  return null;
+}
+
+type Props = { className?: string };
 
 export function ExportPanel({ className }: Props) {
   const elements = useDesignerStore((s) => s.elements);

@@ -1,51 +1,113 @@
-import React from "react";
+// src/modules/cv-designer/components/RightSidebar.tsx
+import React, { useState } from "react";
 import { useDesignerStore } from "../store/designerStore";
-import { KiPanel } from "./KiPanel";
-import { ExportPanel } from "./ExportPanel";
+import KiPanel from "./KiPanel";
+import ExportPanel from "./ExportPanel";
 
 type Tab = "style" | "ki" | "export";
 
-import { TemplateManager } from './TemplateManager';
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="mb-4">
+      <div className="mb-2 text-sm font-semibold text-gray-700">{title}</div>
+      {children}
+    </div>
+  );
+}
 
-export const RightSidebar: React.FC = () => {
-  const { tokens, setTokens } = useDesignerStore();
-  const [tab, setTab] = React.useState<Tab>("style");
+export default function RightSidebar() {
+  const [tab, setTab] = useState<Tab>("style");
+
+  const tokens = useDesignerStore((s) => s.tokens);
+  const setTokens = useDesignerStore((s) => s.setTokens);
+  const margins = useDesignerStore((s) => s.exportMargins);
+  const setMargins = useDesignerStore((s) => s.setExportMargins);
 
   return (
-    <aside className="w-80 border-l border-gray-200 bg-white h-full flex flex-col">
-      <div className="flex items-center">
-        <button aria-label="Sidebar-Aktion" className={"flex-1 px-3 py-2 text-sm border-b " + (tab==="style"?"font-semibold":"")}
-                onClick={()=>setTab("style")}>Style</button>
-        <button aria-label="Sidebar-Aktion" className={"flex-1 px-3 py-2 text-sm border-b " + (tab==="ki"?"font-semibold":"")}
-                onClick={()=>setTab("ki")}>KI</button>
-        <button aria-label="Sidebar-Aktion" className={"flex-1 px-3 py-2 text-sm border-b " + (tab==="export"?"font-semibold":"")}
-                onClick={()=>setTab("export")}>Export</button>
+    <aside className="w-[300px] shrink-0 border-l border-gray-200 p-4">
+      <div className="mb-4 flex items-center gap-3 border-b border-gray-200 pb-2 text-sm">
+        <button
+          className={tab === "style" ? "font-medium text-blue-700" : "text-gray-600 hover:text-gray-800"}
+          onClick={() => setTab("style")}
+        >
+          Style
+        </button>
+        <button
+          className={tab === "ki" ? "font-medium text-blue-700" : "text-gray-600 hover:text-gray-800"}
+          onClick={() => setTab("ki")}
+        >
+          KI
+        </button>
+        <button
+          className={tab === "export" ? "font-medium text-blue-700" : "text-gray-600 hover:text-gray-800"}
+          onClick={() => setTab("export")}
+        >
+          Export
+        </button>
       </div>
 
-      <div className="p-4 overflow-y-auto flex-1">
-        {tab==="style" && (
-          <div>
-            <h2 className="font-semibold mb-2">Style</h2>
-            <label className="block text-sm mb-1">Primärfarbe</label>
+      {tab === "style" && (
+        <div>
+          <Section title="Style">
+            <label className="mb-2 block text-xs text-gray-600">Primärfarbe</label>
             <input
               type="color"
               value={tokens.colorPrimary}
               onChange={(e) => setTokens({ colorPrimary: e.target.value })}
-              className="mb-4"
+              className="h-8 w-16 rounded border border-gray-300"
             />
 
-            <label className="block text-sm mb-1">Schriftgröße</label>
+            <label className="mt-4 mb-2 block text-xs text-gray-600">Schriftgröße</label>
             <input
               type="number"
+              min={8}
+              max={32}
               value={tokens.fontSize}
-              onChange={(e) => setTokens({ fontSize: parseInt(e.target.value, 10) })}
-              className="border p-1 w-full mb-4"
+              onChange={(e) => setTokens({ fontSize: Number(e.target.value) || 12 })}
+              className="w-full rounded border border-gray-300 px-2 py-1"
             />
-          </div>
-        )}
-        {tab==="ki" && <KiPanel />}
-        {tab==="export" && <ExportPanel />}
-      </div>
+
+            <label className="mt-4 mb-2 block text-xs text-gray-600">Seitenränder (px)</label>
+            <div className="grid grid-cols-2 gap-2 text-sm">
+              <input
+                type="number"
+                value={Math.round(margins.top)}
+                onChange={(e) => setMargins({ top: Number(e.target.value) || 0 })}
+                className="rounded border border-gray-300 px-2 py-1"
+                placeholder="oben"
+                aria-label="Rand oben"
+              />
+              <input
+                type="number"
+                value={Math.round(margins.right)}
+                onChange={(e) => setMargins({ right: Number(e.target.value) || 0 })}
+                className="rounded border border-gray-300 px-2 py-1"
+                placeholder="rechts"
+                aria-label="Rand rechts"
+              />
+              <input
+                type="number"
+                value={Math.round(margins.bottom)}
+                onChange={(e) => setMargins({ bottom: Number(e.target.value) || 0 })}
+                className="rounded border border-gray-300 px-2 py-1"
+                placeholder="unten"
+                aria-label="Rand unten"
+              />
+              <input
+                type="number"
+                value={Math.round(margins.left)}
+                onChange={(e) => setMargins({ left: Number(e.target.value) || 0 })}
+                className="rounded border border-gray-300 px-2 py-1"
+                placeholder="links"
+                aria-label="Rand links"
+              />
+            </div>
+          </Section>
+        </div>
+      )}
+
+      {tab === "ki" && <KiPanel />}
+      {tab === "export" && <ExportPanel />}
     </aside>
   );
-};
+}
