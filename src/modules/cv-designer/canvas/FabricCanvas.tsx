@@ -28,6 +28,8 @@ function throttle<T extends (...args: any[]) => void>(fn: T, ms: number): T {
   } as T;
 }
 
+const IS_HELPER = (o: any) => o?.name === "__guide__" || o?.name === "__overflow_badge__";
+
 // Compute overflow + near-margin warnings and update store
 function recomputePreflight(fcanvas: any) {
   try {
@@ -40,7 +42,7 @@ function recomputePreflight(fcanvas: any) {
     const near: string[] = [];
 
     (fcanvas.getObjects() as any[]).forEach((o: any) => {
-      if (!o || !o.selectable || o.name === "__guide__" || o.name === "__overflow_badge__") return;
+      if (!o || !o.selectable || IS_HELPER(o)) return;
       const l = o.left ?? 0;
       const t = o.top ?? 0;
       const w = o.getScaledWidth?.() ?? o.width ?? 0;
@@ -70,13 +72,80 @@ function recomputePreflight(fcanvas: any) {
 
 export default function FabricCanvas() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const fRef = useRef<any | null>(null);
 
-  // Read current elements, zoom and actions from store
   const elements = useDesignerStore((s) => s.elements);
   const updateFrame = useDesignerStore((s) => s.updateFrame);
   const select = useDesignerStore((s) => s.select);
   const zoom = useDesignerStore((s) => s.zoom);
 
+  // helpers to create objects from store elements
+  const addText = (fcanvas: any, text: string, frame: { x: number; y: number; width: number; height: number }, id: string) => {
+    const tb = new (fabric as any).Textbox(text || "", {
+      left: frame.x,
+      top: frame.y,
+      width: frame.width,
+      height: frame.height,
+      fontSize: 14,
+      fill: "#111827",
+      hasControls: true,
+      selectable: true,
+      editable: true,
+    });
+    tb.set("data", { id });
+    fcanvas.add(tb);
+  };
+
+  const addImage = (fcanvas: any, src: string, frame: { x: number; y: number; width: number; height: number }, id: string) => {
+    if (!src || typeof src !== "string") {
+      const rect = new (fabric as any).Rect({
+        left: frame.x,
+        top: frame.y,
+        width: frame.width,
+        height: frame.height,
+        fill: "#e5e7eb",
+        stroke: "#f59e0b",
+      });
+      rect.set("data", { id });
+      fcanvas.add(rect);
+      return;
+    }
+    try {
+      (fabric as any).Image.fromURL(
+        src,
+        (img: any) => {
+          if (!img) return;
+          const iw = img.width || 1;
+          const ih = img.height || 1;
+          img.set({
+            left: frame.x,
+            top: frame.y,
+            scaleX: frame.width / iw,
+            scaleY: frame.height / ih,
+            selectable: true,
+          });
+          img.set("data", { id });
+          fcanvas.add(img);
+          fcanvas.requestRenderAll();
+        },
+        { crossOrigin: "anonymous" }
+      );
+    } catch (e) {
+      console.warn("[FabricCanvas] image load failed:", e);
+      const rect = new (fabric as any).Rect({
+        left: frame.x,
+        top: frame.y,
+        width: frame.width,
+        height: frame.height,
+        fill: "#e5e7eb",
+        stroke: "#f59e0b",
+      });
+      rect.set("data", { id });
+      fcanvas.add(rect);
+    }
+  };
+
+  // Mount: set up Fabric canvas and listeners
   useEffect(() => {
     if (!canvasRef.current) return;
 
@@ -87,29 +156,26 @@ export default function FabricCanvas() {
       selection: true,
       preserveObjectStacking: true,
     });
+    fRef.current = fcanvas;
 
-    // Apply zoom from store
+    // Apply zoom from store + subscribe to further zoom changes
     fcanvas.setZoom(zoom);
-    (useDesignerStore as any).subscribe(
-      (s: any) => {
-        try {
-          fcanvas.setZoom(s.zoom);
-          fcanvas.requestRenderAll();
-        } catch {}
-      }
-    );
-
-    // Ensure IDs for new objects
-    fcanvas.on("object:added", (e: any) => {
+    const unsub = (useDesignerStore as any).subscribe((s: any) => {
       try {
-        const obj: any = e?.target;
-        if (!obj) return;
-        const data = (obj.data = obj.data || {});
-        if (!data.id) data.id = genId("el");
+        fcanvas.setZoom(s.zoom);
+        fcanvas.requestRenderAll();
       } catch {}
     });
 
-    // Snapping with guides on moving
+    // Ensure IDs for new objects
+    fcanvas.on("object:added", (e: any) => {
+      const obj: any = e?.target;
+      if (!obj) return;
+      const data = (obj.data = obj.data || {});
+      if (!data.id) data.id = genId("el");
+    });
+
+    // Snapping with guides
     const handleMove = throttle((e: any) => {
       const obj: any = e?.target;
       if (!obj) return;
@@ -118,10 +184,8 @@ export default function FabricCanvas() {
         const guides = computeGuides(fabric as any, fcanvas, obj, thr);
         drawGuides(fabric as any, fcanvas, guides);
 
-        // Center/edge snap (hard snap on first vertical/horizontal guide found)
         const w = obj.getScaledWidth ? obj.getScaledWidth() : obj.width || 0;
         const h = obj.getScaledHeight ? obj.getScaledHeight() : obj.height || 0;
-
         const vg = guides.find((g) => g.type === "v");
         const hg = guides.find((g) => g.type === "h");
         if (vg && typeof vg.pos === "number") {
@@ -154,7 +218,7 @@ export default function FabricCanvas() {
         height: height || 0,
       });
 
-      // Recompute overflow + badges after updates
+      // Preflight and badges
       recomputePreflight(fcanvas);
       drawOverflowBadges(fabric as any, fcanvas);
     }, 120);
@@ -165,7 +229,6 @@ export default function FabricCanvas() {
     fcanvas.on("object:modified", handleModified);
 
     fcanvas.on("mouse:up", () => {
-      // Clear guides on release, redraw overflow badges
       clearGuides(fcanvas);
       recomputePreflight(fcanvas);
       drawOverflowBadges(fabric as any, fcanvas);
@@ -181,90 +244,42 @@ export default function FabricCanvas() {
     });
     fcanvas.on("selection:cleared", () => select(null));
 
-    // Render current elements (text/image)
-    const addText = (text: string, frame: { x: number; y: number; width: number; height: number }, id: string) => {
-      const tb = new (fabric as any).Textbox(text || "", {
-        left: frame.x,
-        top: frame.y,
-        width: frame.width,
-        height: frame.height,
-        fontSize: 14,
-        fill: "#111827",
-        hasControls: true,
-        selectable: true,
-        editable: true,
-      });
-      tb.set("data", { id });
-      fcanvas.add(tb);
-    };
-
-    const addImage = (src: string, frame: { x: number; y: number; width: number; height: number }, id: string) => {
-      if (!src || typeof src !== "string") {
-        const rect = new (fabric as any).Rect({
-          left: frame.x,
-          top: frame.y,
-          width: frame.width,
-          height: frame.height,
-          fill: "#e5e7eb",
-          stroke: "#f59e0b",
-        });
-        rect.set("data", { id });
-        fcanvas.add(rect);
-        return;
-      }
-      try {
-        (fabric as any).Image.fromURL(
-          src,
-          (img: any) => {
-            if (!img) return;
-            const iw = img.width || 1;
-            const ih = img.height || 1;
-            img.set({
-              left: frame.x,
-              top: frame.y,
-              scaleX: frame.width / iw,
-              scaleY: frame.height / ih,
-              selectable: true,
-            });
-            img.set("data", { id });
-            fcanvas.add(img);
-            fcanvas.requestRenderAll();
-          },
-          { crossOrigin: "anonymous" }
-        );
-      } catch (e) {
-        console.warn("[FabricCanvas] image load failed:", e);
-        const rect = new (fabric as any).Rect({
-          left: frame.x,
-          top: frame.y,
-          width: frame.width,
-          height: frame.height,
-          fill: "#e5e7eb",
-          stroke: "#f59e0b",
-        });
-        rect.set("data", { id });
-        fcanvas.add(rect);
-      }
-    };
-
-    elements.forEach((el) => {
-      if (el.kind === "section") {
-        addText(el.content, el.frame, el.id);
-      } else if (el.kind === "photo") {
-        addImage(el.src, el.frame, el.id);
-      }
+    // Initial render
+    (elements || []).forEach((el) => {
+      if (el.kind === "section") addText(fcanvas, el.content, el.frame, el.id);
+      else if (el.kind === "photo") addImage(fcanvas, el.src, el.frame, el.id);
     });
-
-    // Initial preflight pass
     recomputePreflight(fcanvas);
     drawOverflowBadges(fabric as any, fcanvas);
+    fcanvas.requestRenderAll();
 
     return () => {
-      try {
-        fcanvas.dispose();
-      } catch {}
+      try { unsub?.(); } catch {}
+      try { fcanvas.dispose(); } catch {}
+      fRef.current = null;
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // React to elements changes (add/remove from store)
+  useEffect(() => {
+    const fcanvas = fRef.current;
+    if (!fcanvas) return;
+
+    // Remove all non-helper objects
+    const toRemove = (fcanvas.getObjects() as any[]).filter((o: any) => o?.selectable && !IS_HELPER(o));
+    toRemove.forEach((o: any) => fcanvas.remove(o));
+
+    // Re-add from store
+    (elements || []).forEach((el) => {
+      if (el.kind === "section") addText(fcanvas, el.content, el.frame, el.id);
+      else if (el.kind === "photo") addImage(fcanvas, el.src, el.frame, el.id);
+    });
+
+    recomputePreflight(fcanvas);
+    drawOverflowBadges(fabric as any, fcanvas);
+    fcanvas.requestRenderAll();
+  }, [elements]);
 
   return (
     <div className="relative">
