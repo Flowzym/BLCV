@@ -1,21 +1,36 @@
-
-/* ✅ Tailwind */
+/* Tailwind */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* ✅ Custom Styles */
+/* Wenn du noch alte SCSS/CSS-Teile brauchst, HIER aktivieren:
 @import "./styles/_tags.scss";
 @import "./styles/tailwind.css";
+*/
 
+/* Base Layer */
 @layer base {
+  :root {
+    /* Fallbacks, falls tokens.css fehlt */
+    --font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+    --color-primary: #111827;
+    --spacing: 8px;
+  }
+
+  html, body, #root {
+    height: 100%;
+  }
+
   body {
-    /* ⬇️ Fonts nicht erzwingen → Renderer bestimmt */
-    font-family: inherit;
-    background-color: white;
+    font-family: var(--font-family);
+    color: #111827;
+    background-color: #ffffff;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 }
 
+/* Component Layer (Utility-Ergänzungen) */
 @layer components {
   .tag-button-favorite {
     @apply bg-[#efefef] text-gray-700 border border-gray-300 rounded-full;
@@ -27,19 +42,17 @@
     @apply w-4 h-4 flex items-center justify-center text-yellow-400;
   }
 
-  /* Highlighted filled inputs */
   .highlight-filled-input {
     background-color: #FFEDCE !important;
     border-color: #FFD799 !important;
   }
-
   .highlight-filled-input:focus {
     background-color: white !important;
     border-color: #f97316 !important;
   }
 }
 
-/* BOLT-UI-ANPASSUNG 2025-01-15: Toolbar nimmt volle Breite des Editor-Blocks ein */
+/* Toolbar/Layout für den Editor */
 .toolbar-wrapper {
   width: 100%;
   max-width: 100%;
@@ -49,8 +62,6 @@
   border-bottom: 1px solid #e5e7eb;
   margin-bottom: 24px;
 }
-
-/* BOLT-UI-ANPASSUNG 2025-01-15: Toolbar Content */
 #custom-toolbar {
   display: flex;
   align-items: center;
@@ -60,291 +71,117 @@
   gap: 4px;
   position: relative;
 }
-
-/* BOLT-UI-ANPASSUNG 2025-01-15: Overflow Popup Styling */
 .overflow-popup {
   position: absolute;
   background: white;
   border: 2px solid #f29400;
   border-radius: 8px;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 8px 25px rgba(0,0,0,.15);
   z-index: 1000;
   min-width: 220px;
   max-width: 300px;
   padding: 8px;
 }
+.overflow-popup-content { display:flex; flex-wrap:wrap; gap:4px; align-items:center; }
+.overflow-popup-group { display:flex; align-items:center; gap:4px; padding:4px; border-radius:4px; background:transparent; margin-bottom:4px; }
+.overflow-popup-group:last-child { margin-bottom:0; }
 
-.overflow-popup-content {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  align-items: center;
-}
-
-.overflow-popup-group {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px;
-  border-radius: 4px;
-  background: transparent;
-  margin-bottom: 4px;
-}
-
-.overflow-popup-group:last-child {
-  margin-bottom: 0;
-}
-
-/* Mehr-Button Styling */
 .more-button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 8px;
-  background: #f29400;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  min-width: 36px;
-  height: 36px;
+  display:flex; align-items:center; justify-content:center;
+  padding:8px; background:#f29400; color:#fff; border:none; border-radius:6px;
+  cursor:pointer; transition:all .2s ease; min-width:36px; height:36px;
 }
+.more-button:hover { background:#e8850c; transform:translateY(-1px); box-shadow:0 4px 8px rgba(242,148,0,.3); }
+.more-button.active { background:#e8850c; box-shadow:0 4px 8px rgba(242,148,0,.3); }
 
-.more-button:hover {
-  background: #e8850c;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(242, 148, 0, 0.3);
-}
+.editor-root { display:flex; flex-direction:column; align-items:center; margin:0 auto; width:100%; }
+.editor-paper-sheet { max-width:794px; width:100%; margin:0 auto; }
 
-.more-button.active {
-  background: #e8850c;
-  box-shadow: 0 4px 8px rgba(242, 148, 0, 0.3);
-}
-
-/* Container-Struktur */
-.editor-root {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin: 0 auto;
-  width: 100%;
-}
-
-.editor-paper-sheet {
-  max-width: 794px;
-  width: 100%;
-  margin: 0 auto;
-}
-
-/* Quill Editor Styling */
-.ql-container {
-  border: none !important;
-  font-family: inherit !important; /* ⬅️ kein Zwang */
-  font-size: 14px !important;
-  line-height: 1.6 !important;
-}
-
+/* Quill Editor */
+.ql-container { border:none !important; font-family: inherit !important; font-size:14px !important; line-height:1.6 !important; }
 .ql-editor {
-  padding: 64px 72px !important;
-  font-family: inherit !important; /* ⬅️ übernimmt aus Renderer */
-  font-size: 14px !important;
-  line-height: 1.6 !important;
-  color: #1f2937 !important;
+  padding:64px 72px !important;
+  font-family: inherit !important;
+  font-size:14px !important;
+  line-height:1.6 !important;
+  color:#1f2937 !important;
   min-height: calc(1123px - 128px) !important;
   box-sizing: border-box;
 }
-
 .ql-editor.ql-blank::before {
-  font-style: normal !important;
-  color: #9ca3af !important;
-  font-family: inherit !important; /* ⬅️ auch Platzhalter nicht erzwingen */
-  left: 72px !important;
-  right: 72px !important;
-  top: 64px !important;
-  content: "" !important;
+  font-style: normal !important; color:#9ca3af !important; font-family:inherit !important;
+  left:72px !important; right:72px !important; top:64px !important; content:"" !important;
 }
-
-.ql-toolbar {
-  display: none !important;
-}
+.ql-toolbar { display:none !important; }
 
 /* Headings */
-.ql-editor h1,
-.ql-editor h2,
-.ql-editor h3 {
-  font-weight: bold !important;
-  margin-bottom: 0.5em !important;
-  margin-top: 1em !important;
-  line-height: 1.4 !important;
-}
-
-.ql-editor h1 {
-  font-size: 1.5em !important;
-}
-.ql-editor h2 {
-  font-size: 1.3em !important;
-}
-.ql-editor h3 {
-  font-size: 1.1em !important;
-}
+.ql-editor h1, .ql-editor h2, .ql-editor h3 { font-weight:bold !important; margin-bottom:.5em !important; margin-top:1em !important; line-height:1.4 !important; }
+.ql-editor h1 { font-size:1.5em !important; }
+.ql-editor h2 { font-size:1.3em !important; }
+.ql-editor h3 { font-size:1.1em !important; }
 
 /* Paragraphs & Lists */
-.ql-editor p {
-  margin-bottom: 1em !important;
-  line-height: 1.6 !important;
-}
-.ql-editor ul,
-.ql-editor ol {
-  margin-bottom: 1em !important;
-  padding-left: 2em !important;
-}
-.ql-editor ul li,
-.ql-editor ol li {
-  margin-bottom: 0.5em !important;
-  line-height: 1.6 !important;
-}
+.ql-editor p { margin-bottom:1em !important; line-height:1.6 !important; }
+.ql-editor ul, .ql-editor ol { margin-bottom:1em !important; padding-left:2em !important; }
+.ql-editor ul li, .ql-editor ol li { margin-bottom:.5em !important; line-height:1.6 !important; }
 
 /* Blockquote */
 .ql-editor blockquote {
-  border-left: 4px solid #f29400 !important;
-  padding-left: 1em !important;
-  margin: 1em 0 !important;
-  font-style: italic !important;
-  background: #fef7ee !important;
-  padding: 1em !important;
-  border-radius: 0 8px 8px 0 !important;
+  border-left:4px solid #f29400 !important; padding-left:1em !important; margin:1em 0 !important;
+  font-style:italic !important; background:#fef7ee !important; padding:1em !important; border-radius:0 8px 8px 0 !important;
 }
 
-/* Links & Formatting */
-.ql-editor a {
-  color: #f29400 !important;
-  text-decoration: underline !important;
-}
-.ql-editor strong {
-  font-weight: bold !important;
-}
-.ql-editor em {
-  font-style: italic !important;
-}
-.ql-editor u {
-  text-decoration: underline !important;
-}
-.ql-editor s {
-  text-decoration: line-through !important;
-}
+/* Links & Inline */
+.ql-editor a { color:#f29400 !important; text-decoration:underline !important; }
+.ql-editor strong { font-weight:bold !important; }
+.ql-editor em { font-style:italic !important; }
+.ql-editor u { text-decoration:underline !important; }
+.ql-editor s { text-decoration: line-through !important; }
 
-/* Schriftgrößen */
-.ql-size-small {
-  font-size: 0.75em !important;
-}
-.ql-size-large {
-  font-size: 1.5em !important;
-}
-.ql-size-huge {
-  font-size: 2.5em !important;
-}
+/* Größen */
+.ql-size-small { font-size:.75em !important; }
+.ql-size-large { font-size:1.5em !important; }
+.ql-size-huge  { font-size:2.5em !important; }
 
-/* Quill Custom Fonts → auch auf inherit setzen */
-.ql-font-serif,
-.ql-font-monospace,
-.ql-font-Arial,
-.ql-font-Helvetica,
-.ql-font-Georgia,
-.ql-font-Verdana,
-.ql-font-Tahoma {
+/* Quill Custom Fonts → auf inherit */
+.ql-font-serif, .ql-font-monospace, .ql-font-Arial, .ql-font-Helvetica, .ql-font-Georgia, .ql-font-Verdana, .ql-font-Tahoma {
   font-family: inherit !important;
 }
 
 /* Picker */
-.ql-color .ql-picker-item,
-.ql-background .ql-picker-item {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-}
+.ql-color .ql-picker-item, .ql-background .ql-picker-item { width:16px; height:16px; border-radius:50%; }
 
-/* Zeilenabstand-Styles */
-.ql-editor[style*="line-height: 1"] {
-  line-height: 1 !important;
-}
-.ql-editor[style*="line-height: 1.15"] {
-  line-height: 1.15 !important;
-}
-.ql-editor[style*="line-height: 1.5"] {
-  line-height: 1.5 !important;
-}
-.ql-editor[style*="line-height: 2"] {
-  line-height: 2 !important;
-}
+/* Zeilenabstand */
+.ql-editor[style*="line-height: 1"] { line-height:1 !important; }
+.ql-editor[style*="line-height: 1.15"] { line-height:1.15 !important; }
+.ql-editor[style*="line-height: 1.5"] { line-height:1.5 !important; }
+.ql-editor[style*="line-height: 2"] { line-height:2 !important; }
 
-/* Mobile Optimierungen */
+/* Mobile */
 @media (max-width: 850px) {
-  .toolbar-wrapper {
-    padding: 0 8px;
-  }
-  #custom-toolbar {
-    padding: 8px 12px;
-    gap: 6px;
-  }
-  .editor-paper-sheet {
-    max-width: 100%;
-    padding: 0 16px;
-  }
-  .ql-editor {
-    padding: 32px 24px !important;
-  }
-  .ql-editor.ql-blank::before {
-    left: 24px !important;
-    right: 24px !important;
-    top: 32px !important;
-  }
-  .overflow-popup {
-    right: 8px;
-    max-width: calc(100vw - 32px);
-  }
+  .toolbar-wrapper { padding:0 8px; }
+  #custom-toolbar { padding:8px 12px; gap:6px; }
+  .editor-paper-sheet { max-width:100%; padding:0 16px; }
+  .ql-editor { padding:32px 24px !important; }
+  .ql-editor.ql-blank::before { left:24px !important; right:24px !important; top:32px !important; }
+  .overflow-popup { right:8px; max-width:calc(100vw - 32px); }
 }
-
 @media (max-width: 480px) {
-  .toolbar-wrapper {
-    padding: 0 4px;
-  }
-  #custom-toolbar {
-    padding: 6px 8px;
-    gap: 4px;
-  }
-  .editor-paper-sheet {
-    max-width: 100%;
-    padding: 0 8px;
-  }
-  .ql-editor {
-    padding: 24px 16px !important;
-  }
-  .ql-editor.ql-blank::before {
-    left: 16px !important;
-    right: 16px !important;
-    top: 24px !important;
-  }
-  .overflow-popup {
-    right: 4px;
-    max-width: calc(100vw - 16px);
-  }
+  .toolbar-wrapper { padding:0 4px; }
+  #custom-toolbar { padding:6px 8px; gap:4px; }
+  .editor-paper-sheet { max-width:100%; padding:0 8px; }
+  .ql-editor { padding:24px 16px !important; }
+  .ql-editor.ql-blank::before { left:16px !important; right:16px !important; top:24px !important; }
+  .overflow-popup { right:4px; max-width:calc(100vw - 16px); }
 }
 
 /* Print */
 @media print {
-  #custom-toolbar,
-  .toolbar-wrapper,
-  .overflow-popup {
-    display: none !important;
-  }
-  .ql-editor {
-    padding: 0 !important;
-    min-height: auto !important;
-  }
+  #custom-toolbar, .toolbar-wrapper, .overflow-popup { display:none !important; }
+  .ql-editor { padding:0 !important; min-height:auto !important; }
 }
 
-/* Font Override für CV-Designer */
+/* Fonts/Overrides */
 .font-override {
   font-family: inherit !important;
   font-size: inherit !important;
@@ -355,36 +192,16 @@
   line-height: inherit !important;
 }
 
-/* Fokus-Management */
+/* Fokus */
 .profile-input:focus-within,
 .autocomplete-input:focus-within,
-input:focus,
-textarea:focus,
-select:focus,
-button:focus {
-  z-index: 10;
-}
+input:focus, textarea:focus, select:focus, button:focus { z-index:10; }
 
-/* Prevent unwanted editor focus */
-.ql-editor {
-  outline: none !important;
-  cursor: text;
-}
-.ql-editor:focus {
-  outline: none !important;
-  box-shadow: none !important;
-}
-.ql-container .ql-editor[tabindex="-1"] {
-  cursor: default;
-}
-.ql-container .ql-editor[tabindex="-1"]:focus {
-  outline: none !important;
-  cursor: default;
-}
+.ql-editor { outline:none !important; cursor:text; }
+.ql-editor:focus { outline:none !important; box-shadow:none !important; }
+.ql-container .ql-editor[tabindex="-1"] { cursor: default; }
+.ql-container .ql-editor[tabindex="-1"]:focus { outline:none !important; cursor: default; }
 
-[data-state="open"] {
-  animation: accordion-down 0.2s ease-out;
-}
-[data-state="closed"] {
-  animation: accordion-up 0.2s ease-out;
-}
+/* Accordion Animations (Tailwind keyframes in config) */
+[data-state="open"] { animation: accordion-down 0.2s ease-out; }
+[data-state="closed"] { animation: accordion-up 0.2s ease-out; }
