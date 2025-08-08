@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import { fabric } from "fabric";
+import fabric from '@/lib/fabric-shim';
 import { useDesignerStore } from "../store/designerStore";
 import { CanvasToolbar } from "../components/CanvasToolbar";
 import { useUndoRedoHotkeys } from "../hooks/useUndoRedoHotkeys";
