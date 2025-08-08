@@ -1,33 +1,24 @@
-// src/pages/DesignerPage.tsx
 import React, { useEffect } from "react";
 import DesignerShell from "@/modules/cv-designer/components/DesignerShell";
-import { useDocumentStore } from "@/store/DocumentStore";
 import { useDesignerStore } from "@/modules/cv-designer/store/designerStore";
+// optional: wenn dein Lebenslauf-Kontext bereits Daten liefert
+// import { useLebenslauf } from "@/components/LebenslaufContext";
 
 export default function DesignerPage() {
-  const cvSections = useDocumentStore((s) => s.cvSections);
-  const styleConfig = useDocumentStore((s) => s.styleConfig);
+  // Wenn du schon Lebenslauf-Sections hast, hier synchronisieren:
+  // const lebenslauf = useLebenslauf(); // Form ist bei dir evtl. anders
   const setInitial = useDesignerStore((s) => s.setInitialElementsFromSections);
-  const setTokens = useDesignerStore((s) => s.setTokens);
 
   useEffect(() => {
-    if (cvSections && cvSections.length) setInitial(cvSections);
-  }, [cvSections, setInitial]);
-
-  useEffect(() => {
-    if (styleConfig) {
-      setTokens({
-        fontFamily: styleConfig.fontFamily,
-        fontSize: styleConfig.fontSize,
-        colorPrimary: styleConfig.colorPrimary,
-        spacing: styleConfig.spacing,
-      });
-    }
-  }, [styleConfig, setTokens]);
+    // Beispiel: falls du sections hast → beim ersten Laden übernehmen
+    // const sections = lebenslauf?.sections || lebenslauf?.cvSections || [];
+    const sections: Array<{ title?: string; content?: string }> = [];
+    if (sections.length) setInitial(sections);
+  }, [setInitial]);
 
   return (
-    <div className="flex h-screen w-full">
+    <main className="h-full">
       <DesignerShell />
-    </div>
+    </main>
   );
 }
