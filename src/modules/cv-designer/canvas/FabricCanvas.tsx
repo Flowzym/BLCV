@@ -4,11 +4,12 @@ import fabricNS from "@/lib/fabric-shim";
 import { useDesignerStore } from "../store/designerStore";
 import { computeGuides, drawGuides, clearGuides, drawOverflowBadges } from "./guides";
 
-// fabric kann als Default-Objekt ODER als { fabric } Namespace kommen → normalisieren:
-const FNS: any = fabricNS;
+const FNS: any = fabricNS; // normalize later
 
-const A4_WIDTH = 595;  // px @ 72dpi
+const A4_WIDTH = 595;   // px @ 72dpi
 const A4_HEIGHT = 842;
+
+type MapVal = import("fabric").fabric.Object & { __id?: string };
 
 function throttle<T extends (...args: any[]) => void>(fn: T, ms: number): T {
   let last = 0;
@@ -28,12 +29,12 @@ function throttle<T extends (...args: any[]) => void>(fn: T, ms: number): T {
   } as T;
 }
 
-type MapVal = import("fabric").fabric.Object & { __id?: string };
-
 export default function FabricCanvas() {
   const ref = useRef<HTMLCanvasElement | null>(null);
   const canvasRef = useRef<import("fabric").fabric.Canvas | null>(null);
   const objectMap = useRef<Map<string, MapVal>>(new Map());
+  const marginLayer = useRef<MapVal | null>(null);
+  const pageLayer = useRef<MapVal | null>(null);
 
   const elements = useDesignerStore((s) => s.elements);
   const tokens = useDesignerStore((s) => s.tokens);
@@ -42,106 +43,207 @@ export default function FabricCanvas() {
   const updateFrame = useDesignerStore((s) => s.updateFrame);
   const snapThreshold = useDesignerStore((s) => s.snapThreshold);
   const zoom = useDesignerStore((s) => s.zoom);
+  const exportMargins = useDesignerStore((s) => s.exportMargins);
 
-  // Mount
+  // mount
   useEffect(() => {
     const el = ref.current;
     const F = (FNS as any)?.fabric ?? (FNS as any);
     if (!el || !F?.Canvas) return;
 
-    const canvas = new F.Canvas(el, {
-      backgroundColor: "#fff",
-      selection: true,
-      controlsAboveOverlay: true,
-    });
-    canvas.setWidth(A4_WIDTH);
-    canvas.setHeight(A4_HEIGHT);
-    canvasRef.current = canvas;
+    const c = new F.Canvas(el, { backgroundColor: "#fff", selection: true });
+    c.setWidth(A4_WIDTH);
+    c.setHeight(A4_HEIGHT);
+    canvasRef.current = c;
+
+    // page frame
+    pageLayer.current = new F.Rect({
+      left: 0, top: 0, width: A4_WIDTH, height: A4_HEIGHT,
+      selectable: false, evented: false, fill: "#ffffff"
+    }) as any;
+    c.add(pageLayer.current);
+    pageLayer.current.moveTo?.(0);
+
+    // initial margins overlay
+    const m = exportMargins;
+    marginLayer.current = new F.Rect({
+      left: m.left, top: m.top,
+      width: A4_WIDTH - m.left - m.right,
+      height: A4_HEIGHT - m.top - m.bottom,
+      stroke: "#e5e7eb", strokeDashArray: [4, 4],
+      fill: "rgba(0,0,0,0)", selectable: false, evented: false
+    }) as any;
+    c.add(marginLayer.current);
+    marginLayer.current.moveTo?.(0);
 
     const onSelection = () => {
-      const active = canvas.getActiveObject() as MapVal | undefined;
+      const active = c.getActiveObject() as MapVal | undefined;
       const id = (active as any)?.__id ?? null;
       select(id);
     };
-    canvas.on("selection:created", onSelection);
-    canvas.on("selection:updated", onSelection);
-    canvas.on("selection:cleared", () => select(null));
+    c.on("selection:created", onSelection);
+    c.on("selection:updated", onSelection);
+    c.on("selection:cleared", () => select(null));
+
+    // dblclick for inline editing
+    c.on("mouse:dblclick", (e: any) => {
+      const t = e?.target as any;
+      if (t && t.type === "textbox" && typeof t.enterEditing === "function") {
+        t.enterEditing();
+        t.selectAll();
+      }
+    });
+
+    // keyboard delete
+    const onKey = (ev: KeyboardEvent) => {
+      if (ev.key === "Delete" || ev.key === "Backspace") {
+        const a = c.getActiveObject() as MapVal | undefined;
+        if (a && a.selectable) {
+          c.remove(a);
+          // update store by removing element
+          const id = (a as any).__id;
+          if (id) {
+            const next = elements.filter((e) => e.id !== id);
+            (useDesignerStore.getState() as any).addElement; // touch types
+            useDesignerStore.setState((s) => ({ elements: next }));
+          }
+        }
+      }
+    };
+    window.addEventListener("keydown", onKey);
 
     return () => {
-      canvas.dispose?.();
+      window.removeEventListener("keydown", onKey);
+      c.dispose?.();
       canvasRef.current = null;
       objectMap.current.clear();
+      pageLayer.current = null;
+      marginLayer.current = null;
     };
-  }, [select]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  // Zoom
+  // zoom
   useEffect(() => {
     const c = canvasRef.current;
     if (!c) return;
-    try {
-      c.setZoom(zoom);
-      c.requestRenderAll();
-    } catch {}
+    try { c.setZoom(zoom); c.requestRenderAll(); } catch {}
   }, [zoom]);
 
-  // Elements → Canvas
+  // margins overlay update
+  useEffect(() => {
+    const c = canvasRef.current;
+    const F = (FNS as any)?.fabric ?? (FNS as any);
+    if (!c || !F) return;
+    const m = exportMargins;
+    if (!marginLayer.current) return;
+    marginLayer.current.set({
+      left: m.left, top: m.top,
+      width: A4_WIDTH - m.left - m.right,
+      height: A4_HEIGHT - m.top - m.bottom
+    });
+    c.requestRenderAll();
+  }, [exportMargins]);
+
+  // tokens-change → only style update
+  useEffect(() => {
+    const c = canvasRef.current;
+    if (!c) return;
+    c.getObjects().forEach((o: any) => {
+      if (o === marginLayer.current || o === pageLayer.current) return;
+      if (o.type === "textbox") {
+        o.set({ fontSize: tokens.fontSize, fill: tokens.colorPrimary, fontFamily: tokens.fontFamily });
+      }
+    });
+    c.requestRenderAll();
+  }, [tokens]);
+
+  // elements-change → diff instead of rebuild
   useEffect(() => {
     const c = canvasRef.current;
     const F = (FNS as any)?.fabric ?? (FNS as any);
     if (!c || !F?.Canvas) return;
 
-    // simple/robust: alles neu aufbauen
-    c.getObjects().forEach((o: any) => c.remove(o));
-    objectMap.current.clear();
-    clearGuides(c);
-
+    const present = new Set<string>();
     for (const el of elements) {
-      if (el.kind === "section") {
-        const tb = new F.Textbox(el.content || "", {
-          left: el.frame.x,
-          top: el.frame.y,
-          width: el.frame.width,
-          height: el.frame.height,
-          fontSize: tokens.fontSize,
-          fill: tokens.colorPrimary,
-          fontFamily: tokens.fontFamily,
-          selectable: true,
-          editable: true,
-          hasControls: true,
-          borderColor: "#4f46e5",
-          cornerColor: "#111827",
-        }) as MapVal;
-        tb.__id = el.id;
-        c.add(tb);
-        objectMap.current.set(el.id, tb);
-      } else if (el.kind === "photo") {
-        const rect = new F.Rect({
-          left: el.frame.x,
-          top: el.frame.y,
-          width: el.frame.width,
-          height: el.frame.height,
-          fill: "#e5e7eb",
-          stroke: "#9ca3af",
-          selectable: true,
-          hasControls: true,
-        }) as MapVal;
-        rect.__id = el.id;
-        c.add(rect);
-        objectMap.current.set(el.id, rect);
+      present.add(el.id);
+      const exists = objectMap.current.get(el.id);
+      if (!exists) {
+        // create
+        let obj: MapVal;
+        if (el.kind === "section") {
+          obj = new F.Textbox(el.content || "", {
+            left: el.frame.x, top: el.frame.y,
+            width: el.frame.width, height: el.frame.height,
+            fontSize: tokens.fontSize, fill: tokens.colorPrimary, fontFamily: tokens.fontFamily,
+            selectable: true, editable: true, hasControls: true,
+            borderColor: "#4f46e5", cornerColor: "#111827",
+          }) as MapVal;
+        } else {
+          obj = new F.Rect({
+            left: el.frame.x, top: el.frame.y,
+            width: el.frame.width, height: el.frame.height,
+            fill: "#e5e7eb", stroke: "#9ca3af",
+            selectable: true, hasControls: true
+          }) as MapVal;
+        }
+        obj.__id = el.id;
+        c.add(obj);
+        objectMap.current.set(el.id, obj);
+      } else {
+        // update
+        exists.set({ left: el.frame.x, top: el.frame.y });
+        if ((exists as any).type === "textbox") {
+          (exists as any).set({ width: el.frame.width, height: el.frame.height, text: el.content || (exists as any).text });
+        } else {
+          (exists as any).set({ width: el.frame.width, height: el.frame.height });
+        }
       }
     }
 
-    c.discardActiveObject();
+    // remove deleted
+    for (const [id, obj] of Array.from(objectMap.current.entries())) {
+      if (!present.has(id)) {
+        c.remove(obj);
+        objectMap.current.delete(id);
+      }
+    }
+
     c.requestRenderAll();
 
-    const onMoving = throttle((opt: any) => {
-      const mv = opt?.target;
+    const snapMove = (opt: any) => {
+      const mv = opt?.target as any;
       if (!mv) return;
       const guides = computeGuides(F, c, mv, snapThreshold);
+      // snap to nearest guide if within threshold
+      if (guides.length) {
+        for (const g of guides) {
+          if (g.type === "v") {
+            const w = mv.getScaledWidth ? mv.getScaledWidth() : mv.width || 0;
+            const cx = (mv.left ?? 0) + w / 2;
+            const dCenter = Math.abs(cx - g.pos);
+            const dLeft = Math.abs((mv.left ?? 0) - g.pos);
+            const dRight = Math.abs(((mv.left ?? 0) + w) - g.pos);
+            if (dCenter <= snapThreshold) mv.set("left", Math.round(g.pos - w / 2));
+            else if (dLeft <= snapThreshold) mv.set("left", Math.round(g.pos));
+            else if (dRight <= snapThreshold) mv.set("left", Math.round(g.pos - w));
+          } else {
+            const h = mv.getScaledHeight ? mv.getScaledHeight() : mv.height || 0;
+            const cy = (mv.top ?? 0) + h / 2;
+            const dCenter = Math.abs(cy - g.pos);
+            const dTop = Math.abs((mv.top ?? 0) - g.pos);
+            const dBottom = Math.abs(((mv.top ?? 0) + h) - g.pos);
+            if (dCenter <= snapThreshold) mv.set("top", Math.round(g.pos - h / 2));
+            else if (dTop <= snapThreshold) mv.set("top", Math.round(g.pos));
+            else if (dBottom <= snapThreshold) mv.set("top", Math.round(g.pos - h));
+          }
+        }
+      }
       drawGuides(F, c, guides);
-    }, 16);
+      c.requestRenderAll();
+    };
 
-    const onModified = throttle((opt: any) => {
+    const commit = throttle((opt: any) => {
       const obj = opt?.target as any;
       if (!obj) return;
       const id = (obj as MapVal).__id;
@@ -154,24 +256,24 @@ export default function FabricCanvas() {
       });
       clearGuides(c);
       drawOverflowBadges(F, c);
-    }, 50);
+    }, 80);
 
-    c.on("object:moving", onMoving);
-    c.on("object:modified", onModified);
-    c.on("object:scaling", onMoving);
+    c.on("object:moving", snapMove);
+    c.on("object:scaling", snapMove);
+    c.on("object:modified", commit);
     c.on("mouse:up", () => clearGuides(c));
 
     // initial badges
     drawOverflowBadges(F, c);
 
     return () => {
-      c.off("object:moving", onMoving);
-      c.off("object:modified", onModified);
-      c.off("object:scaling", onMoving);
+      c.off("object:moving", snapMove);
+      c.off("object:scaling", snapMove);
+      c.off("object:modified", commit);
     };
-  }, [elements, tokens, snapThreshold, updateFrame]);
+  }, [elements, snapThreshold, tokens.fontFamily, tokens.fontSize, tokens.colorPrimary, updateFrame]);
 
-  // Auswahl von außen → Canvas
+  // selection reflect
   useEffect(() => {
     const c = canvasRef.current;
     if (!c) return;
@@ -193,3 +295,7 @@ export default function FabricCanvas() {
     </div>
   );
 }
+"""
+open(root_out/"FabricCanvas.tsx", "w", encoding="utf-8").write(fabric_canvas_v2)
+
+print("File ready at:", root_out/"FabricCanvas.tsx") ​:contentReference[oaicite:0]{index=0}​
