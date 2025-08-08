@@ -1,12 +1,12 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Suspense, lazy } from 'react';
 import { Routes, Route, useNavigate } from 'react-router-dom';
 import { Settings } from 'lucide-react';
 import { LebenslaufProvider } from './components/LebenslaufContext';
-import CoverLetterAiAssistant from './components/CoverLetterAiAssistant';
-import SettingsPage from './components/SettingsPage';
-import StyleTest from './pages/StyleTest';
-import DesignerPage from './pages/DesignerPage';
-import CVPlayground from './pages/CVPlayground';
+const CoverLetterAiAssistant = lazy(() => import('./components/CoverLetterAiAssistant'));
+const SettingsPage = lazy(() => import('./components/SettingsPage'));
+const StyleTest = lazy(() => import('./pages/StyleTest'));
+const DesignerPage = lazy(() => import('./pages/DesignerPage'));
+const CVPlayground = lazy(() => import('./pages/CVPlayground'));
 import TabNavigation from './components/layout/TabNavigation';
 import InputColumns from './components/layout/InputColumns';
 import DocumentTypeBlock from './components/layout/DocumentTypeBlock';
@@ -596,6 +596,7 @@ function HomePage() {
 function App() {
   return (
     <LebenslaufProvider>
+      <Suspense fallback={<div className='p-6 text-sm text-gray-500'>Lade…</div>}>
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/designer" element={<DesignerPage />} />
@@ -603,6 +604,7 @@ function App() {
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/style-test" element={<StyleTest />} />
       </Routes>
+    </Suspense>
     </LebenslaufProvider>
   );
 }

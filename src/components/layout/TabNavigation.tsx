@@ -12,7 +12,7 @@ export default function TabNavigation({ tabs, active, onChange }: TabNavigationP
       <ul className="flex space-x-4">
         {tabs.map(tab => (
           <li key={tab.id}>
-            <button
+            <button role="tab" aria-selected={typeof activeTab !== 'undefined' ? activeTab===idx : undefined}
               onClick={() => onChange(tab.id)}
               className={`px-4 py-2 -mb-px border-b-2 transition-colors duration-200 ${
                 active === tab.id
