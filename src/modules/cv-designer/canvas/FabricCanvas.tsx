@@ -4,7 +4,8 @@ import fabricNS from "@/lib/fabric-shim";
 import { useDesignerStore } from "../store/designerStore";
 import { computeGuides, drawGuides, clearGuides, drawOverflowBadges } from "./guides";
 
-const fabric = fabricNS as unknown as typeof import("fabric");
+// fabric kann als Default-Objekt ODER als { fabric } Namespace kommen → normalisieren:
+const FNS: any = fabricNS;
 
 const A4_WIDTH = 595;  // px @ 72dpi
 const A4_HEIGHT = 842;
@@ -12,14 +13,17 @@ const A4_HEIGHT = 842;
 function throttle<T extends (...args: any[]) => void>(fn: T, ms: number): T {
   let last = 0;
   let timer: any = null;
-  return function(this: any, ...args: any[]) {
+  return function (this: any, ...args: any[]) {
     const now = Date.now();
     if (now - last >= ms) {
       last = now;
       fn.apply(this, args);
     } else {
       clearTimeout(timer);
-      timer = setTimeout(() => { last = Date.now(); fn.apply(this, args); }, ms - (now - last));
+      timer = setTimeout(() => {
+        last = Date.now();
+        fn.apply(this, args);
+      }, ms - (now - last));
     }
   } as T;
 }
@@ -39,11 +43,13 @@ export default function FabricCanvas() {
   const snapThreshold = useDesignerStore((s) => s.snapThreshold);
   const zoom = useDesignerStore((s) => s.zoom);
 
-  // mount
+  // Mount
   useEffect(() => {
     const el = ref.current;
-    if (!el || !fabric?.fabric) return;
-    const canvas = new fabric.fabric.Canvas(el, {
+    const F = (FNS as any)?.fabric ?? (FNS as any);
+    if (!el || !F?.Canvas) return;
+
+    const canvas = new F.Canvas(el, {
       backgroundColor: "#fff",
       selection: true,
       controlsAboveOverlay: true,
@@ -62,13 +68,13 @@ export default function FabricCanvas() {
     canvas.on("selection:cleared", () => select(null));
 
     return () => {
-      canvas.dispose();
+      canvas.dispose?.();
       canvasRef.current = null;
       objectMap.current.clear();
     };
   }, [select]);
 
-  // zoom
+  // Zoom
   useEffect(() => {
     const c = canvasRef.current;
     if (!c) return;
@@ -78,20 +84,20 @@ export default function FabricCanvas() {
     } catch {}
   }, [zoom]);
 
-  // sync elements → canvas (very simple diff: recreate all for reliability)
+  // Elements → Canvas
   useEffect(() => {
     const c = canvasRef.current;
-    if (!c || !fabric?.fabric) return;
+    const F = (FNS as any)?.fabric ?? (FNS as any);
+    if (!c || !F?.Canvas) return;
 
-    // remove non-guide objects
-    const all = c.getObjects();
-    all.forEach((o: any) => c.remove(o));
+    // simple/robust: alles neu aufbauen
+    c.getObjects().forEach((o: any) => c.remove(o));
     objectMap.current.clear();
     clearGuides(c);
 
     for (const el of elements) {
       if (el.kind === "section") {
-        const tb = new (fabric as any).Textbox(el.content || "", {
+        const tb = new F.Textbox(el.content || "", {
           left: el.frame.x,
           top: el.frame.y,
           width: el.frame.width,
@@ -109,8 +115,7 @@ export default function FabricCanvas() {
         c.add(tb);
         objectMap.current.set(el.id, tb);
       } else if (el.kind === "photo") {
-        // simple placeholder rect
-        const rect = new (fabric as any).Rect({
+        const rect = new F.Rect({
           left: el.frame.x,
           top: el.frame.y,
           width: el.frame.width,
@@ -129,12 +134,11 @@ export default function FabricCanvas() {
     c.discardActiveObject();
     c.requestRenderAll();
 
-    // attach move handlers once per render pass
     const onMoving = throttle((opt: any) => {
       const mv = opt?.target;
       if (!mv) return;
-      const guides = computeGuides(fabric as any, c, mv, snapThreshold);
-      drawGuides(fabric as any, c, guides);
+      const guides = computeGuides(F, c, mv, snapThreshold);
+      drawGuides(F, c, guides);
     }, 16);
 
     const onModified = throttle((opt: any) => {
@@ -149,7 +153,7 @@ export default function FabricCanvas() {
         height: Math.round(obj.getScaledHeight ? obj.getScaledHeight() : obj.height || 0),
       });
       clearGuides(c);
-      drawOverflowBadges(fabric as any, c);
+      drawOverflowBadges(F, c);
     }, 50);
 
     c.on("object:moving", onMoving);
@@ -158,7 +162,7 @@ export default function FabricCanvas() {
     c.on("mouse:up", () => clearGuides(c));
 
     // initial badges
-    drawOverflowBadges(fabric as any, c);
+    drawOverflowBadges(F, c);
 
     return () => {
       c.off("object:moving", onMoving);
@@ -167,7 +171,7 @@ export default function FabricCanvas() {
     };
   }, [elements, tokens, snapThreshold, updateFrame]);
 
-  // reflect external selection in canvas
+  // Auswahl von außen → Canvas
   useEffect(() => {
     const c = canvasRef.current;
     if (!c) return;
