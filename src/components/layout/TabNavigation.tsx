@@ -14,134 +14,29 @@ type Props = {
   activeId?: string;
   /** Initial active id when uncontrolled */
   defaultActiveId?: string;
-  onChange?: (id: string) => void;
-  className?: string;
-  size?: "sm" | "md";
+  onChange?(id: string): void;
 };
 
-function cn(...parts: Array<string | false | null | undefined>) {
-  return parts.filter(Boolean).join(" ");
-}
+export default function TabNavigation({ tabs, activeId, defaultActiveId, onChange }: Props) {
+  const [internal, setInternal] = useState<string | null>(defaultActiveId ?? (tabs[0]?.id ?? null));
 
-/**
- * Robust TabNavigation:
- * - Works controlled (via activeId) or uncontrolled (internal state)
- * - No reliance on external globals; avoids "activeId is not defined"
- * - Keyboard navigation: ArrowLeft/ArrowRight, Home/End
- * - A11y: role=tablist / role=tab
- */
-export default function TabNavigation({
-  tabs,
-  activeId: controlledActive,
-  defaultActiveId,
-  onChange,
-  className,
-  size = "md",
-}: Props) {
-  const firstId = useMemo(() => tabs?.[0]?.id ?? "", [tabs]);
-  const [internalActive, setInternalActive] = useState<string>(
-    controlledActive ?? defaultActiveId ?? firstId
-  );
+  const current = activeId ?? internal;
+  useEffect(() => { if (activeId) setInternal(activeId); }, [activeId]);
 
-  // Keep internal in sync when controlled value changes
-  useEffect(() => {
-    if (controlledActive !== undefined) {
-      setInternalActive(controlledActive);
-    }
-  }, [controlledActive]);
-
-  // If current active is missing (tabs changed), fall back to first
-  useEffect(() => {
-    const current = controlledActive ?? internalActive;
-    if (!current || !tabs.some((t) => t.id === current)) {
-      const next = tabs.find((t) => !t.disabled)?.id ?? firstId;
-      if (controlledActive === undefined) {
-        setInternalActive(next);
-      }
-      onChange?.(next);
-    }
-  }, [tabs, firstId]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const currentActive = controlledActive ?? internalActive;
-
-  const handleClick = (id: string, disabled?: boolean) => {
-    if (disabled) return;
-    if (controlledActive === undefined) setInternalActive(id);
-    onChange?.(id);
-  };
-
-  // keyboard nav
-  const onKeyDown: React.KeyboardEventHandler<HTMLDivElement> = (e) => {
-    const idx = tabs.findIndex((t) => t.id === currentActive);
-    if (idx < 0) return;
-    const prevIdx = (i: number) => (i - 1 + tabs.length) % tabs.length;
-    const nextIdx = (i: number) => (i + 1) % tabs.length;
-
-    const pickEnabled = (start: number, step: (n: number) => number) => {
-      let i = start;
-      for (let k = 0; k < tabs.length; k++) {
-        i = step(i);
-        if (!tabs[i].disabled) return tabs[i].id;
-      }
-      return tabs[start].id;
-    };
-
-    let targetId: string | null = null;
-
-    switch (e.key) {
-      case "ArrowLeft":
-        targetId = pickEnabled(idx, prevIdx);
-        break;
-      case "ArrowRight":
-        targetId = pickEnabled(idx, nextIdx);
-        break;
-      case "Home":
-        targetId = tabs.find((t) => !t.disabled)?.id ?? tabs[0]?.id ?? null;
-        break;
-      case "End": {
-        const rev = [...tabs].reverse();
-        const lastEnabled = rev.find((t) => !t.disabled)?.id;
-        targetId = lastEnabled ?? tabs[tabs.length - 1]?.id ?? null;
-        break;
-      }
-      default:
-        break;
-    }
-
-    if (targetId) {
-      e.preventDefault();
-      if (controlledActive === undefined) setInternalActive(targetId);
-      onChange?.(targetId);
-    }
-  };
-
-  const pad = size === "sm" ? "px-3 py-1.5 text-sm" : "px-4 py-2";
+  const visibleTabs = useMemo(() => tabs.filter(Boolean), [tabs]);
 
   return (
-    <div
-      className={cn("flex items-center gap-1 border-b border-gray-200", className)}
-      role="tablist"
-      aria-orientation="horizontal"
-      onKeyDown={onKeyDown}
-    >
-      {tabs.map((t) => {
-        const active = t.id === currentActive;
+    <div role="tablist" className="flex gap-2 border-b">
+      {visibleTabs.map((t) => {
+        const isActive = current === t.id;
         return (
           <button
             key={t.id}
             role="tab"
-            aria-selected={active}
-            aria-controls={`panel-${t.id}`}
+            aria-selected={isActive}
+            onClick={() => { setInternal(t.id); onChange?.(t.id); }}
             disabled={t.disabled}
-            onClick={() => handleClick(t.id, t.disabled)}
-            className={cn(
-              "relative select-none rounded-t-md border-b-2",
-              pad,
-              active
-                ? "border-blue-600 text-blue-700 font-medium"
-                : "border-transparent text-gray-600 hover:text-gray-800 hover:border-gray-300",
-              t.disabled && "opacity-50 cursor-not-allowed"
-            )}
+            className={`-mb-px border-b-2 px-3 py-1 text-sm ${isActive ? "border-gray-900 font-medium text-gray-900" : "border-transparent text-gray-600 hover:text-gray-900"}`}
           >
             <span>{t.label}</span>
             {typeof t.badge === "number" && t.badge > 0 && (

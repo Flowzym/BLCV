@@ -10,31 +10,18 @@ type Props = {
   className?: string;
 };
 
-export function KiPanel({ className }: Props) {
+export default function KiPanel({ className }: Props) {
   return (
     <div className={className ?? ""}>
       {!hasAIEnv && (
         <div className="mb-3 rounded border border-blue-300 bg-blue-50 p-2 text-sm text-blue-800">
-          KI ist deaktiviert: Keine ENV-Keys gefunden. Lege{" "}
-          <code>VITE_OPENAI_API_KEY</code> (oder Mistral/Anthropic) in deiner{" "}
-          <code>.env</code> an.
+          KI ist deaktiviert: Keine ENV-Keys gefunden. Lege <code>VITE_OPENAI_API_KEY</code> (oder Mistral/Anthropic) in deiner <code>.env</code> an.
         </div>
       )}
 
       <div className="space-y-2">
         <button
-          className="rounded bg-gray-200 px-3 py-1.5 text-sm text-gray-700 disabled:opacity-50"
-          disabled={!hasAIEnv}
-          onClick={() => {
-            if (!hasAIEnv) return;
-            console.log("[KiPanel] Text verbessern");
-          }}
-        >
-          Text verbessern
-        </button>
-
-        <button
-          className="rounded bg-gray-200 px-3 py-1.5 text-sm text-gray-700 disabled:opacity-50"
+          className="rounded bg-gray-900 px-3 py-1.5 text-sm text-white disabled:opacity-50"
           disabled={!hasAIEnv}
           onClick={() => {
             if (!hasAIEnv) return;
@@ -47,5 +34,3 @@ export function KiPanel({ className }: Props) {
     </div>
   );
 }
-
-export default KiPanel;
