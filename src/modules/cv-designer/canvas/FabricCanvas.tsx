@@ -4,9 +4,10 @@ import fabricNS from "@/lib/fabric-shim";
 import { useDesignerStore } from "../store/designerStore";
 import { computeGuides, drawGuides, clearGuides, drawOverflowBadges } from "./guides";
 
-const FNS: any = fabricNS; // normalize later
+// fabric kann als Default-Objekt ODER als { fabric } Namespace kommen → normalisieren:
+const FNS: any = fabricNS;
 
-const A4_WIDTH = 595;   // px @ 72dpi
+const A4_WIDTH = 595;  // px @ 72dpi
 const A4_HEIGHT = 842;
 
 type MapVal = import("fabric").fabric.Object & { __id?: string };
@@ -45,7 +46,7 @@ export default function FabricCanvas() {
   const zoom = useDesignerStore((s) => s.zoom);
   const exportMargins = useDesignerStore((s) => s.exportMargins);
 
-  // mount
+  // Mount
   useEffect(() => {
     const el = ref.current;
     const F = (FNS as any)?.fabric ?? (FNS as any);
@@ -56,36 +57,35 @@ export default function FabricCanvas() {
     c.setHeight(A4_HEIGHT);
     canvasRef.current = c;
 
-    // page frame
+    // Seite + Ränder-Overlay
     pageLayer.current = new F.Rect({
       left: 0, top: 0, width: A4_WIDTH, height: A4_HEIGHT,
-      selectable: false, evented: false, fill: "#ffffff"
+      selectable: false, evented: false, fill: "#ffffff",
     }) as any;
     c.add(pageLayer.current);
     pageLayer.current.moveTo?.(0);
 
-    // initial margins overlay
     const m = exportMargins;
     marginLayer.current = new F.Rect({
       left: m.left, top: m.top,
       width: A4_WIDTH - m.left - m.right,
       height: A4_HEIGHT - m.top - m.bottom,
       stroke: "#e5e7eb", strokeDashArray: [4, 4],
-      fill: "rgba(0,0,0,0)", selectable: false, evented: false
+      fill: "rgba(0,0,0,0)", selectable: false, evented: false,
     }) as any;
     c.add(marginLayer.current);
     marginLayer.current.moveTo?.(0);
 
+    // Auswahl → Store
     const onSelection = () => {
       const active = c.getActiveObject() as MapVal | undefined;
-      const id = (active as any)?.__id ?? null;
-      select(id);
+      select((active as any)?.__id ?? null);
     };
     c.on("selection:created", onSelection);
     c.on("selection:updated", onSelection);
     c.on("selection:cleared", () => select(null));
 
-    // dblclick for inline editing
+    // Doppelklick → Inline-Editing
     c.on("mouse:dblclick", (e: any) => {
       const t = e?.target as any;
       if (t && t.type === "textbox" && typeof t.enterEditing === "function") {
@@ -94,19 +94,19 @@ export default function FabricCanvas() {
       }
     });
 
-    // keyboard delete
+    // Delete/Backspace → Objekt löschen + Store syncen
     const onKey = (ev: KeyboardEvent) => {
       if (ev.key === "Delete" || ev.key === "Backspace") {
         const a = c.getActiveObject() as MapVal | undefined;
         if (a && a.selectable) {
           c.remove(a);
-          // update store by removing element
           const id = (a as any).__id;
           if (id) {
-            const next = elements.filter((e) => e.id !== id);
-            (useDesignerStore.getState() as any).addElement; // touch types
-            useDesignerStore.setState((s) => ({ elements: next }));
+            useDesignerStore.setState((s) => ({
+              elements: s.elements.filter((e) => e.id !== id),
+            }));
           }
+          c.requestRenderAll();
         }
       }
     };
@@ -123,29 +123,27 @@ export default function FabricCanvas() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // zoom
+  // Zoom
   useEffect(() => {
     const c = canvasRef.current;
     if (!c) return;
     try { c.setZoom(zoom); c.requestRenderAll(); } catch {}
   }, [zoom]);
 
-  // margins overlay update
+  // Ränder-Overlay updaten
   useEffect(() => {
     const c = canvasRef.current;
-    const F = (FNS as any)?.fabric ?? (FNS as any);
-    if (!c || !F) return;
+    if (!c || !marginLayer.current) return;
     const m = exportMargins;
-    if (!marginLayer.current) return;
     marginLayer.current.set({
       left: m.left, top: m.top,
       width: A4_WIDTH - m.left - m.right,
-      height: A4_HEIGHT - m.top - m.bottom
+      height: A4_HEIGHT - m.top - m.bottom,
     });
     c.requestRenderAll();
   }, [exportMargins]);
 
-  // tokens-change → only style update
+  // Tokens → nur Text-Stile patchen
   useEffect(() => {
     const c = canvasRef.current;
     if (!c) return;
@@ -158,7 +156,7 @@ export default function FabricCanvas() {
     c.requestRenderAll();
   }, [tokens]);
 
-  // elements-change → diff instead of rebuild
+  // Elements → diffen (nicht komplett neu bauen)
   useEffect(() => {
     const c = canvasRef.current;
     const F = (FNS as any)?.fabric ?? (FNS as any);
@@ -168,8 +166,8 @@ export default function FabricCanvas() {
     for (const el of elements) {
       present.add(el.id);
       const exists = objectMap.current.get(el.id);
+
       if (!exists) {
-        // create
         let obj: MapVal;
         if (el.kind === "section") {
           obj = new F.Textbox(el.content || "", {
@@ -184,14 +182,13 @@ export default function FabricCanvas() {
             left: el.frame.x, top: el.frame.y,
             width: el.frame.width, height: el.frame.height,
             fill: "#e5e7eb", stroke: "#9ca3af",
-            selectable: true, hasControls: true
+            selectable: true, hasControls: true,
           }) as MapVal;
         }
         obj.__id = el.id;
         c.add(obj);
         objectMap.current.set(el.id, obj);
       } else {
-        // update
         exists.set({ left: el.frame.x, top: el.frame.y });
         if ((exists as any).type === "textbox") {
           (exists as any).set({ width: el.frame.width, height: el.frame.height, text: el.content || (exists as any).text });
@@ -201,7 +198,7 @@ export default function FabricCanvas() {
       }
     }
 
-    // remove deleted
+    // Entfernte Elemente löschen
     for (const [id, obj] of Array.from(objectMap.current.entries())) {
       if (!present.has(id)) {
         c.remove(obj);
@@ -211,11 +208,11 @@ export default function FabricCanvas() {
 
     c.requestRenderAll();
 
+    // Snapping/Guides + Commit
     const snapMove = (opt: any) => {
       const mv = opt?.target as any;
       if (!mv) return;
       const guides = computeGuides(F, c, mv, snapThreshold);
-      // snap to nearest guide if within threshold
       if (guides.length) {
         for (const g of guides) {
           if (g.type === "v") {
@@ -263,7 +260,7 @@ export default function FabricCanvas() {
     c.on("object:modified", commit);
     c.on("mouse:up", () => clearGuides(c));
 
-    // initial badges
+    // initial Badges
     drawOverflowBadges(F, c);
 
     return () => {
@@ -273,7 +270,7 @@ export default function FabricCanvas() {
     };
   }, [elements, snapThreshold, tokens.fontFamily, tokens.fontSize, tokens.colorPrimary, updateFrame]);
 
-  // selection reflect
+  // Auswahl von außen widerspiegeln
   useEffect(() => {
     const c = canvasRef.current;
     if (!c) return;
@@ -295,7 +292,3 @@ export default function FabricCanvas() {
     </div>
   );
 }
-"""
-open(root_out/"FabricCanvas.tsx", "w", encoding="utf-8").write(fabric_canvas_v2)
-
-print("File ready at:", root_out/"FabricCanvas.tsx") ​:contentReference[oaicite:0]{index=0}​
