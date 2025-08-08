@@ -1,6 +1,8 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
+  darkMode: ["class"],
+
   theme: {
     extend: {
       keyframes: {
@@ -22,8 +24,10 @@ export default {
         'bolt-highlight-bg': '#FFEDCE',
         'bolt-highlight-border': '#FFD799',
       },
+
       fontFamily: {
         sans: [
+          "Inter", // bevorzugt
           "Roboto",
           "ui-sans-serif",
           "system-ui",
