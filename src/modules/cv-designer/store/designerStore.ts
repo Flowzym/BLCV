@@ -1,25 +1,23 @@
-// src/modules/cv-designer/store/designerStore.ts
 import create from "zustand";
-import { persist } from "zustand/middleware";
 import { immer } from "zustand/middleware/immer";
-import type { Section } from "@/types/section";
-
-const HISTORY_LIMIT = 50;
+import { persist, createJSONStorage } from "zustand/middleware";
+import { v4 as uuid } from "uuid";
 
 export type StyleToken = {
   fontFamily: string;
   fontSize: number;
   colorPrimary: string;
-  spacing: number;
 };
 
 export type Frame = { x: number; y: number; width: number; height: number };
 
 export type CanvasElement =
   | { kind: "section"; id: string; frame: Frame; content: string }
-  | { kind: "photo"; id: string; frame: Frame; src: string };
+  | { kind: "photo"; id: string; frame: Frame; src?: string };
 
 type HistorySnap = { elements: CanvasElement[]; tokens: StyleToken };
+
+type Margins = { top: number; right: number; bottom: number; left: number };
 
 interface DesignerState {
   tokens: StyleToken;
@@ -29,9 +27,7 @@ interface DesignerState {
   // view
   zoom: number;
   snapThreshold: number;
-
-  // export
-  exportMargins: { top: number; right: number; bottom: number; left: number };
+  exportMargins: Margins;
 
   // history
   history: { past: HistorySnap[]; future: HistorySnap[] };
@@ -40,148 +36,184 @@ interface DesignerState {
 
   // actions
   setTokens(tokens: Partial<StyleToken>, record?: boolean): void;
+  addSection(content?: string, frame?: Partial<Frame>): void;
+  addPhoto(frame?: Partial<Frame>, src?: string): void;
   addElement(el: CanvasElement, record?: boolean): void;
   updateFrame(id: string, frame: Frame, record?: boolean): void;
+  updateText(id: string, text: string, record?: boolean): void;
+  remove(id: string, record?: boolean): void;
   select(id: string | null): void;
 
   setZoom(z: number): void;
-  setSnap(n: number): void;
-  setExportMargins(p: Partial<{ top:number; right:number; bottom:number; left:number }>): void;
+  setSnapThreshold(px: number): void;
+  setExportMargins(m: Partial<Margins>): void;
 
   undo(): void;
   redo(): void;
 
-  setInitialElementsFromSections(sections: Section[]): void;
+  setInitialElementsFromSections(sections: Array<{ title?: string; content?: string }>): void;
 }
 
-function rid() {
-  const g: any = (globalThis as any);
-  return g.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2);
-}
-
-function throttle<T extends (...args: any[]) => void>(fn: T, ms: number): T {
-  let last = 0;
-  let timer: any = null;
-  return function(this: any, ...args: any[]) {
-    const now = Date.now();
-    if (now - last >= ms) {
-      last = now;
-      fn.apply(this, args);
-    } else {
-      clearTimeout(timer);
-      timer = setTimeout(()=>{ last = Date.now(); fn.apply(this, args); }, ms - (now - last));
-    }
-  } as T;
-}
+const HISTORY_LIMIT = 50;
 
 function snapshot(state: DesignerState): HistorySnap {
-  return { elements: JSON.parse(JSON.stringify(state.elements)), tokens: { ...state.tokens } };
+  return {
+    elements: JSON.parse(JSON.stringify(state.elements)),
+    tokens: { ...state.tokens },
+  };
+}
+
+function pushHistory(state: DesignerState) {
+  state.history.past.push(snapshot(state));
+  if (state.history.past.length > HISTORY_LIMIT) state.history.past.shift();
+  state.history.future = [];
+  state.canUndo = state.history.past.length > 0;
+  state.canRedo = false;
 }
 
 export const useDesignerStore = create<DesignerState>()(
   persist(
     immer((set, get) => ({
-      tokens: {
-        fontFamily: "Inter",
-        fontSize: 12,
-        colorPrimary: "#111827",
-        spacing: 8,
-      },
+      tokens: { fontFamily: "Inter", fontSize: 12, colorPrimary: "#111827" },
       elements: [],
       selectedId: null,
+
       zoom: 1,
-      snapThreshold: 4,
+      snapThreshold: 8,
       exportMargins: { top: 28, right: 28, bottom: 28, left: 28 },
 
       history: { past: [], future: [] },
       canUndo: false,
       canRedo: false,
 
-      setTokens: throttle((tokens: Partial<StyleToken>, record = true) =>
-        set((state) => {
-          if (record) {
-            state.history.past.push(snapshot(state));
-            if (state.history.past.length > HISTORY_LIMIT) state.history.past.shift();
-            state.history.future = [];
-          }
-          state.tokens = { ...state.tokens, ...tokens };
-          state.canUndo = state.history.past.length > 0;
-          state.canRedo = state.history.future.length > 0;
-        }), 250),
+      setTokens: (tokens, record = true) =>
+        set((s) => {
+          if (record) pushHistory(s);
+          s.tokens = { ...s.tokens, ...tokens };
+        }),
+
+      addSection: (content, frame) =>
+        set((s) => {
+          pushHistory(s);
+          const id = uuid();
+          s.elements.push({
+            kind: "section",
+            id,
+            frame: {
+              x: frame?.x ?? 240,
+              y: frame?.y ?? 120,
+              width: frame?.width ?? 240,
+              height: frame?.height ?? 120,
+            },
+            content:
+              content ?? "Neue Section\nDoppelklicken zum Bearbeiten",
+          });
+          s.selectedId = id;
+        }),
+
+      addPhoto: (frame, src) =>
+        set((s) => {
+          pushHistory(s);
+          const id = uuid();
+          s.elements.push({
+            kind: "photo",
+            id,
+            frame: {
+              x: frame?.x ?? 280,
+              y: frame?.y ?? 200,
+              width: frame?.width ?? 100,
+              height: frame?.height ?? 120,
+            },
+            src,
+          });
+          s.selectedId = id;
+        }),
 
       addElement: (el, record = true) =>
-        set((state) => {
-          if (record) {
-            state.history.past.push(snapshot(state));
-            if (state.history.past.length > HISTORY_LIMIT) state.history.past.shift();
-            state.history.future = [];
-          }
-          state.elements.push(el);
-          state.canUndo = state.history.past.length > 0;
-          state.canRedo = state.history.future.length > 0;
+        set((s) => {
+          if (record) pushHistory(s);
+          s.elements.push(el);
+          s.selectedId = el.id;
         }),
 
-      updateFrame: throttle((id, frame, record = true) =>
-        set((state) => {
-          const el = state.elements.find((e) => e.id === id);
-          if (!el) return;
-          if (record) {
-            state.history.past.push(snapshot(state));
-            if (state.history.past.length > HISTORY_LIMIT) state.history.past.shift();
-            state.history.future = [];
-          }
-          (el as any).frame = frame;
-          state.canUndo = state.history.past.length > 0;
-          state.canRedo = state.history.future.length > 0;
-        }), 100),
-
-      select: (id) =>
-        set((state) => {
-          state.selectedId = id;
+      updateFrame: (id, frame, record = false) =>
+        set((s) => {
+          if (record) pushHistory(s);
+          const el = s.elements.find((e) => e.id === id);
+          if (el) (el as any).frame = frame;
         }),
 
-      setZoom: (z) => set({ zoom: Math.max(0.25, Math.min(3, z)) }),
-      setSnap: (n) => set({ snapThreshold: Math.max(0, Math.min(24, n)) }),
-      setExportMargins: (p) => set((s) => ({ exportMargins: { ...s.exportMargins, ...p } })),
+      updateText: (id, text, record = false) =>
+        set((s) => {
+          if (record) pushHistory(s);
+          const el = s.elements.find((e) => e.id === id && e.kind === "section") as any;
+          if (el) el.content = text;
+        }),
+
+      remove: (id, record = true) =>
+        set((s) => {
+          if (record) pushHistory(s);
+          s.elements = s.elements.filter((e) => e.id !== id);
+          if (s.selectedId === id) s.selectedId = null;
+        }),
+
+      select: (id) => set((s) => { s.selectedId = id; }),
+
+      setZoom: (z) => set((s) => { s.zoom = Math.max(0.25, Math.min(3, z)); }),
+
+      setSnapThreshold: (px) => set((s) => { s.snapThreshold = Math.max(0, Math.min(40, px)); }),
+
+      setExportMargins: (m) =>
+        set((s) => {
+          s.exportMargins = { ...s.exportMargins, ...m };
+        }),
 
       undo: () =>
-        set((state) => {
-          const prev = state.history.past.pop();
+        set((s) => {
+          const prev = s.history.past.pop();
           if (!prev) return;
-          const current = snapshot(state);
-          state.history.future.push(current);
-          state.elements = JSON.parse(JSON.stringify(prev.elements));
-          state.tokens = { ...prev.tokens };
-          state.canUndo = state.history.past.length > 0;
-          state.canRedo = state.history.future.length > 0;
+          const current = snapshot(s);
+          s.history.future.push(current);
+          s.elements = JSON.parse(JSON.stringify(prev.elements));
+          s.tokens = { ...prev.tokens };
+          s.canUndo = s.history.past.length > 0;
+          s.canRedo = s.history.future.length > 0;
         }),
 
       redo: () =>
-        set((state) => {
-          const next = state.history.future.pop();
+        set((s) => {
+          const next = s.history.future.pop();
           if (!next) return;
-          state.history.past.push(snapshot(state));
-          state.elements = JSON.parse(JSON.stringify(next.elements));
-          state.tokens = { ...next.tokens };
-          state.canUndo = state.history.past.length > 0;
-          state.canRedo = state.history.future.length > 0;
+          s.history.past.push(snapshot(s));
+          s.elements = JSON.parse(JSON.stringify(next.elements));
+          s.tokens = { ...next.tokens };
+          s.canUndo = s.history.past.length > 0;
+          s.canRedo = s.history.future.length > 0;
         }),
 
       setInitialElementsFromSections: (sections) =>
-        set((state) => {
-          if (state.elements.length) return; // don't overwrite user layout
-          let y = 24;
-          sections.forEach((sec: any) => {
-            state.elements.push({
+        set((s) => {
+          if (!sections || s.elements.length) return; // nicht überschreiben
+          let y = 80;
+          for (const sec of sections) {
+            s.elements.push({
               kind: "section",
-              id: rid(),
-              frame: { x: 24, y, width: 547, height: 100 },
-              content: (sec.title || "") + "\n" + (sec.content || ""),
+              id: uuid(),
+              frame: { x: 72, y, width: 450, height: 100 },
+              content: `${sec.title ?? "Section"}\n${sec.content ?? ""}`,
             });
             y += 120;
-          });
+          }
         }),
     })),
-    { name: "cv_designer_store_v1", partialize: (s)=>({ elements: s.elements, tokens: s.tokens, exportMargins: s.exportMargins }) }
+    {
+      name: "cv_designer_store_v1",
+      storage: createJSONStorage(() => localStorage),
+      partialize: (s) => ({
+        elements: s.elements,
+        tokens: s.tokens,
+        exportMargins: s.exportMargins,
+      }),
+    }
   )
 );
