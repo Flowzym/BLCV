@@ -1,24 +1,16 @@
-import { createRoot } from "react-dom/client";
-import App from "./App";
-import { BrowserRouter, useInRouterContext } from "react-router-dom";
+// src/main.tsx
+import React from "react";
+import ReactDOM from "react-dom/client";
+import App from "./App.tsx";
 
-// Global Styles
-import "./styles/tokens.css";
+// Basis-Styles (lass diese Imports so, wie es in deinem Projekt ist)
 import "./index.css";
-import "react-quill/dist/quill.snow.css";
 
-// Guard: Falls App ohne Router gerendert wird (zweiter Entry, Tests, Extension),
-// wird hier automatisch ein BrowserRouter drumgelegt.
-function AppWithRouterGuard() {
-  const inside = useInRouterContext();
-  return inside ? <App /> : (
-    <BrowserRouter>
-      <App />
-    </BrowserRouter>
-  );
-}
+// 🔗 Einmalige Export-Registrierung (wichtig!)
+import "@/bootstrap/exportRegistry";
 
-const container = document.getElementById("root");
-if (container) {
-  createRoot(container).render(<AppWithRouterGuard />);
-}
+ReactDOM.createRoot(document.getElementById("root")!).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
