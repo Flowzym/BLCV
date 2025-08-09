@@ -8,18 +8,34 @@ export type CanvasElement =
 
 export type Margins = { top: number; right: number; bottom: number; left: number };
 
+export type StyleTokens = {
+  fontFamily: string;
+  fontSize: number;
+  lineHeight: number;
+  colorPrimary: string;
+  colorSecondary: string;
+  page: { size: "A4"; dpi: number };
+  margins: Margins;
+  sectionSpacing: number;
+  snapSize: number;
+  widthPercent: number;
+};
+
 type HistorySnap = {
   elements: CanvasElement[];
   margins: Margins;
   zoom: number;
+  tokens: StyleTokens;
 };
 
 type DesignerState = {
   elements: CanvasElement[];
   selectedIds: string[];
-  margins: Margins;
+  margins: Margins;       // Quelle für Canvas/Overlay
   snapSize: number;
   zoom: number;
+
+  tokens: StyleTokens;    // Für Export/Styles – hält margins/snapSize in Sync
 
   // History
   undoStack: HistorySnap[];
@@ -37,22 +53,38 @@ type DesignerState = {
   setSnapSize(n: number): void;
   setZoom(z: number): void;
 
-  // init from sections (P2 wird erweitert)
+  setTokens(partial: Partial<StyleTokens>): void;
+
   setInitialElementsFromSections(sections: Array<{ title?: string; content?: string }>): void;
 
-  // History controls
   undo(): void;
   redo(): void;
-  commit(): void; // snapshot current state to undo stack
+  commit(): void;
 };
 
 const HISTORY_LIMIT = 50;
+
+function defaultTokens(margins: Margins, snapSize = 20): StyleTokens {
+  return {
+    fontFamily: "Helvetica, Arial, sans-serif",
+    fontSize: 11,
+    lineHeight: 1.4,
+    colorPrimary: "#111111",
+    colorSecondary: "#4B5563",
+    page: { size: "A4", dpi: 72 },
+    margins: { ...margins },
+    sectionSpacing: 12,
+    snapSize,
+    widthPercent: 100,
+  };
+}
 
 function snapshot(state: DesignerState): HistorySnap {
   return {
     elements: state.elements.map((e) => JSON.parse(JSON.stringify(e))),
     margins: { ...state.margins },
     zoom: state.zoom,
+    tokens: JSON.parse(JSON.stringify(state.tokens)),
   };
 }
 
@@ -68,6 +100,8 @@ export const useDesignerStore = create<DesignerState>()(
       margins: { top: 36, right: 36, bottom: 36, left: 36 },
       snapSize: 20,
       zoom: 1,
+
+      tokens: defaultTokens({ top: 36, right: 36, bottom: 36, left: 36 }, 20),
 
       undoStack: [],
       redoStack: [],
@@ -104,7 +138,7 @@ export const useDesignerStore = create<DesignerState>()(
       updateText(id, text) {
         set((s) => {
           const idx = s.elements.findIndex((e) => e.id === id && e.kind === "section");
-          if (idx === -1) return s;
+          if (idx === -1) return s as DesignerState;
           const el = s.elements[idx] as Extract<CanvasElement, { kind: "section" }>;
           const updated: CanvasElement = { ...el, text };
           const nextEls = [...s.elements];
@@ -117,7 +151,7 @@ export const useDesignerStore = create<DesignerState>()(
       updateFrame(id, frame) {
         set((s) => {
           const idx = s.elements.findIndex((e) => e.id === id);
-          if (idx === -1) return s;
+          if (idx === -1) return s as DesignerState;
           const el = s.elements[idx];
           const updated: CanvasElement = {
             ...el,
@@ -132,7 +166,7 @@ export const useDesignerStore = create<DesignerState>()(
       deleteSelected() {
         const ids = new Set(get().selectedIds);
         set((s) => {
-          if (!ids.size) return s;
+          if (!ids.size) return s as DesignerState;
           const next = { ...s, elements: s.elements.filter((e) => !ids.has(e.id)), selectedIds: [] };
           const u = s.undoStack.concat(snapshot(s)).slice(-HISTORY_LIMIT);
           return { ...next, undoStack: u, redoStack: [] };
@@ -144,18 +178,40 @@ export const useDesignerStore = create<DesignerState>()(
       },
 
       setMargins(m) {
-        set((s) => ({
-          ...s,
-          margins: { ...s.margins, ...m },
-        }));
+        set((s) => {
+          const merged = { ...s.margins, ...m };
+          return {
+            ...s,
+            margins: merged,
+            tokens: { ...s.tokens, margins: { ...merged } }, // Sync halten
+          };
+        });
       },
 
       setSnapSize(n) {
-        set({ snapSize: Math.max(1, Math.round(n)) });
+        const val = Math.max(1, Math.round(n));
+        set((s) => ({
+          ...s,
+          snapSize: val,
+          tokens: { ...s.tokens, snapSize: val },
+        }));
       },
 
       setZoom(z) {
         set({ zoom: Math.max(0.25, Math.min(3, z)) });
+      },
+
+      setTokens(partial) {
+        set((s) => {
+          const merged = { ...s.tokens, ...partial };
+          // margins/snapSize im Top-Level synchron halten
+          return {
+            ...s,
+            tokens: merged,
+            margins: partial?.margins ? { ...partial.margins } : s.margins,
+            snapSize: typeof partial?.snapSize === "number" ? partial.snapSize : s.snapSize,
+          };
+        });
       },
 
       setInitialElementsFromSections(sections) {
@@ -186,7 +242,14 @@ export const useDesignerStore = create<DesignerState>()(
         if (!prev) return;
         const newUndo = s.undoStack.slice(0, -1);
         const red = s.redoStack.concat(snapshot(s)).slice(-HISTORY_LIMIT);
-        set({ elements: prev.elements, margins: prev.margins, zoom: prev.zoom, undoStack: newUndo, redoStack: red });
+        set({
+          elements: prev.elements,
+          margins: prev.margins,
+          zoom: prev.zoom,
+          tokens: prev.tokens,
+          undoStack: newUndo,
+          redoStack: red,
+        });
       },
 
       redo() {
@@ -195,7 +258,14 @@ export const useDesignerStore = create<DesignerState>()(
         if (!next) return;
         const newRedo = s.redoStack.slice(0, -1);
         const und = s.undoStack.concat(snapshot(s)).slice(-HISTORY_LIMIT);
-        set({ elements: next.elements, margins: next.margins, zoom: next.zoom, undoStack: und, redoStack: newRedo });
+        set({
+          elements: next.elements,
+          margins: next.margins,
+          zoom: next.zoom,
+          tokens: next.tokens,
+          undoStack: und,
+          redoStack: newRedo,
+        });
       },
 
       commit() {
@@ -205,6 +275,24 @@ export const useDesignerStore = create<DesignerState>()(
         });
       },
     }),
-    { name: "cv-designer-store" }
+    {
+      name: "cv-designer-store",
+      version: 2,
+      migrate: (state: any) => {
+        // frühere States ohne 'tokens' auf Default migrieren
+        if (!state?.state) return state;
+        const s = state.state;
+        const margins: Margins = s?.margins ?? { top: 36, right: 36, bottom: 36, left: 36 };
+        const snap: number = typeof s?.snapSize === "number" ? s.snapSize : 20;
+        if (!s.tokens) {
+          s.tokens = defaultTokens(margins, snap);
+        } else {
+          // fehlende Felder auffüllen
+          s.tokens = { ...defaultTokens(margins, snap), ...s.tokens };
+          if (!s.tokens.margins) s.tokens.margins = { ...margins };
+        }
+        return state;
+      },
+    }
   )
 );
