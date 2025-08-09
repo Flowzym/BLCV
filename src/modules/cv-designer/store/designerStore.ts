@@ -280,6 +280,34 @@ export const useDesignerStore = create<DesignerState>()(
           return { elements: next, redoStack, undoStack: [...s.undoStack, s.elements] };
         }),
     }),
-    { name: "designer:v2-parts" }
+    {
+      name: "designer:v2-parts",
+      // nur Relevantes persistieren
+      partialize: (state) => ({
+        elements: state.elements,
+        margins: state.margins,
+        snapSize: state.snapSize,
+        zoom: state.zoom,
+        tokens: state.tokens,
+        partStyles: state.partStyles,
+      }),
+      // sanfte Migration: alte leere Sektionen ohne Source entfernen
+      onRehydrateStorage: () => (api) => {
+        try {
+          const s = api?.getState?.();
+          if (!s) return;
+          const cleaned = (s.elements || []).filter((e: any) => {
+            if (e.kind !== "section") return true;
+            const hasSource = !!e?.meta?.source?.key;
+            const hasParts = Array.isArray(e?.parts) && e.parts.length > 0;
+            if (!hasSource && !hasParts) return false;
+            return true;
+          });
+          if (cleaned.length !== s.elements.length) {
+            api.setState({ elements: cleaned });
+          }
+        } catch {}
+      },
+    }
   )
 );
