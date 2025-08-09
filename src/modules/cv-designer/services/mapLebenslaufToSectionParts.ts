@@ -1,192 +1,97 @@
 import type { GroupKey, PartKey } from "../store/designerStore";
 
-/* ---------------- helpers ---------------- */
-
-const isStr = (v: any) => typeof v === "string" && v.trim().length > 0;
-const isArr = (v: any) => Array.isArray(v) && v.length > 0;
-const j = (v: any, sep = " "): string => {
-  if (v == null) return "";
-  if (Array.isArray(v)) return v.filter(Boolean).join(sep);
-  return String(v);
+type Mapped = {
+  group: GroupKey;
+  sourceKey: string;
+  title?: string;
+  parts: { key: PartKey; text: string }[];
 };
-const nn = (...vals: any[]) =>
-  vals
-    .map((x) => (x == null ? "" : String(x).trim()))
-    .filter((x) => x.length > 0)
-    .join(" · ");
 
-function pick<T = any>(obj: any, keys: string[], fallback?: T): T | undefined {
-  if (!obj) return fallback;
+const pick = (obj: any, keys: string[], fallback: any = ""): any => {
   for (const k of keys) {
-    const v = obj[k];
-    if (v !== undefined && v !== null && (isStr(v) || typeof v === "number" || isArr(v) || typeof v === "object"))
-      return v as T;
+    if (obj && obj[k] != null && obj[k] !== "") return obj[k];
   }
   return fallback;
-}
+};
 
-function parseDateToken(v: any): { y?: number; m?: number; raw?: string } {
-  if (v == null) return {};
-  if (typeof v === "number") return { y: v };
-  const s = String(v).trim().toLowerCase();
-  if (!s) return {};
-  if (s === "heute" || s === "present" || s === "now") return { raw: "heute" };
-
-  // 2020-03 | 03/2020 | 2020
-  const m1 = s.match(/^(\d{4})[-/\.](\d{1,2})$/);
-  if (m1) {
-    const y = parseInt(m1[1], 10);
-    const m = Math.max(1, Math.min(12, parseInt(m1[2], 10)));
-    return { y, m };
-  }
-  const m2 = s.match(/^(\d{1,2})[-/\.](\d{4})$/);
-  if (m2) {
-    const y = parseInt(m2[2], 10);
-    const m = Math.max(1, Math.min(12, parseInt(m2[1], 10)));
-    return { y, m };
-  }
-  const m3 = s.match(/^(\d{4})$/);
-  if (m3) return { y: parseInt(m3[1], 10) };
-  return { raw: s };
-}
-
-function fmtMonthYear(d?: { y?: number; m?: number; raw?: string }): string {
-  if (!d) return "";
-  if (d.raw) return d.raw;
-  if (d.y && d.m) return `${String(d.m).padStart(2, "0")}.${d.y}`;
-  if (d.y) return `${d.y}`;
+const toBullets = (v: any): string => {
+  if (Array.isArray(v)) return v.filter(Boolean).map((s) => `• ${String(s)}`).join("\n");
+  if (typeof v === "string") return v.split(/\r?\n/).filter(Boolean).map((s) => `• ${s}`).join("\n");
   return "";
-}
+};
 
-function dateRangeFrom(item: any): string {
-  const startRaw =
-    pick(item, ["startDate", "start", "from", "von", "beginn"]) ??
-    (pick(item, ["startYear"]) ? `${pick(item, ["startYear"])}` : undefined);
+const ym = (y?: any, m?: any) =>
+  y ? `${String(y)}-${String(m ?? 1).padStart(2, "0")}` : "";
 
-  const endRaw =
-    pick(item, ["endDate", "end", "to", "bis"]) ??
-    (pick(item, ["endYear"]) ? `${pick(item, ["endYear"])}` : undefined);
+const range = (s?: string, e?: string) =>
+  s && e ? `${s} — ${e}` : s ? `${s} — heute` : e || "";
 
-  // Kombiniere Monat+Jahr nur, wenn ein Jahr existiert (sonst parseDateToken→raw)
-  const sm = pick(item, ["startMonth", "fromMonth"]);
-  const sy = pick(item, ["startYear", "fromYear"]);
-  const start = startRaw ?? (sy != null ? `${sy}-${String(sm ?? 1).toString().padStart(2, "0")}` : undefined);
+export function mapLebenslaufToSectionParts(ll: any): Mapped[] {
+  const out: Mapped[] = [];
 
-  const em = pick(item, ["endMonth", "toMonth"]);
-  const ey = pick(item, ["endYear", "toYear"]);
-  const end = endRaw ?? (ey != null ? `${ey}-${String(em ?? 1).toString().padStart(2, "0")}` : undefined);
-
-  const s = parseDateToken(start);
-  const e = parseDateToken(end);
-
-  const left = fmtMonthYear(s);
-  let right = fmtMonthYear(e);
-  if (!right && (endRaw === undefined && ey == null && em == null)) right = "heute";
-
-  return nn(left, "-", right).replace(/\s*-\s*$/, "");
-}
-
-function bulletsFrom(item: any): string {
-  const arr =
-    (pick<string[]>(item, ["aufgabenbereiche", "tasks", "responsibilities", "bulletPoints"]) as any[]) || [];
-  if (Array.isArray(arr) && arr.length > 0) {
-    return arr.map((t: any) => `• ${String(t)}`).join("\n");
+  // ---- Kontakt
+  const pd = ll?.personalData ?? ll?.person ?? {};
+  const kontaktLines = [
+    pick(pd, ["email", "mail"]),
+    pick(pd, ["phone", "telefon"]),
+    [pick(pd, ["street"]), pick(pd, ["zip", "plz"]), pick(pd, ["city", "ort"])].filter(Boolean).join(" "),
+  ].filter(Boolean);
+  if (kontaktLines.length) {
+    out.push({
+      group: "kontakt",
+      sourceKey: "contact:main",
+      title: "Kontakt",
+      parts: [
+        { key: "titel", text: "Kontakt" },
+        { key: "kontakt", text: kontaktLines.join("\n") },
+      ],
+    });
   }
-  const txt = pick(item, ["beschreibung", "description", "summary", "details"], "");
-  return j(txt);
-}
 
-function firstNonEmpty(obj: any, keys: string[]): string {
-  const v = pick(obj, keys, "");
-  return j(v).trim();
-}
-
-/* ---------------- public API ---------------- */
-
-export interface MappedSection {
-  group: GroupKey;
-  sourceKey: string; // z. B. "experience:<id>"
-  title: string;     // Box-Überschrift
-  parts: Array<{ key: PartKey; text: string }>;
-}
-
-export function mapLebenslaufToSectionParts(lebenslauf: any): MappedSection[] {
-  const out: MappedSection[] = [];
-
-  /* ---- Kontakt / Profil ---- */
-  const pd = lebenslauf?.personalData ?? lebenslauf?.personaldaten ?? {};
-  const firstName = firstNonEmpty(pd, ["firstName", "vorname"]);
-  const lastName = firstNonEmpty(pd, ["lastName", "nachname"]);
-  const profession = firstNonEmpty(pd, ["profession", "beruf", "position"]);
-  const email = firstNonEmpty(pd, ["email", "mail"]);
-  const phone = firstNonEmpty(pd, ["phone", "telefon", "tel"]);
-  const address = firstNonEmpty(pd, ["address", "adresse", "ort", "location"]);
-
-  const contactLines = [nn(firstName, lastName), profession, nn(email, phone), address]
-    .filter(Boolean)
-    .join("\n");
-
-  out.push({
-    group: "kontakt",
-    sourceKey: "contact:main",
-    title: "Kontakt",
-    parts: [
-      { key: "titel", text: "Kontakt" },
-      { key: "kontakt", text: contactLines },
-    ],
-  });
-
-  /* ---- Berufserfahrung ---- */
-  const erf =
-    (Array.isArray(lebenslauf?.berufserfahrung) && lebenslauf.berufserfahrung) ||
-    (Array.isArray(lebenslauf?.workExperience) && lebenslauf.workExperience) ||
-    (Array.isArray(lebenslauf?.experience) && lebenslauf.experience) ||
-    [];
-
-  for (const item of erf) {
-    const id = firstNonEmpty(item, ["id"]) || Math.random().toString(36).slice(2, 8);
-    const zeitraum = dateRangeFrom(item);
-    const unternehmen = firstNonEmpty(item, ["companies", "company", "unternehmen", "firma", "institution"]);
-    const position = firstNonEmpty(item, ["position", "rolle", "title"]);
-    const taetigkeiten = bulletsFrom(item);
+  // ---- Erfahrung
+  const erf = ll?.berufserfahrung ?? ll?.workExperience ?? ll?.experience ?? [];
+  erf.forEach((item: any, idx: number) => {
+    const start = pick(item, ["startDate"]) || ym(pick(item, ["startYear","fromYear"]), pick(item, ["startMonth","fromMonth"]));
+    const end   = pick(item, ["endDate"])   || ym(pick(item, ["endYear","toYear"]),   pick(item, ["endMonth","toMonth"]));
+    const zeitraum = range(start, end);
+    const unternehmen = pick(item, ["company","unternehmen","firma"]);
+    const position    = pick(item, ["position","title","rolle"]);
+    const bullets     = toBullets(pick(item, ["tasks","aufgaben","description","duties","bullets","punkte"]));
 
     out.push({
       group: "erfahrung",
-      sourceKey: `experience:${id}`,
+      sourceKey: `experience:${item?.id ?? idx}`,
       title: "Berufserfahrung",
       parts: [
-        { key: "titel", text: "Berufserfahrung" },
-        { key: "zeitraum", text: zeitraum },
-        { key: "unternehmen", text: unternehmen },
-        { key: "position", text: position },
-        { key: "taetigkeiten", text: taetigkeiten },
+        { key: "titel",        text: position || unternehmen || "" },
+        { key: "zeitraum",     text: zeitraum },
+        { key: "unternehmen",  text: unternehmen },
+        { key: "position",     text: position },
+        { key: "taetigkeiten", text: bullets },
       ],
     });
-  }
+  });
 
-  /* ---- Ausbildung ---- */
-  const edu =
-    (Array.isArray(lebenslauf?.ausbildung) && lebenslauf.ausbildung) ||
-    (Array.isArray(lebenslauf?.education) && lebenslauf.education) ||
-    [];
-
-  for (const item of edu) {
-    const id = firstNonEmpty(item, ["id"]) || Math.random().toString(36).slice(2, 8);
-    const zeitraum = dateRangeFrom(item);
-    const institution = firstNonEmpty(item, ["institution", "school", "schule", "hochschule", "uni"]);
-    const abschluss = firstNonEmpty(item, ["degree", "abschluss", "title"]);
+  // ---- Ausbildung
+  const edu = ll?.ausbildung ?? ll?.education ?? [];
+  edu.forEach((item: any, idx: number) => {
+    const start = pick(item, ["startDate"]) || ym(pick(item, ["startYear","fromYear"]), pick(item, ["startMonth","fromMonth"]));
+    const end   = pick(item, ["endDate"])   || ym(pick(item, ["endYear","toYear"]),   pick(item, ["endMonth","toMonth"]));
+    const zeitraum = range(start, end);
+    const inst  = pick(item, ["institution","schule","hochschule","university"]);
+    const degree= pick(item, ["degree","abschluss"]);
     out.push({
       group: "ausbildung",
-      sourceKey: `education:${id}`,
+      sourceKey: `education:${item?.id ?? idx}`,
       title: "Ausbildung",
       parts: [
-        { key: "titel", text: "Ausbildung" },
-        { key: "zeitraum", text: zeitraum },
-        { key: "unternehmen", text: institution },
-        { key: "abschluss", text: abschluss },
+        { key: "titel",       text: degree || inst || "" },
+        { key: "zeitraum",    text: zeitraum },
+        { key: "unternehmen", text: inst },
+        { key: "abschluss",   text: degree },
       ],
     });
-  }
+  });
 
   return out;
 }
