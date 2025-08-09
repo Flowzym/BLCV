@@ -1,123 +1,121 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useLebenslauf } from "@/components/LebenslaufContext";
-import { useDesignerStore } from "../store/designerStore";
-import { buildSectionsFromLebenslauf, splitSectionByPage } from "./mapLebenslaufToSections";
+import { useDesignerStore, GroupKey, PartKey, SectionElement } from "../store/designerStore";
+import { mapLebenslaufToSectionParts, MappedSection } from "./mapLebenslaufToSectionParts";
+import { Templates, buildSectionFromTemplate } from "../templates/sectionTemplates";
 
-// einfache Vorlagen-Frames (P0). Kannst du später aus Template-Registry speisen.
 const PAGE_W = 595;
-const MARGIN = { top: 36, right: 36, bottom: 36, left: 36 };
-const COL_W = (PAGE_W - MARGIN.left - MARGIN.right);
-const LEFT_X = MARGIN.left;
-const RIGHT_X = MARGIN.left + COL_W * 0.62;
+const PAGE_H = 842;
 
-function frameFor(title: string, idx: number) {
-  const t = title.toLowerCase();
-  // exemplarisches Layout: Kontakt rechts oben, Rest links untereinander
-  if (t.startsWith("kontakt")) {
-    return { x: RIGHT_X, y: MARGIN.top, width: Math.round(COL_W * 0.34), height: 140 };
-  }
-  const baseY = 120 + idx * 140;
-  return { x: LEFT_X, y: MARGIN.top + baseY, width: Math.round(COL_W * 0.6), height: 120 };
+type Margins = { top: number; right: number; bottom: number; left: number };
+
+function computeFrameForRow(col: "left" | "right", rowIndex: number, margins: Margins, width: number, height: number) {
+  const innerW = PAGE_W - margins.left - margins.right;
+  const leftW = Math.round(innerW * 0.62);
+  const rightW = innerW - leftW - 8;
+  const x = col === "left" ? margins.left : margins.left + leftW + 8;
+  const y = margins.top + 100 + rowIndex * (height + 24);
+  const w = col === "left" ? leftW : rightW;
+  return { x, y, width: Math.min(w, width), height };
 }
 
-function firstLine(s?: string) {
-  return (s || "").split("\n")[0]?.trim() || "";
+function sectionKey(e: SectionElement): string | undefined {
+  return e.meta?.source?.key;
 }
 
-/**
- * Live-Sync:
- * - mappt Rohdaten → Sections
- * - chunkt in Seiten (fontSize/lineHeight/margins)
- * - updated bestehende Boxen (per Titel-Match) oder fügt neue hinzu
- * - kein Button nötig
- */
 export function useLiveSyncFromGenerator(debounceMs = 200) {
   const ll = useLebenslauf();
+
   const elements = useDesignerStore((s) => s.elements);
   const margins = useDesignerStore((s) => s.margins);
-  const tokens = useDesignerStore((s) => s.tokens);
 
-  const addSection = useDesignerStore((s) => s.addSection);
-  const updateText = useDesignerStore((s) => s.updateText);
-  const setInitial = useDesignerStore((s) => s.setInitialElementsFromSections);
+  const setInitial = useDesignerStore((s) => s.setInitialElements);
+  const addFromTpl = useDesignerStore((s) => s.addSectionFromTemplate);
+  const updatePartText = useDesignerStore((s) => s.updatePartText);
 
-  // debounce
   const timer = useRef<number | null>(null);
-  const depsHash = useMemo(() => JSON.stringify({ ll, margins, tokens }), [ll, margins, tokens]);
+  const depsHash = useMemo(() => JSON.stringify({ ll, margins }), [ll, margins]);
 
   useEffect(() => {
     if (!ll) return;
 
     if (timer.current) window.clearTimeout(timer.current);
     timer.current = window.setTimeout(() => {
-      const base = buildSectionsFromLebenslauf(ll);
-      const fontSize = Number(tokens?.fontSize) || 11;
-      const lineHeight = Number(tokens?.lineHeight) || 1.4;
-      const pageH = 842;
+      const mapped = mapLebenslaufToSectionParts(ll); // Array<MappedSection>
 
-      const split = base.flatMap((sec) =>
-        splitSectionByPage(
-          sec,
-          fontSize,
-          pageH,
-          { top: margins.top, bottom: margins.bottom },
-          lineHeight
-        )
-      );
+      // Index vorhandener Sektionen per source.key
+      const existingByKey = new Map<string, SectionElement>();
+      for (const e of elements) {
+        if (e.kind !== "section") continue;
+        const k = sectionKey(e);
+        if (k) existingByKey.set(k, e);
+      }
 
-      // Map vorhandener Titel → Element-ID (wir trennen Titel & Inhalt in zwei Boxen: Header + Body)
-      const byTitleHeader = new Map<string, string>();
-      const byTitleBody = new Map<string, string>();
-      for (const el of elements) {
-        if (el.kind !== "section") continue;
-        const tl = firstLine((el as any).text).toLowerCase();
-        // Heuristik: Header-Zeilen sind sehr kurz (<= 35) und stehen alleine
-        if (tl && (el as any).text.split("\n").length === 1 && (el as any).text.length <= 35) {
-          byTitleHeader.set(tl, el.id);
-        } else if (tl) {
-          byTitleBody.set(tl, el.id);
+      const nextAdds: Array<SectionElement> = [];
+      let expRow = 0;
+      let eduRow = 0;
+      let contactPlaced = false;
+
+      for (const m of mapped) {
+        const prev = m.sourceKey ? existingByKey.get(m.sourceKey) : undefined;
+
+        if (!prev) {
+          // Neu anlegen aus Templates
+          if (m.group === "kontakt" && !contactPlaced) {
+            const tpl = Templates.contactRight;
+            const frame = { ...computeFrameForRow("right", 0, margins, tpl.baseSize.width, tpl.baseSize.height) };
+            const texts: Partial<Record<PartKey, string>> = Object.fromEntries(m.parts.map((p) => [p.key, p.text]));
+            const meta = { source: { key: m.sourceKey, group: m.group, template: tpl.id } };
+            const sec = buildSectionFromTemplate(tpl, frame, texts, meta, m.title);
+            nextAdds.push(sec);
+            contactPlaced = true;
+            continue;
+          }
+
+          if (m.group === "erfahrung") {
+            const tpl = Templates.experienceLeft;
+            const frame = computeFrameForRow("left", expRow++, margins, tpl.baseSize.width, tpl.baseSize.height);
+            const texts: Partial<Record<PartKey, string>> = Object.fromEntries(m.parts.map((p) => [p.key, p.text]));
+            const meta = { source: { key: m.sourceKey, group: m.group, template: tpl.id } };
+            const sec = buildSectionFromTemplate(tpl, frame, texts, meta, m.title);
+            nextAdds.push(sec);
+            continue;
+          }
+
+          if (m.group === "ausbildung") {
+            const tpl = Templates.educationLeft;
+            const frame = computeFrameForRow("left", eduRow++, margins, tpl.baseSize.width, tpl.baseSize.height);
+            const texts: Partial<Record<PartKey, string>> = Object.fromEntries(m.parts.map((p) => [p.key, p.text]));
+            const meta = { source: { key: m.sourceKey, group: m.group, template: tpl.id } };
+            const sec = buildSectionFromTemplate(tpl, frame, texts, meta, m.title);
+            nextAdds.push(sec);
+            continue;
+          }
+
+          // Fallback: ignoriere unbekannte Gruppen
+          continue;
+        }
+
+        // Vorhanden → nur Parts updaten, die nicht gelockt sind
+        for (const p of m.parts) {
+          const local = prev.parts.find((x) => x.key === p.key);
+          if (!local || local.lockText) continue;
+          updatePartText(prev.id, p.key, p.text);
         }
       }
 
-      const toAdd: Array<{ title?: string; content?: string; frame?: any }> = [];
-
-      split.forEach((s, idx) => {
-        const title = (s.title || "").trim();
-        const headerId = byTitleHeader.get(title.toLowerCase());
-        const bodyId = byTitleBody.get(title.toLowerCase());
-        const headerText = title;
-        const bodyText = s.content || "";
-
-        // Header (einzeilig, eigenständige Box)
-        if (headerId) {
-          useDesignerStore.getState().updateText(headerId, headerText);
-        } else {
-          toAdd.push({
-            title,
-            content: headerText,
-            frame: { ...frameFor(title, idx), height: 22 }, // kompakter Header
-          });
-        }
-
-        // Body (eigene Box)
-        if (bodyId) {
-          updateText(bodyId, bodyText ? `${title}\n${bodyText}` : title);
-        } else {
-          toAdd.push({
-            title,
-            content: bodyText ? `${title}\n${bodyText}` : title,
-            frame: { ...frameFor(title, idx + 1) },
-          });
-        }
-      });
-
-      if (!elements.length && toAdd.length) {
-        // Erstinitialisierung → sauber setzen (kein n+1 jitter)
-        setInitial(toAdd);
+      // Erstinitialisierung in einem Rutsch
+      if (!elements.length && nextAdds.length) {
+        setInitial(nextAdds);
       } else {
-        // sonst anhängen
-        for (const item of toAdd) {
-          addSection({ text: item.content, frame: item.frame });
+        for (const sec of nextAdds) {
+          addFromTpl({
+            group: sec.group,
+            frame: sec.frame,
+            parts: sec.parts,
+            meta: sec.meta,
+            title: sec.title,
+          });
         }
       }
     }, debounceMs) as unknown as number;
