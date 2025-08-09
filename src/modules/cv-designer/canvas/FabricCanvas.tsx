@@ -1,16 +1,14 @@
 import React, { useEffect, useRef } from "react";
 import { useDesignerStore, CanvasElement } from "../store/designerStore";
-import loadFabric from "@/lib/fabric-shim";
+import getFabric, { getFabric as loadFabric } from "@/lib/fabric-shim"; // beide Varianten möglich
 
 const PAGE_W = 595; // A4 @72dpi
 const PAGE_H = 842;
 
-type Fabric = typeof import("fabric");
-
 export default function FabricCanvas() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const fabricRef = useRef<Fabric["fabric"] | null>(null);
-  const fCanvas = useRef<import("fabric").fabric.Canvas | null>(null);
+  const fabricNs = useRef<any>(null);
+  const fCanvas = useRef<any>(null);
   const objectsById = useRef(new Map<string, any>());
 
   const elements = useDesignerStore((s) => s.elements);
@@ -23,13 +21,12 @@ export default function FabricCanvas() {
   const updateText = useDesignerStore((s) => s.updateText);
   const select = useDesignerStore((s) => s.select);
 
-  // init fabric
   useEffect(() => {
     let disposed = false;
     (async () => {
-      const mod: any = await loadFabric(); // shim
-      const fabric = (mod?.fabric ?? mod?.default ?? mod) as Fabric["fabric"];
-      fabricRef.current = fabric;
+      // ⬇️ einheitlich über Shim laden (default ODER named funzt jetzt)
+      const fabric = await getFabric(); // (alternativ: await loadFabric())
+      fabricNs.current = fabric;
 
       if (!canvasRef.current) return;
       const c = new fabric.Canvas(canvasRef.current, {
@@ -39,12 +36,11 @@ export default function FabricCanvas() {
       });
       fCanvas.current = c;
 
-      // size & zoom
       c.setWidth(PAGE_W);
       c.setHeight(PAGE_H);
       c.setZoom(zoom);
 
-      // A4 overlay & margin guides (non-selectable)
+      // A4-Background + Margin-Overlay
       const bg = new fabric.Rect({
         left: 0,
         top: 0,
@@ -55,7 +51,6 @@ export default function FabricCanvas() {
         evented: false,
         hoverCursor: "default",
       });
-
       const marginRect = new fabric.Rect({
         left: margins.left,
         top: margins.top,
@@ -68,13 +63,16 @@ export default function FabricCanvas() {
         evented: false,
         strokeUniform: true,
       });
+      // Flags, damit wir das Overlay später wiederfinden:
+      (bg as any).__is_bg = true;
+      (marginRect as any).__is_marginRect = true;
 
       c.add(bg);
       c.add(marginRect);
       bg.moveTo(0);
       marginRect.moveTo(1);
 
-      // selection sync
+      // Selection → Store
       c.on("selection:created", () => {
         const active = c.getActiveObjects() || [];
         select(active.map((o: any) => o.__bl_id).filter(Boolean));
@@ -85,7 +83,7 @@ export default function FabricCanvas() {
       });
       c.on("selection:cleared", () => select([]));
 
-      // snap & commit frame
+      // Snap/Resize und Frame zurückschreiben
       c.on("object:moving", (e: any) => {
         const o = e.target;
         if (!o || o.selectable === false) return;
@@ -112,7 +110,7 @@ export default function FabricCanvas() {
         });
       });
 
-      // dblclick → enter editing for textboxes
+      // Inline-Editing
       c.on("mouse:dblclick", (e: any) => {
         const t = e.target;
         if (t && t.type === "textbox" && typeof (t as any).enterEditing === "function") {
@@ -120,8 +118,6 @@ export default function FabricCanvas() {
           (t as any).hiddenTextarea?.focus();
         }
       });
-
-      // when editing stops, write back text
       c.on("text:changed", (e: any) => {
         const t = e.target;
         if (t && t.__bl_id && typeof t.text === "string") {
@@ -129,12 +125,10 @@ export default function FabricCanvas() {
         }
       });
 
-      // initial render
+      // Initiales Rendern
       reconcileCanvas(c, fabric, elements, objectsById.current);
 
-      const dispose = () => {
-        c.dispose();
-      };
+      const dispose = () => c.dispose();
       if (disposed) dispose();
     })();
 
@@ -144,23 +138,22 @@ export default function FabricCanvas() {
         fCanvas.current.dispose();
         fCanvas.current = null;
       }
-      fabricRef.current = null;
+      fabricNs.current = null;
       objectsById.current.clear();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // elements reconcile
+  // elements → Canvas
   useEffect(() => {
-    if (!fCanvas.current || !fabricRef.current) return;
-    reconcileCanvas(fCanvas.current, fabricRef.current, elements, objectsById.current);
+    if (!fCanvas.current || !fabricNs.current) return;
+    reconcileCanvas(fCanvas.current, fabricNs.current, elements, objectsById.current);
   }, [elements]);
 
-  // margins update
+  // margins → Overlay
   useEffect(() => {
     const c = fCanvas.current;
-    const fabric = fabricRef.current;
-    if (!c || !fabric) return;
+    if (!c) return;
     const all = c.getObjects() as any[];
     const marginRect = all.find((o) => o.__is_marginRect);
     if (marginRect) {
@@ -174,7 +167,7 @@ export default function FabricCanvas() {
     }
   }, [margins]);
 
-  // zoom update
+  // zoom → Canvasgröße
   useEffect(() => {
     const c = fCanvas.current;
     if (!c) return;
@@ -184,34 +177,24 @@ export default function FabricCanvas() {
     c.requestRenderAll();
   }, [zoom]);
 
-  // selection from store -> canvas
+  // store selection → canvas selection
   useEffect(() => {
     const c = fCanvas.current;
-    if (!c) return;
-    const setActive = (ids: string[]) => {
-      const toSel = c
-        .getObjects()
-        .filter((o: any) => o.__bl_id && ids.includes(o.__bl_id) && o.selectable !== false);
-      c.discardActiveObject();
-      if (toSel.length === 1) c.setActiveObject(toSel[0]);
-      if (toSel.length > 1) {
-        const sel = new (fabricRef.current as any).ActiveSelection(toSel, { canvas: c });
-        c.setActiveObject(sel);
-      }
-      c.requestRenderAll();
-    };
-    setActive(selectedIds);
+    const fabric = fabricNs.current;
+    if (!c || !fabric) return;
+    const toSel = c.getObjects().filter((o: any) => o.__bl_id && selectedIds.includes(o.__bl_id) && o.selectable !== false);
+    c.discardActiveObject();
+    if (toSel.length === 1) c.setActiveObject(toSel[0]);
+    if (toSel.length > 1) {
+      const sel = new fabric.ActiveSelection(toSel, { canvas: c });
+      c.setActiveObject(sel);
+    }
+    c.requestRenderAll();
   }, [selectedIds]);
 
   return (
     <div className="w-full h-full overflow-auto bg-neutral-100 flex items-center justify-center">
-      <div
-        className="shadow-xl bg-white"
-        style={{
-          width: PAGE_W * zoom,
-          height: PAGE_H * zoom,
-        }}
-      >
+      <div className="shadow-xl bg-white" style={{ width: PAGE_W * zoom, height: PAGE_H * zoom }}>
         <canvas ref={canvasRef} />
       </div>
     </div>
@@ -219,12 +202,11 @@ export default function FabricCanvas() {
 }
 
 function reconcileCanvas(
-  c: import("fabric").fabric.Canvas,
+  c: any,
   fabric: any,
   elements: CanvasElement[],
   map: Map<string, any>
 ) {
-  // add/update
   const existingIds = new Set<string>();
   for (const el of elements) {
     existingIds.add(el.id);
@@ -256,7 +238,6 @@ function reconcileCanvas(
       c.add(obj);
       map.set(el.id, obj);
     }
-    // update frame/text
     obj.set({
       left: el.frame.x,
       top: el.frame.y,
@@ -268,7 +249,6 @@ function reconcileCanvas(
     }
   }
 
-  // remove deleted
   for (const [id, obj] of Array.from(map.entries())) {
     if (!existingIds.has(id)) {
       c.remove(obj);
@@ -276,17 +256,12 @@ function reconcileCanvas(
     }
   }
 
-  // mark helpers
+  // Markiere Overlay-Objekte, falls sie (noch) nicht markiert sind
   const all = c.getObjects() as any[];
-  const bg = all[0];
-  const marginRect = all[1];
-  if (bg && !bg.__is_bg) bg.__is_bg = true, (bg.selectable = false), (bg.evented = false);
-  if (marginRect && !marginRect.__is_marginRect) {
-    marginRect.__is_marginRect = true;
-    marginRect.selectable = false;
-    marginRect.evented = false;
-    marginRect.strokeUniform = true;
-  }
+  const bg = all.find((o) => o.__is_bg);
+  const mrect = all.find((o) => o.__is_marginRect);
+  if (bg) (bg.selectable = false), (bg.evented = false);
+  if (mrect) (mrect.selectable = false), (mrect.evented = false), (mrect.strokeUniform = true);
 
   c.requestRenderAll();
 }
