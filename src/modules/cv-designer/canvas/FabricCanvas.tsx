@@ -93,12 +93,12 @@ export default function FabricCanvas() {
         c.on("object:moving", (e: any) => {
           const o = e.target;
           if (!o || o.selectable === false) return;
+          if (o.__bl_part) return; // Parts sind nicht verschiebbar
           o.set({
             left: Math.round(o.left / snapSize) * snapSize,
             top: Math.round(o.top / snapSize) * snapSize,
           });
           if (o.__is_container) {
-            // Container bewegt → Parts relativ repositionieren
             repositionPartsForContainer(c, o.__bl_id);
           }
         });
@@ -106,6 +106,7 @@ export default function FabricCanvas() {
         c.on("object:scaling", (e: any) => {
           const o = e.target;
           if (!o || o.selectable === false) return;
+          if (o.__bl_part) return; // Parts ignorieren
           const w = Math.round((o.width * o.scaleX) / snapSize) * snapSize;
           const h = Math.round((o.height * o.scaleY) / snapSize) * snapSize;
           o.set({ scaleX: 1, scaleY: 1, width: w, height: h });
@@ -152,7 +153,14 @@ export default function FabricCanvas() {
         window.addEventListener("bl:delete-active", onDeleteActive);
       }
 
-      reconcileCanvas(c, fabric, elements, tokens, useDesignerStore.getState().partStyles, objectsByKey.current);
+      reconcileCanvas(
+        c,
+        fabric,
+        elements,
+        tokens,
+        useDesignerStore.getState().partStyles,
+        objectsByKey.current
+      );
     })();
 
     return () => {
@@ -229,7 +237,9 @@ export default function FabricCanvas() {
     syncingRef.current = true;
     c.discardActiveObject();
 
-    const toSel = c.getObjects().filter((o: any) => o.__bl_id && selectedIds.includes(o.__bl_id) && o.selectable !== false);
+    const toSel = c.getObjects().filter(
+      (o: any) => o.__bl_id && selectedIds.includes(o.__bl_id) && o.selectable !== false
+    );
     if (toSel.length === 1) c.setActiveObject(toSel[0]);
     else if (toSel.length > 1) c.setActiveObject(new fabric.ActiveSelection(toSel, { canvas: c }));
 
@@ -257,20 +267,30 @@ function ensureOverlay(
   const objs = c.getObjects() as any[];
   if (!objs.some((o) => o.__is_bg)) {
     const bg = new fabric.Rect({
-      left: 0, top: 0, width: PAGE_W, height: PAGE_H,
-      fill: "#ffffff", selectable: false, evented: false, hoverCursor: "default",
+      left: 0,
+      top: 0,
+      width: PAGE_W,
+      height: PAGE_H,
+      fill: "#ffffff",
+      selectable: false,
+      evented: false,
+      hoverCursor: "default",
     });
     (bg as any).__is_bg = true;
     c.add(bg);
   }
   if (!objs.some((o) => o.__is_marginRect)) {
     const marginRect = new fabric.Rect({
-      left: margins.left, top: margins.top,
+      left: margins.left,
+      top: margins.top,
       width: PAGE_W - margins.left - margins.right,
       height: PAGE_H - margins.top - margins.bottom,
       fill: "rgba(0,0,0,0)",
-      stroke: "#93c5fd", strokeDashArray: [6, 6],
-      selectable: false, evented: false, strokeUniform: true,
+      stroke: "#93c5fd",
+      strokeDashArray: [6, 6],
+      selectable: false,
+      evented: false,
+      strokeUniform: true,
     });
     (marginRect as any).__is_marginRect = true;
     c.add(marginRect);
@@ -281,9 +301,7 @@ function ensureOverlay(
 function hydrateMapFromCanvas(c: any, map: Map<string, any>) {
   map.clear();
   for (const o of c.getObjects() as any[]) {
-    // Container: key = `sec:<id>`
     if (o.__is_container && o.__bl_id) map.set(`sec:${o.__bl_id}`, o);
-    // Part: key = `part:<id>:<partKey>`
     if (o.__bl_id && o.__bl_part) map.set(`part:${o.__bl_id}:${o.__bl_part}`, o);
   }
 }
@@ -297,11 +315,15 @@ function purgeStrays(c: any) {
 
 function charSpacingFromEm(em?: number): number | undefined {
   if (em == null) return undefined;
-  // Fabric charSpacing ist in 1/1000 em
-  return Math.round(em * 1000);
+  return Math.round(em * 1000); // fabric charSpacing = 1/1000 em
 }
 
-function applyTextStyle(obj: any, base: { fontFamily?: string; fontSize?: number; lineHeight?: number; color?: string }, local?: PartStyle, global?: PartStyle) {
+function applyTextStyle(
+  obj: any,
+  base: { fontFamily?: string; fontSize?: number; lineHeight?: number; color?: string },
+  local?: PartStyle,
+  global?: PartStyle
+) {
   const s = { ...(base || {}) };
   const g = global || {};
   const l = local || {};
@@ -343,13 +365,18 @@ function reconcileCanvas(
 
   for (const el of elements) {
     if (el.kind === "photo") {
-      const key = `sec:${el.id}`; // Foto ohne Containerflag, aber wir verwenden key-space konsistent
+      const key = `sec:${el.id}`;
       let obj = map.get(key);
       if (!obj) {
         obj = new fabric.Rect({
-          left: el.frame.x, top: el.frame.y,
-          width: el.frame.width, height: el.frame.height,
-          fill: "#e5e7eb", stroke: "#9ca3af", strokeUniform: true, selectable: true,
+          left: el.frame.x,
+          top: el.frame.y,
+          width: el.frame.width,
+          height: el.frame.height,
+          fill: "#e5e7eb",
+          stroke: "#9ca3af",
+          strokeUniform: true,
+          selectable: true,
         });
         obj.__bl_id = el.id;
         c.add(obj);
@@ -397,13 +424,23 @@ function reconcileCanvas(
 
       const left = container.left + (part.offset.x ?? 0);
       const top = container.top + (part.offset.y ?? 0);
-      const width = (part.offset.w ?? Math.max(40, container.width - (part.offset.x ?? 0) - 8));
+      const width = part.offset.w ?? Math.max(40, container.width - (part.offset.x ?? 0) - 8);
       const height = part.offset.h ?? 18;
 
       if (!pObj) {
         pObj = new fabric.Textbox(part.text || "", {
-          left, top, width, height,
-          selectable: true, editable: true,
+          left,
+          top,
+          width,
+          height,
+          selectable: true,
+          editable: true,
+          // Parts: editierbar, aber NICHT bewegbar
+          lockMovementX: true,
+          lockMovementY: true,
+          hasControls: false,
+          hoverCursor: "text",
+          moveCursor: "text",
         });
         pObj.__bl_id = el.id;
         pObj.__bl_part = part.key;
@@ -432,14 +469,6 @@ function reconcileCanvas(
 
 /** Relativ-Positionsupdate aller Parts einer Sektion nach Container-Bewegung/Resize */
 function repositionPartsForContainer(c: any, sectionId: string) {
-  const objs = c.getObjects() as any[];
-  const container = objs.find((o: any) => o.__is_container && o.__bl_id === sectionId);
-  if (!container) return;
-
-  const parts = objs.filter((o: any) => o.__bl_id === sectionId && o.__bl_part);
-  for (const p of parts) {
-    // Wir halten die relativen Offsets in den Store-Parts; hier setzen wir nur neu per reconcile,
-    // deshalb reicht ein RenderAll – der nächste reconcile korrigiert die exakten Positionen.
-  }
+  // aktuell reicht RenderAll; reconcile positioniert Parts anhand der Offsets neu
   c.requestRenderAll();
 }
