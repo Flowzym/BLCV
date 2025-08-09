@@ -1,15 +1,21 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useLebenslauf } from "@/components/LebenslaufContext";
 import { useDesignerStore, PartKey, SectionElement } from "../store/designerStore";
 import { mapLebenslaufToSectionParts } from "./mapLebenslaufToSectionParts";
-import { Templates, buildSectionFromTemplate } from "../templates"; // <— geändert
+import { Templates, buildSectionFromTemplate } from "../templates";
 
 const PAGE_W = 595;
 const PAGE_H = 842;
 
 type Margins = { top: number; right: number; bottom: number; left: number };
 
-function computeFrameForRow(col: "left" | "right", rowIndex: number, margins: Margins, width: number, height: number) {
+function computeFrameForRow(
+  col: "left" | "right",
+  rowIndex: number,
+  margins: Margins,
+  width: number,
+  height: number
+) {
   const innerW = PAGE_W - margins.left - margins.right;
   const leftW = Math.round(innerW * 0.62);
   const rightW = innerW - leftW - 8;
@@ -18,28 +24,24 @@ function computeFrameForRow(col: "left" | "right", rowIndex: number, margins: Ma
   const w = col === "left" ? leftW : rightW;
   return { x, y, width: Math.min(w, width), height };
 }
-function sectionKey(e: SectionElement): string | undefined {
-  return e.meta?.source?.key;
-}
+const sectionKey = (e: SectionElement) => e.meta?.source?.key;
 
 export function useLiveSyncFromGenerator(debounceMs = 200) {
   const ll = useLebenslauf();
-  const elements = useDesignerStore((s) => s.elements);
   const margins = useDesignerStore((s) => s.margins);
 
-  const setInitial = useDesignerStore((s) => s.setInitialElements);
-  const addFromTpl = useDesignerStore((s) => s.addSectionFromTemplate);
-  const updatePartText = useDesignerStore((s) => s.updatePartText);
-
   const timer = useRef<number | null>(null);
-  const depsHash = useMemo(() => JSON.stringify({ ll, margins }), [ll, margins]);
 
   useEffect(() => {
     if (!ll) return;
-
     if (timer.current) window.clearTimeout(timer.current);
+
     timer.current = window.setTimeout(() => {
       const mapped = mapLebenslaufToSectionParts(ll);
+
+      // Aktuellen Store-Stand direkt ziehen (keine Stale-Closures)
+      const { elements, addSectionFromTemplate, updatePartText, setInitialElements } =
+        useDesignerStore.getState();
 
       const existingByKey = new Map<string, SectionElement>();
       for (const e of elements) {
@@ -48,55 +50,72 @@ export function useLiveSyncFromGenerator(debounceMs = 200) {
         if (k) existingByKey.set(k, e);
       }
 
-      const nextAdds: SectionElement[] = [];
-      let expRow = 0;
-      let eduRow = 0;
-      let contactPlaced = false;
+      type AddJob = {
+        tpl: typeof Templates[keyof typeof Templates];
+        frame: { x: number; y: number; width: number; height: number };
+        texts: Partial<Record<PartKey, string>>;
+        meta: SectionElement["meta"];
+        title?: string;
+      };
+      const adds: AddJob[] = [];
+      let expRow = 0,
+        eduRow = 0,
+        contactPlaced = false;
 
       for (const m of mapped) {
+        const texts = Object.fromEntries(m.parts.map((p) => [p.key, p.text])) as Partial<
+          Record<PartKey, string>
+        >;
+
         const prev = m.sourceKey ? existingByKey.get(m.sourceKey) : undefined;
 
-        if (!prev) {
-          if (m.group === "kontakt" && !contactPlaced) {
-            const tpl = Templates.contactRight;
-            const frame = computeFrameForRow("right", 0, margins, tpl.baseSize.width, tpl.baseSize.height);
-            const texts: Partial<Record<PartKey, string>> = Object.fromEntries(m.parts.map((p) => [p.key, p.text]));
-            const meta = { source: { key: m.sourceKey, group: m.group, template: tpl.id } };
-            nextAdds.push(buildSectionFromTemplate(tpl, frame, texts, meta, m.title));
-            contactPlaced = true;
-            continue;
-          }
-          if (m.group === "erfahrung") {
-            const tpl = Templates.experienceLeft;
-            const frame = computeFrameForRow("left", expRow++, margins, tpl.baseSize.width, tpl.baseSize.height);
-            const texts: Partial<Record<PartKey, string>> = Object.fromEntries(m.parts.map((p) => [p.key, p.text]));
-            const meta = { source: { key: m.sourceKey, group: m.group, template: tpl.id } };
-            nextAdds.push(buildSectionFromTemplate(tpl, frame, texts, meta, m.title));
-            continue;
-          }
-          if (m.group === "ausbildung") {
-            const tpl = Templates.educationLeft;
-            const frame = computeFrameForRow("left", eduRow++, margins, tpl.baseSize.width, tpl.baseSize.height);
-            const texts: Partial<Record<PartKey, string>> = Object.fromEntries(m.parts.map((p) => [p.key, p.text]));
-            const meta = { source: { key: m.sourceKey, group: m.group, template: tpl.id } };
-            nextAdds.push(buildSectionFromTemplate(tpl, frame, texts, meta, m.title));
-            continue;
+        if (prev) {
+          // Vorhanden -> ungelockte Parts updaten (auch wenn bisher leer)
+          for (const p of m.parts) {
+            const local = prev.parts.find((x) => x.key === p.key);
+            if (!local || local.lockText) continue;
+            if ((local.text ?? "") !== (p.text ?? "")) {
+              updatePartText(prev.id, p.key, p.text);
+            }
           }
           continue;
         }
 
-        for (const p of m.parts) {
-          const local = prev.parts.find((x) => x.key === p.key);
-          if (!local || local.lockText) continue;
-          updatePartText(prev.id, p.key, p.text);
+        // Neu anlegen
+        if (m.group === "kontakt" && !contactPlaced) {
+          const tpl = Templates.contactRight;
+          const frame = computeFrameForRow("right", 0, margins, tpl.baseSize.width, tpl.baseSize.height);
+          const meta = { source: { key: m.sourceKey, group: m.group, template: tpl.id } };
+          adds.push({ tpl, frame, texts, meta, title: m.title });
+          contactPlaced = true;
+          continue;
+        }
+        if (m.group === "erfahrung") {
+          const tpl = Templates.experienceLeft;
+          const frame = computeFrameForRow("left", expRow++, margins, tpl.baseSize.width, tpl.baseSize.height);
+          const meta = { source: { key: m.sourceKey, group: m.group, template: tpl.id } };
+          adds.push({ tpl, frame, texts, meta, title: m.title });
+          continue;
+        }
+        if (m.group === "ausbildung") {
+          const tpl = Templates.educationLeft;
+          const frame = computeFrameForRow("left", eduRow++, margins, tpl.baseSize.width, tpl.baseSize.height);
+          const meta = { source: { key: m.sourceKey, group: m.group, template: tpl.id } };
+          adds.push({ tpl, frame, texts, meta, title: m.title });
+          continue;
         }
       }
 
-      if (!elements.length && nextAdds.length) {
-        setInitial(nextAdds);
+      if (!elements.length && adds.length) {
+        // Erstbefüllung in einem Rutsch (performanter)
+        const secs = adds.map((a) =>
+          buildSectionFromTemplate(a.tpl, a.frame, a.texts, a.meta, a.title)
+        );
+        setInitialElements(secs);
       } else {
-        for (const sec of nextAdds) {
-          addFromTpl({
+        for (const a of adds) {
+          const sec = buildSectionFromTemplate(a.tpl, a.frame, a.texts, a.meta, a.title);
+          addSectionFromTemplate({
             group: sec.group,
             frame: sec.frame,
             parts: sec.parts,
@@ -110,6 +129,18 @@ export function useLiveSyncFromGenerator(debounceMs = 200) {
     return () => {
       if (timer.current) window.clearTimeout(timer.current);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [depsHash, elements.length]);
+    // Trigger nur auf Generator-Daten + Margins
+  }, [
+    margins.top,
+    margins.right,
+    margins.bottom,
+    margins.left,
+    // relevante LL-Felder:
+    ll?.personalData,
+    ll?.berufserfahrung,
+    ll?.workExperience,
+    ll?.experience,
+    ll?.ausbildung,
+    ll?.education,
+  ]);
 }
