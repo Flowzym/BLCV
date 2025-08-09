@@ -1,16 +1,28 @@
-// src/main.tsx
-import React from "react";
-import ReactDOM from "react-dom/client";
-import App from "./App.tsx";
+import { createRoot } from "react-dom/client";
+import App from "./App";
+import {
+  BrowserRouter,
+  useInRouterContext,
+} from "react-router-dom";
 
-// Basis-Styles (lass diese Imports so, wie es in deinem Projekt ist)
+// Global Styles
+import "./styles/tokens.css";
 import "./index.css";
+import "react-quill/dist/quill.snow.css";
 
-// 🔗 Einmalige Export-Registrierung (wichtig!)
-import "@/bootstrap/exportRegistry";
+// Wrapper, der nur dann einen Router hinzufügt, wenn keiner existiert.
+// So crasht useRoutes() nie – auch wenn App mal ohne Router gerendert wird
+// (z. B. in einem zweiten Entry).
+function AppWithRouterGuard() {
+  const inside = useInRouterContext();
+  return inside ? <App /> : (
+    <BrowserRouter>
+      <App />
+    </BrowserRouter>
+  );
+}
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);
+const container = document.getElementById("root");
+if (container) {
+  createRoot(container).render(<AppWithRouterGuard />);
+}
