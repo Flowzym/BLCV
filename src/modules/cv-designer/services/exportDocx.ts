@@ -1,22 +1,13 @@
-import PizZip from "pizzip";
-import Docxtemplater from "docxtemplater";
-import type { CanvasElement } from "../store/designerStore";
-
 /**
- * Renders a DOCX Blob using token style mapping.
+ * Minimaler DOCX-Stub: erzeugt einen Blob mit kurzer Info.
+ * Ziel: kein Build-/Runtime-Crash, bis der echte DOCX-Export folgt (P3).
  */
-export async function exportDocx(elements: CanvasElement[], tokens: any): Promise<Blob> {
-  const paragraphs = elements
-    .filter((e) => e.kind === "section")
-    .flatMap((e: any) => e.content.split("\n"))
-    .map((line: string) => ({ text: line }));
-
-  const templateArrayBuffer = await fetch("/templates/blank.docx").then((r) =>
-    r.arrayBuffer()
-  );
-  const zip = new PizZip(templateArrayBuffer);
-  const doc = new Docxtemplater(zip, { paragraphLoop: true });
-  doc.setData({ paragraphs, fontFamily: tokens.fontFamily, fontSize: tokens.fontSize });
-  doc.render();
-  return doc.getZip().generate({ type: "blob" });
+export async function exportDocx(elements: any[] = [], tokens: any = {}): Promise<Blob> {
+  const text =
+`DOCX-Export noch nicht implementiert.
+Elements: ${elements.length}
+Hinweis: P3 führt echten DOCX-Export (docx oder pizzip/docxtemplater) ein.`;
+  return new Blob([text], {
+    type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+  });
 }
