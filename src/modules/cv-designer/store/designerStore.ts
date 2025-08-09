@@ -31,7 +31,6 @@ type HistorySnap = {
 };
 
 type DesignerState = {
-  // state
   elements: CanvasElement[];
   selectedIds: string[];
   margins: Margins;
@@ -39,11 +38,9 @@ type DesignerState = {
   zoom: number;
   tokens: StyleTokens;
 
-  // history
   undoStack: HistorySnap[];
   redoStack: HistorySnap[];
 
-  // actions
   addSection(partial?: Partial<CanvasElement & { text: string }>): void;
   addPhoto(partial?: Partial<CanvasElement>): void;
   updateText(id: string, text: string): void;
@@ -55,8 +52,9 @@ type DesignerState = {
   setZoom(z: number): void;
   setTokens(partial: Partial<StyleTokens>): void;
 
-  /** Initialer Import aus Lebenslauf-Generator – mehrere Sections vertikal platzieren, ohne bestehende Layouts zu überschreiben. */
   setInitialElementsFromSections(sections: Array<{ title?: string; content?: string }>): void;
+  /** Neu: fehlende Sections unten anhängen, bestehendes Layout bleibt erhalten. */
+  appendSectionsAtEnd(sections: Array<{ title?: string; content?: string }>): void;
 
   undo(): void;
   redo(): void;
@@ -94,7 +92,6 @@ function snapshot(state: DesignerState): HistorySnap {
 function uid(prefix = "el"): string {
   return `${prefix}-${Math.random().toString(36).slice(2, 9)}`;
 }
-
 function arrEq(a: string[], b: string[]) {
   if (a === b) return true;
   if (!a || !b) return false;
@@ -212,7 +209,6 @@ export const useDesignerStore = create<DesignerState>()(
         });
       },
 
-      /** Mehrere Sections vertikal platzieren – einfache Heuristik nach Tokens; kein Überschreiben existierender Layouts an dieser Stelle. */
       setInitialElementsFromSections(sections) {
         if (!sections?.length) return;
         set((s) => {
@@ -245,14 +241,53 @@ export const useDesignerStore = create<DesignerState>()(
             });
 
             cursorY += estHeight + spacing;
-
-            // Falls über die Seite hinaus: grobe Korrektur (wir brechen NICHT ab; echte Mehrseiten-Layouts kommen später).
             if (cursorY > PAGE_H - s.margins.bottom) {
               cursorY = PAGE_H - s.margins.bottom - (lineCost + spacing);
             }
           }
 
           const next = { ...s, elements: newElements };
+          const u = s.undoStack.concat(snapshot(s)).slice(-HISTORY_LIMIT);
+          return { ...next, undoStack: u, redoStack: [] };
+        });
+      },
+
+      appendSectionsAtEnd(sections) {
+        if (!sections?.length) return;
+        set((s) => {
+          const left = s.margins.left;
+          const right = s.margins.right;
+          const contentW = PAGE_W - left - right;
+
+          const fs = Number(s.tokens.fontSize) > 0 ? Number(s.tokens.fontSize) : 11;
+          const lh = Number(s.tokens.lineHeight) > 0 ? Number(s.tokens.lineHeight) : 1.4;
+          const lineCost = Math.ceil(fs * lh);
+          const titleCost = Math.ceil(fs * 1.6);
+          const spacing = Math.max(6, Math.round(s.tokens.sectionSpacing));
+
+          // unterstes Y finden
+          const maxBottom =
+            s.elements.reduce((y, e) => Math.max(y, e.frame.y), s.margins.top) + lineCost + spacing;
+          let cursorY = Math.max(maxBottom, s.margins.top);
+
+          const appended: CanvasElement[] = [];
+          for (const sec of sections) {
+            const title = (sec.title || "").trim();
+            const text = (sec.content || "").toString();
+            const lines = [title ? "X" : "", ...text.split("\n")];
+            const estHeight = (title ? titleCost : 0) + lines.length * lineCost;
+
+            appended.push({
+              kind: "section",
+              id: uid("sec"),
+              frame: { x: left, y: cursorY, width: contentW, height: 0 },
+              title: title || undefined,
+              text: (title ? `${title}\n` : "") + text,
+            });
+            cursorY += estHeight + spacing;
+          }
+
+          const next = { ...s, elements: [...s.elements, ...appended] };
           const u = s.undoStack.concat(snapshot(s)).slice(-HISTORY_LIMIT);
           return { ...next, undoStack: u, redoStack: [] };
         });
@@ -304,11 +339,9 @@ export const useDesignerStore = create<DesignerState>()(
         if (!persisted?.state) return persisted;
         const s = persisted.state;
         const fallback: Margins = { top: 36, right: 36, bottom: 36, left: 36 };
-
         if (!s.margins) s.margins = s.exportMargins ?? fallback;
 
         const snap = typeof s.snapSize === "number" ? s.snapSize : 20;
-
         if (!s.tokens) {
           s.tokens = defaultTokens(s.margins, snap);
         } else {
@@ -316,7 +349,6 @@ export const useDesignerStore = create<DesignerState>()(
           if (!s.tokens.margins) s.tokens.margins = { ...s.margins };
           if (typeof s.tokens.snapSize !== "number") s.tokens.snapSize = snap;
         }
-
         if (typeof s.snapSize !== "number") s.snapSize = s.tokens.snapSize;
         if (s.exportMargins) delete s.exportMargins;
 
