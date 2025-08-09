@@ -23,122 +23,100 @@ export default function FabricCanvas() {
 
   useEffect(() => {
     let disposed = false;
-    (async () => {
-      if (fCanvas.current) return; // Guard gegen Doppel-Init (StrictMode etc.)
 
+    (async () => {
       const fabric = await getFabric();
       fabricNs.current = fabric;
 
-      if (!canvasRef.current) return;
-      const c = new fabric.Canvas(canvasRef.current, {
-        preserveObjectStacking: true,
-        selection: true,
-        backgroundColor: "#ffffff",
-      });
+      const el = canvasRef.current;
+      if (!el) return;
+
+      // Reuse, falls bereits eine Fabric-Instanz am Element hängt
+      let c: any = (el as any).__fabricCanvas;
+      if (!c) {
+        c = new fabric.Canvas(el, {
+          preserveObjectStacking: true,
+          selection: true,
+          backgroundColor: "#ffffff",
+        });
+        (el as any).__fabricCanvas = c; // am DOM merken
+      }
       fCanvas.current = c;
 
+      // Grundkonfiguration jedes Mal setzen (auch bei Reuse)
       c.setWidth(PAGE_W);
       c.setHeight(PAGE_H);
       c.setZoom(zoom);
 
-      // A4-Background + Margin-Overlay (zu Beginn hinzufügen => unter allen anderen)
-      const bg = new fabric.Rect({
-        left: 0,
-        top: 0,
-        width: PAGE_W,
-        height: PAGE_H,
-        fill: "#ffffff",
-        selectable: false,
-        evented: false,
-        hoverCursor: "default",
-      });
-      (bg as any).__is_bg = true;
+      // Overlay anlegen, falls noch nicht vorhanden
+      ensureOverlay(c, fabric, margins);
 
-      const marginRect = new fabric.Rect({
-        left: margins.left,
-        top: margins.top,
-        width: PAGE_W - margins.left - margins.right,
-        height: PAGE_H - margins.top - margins.bottom,
-        fill: "rgba(0,0,0,0)",
-        stroke: "#93c5fd",
-        strokeDashArray: [6, 6],
-        selectable: false,
-        evented: false,
-        strokeUniform: true,
-      });
-      (marginRect as any).__is_marginRect = true;
+      // Events einmalig registrieren (idempotent)
+      if (!(c as any).__bl_eventsBound) {
+        (c as any).__bl_eventsBound = true;
 
-      // Reihenfolge: bg (Index 0), marginRect (Index 1); danach kommen erst Inhalte
-      c.add(bg);
-      c.add(marginRect);
-      c.requestRenderAll();
-
-      // Selection → Store
-      c.on("selection:created", () => {
-        const active = c.getActiveObjects() || [];
-        select(active.map((o: any) => o.__bl_id).filter(Boolean));
-      });
-      c.on("selection:updated", () => {
-        const active = c.getActiveObjects() || [];
-        select(active.map((o: any) => o.__bl_id).filter(Boolean));
-      });
-      c.on("selection:cleared", () => select([]));
-
-      // Snap/Resize & Frame zurückschreiben
-      c.on("object:moving", (e: any) => {
-        const o = e.target;
-        if (!o || o.selectable === false) return;
-        o.set({
-          left: Math.round(o.left / snapSize) * snapSize,
-          top: Math.round(o.top / snapSize) * snapSize,
+        c.on("selection:created", () => {
+          const active = c.getActiveObjects() || [];
+          select(active.map((o: any) => o.__bl_id).filter(Boolean));
         });
-      });
-      c.on("object:scaling", (e: any) => {
-        const o = e.target;
-        if (!o || o.selectable === false) return;
-        const w = Math.round((o.width * o.scaleX) / snapSize) * snapSize;
-        const h = Math.round((o.height * o.scaleY) / snapSize) * snapSize;
-        o.set({ scaleX: 1, scaleY: 1, width: w, height: h });
-      });
-      c.on("object:modified", (e: any) => {
-        const o = e.target;
-        if (!o || !o.__bl_id) return;
-        updateFrame(o.__bl_id, {
-          x: o.left,
-          y: o.top,
-          width: o.width,
-          height: o.height,
+        c.on("selection:updated", () => {
+          const active = c.getActiveObjects() || [];
+          select(active.map((o: any) => o.__bl_id).filter(Boolean));
         });
-      });
+        c.on("selection:cleared", () => select([]));
 
-      // Inline-Editing
-      c.on("mouse:dblclick", (e: any) => {
-        const t = e.target;
-        if (t && t.type === "textbox" && typeof (t as any).enterEditing === "function") {
-          (t as any).enterEditing();
-          (t as any).hiddenTextarea?.focus();
-        }
-      });
-      c.on("text:changed", (e: any) => {
-        const t = e.target;
-        if (t && t.__bl_id && typeof t.text === "string") {
-          updateText(t.__bl_id, t.text);
-        }
-      });
+        c.on("object:moving", (e: any) => {
+          const o = e.target;
+          if (!o || o.selectable === false) return;
+          o.set({
+            left: Math.round(o.left / snapSize) * snapSize,
+            top: Math.round(o.top / snapSize) * snapSize,
+          });
+        });
+        c.on("object:scaling", (e: any) => {
+          const o = e.target;
+          if (!o || o.selectable === false) return;
+          const w = Math.round((o.width * o.scaleX) / snapSize) * snapSize;
+          const h = Math.round((o.height * o.scaleY) / snapSize) * snapSize;
+          o.set({ scaleX: 1, scaleY: 1, width: w, height: h });
+        });
+        c.on("object:modified", (e: any) => {
+          const o = e.target;
+          if (!o || !o.__bl_id) return;
+          updateFrame(o.__bl_id, {
+            x: o.left,
+            y: o.top,
+            width: o.width,
+            height: o.height,
+          });
+        });
 
-      // erste Synchronisation
+        c.on("mouse:dblclick", (e: any) => {
+          const t = e.target;
+          if (t && t.type === "textbox" && typeof (t as any).enterEditing === "function") {
+            (t as any).enterEditing();
+            (t as any).hiddenTextarea?.focus();
+          }
+        });
+        c.on("text:changed", (e: any) => {
+          const t = e.target;
+          if (t && t.__bl_id && typeof t.text === "string") {
+            updateText(t.__bl_id, t.text);
+          }
+        });
+      }
+
+      // Inhalte synchronisieren
       reconcileCanvas(c, fabric, elements, objectsById.current);
 
-      const dispose = () => c.dispose();
-      if (disposed) dispose();
+      if (disposed) return;
     })();
 
     return () => {
       disposed = true;
-      if (fCanvas.current) {
-        fCanvas.current.dispose();
-        fCanvas.current = null;
-      }
+      // NICHT c.dispose(), um StrictMode-Doppelmounts abzufangen.
+      // Wir recyceln die Instanz bewusst; Cleanup: Cache nur leeren.
+      fCanvas.current = null;
       fabricNs.current = null;
       objectsById.current.clear();
     };
@@ -155,8 +133,7 @@ export default function FabricCanvas() {
   useEffect(() => {
     const c = fCanvas.current;
     if (!c) return;
-    const all = c.getObjects() as any[];
-    const marginRect = all.find((o: any) => o.__is_marginRect);
+    const marginRect = (c.getObjects() as any[]).find((o) => o.__is_marginRect);
     if (marginRect) {
       marginRect.set({
         left: margins.left,
@@ -183,7 +160,9 @@ export default function FabricCanvas() {
     const c = fCanvas.current;
     const fabric = fabricNs.current;
     if (!c || !fabric) return;
-    const toSel = c.getObjects().filter((o: any) => o.__bl_id && selectedIds.includes(o.__bl_id) && o.selectable !== false);
+    const toSel = c
+      .getObjects()
+      .filter((o: any) => o.__bl_id && selectedIds.includes(o.__bl_id) && o.selectable !== false);
     c.discardActiveObject();
     if (toSel.length === 1) c.setActiveObject(toSel[0]);
     if (toSel.length > 1) {
@@ -200,6 +179,52 @@ export default function FabricCanvas() {
       </div>
     </div>
   );
+}
+
+function ensureOverlay(c: any, fabric: any, margins: { top: number; right: number; bottom: number; left: number }) {
+  const objs = c.getObjects() as any[];
+  const hasBg = objs.some((o) => o.__is_bg);
+  const hasMR = objs.some((o) => o.__is_marginRect);
+
+  if (!hasBg) {
+    const bg = new fabric.Rect({
+      left: 0,
+      top: 0,
+      width: PAGE_W,
+      height: PAGE_H,
+      fill: "#ffffff",
+      selectable: false,
+      evented: false,
+      hoverCursor: "default",
+    });
+    (bg as any).__is_bg = true;
+    c.add(bg);
+  }
+
+  if (!hasMR) {
+    const marginRect = new fabric.Rect({
+      left: margins.left,
+      top: margins.top,
+      width: PAGE_W - margins.left - margins.right,
+      height: PAGE_H - margins.top - margins.bottom,
+      fill: "rgba(0,0,0,0)",
+      stroke: "#93c5fd",
+      strokeDashArray: [6, 6],
+      selectable: false,
+      evented: false,
+      strokeUniform: true,
+    });
+    (marginRect as any).__is_marginRect = true;
+    c.add(marginRect);
+  }
+
+  // sicherstellen, dass Overlay unten liegt
+  const all = c.getObjects();
+  const bgIdx = all.findIndex((o: any) => o.__is_bg);
+  const mrIdx = all.findIndex((o: any) => o.__is_marginRect);
+  if (bgIdx > -1) c.sendToBack(all[bgIdx]);
+  if (mrIdx > -1) c.sendBackwards(all[mrIdx]); // direkt über dem BG
+  c.requestRenderAll();
 }
 
 function reconcileCanvas(
@@ -237,7 +262,7 @@ function reconcileCanvas(
         });
       }
       obj.__bl_id = el.id;
-      c.add(obj); // wird über dem Overlay eingefügt
+      c.add(obj);
       map.set(el.id, obj);
     }
     obj.set({
@@ -251,7 +276,6 @@ function reconcileCanvas(
     }
   }
 
-  // Entferne gelöschte
   for (const [id, obj] of Array.from(map.entries())) {
     if (!existingIds.has(id)) {
       c.remove(obj);
@@ -259,6 +283,12 @@ function reconcileCanvas(
     }
   }
 
-  // Overlay-Objekte unverändert lassen (bereits zuerst eingefügt)
+  // Overlay wieder nach hinten
+  const all = c.getObjects() as any[];
+  const bg = all.find((o) => o.__is_bg);
+  const mr = all.find((o) => o.__is_marginRect);
+  if (bg) c.sendToBack(bg);
+  if (mr) c.sendBackwards(mr);
+
   c.requestRenderAll();
 }
