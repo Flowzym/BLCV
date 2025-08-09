@@ -9,7 +9,7 @@ export default function FabricCanvas() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const fabricNs = useRef<any>(null);
   const fCanvas = useRef<any>(null);
-  const syncingRef = useRef(false); // 🔒 verhindert Feedback-Loop
+  const syncingRef = useRef(false);
   const objectsById = useRef(new Map<string, any>());
 
   const elements = useDesignerStore((s) => s.elements);
@@ -17,12 +17,12 @@ export default function FabricCanvas() {
   const margins = useDesignerStore((s) => s.margins);
   const snapSize = useDesignerStore((s) => s.snapSize);
   const zoom = useDesignerStore((s) => s.zoom);
+  const tokens = useDesignerStore((s) => s.tokens); // ⬅️ neu: Styles aus Tokens
 
   const updateFrame = useDesignerStore((s) => s.updateFrame);
   const updateText = useDesignerStore((s) => s.updateText);
   const select = useDesignerStore((s) => s.select);
 
-  // helper
   const arrEq = (a: string[], b: string[]) => {
     if (a === b) return true;
     if (!a || !b || a.length !== b.length) return false;
@@ -30,15 +30,15 @@ export default function FabricCanvas() {
     return true;
   };
 
+  // Init/Re-use
   useEffect(() => {
-    let disposed = false;
-
     (async () => {
       const fabric = await getFabric();
       fabricNs.current = fabric;
 
       const el = canvasRef.current;
       if (!el) return;
+
       let c: any = (el as any).__fabricCanvas;
       if (!c) {
         c = new fabric.Canvas(el, { preserveObjectStacking: true, selection: true, backgroundColor: "#ffffff" });
@@ -57,15 +57,12 @@ export default function FabricCanvas() {
 
         c.on("selection:created", () => {
           if (syncingRef.current) return;
-          const active = c.getActiveObjects() || [];
-          const ids = active.map((o: any) => o.__bl_id).filter(Boolean);
-          // nur setzen, wenn wirklich anders
+          const ids = (c.getActiveObjects() || []).map((o: any) => o.__bl_id).filter(Boolean);
           if (!arrEq(selectedIds, ids)) select(ids);
         });
         c.on("selection:updated", () => {
           if (syncingRef.current) return;
-          const active = c.getActiveObjects() || [];
-          const ids = active.map((o: any) => o.__bl_id).filter(Boolean);
+          const ids = (c.getActiveObjects() || []).map((o: any) => o.__bl_id).filter(Boolean);
           if (!arrEq(selectedIds, ids)) select(ids);
         });
         c.on("selection:cleared", () => {
@@ -103,19 +100,15 @@ export default function FabricCanvas() {
         });
         c.on("text:changed", (e: any) => {
           const t = e.target;
-          if (t && t.__bl_id && typeof t.text === "string") {
-            updateText(t.__bl_id, t.text);
-          }
+          if (t && t.__bl_id && typeof t.text === "string") updateText(t.__bl_id, t.text);
         });
       }
 
-      reconcileCanvas(c, fabric, elements, objectsById.current);
-
-      if (disposed) return;
+      // erstes Sync
+      reconcileCanvas(c, fabric, elements, tokens, objectsById.current);
     })();
 
     return () => {
-      disposed = true;
       fCanvas.current = null;
       fabricNs.current = null;
       objectsById.current.clear();
@@ -126,8 +119,8 @@ export default function FabricCanvas() {
   // elements → Canvas
   useEffect(() => {
     if (!fCanvas.current || !fabricNs.current) return;
-    reconcileCanvas(fCanvas.current, fabricNs.current, elements, objectsById.current);
-  }, [elements]);
+    reconcileCanvas(fCanvas.current, fabricNs.current, elements, tokens, objectsById.current);
+  }, [elements, tokens]); // ⬅️ bei Token-Änderung Textstile aktualisieren
 
   // margins → Overlay
   useEffect(() => {
@@ -155,7 +148,7 @@ export default function FabricCanvas() {
     c.requestRenderAll();
   }, [zoom]);
 
-  // store → canvas (Selection), mit Reentrancy-Guard
+  // store → canvas (Selection) mit Guard
   useEffect(() => {
     const c = fCanvas.current;
     const fabric = fabricNs.current;
@@ -168,17 +161,11 @@ export default function FabricCanvas() {
     c.discardActiveObject();
 
     const toSel = c.getObjects().filter((o: any) => o.__bl_id && selectedIds.includes(o.__bl_id) && o.selectable !== false);
-    if (toSel.length === 1) {
-      c.setActiveObject(toSel[0]);
-    } else if (toSel.length > 1) {
-      const sel = new fabric.ActiveSelection(toSel, { canvas: c });
-      c.setActiveObject(sel);
-    }
+    if (toSel.length === 1) c.setActiveObject(toSel[0]);
+    else if (toSel.length > 1) c.setActiveObject(new fabric.ActiveSelection(toSel, { canvas: c }));
+
     c.requestRenderAll();
-    // nach dem nächsten Paint wieder freigeben
-    setTimeout(() => {
-      syncingRef.current = false;
-    }, 0);
+    setTimeout(() => (syncingRef.current = false), 0);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedIds]);
 
@@ -239,9 +226,14 @@ function reconcileCanvas(
   c: any,
   fabric: any,
   elements: CanvasElement[],
+  tokens: any,
   map: Map<string, any>
 ) {
   const existingIds = new Set<string>();
+  const fontFamily = tokens?.fontFamily ?? "Helvetica, Arial, sans-serif";
+  const fontSize = Number(tokens?.fontSize) > 0 ? Number(tokens.fontSize) : 11;
+  const lineHeight = Number(tokens?.lineHeight) > 0 ? Number(tokens.lineHeight) : 1.4;
+  const color = tokens?.colorPrimary ?? "#111111";
 
   for (const el of elements) {
     existingIds.add(el.id);
@@ -252,8 +244,10 @@ function reconcileCanvas(
           left: el.frame.x,
           top: el.frame.y,
           width: el.frame.width || 480,
-          fontSize: 12,
-          fill: "#111111",
+          fontFamily,
+          fontSize,
+          lineHeight,
+          fill: color,
           selectable: true,
           editable: true,
         });
@@ -273,17 +267,23 @@ function reconcileCanvas(
       c.add(obj);
       map.set(el.id, obj);
     }
+    // immer aktualisieren (Tokens können sich ändern)
     obj.set({
       left: el.frame.x,
       top: el.frame.y,
       width: el.frame.width || obj.width,
       height: el.frame.height || obj.height,
+      ...(el.kind === "section" && {
+        fontFamily,
+        fontSize,
+        lineHeight,
+        fill: color,
+        text: (el as any).text ?? "",
+      }),
     });
-    if (el.kind === "section" && typeof (obj as any).set === "function") {
-      (obj as any).set({ text: el.text ?? "" });
-    }
   }
 
+  // Entferne gelöschte
   for (const [id, obj] of Array.from(map.entries())) {
     if (!existingIds.has(id)) {
       c.remove(obj);
