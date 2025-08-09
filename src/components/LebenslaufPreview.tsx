@@ -52,7 +52,7 @@ export default function LebenslaufPreview({ inputRef }: LebenslaufPreviewProps) 
   const { previewTab, setPreviewTabWithSync } = useLebenslauf();
 
   const [newTaskInputs, setNewTaskInputs] = useState<Record<string, string>>({});
-  const [showAllExpanded, setShowAllExpanded] = useState(false);
+  const [showAllExpanded, setShowAllExpanded] = useState(true); // Default to true to show ProfileInput entries
 
   const sortedErfahrungen = useMemo(() => {
     console.log('Berufserfahrungen für Vorschau:', berufserfahrung);
@@ -215,7 +215,11 @@ export default function LebenslaufPreview({ inputRef }: LebenslaufPreviewProps) 
       personalData.telefon || 
       personalData.adresse || 
       personalData.plz || 
-      personalData.ort
+      personalData.ort ||
+      personalData.summary ||
+      personalData.skillsSummary ||
+      personalData.softSkillsSummary ||
+      personalData.taetigkeitenSummary
     );
   };
 
@@ -274,6 +278,26 @@ export default function LebenslaufPreview({ inputRef }: LebenslaufPreviewProps) 
                   <span className="font-medium">Geburtsdatum:</span> {personalData.geburtsdatum}
                 </div>
               )}
+              {personalData?.summary && (
+                <div>
+                  <span className="font-medium">Zusammenfassung:</span> {personalData.summary}
+                </div>
+              )}
+              {personalData?.skillsSummary && (
+                <div>
+                  <span className="font-medium">Fachliche Kompetenzen:</span> {personalData.skillsSummary}
+                </div>
+              )}
+              {personalData?.softSkillsSummary && (
+                <div>
+                  <span className="font-medium">Persönliche Kompetenzen:</span> {personalData.softSkillsSummary}
+                </div>
+              )}
+              {personalData?.taetigkeitenSummary && (
+                <div>
+                  <span className="font-medium">Tätigkeitsbereiche:</span> {personalData.taetigkeitenSummary}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -312,6 +336,7 @@ export default function LebenslaufPreview({ inputRef }: LebenslaufPreviewProps) 
               const isSelected = selectedExperienceId === exp.id;
               const isCardExpanded = isExpanded(exp.id, 'experience');
               const isBisSelected = isBisTranslatorActive && multiSelectedExperienceIds.includes(exp.id);
+              const isFromProfile = exp.source === 'profile';
               
               return (
                 <div key={exp.id} className="relative">
@@ -325,10 +350,10 @@ export default function LebenslaufPreview({ inputRef }: LebenslaufPreviewProps) 
                     className={`p-2 cursor-pointer transition-all duration-200 hover:bg-gray-100 ${
                       isSelected ? 'border border-[#F29400] rounded-md bg-gray-50' : 
                       multiSelectedExperienceIds.includes(exp.id) ? 'border border-blue-300 rounded-md bg-blue-50' : 'bg-white'
-                    }`}
+                    } ${isFromProfile ? 'border-l-4 border-l-green-400' : ''}`}
                   >
                     {/* Löschen-Button - nur anzeigen wenn nicht im BIS-Modus und nicht ausgewählt */}
-                    {!isBisTranslatorActive && !isSelected && (
+                    {!isBisTranslatorActive && !isSelected && !isFromProfile && (
                       <div className="flex items-center space-x-1">
                         <button
                           onClick={(e) => {
@@ -341,6 +366,15 @@ export default function LebenslaufPreview({ inputRef }: LebenslaufPreviewProps) 
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
+                      </div>
+                    )}
+                    
+                    {/* Source indicator for ProfileInput entries */}
+                    {isFromProfile && (
+                      <div className="absolute top-1 right-1">
+                        <span className="px-1 py-0.5 text-xs bg-green-100 text-green-700 rounded" title="Aus Profil-Eingabe">
+                          P
+                        </span>
                       </div>
                     )}
 
@@ -535,6 +569,7 @@ export default function LebenslaufPreview({ inputRef }: LebenslaufPreviewProps) 
             {sortedAusbildungen.map((edu, index) => {
               const isSelected = selectedEducationId === edu.id;
               const isCardExpanded = isExpanded(edu.id, 'education');
+              const isFromProfile = edu.source === 'profile';
               
               return (
                 <div key={edu.id} className="relative">
@@ -547,8 +582,17 @@ export default function LebenslaufPreview({ inputRef }: LebenslaufPreviewProps) 
                     onClick={() => selectEducation(edu.id)}
                     className={`p-2 cursor-pointer transition-all duration-200 hover:bg-gray-100 ${
                       selectedEducationId === edu.id ? 'border border-[#F29400] rounded-md bg-gray-50' : 'bg-white'
-                    }`}
+                    } ${isFromProfile ? 'border-l-4 border-l-green-400' : ''}`}
                   >
+                    {/* Source indicator for ProfileInput entries */}
+                    {isFromProfile && (
+                      <div className="absolute top-1 right-1">
+                        <span className="px-1 py-0.5 text-xs bg-green-100 text-green-700 rounded" title="Aus Profil-Eingabe">
+                          P
+                        </span>
+                      </div>
+                    )}
+                    
                     <div className="flex justify-between items-start mb-0.5">
                       {/* Zeitraum */}
                       <EditablePreviewText
@@ -564,7 +608,7 @@ export default function LebenslaufPreview({ inputRef }: LebenslaufPreviewProps) 
                         placeholder="Zeitraum eingeben..."
                       />
                       <div className="flex items-center space-x-1">
-                        {selectedEducationId !== edu.id && (
+                        {selectedEducationId !== edu.id && !isFromProfile && (
                           <button
                             onClick={(e) => {
                               e.stopPropagation();

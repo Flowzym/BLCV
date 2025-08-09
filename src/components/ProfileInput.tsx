@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { X, ChevronDown, ChevronUp, Star } from 'lucide-react';
 import TextInput from './TextInput';
 import AutocompleteInput from './AutocompleteInput';
+import { useLebenslauf } from './LebenslaufContext';
 
 interface ProfileInputProps {
   onContentChange: (content: string) => void;
@@ -39,6 +40,13 @@ export default function ProfileInput({
   profileConfig,
   initialContent = '',
 }: ProfileInputProps) {
+  const {
+    personalData, updatePersonalData,
+    berufserfahrung, ausbildung,
+    addExperienceFromProfile, removeExperienceFromProfile,
+    addEducationFromProfile, removeEducationFromProfile
+  } = useLebenslauf();
+
   const [profileData, setProfileData] = useState<ProfileData>({
     ausbildung: [],
     berufe: [],
@@ -101,6 +109,30 @@ export default function ProfileInput({
     }
   }, [favoritesConfig]);
 
+  // Sync ProfileData with Context data for display consistency
+  useEffect(() => {
+    const contextBerufe = berufserfahrung
+      .filter(exp => exp.source === 'profile')
+      .flatMap(exp => exp.position);
+    const contextAusbildung = ausbildung
+      .filter(edu => edu.source === 'profile')
+      .flatMap(edu => edu.abschluss);
+    const contextSkills = personalData.skillsSummary ? personalData.skillsSummary.split(', ').filter(Boolean) : [];
+    const contextSoftSkills = personalData.softSkillsSummary ? personalData.softSkillsSummary.split(', ').filter(Boolean) : [];
+    const contextTaetigkeiten = personalData.taetigkeitenSummary ? personalData.taetigkeitenSummary.split(', ').filter(Boolean) : [];
+    const contextZusatzangaben = personalData.summary || '';
+
+    setProfileData(prev => ({
+      ...prev,
+      berufe: contextBerufe,
+      ausbildung: contextAusbildung,
+      skills: contextSkills,
+      softskills: contextSoftSkills,
+      taetigkeiten: contextTaetigkeiten,
+      zusatzangaben: contextZusatzangaben
+    }));
+  }, [berufserfahrung, ausbildung, personalData.skillsSummary, personalData.softSkillsSummary, personalData.taetigkeitenSummary, personalData.summary]);
+
   const updateProfileContent = useCallback(
     (newData: ProfileData) => {
       const sections: string[] = [];
@@ -129,16 +161,31 @@ export default function ProfileInput({
     [onContentChange]
   );
 
+  // Update both ProfileData state and LebenslaufContext
+  const updateBothStates = useCallback((newData: ProfileData) => {
+    setProfileData(newData);
+    updateProfileContent(newData);
+    
+    // Update LebenslaufContext with aggregated data
+    updatePersonalData({
+      ...personalData,
+      summary: newData.zusatzangaben,
+      skillsSummary: newData.skills.join(', '),
+      softSkillsSummary: newData.softskills.join(', '),
+      taetigkeitenSummary: newData.taetigkeiten.join(', ')
+    });
+  }, [updateProfileContent, personalData, updatePersonalData]);
+
   // initialContent → zusatzangaben syncen
   useEffect(() => {
     if (!initialContent) return;
     setProfileData(prev => {
       if ((prev.zusatzangaben || '') === initialContent) return prev;
       const newData = { ...prev, zusatzangaben: initialContent || '' };
-      updateProfileContent(newData);
+      updateBothStates(newData);
       return newData;
     });
-  }, [initialContent, updateProfileContent]);
+  }, [initialContent, updateBothStates]);
 
   const toggleSelection = useCallback(
     (category: ProfileArraysKey, item: string) => {
@@ -147,14 +194,28 @@ export default function ProfileInput({
 
       if (currentItems && currentItems.includes(item)) {
         newData[category] = (currentItems || []).filter(i => i !== item);
+        
+        // Remove from LebenslaufContext for berufe/ausbildung
+        if (category === 'berufe') {
+          removeExperienceFromProfile(item);
+        } else if (category === 'ausbildung') {
+          removeEducationFromProfile(item);
+        }
       } else {
         newData[category] = [...(currentItems || []), item];
+        
+        // Add to LebenslaufContext for berufe/ausbildung
+        if (category === 'berufe') {
+          addExperienceFromProfile(item);
+        } else if (category === 'ausbildung') {
+          addEducationFromProfile(item);
+        }
       }
 
       setProfileData(newData);
-      updateProfileContent(newData);
+      updateBothStates(newData);
     },
-    [profileData, updateProfileContent]
+    [profileData, updateBothStates, addExperienceFromProfile, removeExperienceFromProfile, addEducationFromProfile, removeEducationFromProfile]
   );
 
   const addCustomItem = useCallback(
@@ -166,12 +227,19 @@ export default function ProfileInput({
         const newData = { ...profileData };
         newData[category] = [...(newData[category] || []), valueToAdd];
         setProfileData(newData);
-        updateProfileContent(newData);
+        updateBothStates(newData);
+        
+        // Add to LebenslaufContext for berufe/ausbildung
+        if (category === 'berufe') {
+          addExperienceFromProfile(valueToAdd);
+        } else if (category === 'ausbildung') {
+          addEducationFromProfile(valueToAdd);
+        }
       }
 
       setCustomInputs(prev => ({ ...prev, [category]: '' }));
     },
-    [profileData, customInputs, updateProfileContent]
+    [profileData, customInputs, updateBothStates, addExperienceFromProfile, addEducationFromProfile]
   );
 
   const removeItem = useCallback(
@@ -179,9 +247,16 @@ export default function ProfileInput({
       const newData = { ...profileData };
       newData[category] = (newData[category] || []).filter(i => i !== item);
       setProfileData(newData);
-      updateProfileContent(newData);
+      updateBothStates(newData);
+      
+      // Remove from LebenslaufContext for berufe/ausbildung
+      if (category === 'berufe') {
+        removeExperienceFromProfile(item);
+      } else if (category === 'ausbildung') {
+        removeEducationFromProfile(item);
+      }
     },
-    [profileData, updateProfileContent]
+    [profileData, updateBothStates, removeExperienceFromProfile, removeEducationFromProfile]
   );
 
   const toggleSection = useCallback(
@@ -195,9 +270,9 @@ export default function ProfileInput({
     (value: string) => {
       const newData = { ...profileData, zusatzangaben: value };
       setProfileData(newData);
-      updateProfileContent(newData);
+      updateBothStates(newData);
     },
-    [profileData, updateProfileContent]
+    [profileData, updateBothStates]
   );
 
   const addToFavorites = useCallback(

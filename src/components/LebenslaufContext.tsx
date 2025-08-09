@@ -4,6 +4,10 @@ import { loadCVSuggestions, CVSuggestionConfig, ProfileSourceMapping } from '../
 // Types
 interface PersonalData {
   [key: string]: any;
+  summary?: string; // Mapped from ProfileInput's zusatzangaben
+  skillsSummary?: string; // Aggregated skills from ProfileInput
+  softSkillsSummary?: string; // Aggregated soft skills from ProfileInput
+  taetigkeitenSummary?: string; // Aggregated tätigkeiten from ProfileInput
 }
 
 interface Experience {
@@ -18,6 +22,7 @@ interface Experience {
   aufgabenbereiche: string[];
   zusatzangaben: string;
   leasingCompaniesList?: string[];
+  source?: 'manual' | 'profile'; // Track data source for non-destructive updates
 }
 
 interface Education {
@@ -31,6 +36,7 @@ interface Education {
   endYear: string | null;
   isCurrent: boolean;
   zusatzangaben: string;
+  source?: 'manual' | 'profile'; // Track data source for non-destructive updates
 }
 
 type PreviewTab = 'gesamt' | 'berufserfahrung' | 'ausbildung' | 'fachkompetenzen' | 'softskills';
@@ -101,6 +107,12 @@ interface LebenslaufContextType {
   toggleFavoriteInstitution: (institution: string) => void;
   toggleFavoriteAusbildungsart: (ausbildungsart: string) => void;
   toggleFavoriteAbschluss: (abschluss: string) => void;
+  
+  // ProfileInput integration methods
+  addExperienceFromProfile: (position: string) => void;
+  removeExperienceFromProfile: (position: string) => void;
+  addEducationFromProfile: (abschluss: string) => void;
+  removeEducationFromProfile: (abschluss: string) => void;
   
   // BIS methods
   setIsBisTranslatorActive: (active: boolean) => void;
@@ -199,6 +211,40 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
     ));
   }, []);
 
+  // Factory functions for robust object creation
+  const createExperience = useCallback((partial: Partial<Experience>): Experience => {
+    return {
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+      companies: partial.companies || [],
+      position: partial.position || [],
+      startMonth: partial.startMonth || null,
+      startYear: partial.startYear || null,
+      endMonth: partial.endMonth || null,
+      endYear: partial.endYear || null,
+      isCurrent: partial.isCurrent || false,
+      aufgabenbereiche: partial.aufgabenbereiche || [],
+      zusatzangaben: partial.zusatzangaben || '',
+      leasingCompaniesList: partial.leasingCompaniesList || [],
+      source: partial.source || 'manual'
+    };
+  }, []);
+
+  const createEducation = useCallback((partial: Partial<Education>): Education => {
+    return {
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+      institution: partial.institution || [],
+      ausbildungsart: partial.ausbildungsart || [],
+      abschluss: partial.abschluss || [],
+      startMonth: partial.startMonth || null,
+      startYear: partial.startYear || null,
+      endMonth: partial.endMonth || null,
+      endYear: partial.endYear || null,
+      isCurrent: partial.isCurrent || false,
+      zusatzangaben: partial.zusatzangaben || '',
+      source: partial.source || 'manual'
+    };
+  }, []);
+
   // Load CV suggestions from Supabase
   useEffect(() => {
     const loadSuggestions = async () => {
@@ -245,19 +291,7 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
       return existingEmptyExp.id;
     }
     
-    const newExperience: Experience = {
-      id: Date.now().toString(),
-      companies: experience.companies || [],
-      position: experience.position || [],
-      startMonth: experience.startMonth || null,
-      startYear: experience.startYear || null,
-      endMonth: experience.endMonth || null,
-      endYear: experience.endYear || null,
-      isCurrent: experience.isCurrent || false,
-      aufgabenbereiche: experience.aufgabenbereiche || [],
-      zusatzangaben: experience.zusatzangaben || '',
-      leasingCompaniesList: experience.leasingCompaniesList || []
-    };
+    const newExperience = createExperience(experience);
     setBerufserfahrung(prev => [...prev, newExperience]);
     setSelectedExperienceId(newExperience.id); // Immediately select the new entry
     return newExperience.id;
@@ -339,18 +373,7 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
       return existingEmptyEdu.id;
     }
     
-    const newEducation: Education = {
-      id: Date.now().toString(),
-      institution: education.institution || [],
-      ausbildungsart: education.ausbildungsart || [],
-      abschluss: education.abschluss || [],
-      startMonth: education.startMonth || null,
-      startYear: education.startYear || null,
-      endMonth: education.endMonth || null,
-      endYear: education.endYear || null,
-      isCurrent: education.isCurrent || false,
-      zusatzangaben: education.zusatzangaben || ''
-    };
+    const newEducation = createEducation(education);
     setAusbildung(prev => [...prev, newEducation]);
     setSelectedEducationId(newEducation.id); // Immediately select the new entry
     return newEducation.id;
@@ -433,6 +456,55 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
     );
   };
 
+  // ProfileInput integration methods - non-destructive operations
+  const addExperienceFromProfile = useCallback((position: string) => {
+    // Check if position already exists in profile-sourced experiences
+    const existingProfileExp = berufserfahrung.find(exp => 
+      exp.source === 'profile' && exp.position.includes(position)
+    );
+    
+    if (!existingProfileExp) {
+      const newExperience = createExperience({
+        position: [position],
+        companies: [],
+        aufgabenbereiche: [],
+        source: 'profile'
+      });
+      setBerufserfahrung(prev => [...prev, newExperience]);
+    }
+  }, [berufserfahrung, createExperience]);
+
+  const removeExperienceFromProfile = useCallback((position: string) => {
+    // Only remove experiences that were created from ProfileInput
+    setBerufserfahrung(prev => prev.filter(exp => 
+      !(exp.source === 'profile' && exp.position.includes(position))
+    ));
+  }, []);
+
+  const addEducationFromProfile = useCallback((abschluss: string) => {
+    // Check if abschluss already exists in profile-sourced educations
+    const existingProfileEdu = ausbildung.find(edu => 
+      edu.source === 'profile' && edu.abschluss.includes(abschluss)
+    );
+    
+    if (!existingProfileEdu) {
+      const newEducation = createEducation({
+        abschluss: [abschluss],
+        institution: [],
+        ausbildungsart: [],
+        source: 'profile'
+      });
+      setAusbildung(prev => [...prev, newEducation]);
+    }
+  }, [ausbildung, createEducation]);
+
+  const removeEducationFromProfile = useCallback((abschluss: string) => {
+    // Only remove educations that were created from ProfileInput
+    setAusbildung(prev => prev.filter(edu => 
+      !(edu.source === 'profile' && edu.abschluss.includes(abschluss))
+    ));
+  }, []);
+
   // BIS methods
   const toggleBisTaskSelection = (task: string) => {
     setSelectedBisTasks(prev => 
@@ -450,7 +522,7 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
     }
     
     // No valid selection - create a new entry
-    const newExp = {
+    const newExp = createExperience({
       companies: [],
       position: [],
       startMonth: null,
@@ -459,11 +531,14 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
       endYear: null,
       isCurrent: false,
       aufgabenbereiche: [],
-      zusatzangaben: ""
-    };
+      zusatzangaben: "",
+      source: 'manual'
+    });
     
-    return addExperience(newExp);
-  }, [selectedExperienceId, berufserfahrung, addExperience]);
+    setBerufserfahrung(prev => [...prev, newExp]);
+    setSelectedExperienceId(newExp.id);
+    return newExp.id;
+  }, [selectedExperienceId, berufserfahrung, createExperience]);
 
   const ensureSelectedEducationExists = useCallback(() => {
     // If we have a valid selected education, return its ID
@@ -472,7 +547,7 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
     }
     
     // No valid selection - create a new entry
-    const newEdu = {
+    const newEdu = createEducation({
       institution: [],
       ausbildungsart: [],
       abschluss: [],
@@ -481,11 +556,14 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
       endMonth: null,
       endYear: null,
       isCurrent: false,
-      zusatzangaben: ""
-    };
+      zusatzangaben: "",
+      source: 'manual'
+    });
     
-    return addEducation(newEdu);
-  }, [selectedEducationId, ausbildung, addEducation]);
+    setAusbildung(prev => [...prev, newEdu]);
+    setSelectedEducationId(newEdu.id);
+    return newEdu.id;
+  }, [selectedEducationId, ausbildung, createEducation]);
 
   const contextValue: LebenslaufContextType = {
     personalData,
@@ -534,6 +612,11 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
     toggleFavoriteAusbildungsart,
     toggleFavoriteAbschluss,
     
+    addExperienceFromProfile,
+    removeExperienceFromProfile,
+    addEducationFromProfile,
+    removeEducationFromProfile,
+    
     setIsBisTranslatorActive,
     toggleBisTaskSelection,
     setBisTranslatorResults,
@@ -564,6 +647,7 @@ export function useLebenslauf() {
   }
   return context;
 }
+
 // Helper functions to check if entries are empty
 const isEmptyExperience = (exp: Experience): boolean => {
   return (!exp.companies || exp.companies.length === 0) && 
