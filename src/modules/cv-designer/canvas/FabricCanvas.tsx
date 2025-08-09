@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import { useDesignerStore, CanvasElement } from "../store/designerStore";
-import getFabric, { getFabric as loadFabric } from "@/lib/fabric-shim"; // beide Varianten möglich
+import getFabric from "@/lib/fabric-shim";
 
 const PAGE_W = 595; // A4 @72dpi
 const PAGE_H = 842;
@@ -24,8 +24,9 @@ export default function FabricCanvas() {
   useEffect(() => {
     let disposed = false;
     (async () => {
-      // ⬇️ einheitlich über Shim laden (default ODER named funzt jetzt)
-      const fabric = await getFabric(); // (alternativ: await loadFabric())
+      if (fCanvas.current) return; // Guard gegen Doppel-Init (StrictMode etc.)
+
+      const fabric = await getFabric();
       fabricNs.current = fabric;
 
       if (!canvasRef.current) return;
@@ -40,7 +41,7 @@ export default function FabricCanvas() {
       c.setHeight(PAGE_H);
       c.setZoom(zoom);
 
-      // A4-Background + Margin-Overlay
+      // A4-Background + Margin-Overlay (zu Beginn hinzufügen => unter allen anderen)
       const bg = new fabric.Rect({
         left: 0,
         top: 0,
@@ -51,6 +52,8 @@ export default function FabricCanvas() {
         evented: false,
         hoverCursor: "default",
       });
+      (bg as any).__is_bg = true;
+
       const marginRect = new fabric.Rect({
         left: margins.left,
         top: margins.top,
@@ -63,14 +66,12 @@ export default function FabricCanvas() {
         evented: false,
         strokeUniform: true,
       });
-      // Flags, damit wir das Overlay später wiederfinden:
-      (bg as any).__is_bg = true;
       (marginRect as any).__is_marginRect = true;
 
+      // Reihenfolge: bg (Index 0), marginRect (Index 1); danach kommen erst Inhalte
       c.add(bg);
       c.add(marginRect);
-      bg.moveTo(0);
-      marginRect.moveTo(1);
+      c.requestRenderAll();
 
       // Selection → Store
       c.on("selection:created", () => {
@@ -83,7 +84,7 @@ export default function FabricCanvas() {
       });
       c.on("selection:cleared", () => select([]));
 
-      // Snap/Resize und Frame zurückschreiben
+      // Snap/Resize & Frame zurückschreiben
       c.on("object:moving", (e: any) => {
         const o = e.target;
         if (!o || o.selectable === false) return;
@@ -125,7 +126,7 @@ export default function FabricCanvas() {
         }
       });
 
-      // Initiales Rendern
+      // erste Synchronisation
       reconcileCanvas(c, fabric, elements, objectsById.current);
 
       const dispose = () => c.dispose();
@@ -155,7 +156,7 @@ export default function FabricCanvas() {
     const c = fCanvas.current;
     if (!c) return;
     const all = c.getObjects() as any[];
-    const marginRect = all.find((o) => o.__is_marginRect);
+    const marginRect = all.find((o: any) => o.__is_marginRect);
     if (marginRect) {
       marginRect.set({
         left: margins.left,
@@ -208,6 +209,7 @@ function reconcileCanvas(
   map: Map<string, any>
 ) {
   const existingIds = new Set<string>();
+
   for (const el of elements) {
     existingIds.add(el.id);
     let obj = map.get(el.id);
@@ -235,7 +237,7 @@ function reconcileCanvas(
         });
       }
       obj.__bl_id = el.id;
-      c.add(obj);
+      c.add(obj); // wird über dem Overlay eingefügt
       map.set(el.id, obj);
     }
     obj.set({
@@ -249,6 +251,7 @@ function reconcileCanvas(
     }
   }
 
+  // Entferne gelöschte
   for (const [id, obj] of Array.from(map.entries())) {
     if (!existingIds.has(id)) {
       c.remove(obj);
@@ -256,12 +259,6 @@ function reconcileCanvas(
     }
   }
 
-  // Markiere Overlay-Objekte, falls sie (noch) nicht markiert sind
-  const all = c.getObjects() as any[];
-  const bg = all.find((o) => o.__is_bg);
-  const mrect = all.find((o) => o.__is_marginRect);
-  if (bg) (bg.selectable = false), (bg.evented = false);
-  if (mrect) (mrect.selectable = false), (mrect.evented = false), (mrect.strokeUniform = true);
-
+  // Overlay-Objekte unverändert lassen (bereits zuerst eingefügt)
   c.requestRenderAll();
 }
