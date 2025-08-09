@@ -67,18 +67,34 @@ export function mapLebenslaufToSectionParts(ll: AnyObj): MappedSection[] {
   // ---- Kontakt / rechte Spalte
   const pd = ll?.personalData ?? ll?.person ?? {};
   if (pd && Object.keys(pd).length) {
+    const fullName =
+      [norm(pd.titel), norm(pd.vorname), norm(pd.nachname)]
+        .filter(Boolean)
+        .join(" ")
+        .trim() || norm(pd.name);
+    const phone =
+      [norm(pd.telefonVorwahl), norm(pd.telefon)]
+        .filter(Boolean)
+        .join(" ")
+        .trim() || norm(pd.phone);
+    const website =
+      Array.isArray(pd.socialMedia)
+        ? pd.socialMedia.map(norm).filter(Boolean).join(", ")
+        : norm(pd.website);
+
     const contact = [
-      norm(pd.name),
+      fullName,
       norm(pd.email),
-      norm(pd.phone ?? pd.telefon),
+      phone,
       norm(pd.city ?? pd.ort),
       norm(pd.street ?? pd.adresse),
-      norm(pd.website),
+      website,
       norm(pd.linkedin),
       norm(pd.github),
     ]
       .filter(Boolean)
       .join(" · ");
+
     if (contact) {
       out.push({
         group: "kontakt",
@@ -102,7 +118,7 @@ export function mapLebenslaufToSectionParts(ll: AnyObj): MappedSection[] {
     const city     = norm(e.city ?? e.ort);
     const spanMY   = spanFromMY(e.startMonth, e.startYear, e.endMonth, e.endYear, e.isCurrent);
     const spanFB   = spanMY || spanFallback(e);
-    const tasks    = bullets(e.tasks ?? e.taetigkeiten ?? e.beschreibung ?? e.aufgabenbereiche);
+    const tasks    = bullets(e.tasks ?? e.aufgabenbereiche ?? e.beschreibung ?? e.aufgabenbereiche);
 
     const title = [position, company].filter(Boolean).join(" @ ");
 
