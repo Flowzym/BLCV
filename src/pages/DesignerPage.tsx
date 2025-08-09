@@ -1,12 +1,16 @@
 import React from "react";
-import DesignerShell from "@/modules/cv-designer/components/DesignerShell";
+import FabricCanvas from "@/modules/cv-designer/components/FabricCanvas";
+import RightSidebar from "@/modules/cv-designer/components/RightSidebar";
 import { useLiveSyncFromGenerator } from "@/modules/cv-designer/services/useLiveSyncFromGenerator";
 
 export default function DesignerPage() {
-  useLiveSyncFromGenerator(200); // Live-Sync ohne Button
+  // <— Live-Sync immer aktiv (200 ms debounce)
+  useLiveSyncFromGenerator(200);
+
   return (
-    <main className="h-full">
-      <DesignerShell />
+    <main className="flex h-[calc(100vh-56px)]">
+      <div className="flex-1 p-4"><FabricCanvas /></div>
+      <RightSidebar />
     </main>
   );
 }
