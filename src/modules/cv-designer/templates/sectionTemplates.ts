@@ -12,6 +12,7 @@ export interface SectionTemplate {
 }
 
 export const Templates = {
+  /** Linke Spalte: Berufserfahrung */
   experienceLeft: {
     id: "experience.left",
     group: "erfahrung",
@@ -21,10 +22,11 @@ export const Templates = {
       { key: "zeitraum",     offset: { x: 0,   y: 26, w: 170, h: 18 }, style: { color: "#6b7280", fontSize: 12 } },
       { key: "unternehmen",  offset: { x: 180, y: 26, w: 170, h: 18 }, style: { fontWeight: "bold", fontSize: 12 } },
       { key: "position",     offset: { x: 0,   y: 48, w: 350, h: 18 }, style: { fontSize: 12 } },
-      { key: "taetigkeiten", offset: { x: 0,   y: 70, w: 350, h:100 }, style: { fontSize: 12, lineHeight: 1.5 } },
+      { key: "taetigkeiten", offset: { x: 0,   y: 70, w: 350, h: 100 }, style: { fontSize: 12, lineHeight: 1.5 } },
     ],
   } as SectionTemplate,
 
+  /** Linke Spalte: Ausbildung */
   educationLeft: {
     id: "education.left",
     group: "ausbildung",
@@ -32,18 +34,20 @@ export const Templates = {
     parts: [
       { key: "titel",       offset: { x: 0,   y: 0,  w: 350, h: 22 }, style: { fontWeight: "bold", fontSize: 14 } },
       { key: "zeitraum",    offset: { x: 0,   y: 26, w: 170, h: 18 }, style: { color: "#6b7280", fontSize: 12 } },
-      { key: "unternehmen", offset: { x: 180, y: 26, w: 170, h: 18 }, style: { fontWeight: "bold", fontSize: 12 } }, // institution → unternehmen
+      // WICHTIG: key MUSS "unternehmen" heißen (passt zum Mapping)
+      { key: "unternehmen", offset: { x: 180, y: 26, w: 170, h: 18 }, style: { fontWeight: "bold", fontSize: 12 } },
       { key: "abschluss",   offset: { x: 0,   y: 48, w: 350, h: 18 }, style: { fontSize: 12 } },
     ],
   } as SectionTemplate,
 
+  /** Rechte Spalte: Kontakt */
   contactRight: {
     id: "contact.right",
     group: "kontakt",
     baseSize: { width: 180, height: 160 },
     parts: [
       { key: "titel",   offset: { x: 0, y: 0,  w: 180, h: 20 }, style: { fontWeight: "bold", fontSize: 13 } },
-      { key: "kontakt", offset: { x: 0, y: 24, w: 180, h:120 }, style: { fontSize: 12, lineHeight: 1.5 } },
+      { key: "kontakt", offset: { x: 0, y: 24, w: 180, h: 120 }, style: { fontSize: 12, lineHeight: 1.5 } },
     ],
   } as SectionTemplate,
 };
