@@ -1,6 +1,5 @@
 import type { GroupKey, PartKey } from "../store/designerStore";
 
-// kleine Helfer für robuste Strings
 function j(v: any, sep = " "): string {
   if (v == null) return "";
   if (Array.isArray(v)) return v.filter(Boolean).join(sep);
@@ -12,24 +11,21 @@ function nn(...vals: any[]): string {
 
 export interface MappedSection {
   group: GroupKey;
-  sourceKey: string; // z. B. "experience:<id>"
-  title: string;     // Überschrift in der Box (z. B. "Berufserfahrung")
+  sourceKey: string;
+  title: string;
   parts: Array<{ key: PartKey; text: string }>;
 }
 
 export function mapLebenslaufToSectionParts(lebenslauf: any): MappedSection[] {
   const out: MappedSection[] = [];
 
-  // Kontakt/Profil
   const pd = lebenslauf?.personalData ?? {};
   const contactLines = [
     nn(j(pd.firstName), j(pd.lastName)),
     pd.profession ? `${pd.profession}` : "",
     nn(pd.email, pd.phone),
     j(pd.address),
-  ]
-    .filter(Boolean)
-    .join("\n");
+  ].filter(Boolean).join("\n");
 
   out.push({
     group: "kontakt",
@@ -41,7 +37,6 @@ export function mapLebenslaufToSectionParts(lebenslauf: any): MappedSection[] {
     ],
   });
 
-  // Berufserfahrung
   const erf = Array.isArray(lebenslauf?.berufserfahrung) ? lebenslauf.berufserfahrung : [];
   for (const item of erf) {
     const id = item?.id ?? Math.random().toString(36).slice(2, 8);
@@ -66,23 +61,20 @@ export function mapLebenslaufToSectionParts(lebenslauf: any): MappedSection[] {
     });
   }
 
-  // Ausbildung
   const edu = Array.isArray(lebenslauf?.ausbildung) ? lebenslauf.ausbildung : [];
   for (const item of edu) {
     const id = item?.id ?? Math.random().toString(36).slice(2, 8);
     const zeitraum = nn(j(item.startMonth, "."), j(item.startYear), "-", j(item.endMonth, "."), j(item.endYear)).replace(/\s*-\s*$/, "- heute");
     const institution = j(item.institution || item.school || "");
     const abschluss = j(item.degree || item.abschluss || "");
-    const titel = "Ausbildung";
-
     out.push({
       group: "ausbildung",
       sourceKey: `education:${id}`,
-      title: titel,
+      title: "Ausbildung",
       parts: [
-        { key: "titel", text: titel },
+        { key: "titel", text: "Ausbildung" },
         { key: "zeitraum", text: zeitraum },
-        { key: "unternehmen", text: institution }, // institution → „unternehmen“-Feld im Template
+        { key: "unternehmen", text: institution },
         { key: "abschluss", text: abschluss },
       ],
     });
