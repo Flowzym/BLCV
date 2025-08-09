@@ -25,44 +25,26 @@ export default function CanvasToolbar() {
   const ll = useLebenslauf();
 
   const handleImportNow = useCallback(() => {
-    if (!ll) {
-      alert("Keine Lebenslaufdaten im Context gefunden.");
-      return;
-    }
+    if (!ll) { alert("Keine Lebenslaufdaten im Context gefunden."); return; }
     const base = buildSectionsFromLebenslauf(ll);
-    if (!base.length) {
-      alert("Im Lebenslauf sind derzeit keine importierbaren Daten.");
-      return;
-    }
+    if (!base.length) { alert("Im Lebenslauf sind derzeit keine importierbaren Daten."); return; }
     const split = base.flatMap((sec) =>
-      splitSectionByPage(
-        sec,
-        Number(fontSize) || 11,
-        A4_H,
-        { top: margins.top, bottom: margins.bottom },
-        Number(lineHeight) || 1.4
-      )
+      splitSectionByPage(sec, Number(fontSize) || 11, A4_H, { top: margins.top, bottom: margins.bottom }, Number(lineHeight) || 1.4)
     );
-
     const haveTitles = new Set(
-      elements
-        .filter((e) => e.kind === "section")
+      elements.filter((e) => e.kind === "section")
         .map((e) => (e as any).text?.split("\n")[0]?.trim().toLowerCase())
         .filter(Boolean)
     );
-
     const missing = split.filter((s) => !haveTitles.has((s.title || "").toLowerCase()));
-    if (!missing.length) {
-      alert("Alle Sektionen sind bereits vorhanden – nichts zu importieren.");
-      return;
-    }
+    if (!missing.length) { alert("Alle Sektionen sind bereits vorhanden – nichts zu importieren."); return; }
     appendSectionsAtEnd(missing);
   }, [ll, appendSectionsAtEnd, elements, fontSize, lineHeight, margins.top, margins.bottom]);
 
   const handleDelete = useCallback(() => {
-    // Store-Selection
+    // Store-Selection löschen
     deleteSelected();
-    // Fallback: aktive Canvas-Objekte löschen (falls Selection-sync klemmt)
+    // Fallback: aktive Canvas-Objekte (ohne __bl_id) entfernen
     window.dispatchEvent(new Event("bl:delete-active"));
   }, [deleteSelected]);
 
