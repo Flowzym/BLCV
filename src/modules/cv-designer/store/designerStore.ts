@@ -128,4 +128,92 @@ export const useDesignerStore = create<DesignerState>()(
 
       addPhoto:(partial={})=>set((s)=>{
         const el: PhotoElement = { kind:"photo", id:uid("ph"), frame: partial.frame ?? {x:60,y:60,width:120,height:120}, src: partial.src };
-        return { elements:[...s.e]()
+        return { elements:[...s.elements, el] };
+      }),
+
+      addSectionFromTemplate:({group,frame,parts,meta,title})=>set((s)=>{
+        const el: SectionElement = { kind:"section", id:uid("sec"), group, frame, parts:parts.map(p=>({...p,lockText:!!p.lockText})), meta, title };
+        return { elements:[...s.elements, el] };
+      }),
+
+      deleteByIds:(ids)=>set((s)=>({ elements:s.elements.filter(e=>!ids.includes(e.id)), selectedIds:[] })),
+      deleteSelected:()=>set((s)=>({ elements:s.elements.filter(e=>!s.selectedIds.includes(e.id)), selectedIds:[] })),
+
+      updatePartText:(sectionId, partKey, text)=>set((s)=>{
+        const arr = s.elements.map(e=>{
+          if (e.kind!=="section" || e.id!==sectionId) return e;
+          return { ...e, parts: e.parts.map(p=> p.key===partKey ? { ...p, text } : p) } as SectionElement;
+        });
+        return { elements: arr };
+      }),
+
+      updatePartStyleLocal:(sectionId, partKey, patch)=>set((s)=>{
+        const arr = s.elements.map(e=>{
+          if (e.kind!=="section" || e.id!==sectionId) return e;
+          return { ...e, parts: e.parts.map(p=> p.key===partKey ? { ...p, style:{ ...(p.style??{}), ...patch } } : p) } as SectionElement;
+        });
+        return { elements: arr };
+      }),
+
+      togglePartLock:(sectionId, partKey, lock)=>set((s)=>{
+        const arr = s.elements.map(e=>{
+          if (e.kind!=="section" || e.id!==sectionId) return e;
+          return { ...e, parts: e.parts.map(p=> p.key===partKey ? { ...p, lockText: lock ?? !p.lockText } : p) } as SectionElement;
+        });
+        return { elements: arr };
+      }),
+
+      updateGlobalPartStyle:(group,partKey,patch)=>set((s)=>{
+        const k = `${group}:${partKey}`;
+        const current = s.partStyles[k] || {};
+        return { partStyles: { ...s.partStyles, [k]: { ...current, ...patch } } };
+      }),
+
+      clearGlobalPartStyle:(group,partKey)=>set((s)=>{
+        const k = `${group}:${partKey}`;
+        const next = { ...s.partStyles }; delete next[k];
+        return { partStyles: next };
+      }),
+
+      undoStack:[], redoStack:[],
+      snapshot:()=>set((s)=>({ undoStack:[...s.undoStack,s.elements], redoStack:[] })),
+      undo:()=>set((s)=>{ if(!s.undoStack.length) return {}; const prev=s.undoStack.at(-1)!; return { elements:prev, undoStack:s.undoStack.slice(0,-1), redoStack:[...s.redoStack,s.elements] }; }),
+      redo:()=>set((s)=>{ if(!s.redoStack.length) return {}; const next=s.redoStack.at(-1)!; return { elements:next, redoStack:s.redoStack.slice(0,-1), undoStack:[...s.undoStack,s.elements] }; }),
+    }),
+    {
+      // *** NEUER KEY → kalter Start, Altzustand wird ignoriert ***
+      name: "designer:v3-parts",
+      partialize: (state)=>({
+        elements: state.elements,
+        margins: state.margins,
+        snapSize: state.snapSize,
+        zoom: state.zoom,
+        tokens: state.tokens,
+        partStyles: state.partStyles,
+      }),
+      onRehydrateStorage: ()=> (api)=>{
+        try{
+          const s = api?.getState?.(); if(!s) return;
+          const cleaned = (s.elements||[]).filter((e:any)=>{
+            if (e.kind!=="section") return true;
+            const hasSource = !!e?.meta?.source?.key;
+            const hasParts  = Array.isArray(e?.parts) && e.parts.length>0;
+            // alte, leere Sections ohne Quelle verwerfen
+            if(!hasSource && !hasParts) return false;
+            return true;
+          });
+          if(cleaned.length!==s.elements.length) api.setState({ elements: cleaned });
+          // ✅ Hydrations-Flag setzen
+          api.setState({ hydrated: true });
+        }catch{
+          api?.setState?.({ hydrated: true });
+        }
+      }
+    }
+  )
+);
+
+// Debug-Helfer im Browser:
+if (typeof window!=="undefined") (window as any).__designerStore = useDesignerStore;
+
+export * from "@/types/section";
