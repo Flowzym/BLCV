@@ -1,18 +1,17 @@
 import React from "react";
-
-// ⬇︎ richtig: canvas/… (nicht components/…)
-import FabricCanvas from "@/modules/cv-designer/canvas/FabricCanvas";
-import RightSidebar from "@/modules/cv-designer/components/RightSidebar";
+import FabricCanvas from "@/modules/cv-designer/components/FabricCanvas";
 import { useLiveSyncFromGenerator } from "@/modules/cv-designer/services/useLiveSyncFromGenerator";
 
+// Falls du (noch) keine RightSidebar hast, kommentiere die Zeile aus.
+// import RightSidebar from "@/modules/cv-designer/components/RightSidebar";
+
 export default function DesignerPage() {
-  useLiveSyncFromGenerator(200);
+  useLiveSyncFromGenerator(150); // live Sync vom Generator → Canvas
+
   return (
-    <main className="flex h-[calc(100vh-56px)]">
-      <div className="flex-1 p-4">
-        <FabricCanvas />
-      </div>
-      <RightSidebar />
+    <main className="h-[calc(100vh-64px)] grid grid-cols-[1fr_320px] gap-4 p-4">
+      <FabricCanvas />
+      {/* <RightSidebar /> */}
     </main>
   );
 }
