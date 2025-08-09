@@ -1,59 +1,33 @@
 import React from "react";
 import { useRef } from "react";
-import { LebenslaufProvider } from "./LebenslaufContext";
 import { ProfileSourceMapping } from "../services/supabaseService";
 import LebenslaufInput from "./LebenslaufInput";
 import LebenslaufPreview from "./LebenslaufPreview";
 import AiHelpPanel from "./AiHelpPanel";
 import { User, Briefcase, GraduationCap, LayoutGrid, Lightbulb } from 'lucide-react';
-import { useLebenslauf } from "./LebenslaufContext";
+import { useLebenslauf } from "@/components/LebenslaufContext"; // ✅ Alias
 
-// Main tabs configuration
 const mainTabs = [
-  { 
-    id: 'personal', 
-    label: 'Persönliche Daten', 
-    icon: User 
-  },
-  { 
-    id: 'experience', 
-    label: 'Berufserfahrung', 
-    icon: Briefcase 
-  },
-  { 
-    id: 'education', 
-    label: 'Ausbildung', 
-    icon: GraduationCap 
-  },
-  { 
-    id: 'skills', 
-    label: 'Fachkompetenzen', 
-    icon: LayoutGrid 
-  },
-  { 
-    id: 'softskills', 
-    label: 'Softskills', 
-    icon: Lightbulb 
-  }
+  { id: 'personal', label: 'Persönliche Daten', icon: User },
+  { id: 'experience', label: 'Berufserfahrung', icon: Briefcase },
+  { id: 'education', label: 'Ausbildung', icon: GraduationCap },
+  { id: 'skills', label: 'Fachkompetenzen', icon: LayoutGrid },
+  { id: 'softskills', label: 'Softskills', icon: Lightbulb }
 ];
 
 function LebenslaufEditorContent({
   profileSourceMappings = [],
-}: {
-  profileSourceMappings?: ProfileSourceMapping[];
-}) {
+}: { profileSourceMappings?: ProfileSourceMapping[]; }) {
   const inputRef = useRef<HTMLDivElement>(null);
   const { activeTab, setActiveTabWithSync } = useLebenslauf();
 
   return (
     <div className="w-full flex flex-col gap-6 relative overflow-hidden">
-      {/* Header with consolidated tab navigation */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         <div className="flex items-center gap-2 p-4 border-b border-gray-200">
           <User className="h-6 w-6 mr-2" style={{ color: '#F29400' }} stroke="#F29400" fill="none" />
           <h2 className="text-lg font-semibold text-gray-900">Lebenslauf</h2>
         </div>
-
         <div className="border-b border-gray-200">
           <nav className="flex space-x-8 px-4">
             {mainTabs.map((tab) => {
@@ -69,9 +43,7 @@ function LebenslaufEditorContent({
                   }`}
                 >
                   <div className="flex items-center gap-2">
-                    <div className="w-4 h-4">
-                      <IconComponent className="w-4 h-4" />
-                    </div>
+                    <div className="w-4 h-4"><IconComponent className="w-4 h-4" /></div>
                     {tab.label}
                   </div>
                 </button>
@@ -81,19 +53,13 @@ function LebenslaufEditorContent({
         </div>
       </div>
 
-      {/* Content grid with input, preview, and AI help */}
       <div className="grid grid-cols-1 lg:grid-cols-[2fr_2fr_1fr] gap-6 relative overflow-hidden">
-        {/* Linke Spalte: Eingabe */}
         <div ref={inputRef} className="relative min-w-0">
           <LebenslaufInput />
         </div>
-
-        {/* Rechte Spalte: Vorschau */}
         <div className="min-w-0">
           <LebenslaufPreview inputRef={inputRef} />
         </div>
-
-        {/* Rechte Spalte: KI-Assistent */}
         <div className="min-w-0">
           <AiHelpPanel />
         </div>
@@ -102,12 +68,6 @@ function LebenslaufEditorContent({
   );
 }
 
-export default function LebenslaufEditor({
-  profileSourceMappings = [],
-}: {
-  profileSourceMappings?: ProfileSourceMapping[];
-}) {
-  return (
-    <LebenslaufEditorContent profileSourceMappings={profileSourceMappings} />
-  );
+export default function LebenslaufEditor({ profileSourceMappings = [] }: { profileSourceMappings?: ProfileSourceMapping[]; }) {
+  return <LebenslaufEditorContent profileSourceMappings={profileSourceMappings} />;
 }
