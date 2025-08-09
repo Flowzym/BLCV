@@ -110,6 +110,9 @@ export interface DesignerState {
   /** Globale Style-Änderung (wirkt auf ALLE Sektionen gleicher Gruppe/Feld) */
   updateGlobalPartStyle(group: GroupKey, partKey: PartKey, patch: Partial<PartStyle>): void;
 
+  /** Globalen Feld-Style komplett entfernen (zurück auf Defaults) */
+  clearGlobalPartStyle(group: GroupKey, partKey: PartKey): void;
+
   // Undo/Redo (minimal – falls du schon ein anderes System hast, anpassen/entfernen)
   undoStack: CanvasElement[][];
   redoStack: CanvasElement[][];
@@ -248,6 +251,14 @@ export const useDesignerStore = create<DesignerState>()(
           const k = `${group}:${partKey}`;
           const current = s.partStyles[k] || {};
           return { partStyles: { ...s.partStyles, [k]: { ...current, ...patch } } };
+        }),
+
+      clearGlobalPartStyle: (group, partKey) =>
+        set((s) => {
+          const k = `${group}:${partKey}`;
+          const next = { ...s.partStyles };
+          delete next[k];
+          return { partStyles: next };
         }),
 
       // ---- mini undo/redo ----
