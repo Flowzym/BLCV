@@ -31,32 +31,25 @@ type HistorySnap = {
 type DesignerState = {
   elements: CanvasElement[];
   selectedIds: string[];
-  margins: Margins;       // Quelle für Canvas/Overlay
+  margins: Margins;
   snapSize: number;
   zoom: number;
+  tokens: StyleTokens;
 
-  tokens: StyleTokens;    // Für Export/Styles – hält margins/snapSize in Sync
-
-  // History
   undoStack: HistorySnap[];
   redoStack: HistorySnap[];
 
-  // Actions
   addSection(partial?: Partial<CanvasElement & { text: string }>): void;
   addPhoto(partial?: Partial<CanvasElement>): void;
   updateText(id: string, text: string): void;
   updateFrame(id: string, frame: Partial<Frame>): void;
   deleteSelected(): void;
   select(ids: string[]): void;
-
   setMargins(m: Partial<Margins>): void;
   setSnapSize(n: number): void;
   setZoom(z: number): void;
-
   setTokens(partial: Partial<StyleTokens>): void;
-
   setInitialElementsFromSections(sections: Array<{ title?: string; content?: string }>): void;
-
   undo(): void;
   redo(): void;
   commit(): void;
@@ -100,9 +93,7 @@ export const useDesignerStore = create<DesignerState>()(
       margins: { top: 36, right: 36, bottom: 36, left: 36 },
       snapSize: 20,
       zoom: 1,
-
       tokens: defaultTokens({ top: 36, right: 36, bottom: 36, left: 36 }, 20),
-
       undoStack: [],
       redoStack: [],
 
@@ -153,10 +144,7 @@ export const useDesignerStore = create<DesignerState>()(
           const idx = s.elements.findIndex((e) => e.id === id);
           if (idx === -1) return s as DesignerState;
           const el = s.elements[idx];
-          const updated: CanvasElement = {
-            ...el,
-            frame: { ...el.frame, ...frame },
-          };
+          const updated: CanvasElement = { ...el, frame: { ...el.frame, ...frame } };
           const nextEls = [...s.elements];
           nextEls[idx] = updated;
           return { ...s, elements: nextEls };
@@ -180,21 +168,13 @@ export const useDesignerStore = create<DesignerState>()(
       setMargins(m) {
         set((s) => {
           const merged = { ...s.margins, ...m };
-          return {
-            ...s,
-            margins: merged,
-            tokens: { ...s.tokens, margins: { ...merged } }, // Sync halten
-          };
+          return { ...s, margins: merged, tokens: { ...s.tokens, margins: { ...merged } } };
         });
       },
 
       setSnapSize(n) {
         const val = Math.max(1, Math.round(n));
-        set((s) => ({
-          ...s,
-          snapSize: val,
-          tokens: { ...s.tokens, snapSize: val },
-        }));
+        set((s) => ({ ...s, snapSize: val, tokens: { ...s.tokens, snapSize: val } }));
       },
 
       setZoom(z) {
@@ -204,7 +184,6 @@ export const useDesignerStore = create<DesignerState>()(
       setTokens(partial) {
         set((s) => {
           const merged = { ...s.tokens, ...partial };
-          // margins/snapSize im Top-Level synchron halten
           return {
             ...s,
             tokens: merged,
@@ -242,14 +221,7 @@ export const useDesignerStore = create<DesignerState>()(
         if (!prev) return;
         const newUndo = s.undoStack.slice(0, -1);
         const red = s.redoStack.concat(snapshot(s)).slice(-HISTORY_LIMIT);
-        set({
-          elements: prev.elements,
-          margins: prev.margins,
-          zoom: prev.zoom,
-          tokens: prev.tokens,
-          undoStack: newUndo,
-          redoStack: red,
-        });
+        set({ elements: prev.elements, margins: prev.margins, zoom: prev.zoom, tokens: prev.tokens, undoStack: newUndo, redoStack: red });
       },
 
       redo() {
@@ -258,14 +230,7 @@ export const useDesignerStore = create<DesignerState>()(
         if (!next) return;
         const newRedo = s.redoStack.slice(0, -1);
         const und = s.undoStack.concat(snapshot(s)).slice(-HISTORY_LIMIT);
-        set({
-          elements: next.elements,
-          margins: next.margins,
-          zoom: next.zoom,
-          tokens: next.tokens,
-          undoStack: und,
-          redoStack: newRedo,
-        });
+        set({ elements: next.elements, margins: next.margins, zoom: next.zoom, tokens: next.tokens, undoStack: und, redoStack: newRedo });
       },
 
       commit() {
@@ -277,21 +242,32 @@ export const useDesignerStore = create<DesignerState>()(
     }),
     {
       name: "cv-designer-store",
-      version: 2,
-      migrate: (state: any) => {
-        // frühere States ohne 'tokens' auf Default migrieren
-        if (!state?.state) return state;
-        const s = state.state;
-        const margins: Margins = s?.margins ?? { top: 36, right: 36, bottom: 36, left: 36 };
-        const snap: number = typeof s?.snapSize === "number" ? s.snapSize : 20;
+      version: 3,
+      migrate: (persisted: any) => {
+        if (!persisted?.state) return persisted;
+        const s = persisted.state;
+
+        // 1) margins sicherstellen (alte Staaten hatten evtl. exportMargins oder gar nichts)
+        const fallback: Margins = { top: 36, right: 36, bottom: 36, left: 36 };
+        if (!s.margins) s.margins = s.exportMargins ?? fallback;
+
+        // 2) tokens auffüllen / erzeugen
+        const snap = typeof s.snapSize === "number" ? s.snapSize : 20;
         if (!s.tokens) {
-          s.tokens = defaultTokens(margins, snap);
+          s.tokens = defaultTokens(s.margins, snap);
         } else {
-          // fehlende Felder auffüllen
-          s.tokens = { ...defaultTokens(margins, snap), ...s.tokens };
-          if (!s.tokens.margins) s.tokens.margins = { ...margins };
+          s.tokens = { ...defaultTokens(s.margins, snap), ...s.tokens };
+          if (!s.tokens.margins) s.tokens.margins = { ...s.margins };
+          if (typeof s.tokens.snapSize !== "number") s.tokens.snapSize = snap;
         }
-        return state;
+
+        // 3) Top-Level snapSize synchronisieren
+        if (typeof s.snapSize !== "number") s.snapSize = s.tokens.snapSize;
+
+        // 4) Altlast entfernen
+        if (s.exportMargins) delete s.exportMargins;
+
+        return { ...persisted, state: s };
       },
     }
   )
