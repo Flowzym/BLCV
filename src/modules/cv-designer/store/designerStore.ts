@@ -1,219 +1,210 @@
-import create from "zustand";
-import { immer } from "zustand/middleware/immer";
-import { persist, createJSONStorage } from "zustand/middleware";
-import { v4 as uuid } from "uuid";
-
-export type StyleToken = {
-  fontFamily: string;
-  fontSize: number;
-  colorPrimary: string;
-};
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
 
 export type Frame = { x: number; y: number; width: number; height: number };
-
 export type CanvasElement =
-  | { kind: "section"; id: string; frame: Frame; content: string }
+  | { kind: "section"; id: string; frame: Frame; title?: string; text: string }
   | { kind: "photo"; id: string; frame: Frame; src?: string };
 
-type HistorySnap = { elements: CanvasElement[]; tokens: StyleToken };
+export type Margins = { top: number; right: number; bottom: number; left: number };
 
-type Margins = { top: number; right: number; bottom: number; left: number };
-
-interface DesignerState {
-  tokens: StyleToken;
+type HistorySnap = {
   elements: CanvasElement[];
-  selectedId: string | null;
-
-  // view
+  margins: Margins;
   zoom: number;
-  snapThreshold: number;
-  exportMargins: Margins;
+};
 
-  // history
-  history: { past: HistorySnap[]; future: HistorySnap[] };
-  canUndo: boolean;
-  canRedo: boolean;
+type DesignerState = {
+  elements: CanvasElement[];
+  selectedIds: string[];
+  margins: Margins;
+  snapSize: number;
+  zoom: number;
 
-  // actions
-  setTokens(tokens: Partial<StyleToken>, record?: boolean): void;
-  addSection(content?: string, frame?: Partial<Frame>): void;
-  addPhoto(frame?: Partial<Frame>, src?: string): void;
-  addElement(el: CanvasElement, record?: boolean): void;
-  updateFrame(id: string, frame: Frame, record?: boolean): void;
-  updateText(id: string, text: string, record?: boolean): void;
-  remove(id: string, record?: boolean): void;
-  select(id: string | null): void;
+  // History
+  undoStack: HistorySnap[];
+  redoStack: HistorySnap[];
 
+  // Actions
+  addSection(partial?: Partial<CanvasElement & { text: string }>): void;
+  addPhoto(partial?: Partial<CanvasElement>): void;
+  updateText(id: string, text: string): void;
+  updateFrame(id: string, frame: Partial<Frame>): void;
+  deleteSelected(): void;
+  select(ids: string[]): void;
+
+  setMargins(m: Partial<Margins>): void;
+  setSnapSize(n: number): void;
   setZoom(z: number): void;
-  setSnapThreshold(px: number): void;
-  setExportMargins(m: Partial<Margins>): void;
 
+  // init from sections (P2 wird erweitert)
+  setInitialElementsFromSections(sections: Array<{ title?: string; content?: string }>): void;
+
+  // History controls
   undo(): void;
   redo(): void;
-
-  setInitialElementsFromSections(sections: Array<{ title?: string; content?: string }>): void;
-}
+  commit(): void; // snapshot current state to undo stack
+};
 
 const HISTORY_LIMIT = 50;
 
 function snapshot(state: DesignerState): HistorySnap {
   return {
-    elements: JSON.parse(JSON.stringify(state.elements)),
-    tokens: { ...state.tokens },
+    elements: state.elements.map((e) => JSON.parse(JSON.stringify(e))),
+    margins: { ...state.margins },
+    zoom: state.zoom,
   };
 }
 
-function pushHistory(state: DesignerState) {
-  state.history.past.push(snapshot(state));
-  if (state.history.past.length > HISTORY_LIMIT) state.history.past.shift();
-  state.history.future = [];
-  state.canUndo = state.history.past.length > 0;
-  state.canRedo = false;
+function uid(prefix = "el"): string {
+  return `${prefix}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
 export const useDesignerStore = create<DesignerState>()(
   persist(
-    immer((set, get) => ({
-      tokens: { fontFamily: "Inter", fontSize: 12, colorPrimary: "#111827" },
+    (set, get) => ({
       elements: [],
-      selectedId: null,
-
+      selectedIds: [],
+      margins: { top: 36, right: 36, bottom: 36, left: 36 },
+      snapSize: 20,
       zoom: 1,
-      snapThreshold: 8,
-      exportMargins: { top: 28, right: 28, bottom: 28, left: 28 },
 
-      history: { past: [], future: [] },
-      canUndo: false,
-      canRedo: false,
+      undoStack: [],
+      redoStack: [],
 
-      setTokens: (tokens, record = true) =>
+      addSection(partial = {}) {
+        const el: CanvasElement = {
+          kind: "section",
+          id: uid("sec"),
+          frame: { x: 60, y: 60, width: 480, height: 0, ...(partial.frame || {}) },
+          title: partial.title ?? "Erfahrung",
+          text: (partial as any).text ?? "• Punkt 1\n• Punkt 2\n• Punkt 3",
+        };
         set((s) => {
-          if (record) pushHistory(s);
-          s.tokens = { ...s.tokens, ...tokens };
-        }),
+          const next = { ...s, elements: [...s.elements, el] };
+          const u = s.undoStack.concat(snapshot(s)).slice(-HISTORY_LIMIT);
+          return { ...next, undoStack: u, redoStack: [] };
+        });
+      },
 
-      addSection: (content, frame) =>
+      addPhoto(partial = {}) {
+        const el: CanvasElement = {
+          kind: "photo",
+          id: uid("img"),
+          frame: { x: 60, y: 60, width: 120, height: 120, ...(partial.frame || {}) },
+          src: partial.src,
+        };
         set((s) => {
-          pushHistory(s);
-          const id = uuid();
-          s.elements.push({
+          const next = { ...s, elements: [...s.elements, el] };
+          const u = s.undoStack.concat(snapshot(s)).slice(-HISTORY_LIMIT);
+          return { ...next, undoStack: u, redoStack: [] };
+        });
+      },
+
+      updateText(id, text) {
+        set((s) => {
+          const idx = s.elements.findIndex((e) => e.id === id && e.kind === "section");
+          if (idx === -1) return s;
+          const el = s.elements[idx] as Extract<CanvasElement, { kind: "section" }>;
+          const updated: CanvasElement = { ...el, text };
+          const nextEls = [...s.elements];
+          nextEls[idx] = updated;
+          const u = s.undoStack.concat(snapshot(s)).slice(-HISTORY_LIMIT);
+          return { ...s, elements: nextEls, undoStack: u, redoStack: [] };
+        });
+      },
+
+      updateFrame(id, frame) {
+        set((s) => {
+          const idx = s.elements.findIndex((e) => e.id === id);
+          if (idx === -1) return s;
+          const el = s.elements[idx];
+          const updated: CanvasElement = {
+            ...el,
+            frame: { ...el.frame, ...frame },
+          };
+          const nextEls = [...s.elements];
+          nextEls[idx] = updated;
+          return { ...s, elements: nextEls };
+        });
+      },
+
+      deleteSelected() {
+        const ids = new Set(get().selectedIds);
+        set((s) => {
+          if (!ids.size) return s;
+          const next = { ...s, elements: s.elements.filter((e) => !ids.has(e.id)), selectedIds: [] };
+          const u = s.undoStack.concat(snapshot(s)).slice(-HISTORY_LIMIT);
+          return { ...next, undoStack: u, redoStack: [] };
+        });
+      },
+
+      select(ids) {
+        set({ selectedIds: [...ids] });
+      },
+
+      setMargins(m) {
+        set((s) => ({
+          ...s,
+          margins: { ...s.margins, ...m },
+        }));
+      },
+
+      setSnapSize(n) {
+        set({ snapSize: Math.max(1, Math.round(n)) });
+      },
+
+      setZoom(z) {
+        set({ zoom: Math.max(0.25, Math.min(3, z)) });
+      },
+
+      setInitialElementsFromSections(sections) {
+        if (!sections?.length) return;
+        const joined = sections
+          .map((s) => {
+            const title = s.title ? `${s.title}\n` : "";
+            return `${title}${s.content ?? ""}`;
+          })
+          .join("\n");
+        set((s) => {
+          const init: CanvasElement = {
             kind: "section",
-            id,
-            frame: {
-              x: frame?.x ?? 240,
-              y: frame?.y ?? 120,
-              width: frame?.width ?? 240,
-              height: frame?.height ?? 120,
-            },
-            content:
-              content ?? "Neue Section\nDoppelklicken zum Bearbeiten",
-          });
-          s.selectedId = id;
-        }),
+            id: uid("sec"),
+            frame: { x: 60, y: 60, width: 480, height: 0 },
+            title: "Erfahrung",
+            text: joined,
+          };
+          const next = { ...s, elements: [init] };
+          const u = s.undoStack.concat(snapshot(s)).slice(-HISTORY_LIMIT);
+          return { ...next, undoStack: u, redoStack: [] };
+        });
+      },
 
-      addPhoto: (frame, src) =>
+      undo() {
+        const s = get();
+        const prev = s.undoStack[s.undoStack.length - 1];
+        if (!prev) return;
+        const newUndo = s.undoStack.slice(0, -1);
+        const red = s.redoStack.concat(snapshot(s)).slice(-HISTORY_LIMIT);
+        set({ elements: prev.elements, margins: prev.margins, zoom: prev.zoom, undoStack: newUndo, redoStack: red });
+      },
+
+      redo() {
+        const s = get();
+        const next = s.redoStack[s.redoStack.length - 1];
+        if (!next) return;
+        const newRedo = s.redoStack.slice(0, -1);
+        const und = s.undoStack.concat(snapshot(s)).slice(-HISTORY_LIMIT);
+        set({ elements: next.elements, margins: next.margins, zoom: next.zoom, undoStack: und, redoStack: newRedo });
+      },
+
+      commit() {
         set((s) => {
-          pushHistory(s);
-          const id = uuid();
-          s.elements.push({
-            kind: "photo",
-            id,
-            frame: {
-              x: frame?.x ?? 280,
-              y: frame?.y ?? 200,
-              width: frame?.width ?? 100,
-              height: frame?.height ?? 120,
-            },
-            src,
-          });
-          s.selectedId = id;
-        }),
-
-      addElement: (el, record = true) =>
-        set((s) => {
-          if (record) pushHistory(s);
-          s.elements.push(el);
-          s.selectedId = el.id;
-        }),
-
-      updateFrame: (id, frame, record = false) =>
-        set((s) => {
-          if (record) pushHistory(s);
-          const el = s.elements.find((e) => e.id === id);
-          if (el) (el as any).frame = frame;
-        }),
-
-      updateText: (id, text, record = false) =>
-        set((s) => {
-          if (record) pushHistory(s);
-          const el = s.elements.find((e) => e.id === id && e.kind === "section") as any;
-          if (el) el.content = text;
-        }),
-
-      remove: (id, record = true) =>
-        set((s) => {
-          if (record) pushHistory(s);
-          s.elements = s.elements.filter((e) => e.id !== id);
-          if (s.selectedId === id) s.selectedId = null;
-        }),
-
-      select: (id) => set((s) => { s.selectedId = id; }),
-
-      setZoom: (z) => set((s) => { s.zoom = Math.max(0.25, Math.min(3, z)); }),
-
-      setSnapThreshold: (px) => set((s) => { s.snapThreshold = Math.max(0, Math.min(40, px)); }),
-
-      setExportMargins: (m) =>
-        set((s) => {
-          s.exportMargins = { ...s.exportMargins, ...m };
-        }),
-
-      undo: () =>
-        set((s) => {
-          const prev = s.history.past.pop();
-          if (!prev) return;
-          const current = snapshot(s);
-          s.history.future.push(current);
-          s.elements = JSON.parse(JSON.stringify(prev.elements));
-          s.tokens = { ...prev.tokens };
-          s.canUndo = s.history.past.length > 0;
-          s.canRedo = s.history.future.length > 0;
-        }),
-
-      redo: () =>
-        set((s) => {
-          const next = s.history.future.pop();
-          if (!next) return;
-          s.history.past.push(snapshot(s));
-          s.elements = JSON.parse(JSON.stringify(next.elements));
-          s.tokens = { ...next.tokens };
-          s.canUndo = s.history.past.length > 0;
-          s.canRedo = s.history.future.length > 0;
-        }),
-
-      setInitialElementsFromSections: (sections) =>
-        set((s) => {
-          if (!sections || s.elements.length) return; // nicht überschreiben
-          let y = 80;
-          for (const sec of sections) {
-            s.elements.push({
-              kind: "section",
-              id: uuid(),
-              frame: { x: 72, y, width: 450, height: 100 },
-              content: `${sec.title ?? "Section"}\n${sec.content ?? ""}`,
-            });
-            y += 120;
-          }
-        }),
-    })),
-    {
-      name: "cv_designer_store_v1",
-      storage: createJSONStorage(() => localStorage),
-      partialize: (s) => ({
-        elements: s.elements,
-        tokens: s.tokens,
-        exportMargins: s.exportMargins,
-      }),
-    }
+          const u = s.undoStack.concat(snapshot(s)).slice(-HISTORY_LIMIT);
+          return { ...s, undoStack: u, redoStack: [] };
+        });
+      },
+    }),
+    { name: "cv-designer-store" }
   )
 );
