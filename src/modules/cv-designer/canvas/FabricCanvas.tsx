@@ -1,294 +1,292 @@
-// src/modules/cv-designer/canvas/FabricCanvas.tsx
 import React, { useEffect, useRef } from "react";
-import fabricNS from "@/lib/fabric-shim";
-import { useDesignerStore } from "../store/designerStore";
-import { computeGuides, drawGuides, clearGuides, drawOverflowBadges } from "./guides";
+import { useDesignerStore, CanvasElement } from "../store/designerStore";
+import loadFabric from "@/lib/fabric-shim";
 
-// fabric kann als Default-Objekt ODER als { fabric } Namespace kommen → normalisieren:
-const FNS: any = fabricNS;
+const PAGE_W = 595; // A4 @72dpi
+const PAGE_H = 842;
 
-const A4_WIDTH = 595;  // px @ 72dpi
-const A4_HEIGHT = 842;
-
-type MapVal = import("fabric").fabric.Object & { __id?: string };
-
-function throttle<T extends (...args: any[]) => void>(fn: T, ms: number): T {
-  let last = 0;
-  let timer: any = null;
-  return function (this: any, ...args: any[]) {
-    const now = Date.now();
-    if (now - last >= ms) {
-      last = now;
-      fn.apply(this, args);
-    } else {
-      clearTimeout(timer);
-      timer = setTimeout(() => {
-        last = Date.now();
-        fn.apply(this, args);
-      }, ms - (now - last));
-    }
-  } as T;
-}
+type Fabric = typeof import("fabric");
 
 export default function FabricCanvas() {
-  const ref = useRef<HTMLCanvasElement | null>(null);
-  const canvasRef = useRef<import("fabric").fabric.Canvas | null>(null);
-  const objectMap = useRef<Map<string, MapVal>>(new Map());
-  const marginLayer = useRef<MapVal | null>(null);
-  const pageLayer = useRef<MapVal | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const fabricRef = useRef<Fabric["fabric"] | null>(null);
+  const fCanvas = useRef<import("fabric").fabric.Canvas | null>(null);
+  const objectsById = useRef(new Map<string, any>());
 
   const elements = useDesignerStore((s) => s.elements);
-  const tokens = useDesignerStore((s) => s.tokens);
-  const selectedId = useDesignerStore((s) => s.selectedId);
-  const select = useDesignerStore((s) => s.select);
-  const updateFrame = useDesignerStore((s) => s.updateFrame);
-  const snapThreshold = useDesignerStore((s) => s.snapThreshold);
+  const selectedIds = useDesignerStore((s) => s.selectedIds);
+  const margins = useDesignerStore((s) => s.margins);
+  const snapSize = useDesignerStore((s) => s.snapSize);
   const zoom = useDesignerStore((s) => s.zoom);
-  const exportMargins = useDesignerStore((s) => s.exportMargins);
 
-  // Mount
+  const updateFrame = useDesignerStore((s) => s.updateFrame);
+  const updateText = useDesignerStore((s) => s.updateText);
+  const select = useDesignerStore((s) => s.select);
+
+  // init fabric
   useEffect(() => {
-    const el = ref.current;
-    const F = (FNS as any)?.fabric ?? (FNS as any);
-    if (!el || !F?.Canvas) return;
+    let disposed = false;
+    (async () => {
+      const mod: any = await loadFabric(); // shim
+      const fabric = (mod?.fabric ?? mod?.default ?? mod) as Fabric["fabric"];
+      fabricRef.current = fabric;
 
-    const c = new F.Canvas(el, { backgroundColor: "#fff", selection: true });
-    c.setWidth(A4_WIDTH);
-    c.setHeight(A4_HEIGHT);
-    canvasRef.current = c;
+      if (!canvasRef.current) return;
+      const c = new fabric.Canvas(canvasRef.current, {
+        preserveObjectStacking: true,
+        selection: true,
+        backgroundColor: "#ffffff",
+      });
+      fCanvas.current = c;
 
-    // Seite + Ränder-Overlay
-    pageLayer.current = new F.Rect({
-      left: 0, top: 0, width: A4_WIDTH, height: A4_HEIGHT,
-      selectable: false, evented: false, fill: "#ffffff",
-    }) as any;
-    c.add(pageLayer.current);
-    pageLayer.current.moveTo?.(0);
+      // size & zoom
+      c.setWidth(PAGE_W);
+      c.setHeight(PAGE_H);
+      c.setZoom(zoom);
 
-    const m = exportMargins;
-    marginLayer.current = new F.Rect({
-      left: m.left, top: m.top,
-      width: A4_WIDTH - m.left - m.right,
-      height: A4_HEIGHT - m.top - m.bottom,
-      stroke: "#e5e7eb", strokeDashArray: [4, 4],
-      fill: "rgba(0,0,0,0)", selectable: false, evented: false,
-    }) as any;
-    c.add(marginLayer.current);
-    marginLayer.current.moveTo?.(0);
+      // A4 overlay & margin guides (non-selectable)
+      const bg = new fabric.Rect({
+        left: 0,
+        top: 0,
+        width: PAGE_W,
+        height: PAGE_H,
+        fill: "#ffffff",
+        selectable: false,
+        evented: false,
+        hoverCursor: "default",
+      });
 
-    // Auswahl → Store
-    const onSelection = () => {
-      const active = c.getActiveObject() as MapVal | undefined;
-      select((active as any)?.__id ?? null);
-    };
-    c.on("selection:created", onSelection);
-    c.on("selection:updated", onSelection);
-    c.on("selection:cleared", () => select(null));
+      const marginRect = new fabric.Rect({
+        left: margins.left,
+        top: margins.top,
+        width: PAGE_W - margins.left - margins.right,
+        height: PAGE_H - margins.top - margins.bottom,
+        fill: "rgba(0,0,0,0)",
+        stroke: "#93c5fd",
+        strokeDashArray: [6, 6],
+        selectable: false,
+        evented: false,
+        strokeUniform: true,
+      });
 
-    // Doppelklick → Inline-Editing
-    c.on("mouse:dblclick", (e: any) => {
-      const t = e?.target as any;
-      if (t && t.type === "textbox" && typeof t.enterEditing === "function") {
-        t.enterEditing();
-        t.selectAll();
-      }
-    });
+      c.add(bg);
+      c.add(marginRect);
+      bg.moveTo(0);
+      marginRect.moveTo(1);
 
-    // Delete/Backspace → Objekt löschen + Store syncen
-    const onKey = (ev: KeyboardEvent) => {
-      if (ev.key === "Delete" || ev.key === "Backspace") {
-        const a = c.getActiveObject() as MapVal | undefined;
-        if (a && a.selectable) {
-          c.remove(a);
-          const id = (a as any).__id;
-          if (id) {
-            useDesignerStore.setState((s) => ({
-              elements: s.elements.filter((e) => e.id !== id),
-            }));
-          }
-          c.requestRenderAll();
+      // selection sync
+      c.on("selection:created", () => {
+        const active = c.getActiveObjects() || [];
+        select(active.map((o: any) => o.__bl_id).filter(Boolean));
+      });
+      c.on("selection:updated", () => {
+        const active = c.getActiveObjects() || [];
+        select(active.map((o: any) => o.__bl_id).filter(Boolean));
+      });
+      c.on("selection:cleared", () => select([]));
+
+      // snap & commit frame
+      c.on("object:moving", (e: any) => {
+        const o = e.target;
+        if (!o || o.selectable === false) return;
+        o.set({
+          left: Math.round(o.left / snapSize) * snapSize,
+          top: Math.round(o.top / snapSize) * snapSize,
+        });
+      });
+      c.on("object:scaling", (e: any) => {
+        const o = e.target;
+        if (!o || o.selectable === false) return;
+        const w = Math.round((o.width * o.scaleX) / snapSize) * snapSize;
+        const h = Math.round((o.height * o.scaleY) / snapSize) * snapSize;
+        o.set({ scaleX: 1, scaleY: 1, width: w, height: h });
+      });
+      c.on("object:modified", (e: any) => {
+        const o = e.target;
+        if (!o || !o.__bl_id) return;
+        updateFrame(o.__bl_id, {
+          x: o.left,
+          y: o.top,
+          width: o.width,
+          height: o.height,
+        });
+      });
+
+      // dblclick → enter editing for textboxes
+      c.on("mouse:dblclick", (e: any) => {
+        const t = e.target;
+        if (t && t.type === "textbox" && typeof (t as any).enterEditing === "function") {
+          (t as any).enterEditing();
+          (t as any).hiddenTextarea?.focus();
         }
-      }
-    };
-    window.addEventListener("keydown", onKey);
+      });
+
+      // when editing stops, write back text
+      c.on("text:changed", (e: any) => {
+        const t = e.target;
+        if (t && t.__bl_id && typeof t.text === "string") {
+          updateText(t.__bl_id, t.text);
+        }
+      });
+
+      // initial render
+      reconcileCanvas(c, fabric, elements, objectsById.current);
+
+      const dispose = () => {
+        c.dispose();
+      };
+      if (disposed) dispose();
+    })();
 
     return () => {
-      window.removeEventListener("keydown", onKey);
-      c.dispose?.();
-      canvasRef.current = null;
-      objectMap.current.clear();
-      pageLayer.current = null;
-      marginLayer.current = null;
+      disposed = true;
+      if (fCanvas.current) {
+        fCanvas.current.dispose();
+        fCanvas.current = null;
+      }
+      fabricRef.current = null;
+      objectsById.current.clear();
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Zoom
+  // elements reconcile
   useEffect(() => {
-    const c = canvasRef.current;
+    if (!fCanvas.current || !fabricRef.current) return;
+    reconcileCanvas(fCanvas.current, fabricRef.current, elements, objectsById.current);
+  }, [elements]);
+
+  // margins update
+  useEffect(() => {
+    const c = fCanvas.current;
+    const fabric = fabricRef.current;
+    if (!c || !fabric) return;
+    const all = c.getObjects() as any[];
+    const marginRect = all.find((o) => o.__is_marginRect);
+    if (marginRect) {
+      marginRect.set({
+        left: margins.left,
+        top: margins.top,
+        width: PAGE_W - margins.left - margins.right,
+        height: PAGE_H - margins.top - margins.bottom,
+      });
+      c.requestRenderAll();
+    }
+  }, [margins]);
+
+  // zoom update
+  useEffect(() => {
+    const c = fCanvas.current;
     if (!c) return;
-    try { c.setZoom(zoom); c.requestRenderAll(); } catch {}
+    c.setZoom(zoom);
+    c.setWidth(PAGE_W * zoom);
+    c.setHeight(PAGE_H * zoom);
+    c.requestRenderAll();
   }, [zoom]);
 
-  // Ränder-Overlay updaten
+  // selection from store -> canvas
   useEffect(() => {
-    const c = canvasRef.current;
-    if (!c || !marginLayer.current) return;
-    const m = exportMargins;
-    marginLayer.current.set({
-      left: m.left, top: m.top,
-      width: A4_WIDTH - m.left - m.right,
-      height: A4_HEIGHT - m.top - m.bottom,
-    });
-    c.requestRenderAll();
-  }, [exportMargins]);
-
-  // Tokens → nur Text-Stile patchen
-  useEffect(() => {
-    const c = canvasRef.current;
+    const c = fCanvas.current;
     if (!c) return;
-    c.getObjects().forEach((o: any) => {
-      if (o === marginLayer.current || o === pageLayer.current) return;
-      if (o.type === "textbox") {
-        o.set({ fontSize: tokens.fontSize, fill: tokens.colorPrimary, fontFamily: tokens.fontFamily });
-      }
-    });
-    c.requestRenderAll();
-  }, [tokens]);
-
-  // Elements → diffen (nicht komplett neu bauen)
-  useEffect(() => {
-    const c = canvasRef.current;
-    const F = (FNS as any)?.fabric ?? (FNS as any);
-    if (!c || !F?.Canvas) return;
-
-    const present = new Set<string>();
-    for (const el of elements) {
-      present.add(el.id);
-      const exists = objectMap.current.get(el.id);
-
-      if (!exists) {
-        let obj: MapVal;
-        if (el.kind === "section") {
-          obj = new F.Textbox(el.content || "", {
-            left: el.frame.x, top: el.frame.y,
-            width: el.frame.width, height: el.frame.height,
-            fontSize: tokens.fontSize, fill: tokens.colorPrimary, fontFamily: tokens.fontFamily,
-            selectable: true, editable: true, hasControls: true,
-            borderColor: "#4f46e5", cornerColor: "#111827",
-          }) as MapVal;
-        } else {
-          obj = new F.Rect({
-            left: el.frame.x, top: el.frame.y,
-            width: el.frame.width, height: el.frame.height,
-            fill: "#e5e7eb", stroke: "#9ca3af",
-            selectable: true, hasControls: true,
-          }) as MapVal;
-        }
-        obj.__id = el.id;
-        c.add(obj);
-        objectMap.current.set(el.id, obj);
-      } else {
-        exists.set({ left: el.frame.x, top: el.frame.y });
-        if ((exists as any).type === "textbox") {
-          (exists as any).set({ width: el.frame.width, height: el.frame.height, text: el.content || (exists as any).text });
-        } else {
-          (exists as any).set({ width: el.frame.width, height: el.frame.height });
-        }
-      }
-    }
-
-    // Entfernte Elemente löschen
-    for (const [id, obj] of Array.from(objectMap.current.entries())) {
-      if (!present.has(id)) {
-        c.remove(obj);
-        objectMap.current.delete(id);
-      }
-    }
-
-    c.requestRenderAll();
-
-    // Snapping/Guides + Commit
-    const snapMove = (opt: any) => {
-      const mv = opt?.target as any;
-      if (!mv) return;
-      const guides = computeGuides(F, c, mv, snapThreshold);
-      if (guides.length) {
-        for (const g of guides) {
-          if (g.type === "v") {
-            const w = mv.getScaledWidth ? mv.getScaledWidth() : mv.width || 0;
-            const cx = (mv.left ?? 0) + w / 2;
-            const dCenter = Math.abs(cx - g.pos);
-            const dLeft = Math.abs((mv.left ?? 0) - g.pos);
-            const dRight = Math.abs(((mv.left ?? 0) + w) - g.pos);
-            if (dCenter <= snapThreshold) mv.set("left", Math.round(g.pos - w / 2));
-            else if (dLeft <= snapThreshold) mv.set("left", Math.round(g.pos));
-            else if (dRight <= snapThreshold) mv.set("left", Math.round(g.pos - w));
-          } else {
-            const h = mv.getScaledHeight ? mv.getScaledHeight() : mv.height || 0;
-            const cy = (mv.top ?? 0) + h / 2;
-            const dCenter = Math.abs(cy - g.pos);
-            const dTop = Math.abs((mv.top ?? 0) - g.pos);
-            const dBottom = Math.abs(((mv.top ?? 0) + h) - g.pos);
-            if (dCenter <= snapThreshold) mv.set("top", Math.round(g.pos - h / 2));
-            else if (dTop <= snapThreshold) mv.set("top", Math.round(g.pos));
-            else if (dBottom <= snapThreshold) mv.set("top", Math.round(g.pos - h));
-          }
-        }
-      }
-      drawGuides(F, c, guides);
-      c.requestRenderAll();
-    };
-
-    const commit = throttle((opt: any) => {
-      const obj = opt?.target as any;
-      if (!obj) return;
-      const id = (obj as MapVal).__id;
-      if (!id) return;
-      updateFrame(id, {
-        x: Math.round(obj.left || 0),
-        y: Math.round(obj.top || 0),
-        width: Math.round(obj.getScaledWidth ? obj.getScaledWidth() : obj.width || 0),
-        height: Math.round(obj.getScaledHeight ? obj.getScaledHeight() : obj.height || 0),
-      });
-      clearGuides(c);
-      drawOverflowBadges(F, c);
-    }, 80);
-
-    c.on("object:moving", snapMove);
-    c.on("object:scaling", snapMove);
-    c.on("object:modified", commit);
-    c.on("mouse:up", () => clearGuides(c));
-
-    // initial Badges
-    drawOverflowBadges(F, c);
-
-    return () => {
-      c.off("object:moving", snapMove);
-      c.off("object:scaling", snapMove);
-      c.off("object:modified", commit);
-    };
-  }, [elements, snapThreshold, tokens.fontFamily, tokens.fontSize, tokens.colorPrimary, updateFrame]);
-
-  // Auswahl von außen widerspiegeln
-  useEffect(() => {
-    const c = canvasRef.current;
-    if (!c) return;
-    if (!selectedId) {
+    const setActive = (ids: string[]) => {
+      const toSel = c
+        .getObjects()
+        .filter((o: any) => o.__bl_id && ids.includes(o.__bl_id) && o.selectable !== false);
       c.discardActiveObject();
+      if (toSel.length === 1) c.setActiveObject(toSel[0]);
+      if (toSel.length > 1) {
+        const sel = new (fabricRef.current as any).ActiveSelection(toSel, { canvas: c });
+        c.setActiveObject(sel);
+      }
       c.requestRenderAll();
-      return;
-    }
-    const obj = objectMap.current.get(selectedId);
-    if (obj) {
-      c.setActiveObject(obj);
-      c.requestRenderAll();
-    }
-  }, [selectedId]);
+    };
+    setActive(selectedIds);
+  }, [selectedIds]);
 
   return (
-    <div className="relative" style={{ width: A4_WIDTH, height: A4_HEIGHT }}>
-      <canvas ref={ref} />
+    <div className="w-full h-full overflow-auto bg-neutral-100 flex items-center justify-center">
+      <div
+        className="shadow-xl bg-white"
+        style={{
+          width: PAGE_W * zoom,
+          height: PAGE_H * zoom,
+        }}
+      >
+        <canvas ref={canvasRef} />
+      </div>
     </div>
   );
+}
+
+function reconcileCanvas(
+  c: import("fabric").fabric.Canvas,
+  fabric: any,
+  elements: CanvasElement[],
+  map: Map<string, any>
+) {
+  // add/update
+  const existingIds = new Set<string>();
+  for (const el of elements) {
+    existingIds.add(el.id);
+    let obj = map.get(el.id);
+    if (!obj) {
+      if (el.kind === "section") {
+        obj = new fabric.Textbox(el.text || "", {
+          left: el.frame.x,
+          top: el.frame.y,
+          width: el.frame.width || 480,
+          fontSize: 12,
+          fill: "#111111",
+          selectable: true,
+          editable: true,
+        });
+      } else if (el.kind === "photo") {
+        obj = new fabric.Rect({
+          left: el.frame.x,
+          top: el.frame.y,
+          width: el.frame.width || 120,
+          height: el.frame.height || 120,
+          fill: "#e5e7eb",
+          stroke: "#9ca3af",
+          strokeUniform: true,
+          selectable: true,
+        });
+      }
+      obj.__bl_id = el.id;
+      c.add(obj);
+      map.set(el.id, obj);
+    }
+    // update frame/text
+    obj.set({
+      left: el.frame.x,
+      top: el.frame.y,
+      width: el.frame.width || obj.width,
+      height: el.frame.height || obj.height,
+    });
+    if (el.kind === "section" && typeof (obj as any).set === "function") {
+      (obj as any).set({ text: el.text ?? "" });
+    }
+  }
+
+  // remove deleted
+  for (const [id, obj] of Array.from(map.entries())) {
+    if (!existingIds.has(id)) {
+      c.remove(obj);
+      map.delete(id);
+    }
+  }
+
+  // mark helpers
+  const all = c.getObjects() as any[];
+  const bg = all[0];
+  const marginRect = all[1];
+  if (bg && !bg.__is_bg) bg.__is_bg = true, (bg.selectable = false), (bg.evented = false);
+  if (marginRect && !marginRect.__is_marginRect) {
+    marginRect.__is_marginRect = true;
+    marginRect.selectable = false;
+    marginRect.evented = false;
+    marginRect.strokeUniform = true;
+  }
+
+  c.requestRenderAll();
 }
