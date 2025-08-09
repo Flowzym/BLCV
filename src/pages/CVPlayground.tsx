@@ -1,6 +1,4 @@
 import React from "react";
-import CVPreview from "@/modules/cv-designer/components/CVPreview";
-import { defaultStyleConfig } from "@/modules/cv-designer/config/defaultStyleConfig";
 
 const CVPlayground: React.FC = () => {
   return (
@@ -8,12 +6,15 @@ const CVPlayground: React.FC = () => {
       <div className="w-1/4 border-r p-4">
         <h3 className="font-bold mb-2">Playground Steuerung</h3>
         <p className="text-sm text-gray-600">
-          Hier können später Settings, Templates, StyleEditor etc. ergänzt werden.
+          Die frühere Vorschau-Komponente (CVPreview) wurde entfernt.
+          Der Playground zeigt vorübergehend keinen Preview.
         </p>
       </div>
 
       <div className="flex-1 p-6 overflow-auto bg-gray-50">
-        <CVPreview styleConfig={defaultStyleConfig} />
+        <div className="text-sm text-gray-700">
+          Placeholder: Hier kommt später die Canvas/Preview oder Test-Komponenten hin.
+        </div>
       </div>
     </div>
   );
