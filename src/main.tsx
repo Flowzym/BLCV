@@ -1,18 +1,16 @@
-import { createRoot } from 'react-dom/client';
-import App from './App';
-import { BrowserRouter } from 'react-router-dom';
+// src/main.tsx
+import React from "react";
+import ReactDOM from "react-dom/client";
+import App from "./App.tsx";
 
-// Global Styles
-import './styles/tokens.css';      // <-- richtig: liegt unter src/styles
-import './index.css';
-import 'react-quill/dist/quill.snow.css';
+// Basis-Styles (lass diese Imports so, wie es in deinem Projekt ist)
+import "./index.css";
 
-const container = document.getElementById('root');
+// 🔗 Einmalige Export-Registrierung (wichtig!)
+import "@/bootstrap/exportRegistry";
 
-if (container) {
-  createRoot(container).render(
-    <BrowserRouter>
-      <App />
-    </BrowserRouter>
-  );
-}
+ReactDOM.createRoot(document.getElementById("root")!).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
