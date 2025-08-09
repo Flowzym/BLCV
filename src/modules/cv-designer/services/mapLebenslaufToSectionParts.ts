@@ -22,14 +22,21 @@ function pickString(v: any): string {
   if (typeof v === "string") return v.trim();
   return String(v ?? "").trim();
 }
+
 function norm(v: any) {
-  return pickString(v).replace(/\s+/g, " ").trim();
+  if (v == null) return "";
+  if (Array.isArray(v)) {
+    return v.map(item => String(item ?? "").trim()).filter(Boolean).join(", ");
+  }
+  return String(v ?? "").trim().replace(/\s+/g, " ");
 }
+
 function bullets(v: any) {
   const arr = Array.isArray(v) ? v : [v];
   const items = arr.map(pickString).filter(Boolean);
   return items.length ? items.map((s) => `• ${s}`).join("\n") : "";
 }
+
 function spanFromMY(
   sm?: string | null,
   sy?: string | null,
@@ -40,7 +47,7 @@ function spanFromMY(
   const fmt = (m?: string | null, y?: string | null) => {
     const mm = (m ?? "").toString().padStart(2, "0").replace(/^0{2}$/, "");
     const yy = (y ?? "").toString();
-    if (!yy) return "";
+    if (!yy || yy === "null") return "";
     return mm ? `${mm}/${yy}` : yy;
   };
   const from = fmt(sm, sy);
@@ -48,6 +55,7 @@ function spanFromMY(
   if (from && to) return `${from} – ${to}`;
   return from || to || "";
 }
+
 function spanFallback(o: AnyObj) {
   const s = pickString(o.start ?? o.von);
   const e = pickString(o.end ?? o.bis);
@@ -55,7 +63,7 @@ function spanFallback(o: AnyObj) {
   return s || e || "";
 }
 function stableKey(prefix: string, o: AnyObj, idx: number) {
-  const id = pickString(o.id) || pickString(o.uuid) || `${idx}`;
+  const id = pickString(o.id) || pickString(o.uuid) || `auto-${idx}`;
   const sy = pickString(o.startYear);
   const ey = pickString(o.endYear);
   return `${prefix}:${id}:${sy}:${ey}`;
@@ -103,6 +111,43 @@ export function mapLebenslaufToSectionParts(ll: AnyObj): MappedSection[] {
         parts: [{ key: "kontakt", text: contact }],
       });
     }
+
+    // Add ProfileInput aggregated data as separate sections
+    if (pd.summary?.trim()) {
+      out.push({
+        group: "profil",
+        sourceKey: "profile:summary",
+        title: "Profil",
+        parts: [{ key: "titel", text: pd.summary }],
+      });
+    }
+
+    if (pd.skillsSummary?.trim()) {
+      out.push({
+        group: "kenntnisse",
+        sourceKey: "profile:skills",
+        title: "Fachliche Kompetenzen",
+        parts: [{ key: "skills", text: pd.skillsSummary }],
+      });
+    }
+
+    if (pd.softSkillsSummary?.trim()) {
+      out.push({
+        group: "softskills",
+        sourceKey: "profile:softskills",
+        title: "Persönliche Kompetenzen",
+        parts: [{ key: "skills", text: pd.softSkillsSummary }],
+      });
+    }
+
+    if (pd.taetigkeitenSummary?.trim()) {
+      out.push({
+        group: "erfahrung",
+        sourceKey: "profile:taetigkeiten",
+        title: "Tätigkeitsbereiche",
+        parts: [{ key: "taetigkeiten", text: pd.taetigkeitenSummary }],
+      });
+    }
   }
 
   // ---- Erfahrung / linke Spalte
@@ -118,7 +163,7 @@ export function mapLebenslaufToSectionParts(ll: AnyObj): MappedSection[] {
     const city     = norm(e.city ?? e.ort);
     const spanMY   = spanFromMY(e.startMonth, e.startYear, e.endMonth, e.endYear, e.isCurrent);
     const spanFB   = spanMY || spanFallback(e);
-    const tasks    = bullets(e.tasks ?? e.aufgabenbereiche ?? e.beschreibung ?? e.aufgabenbereiche);
+    const tasks    = bullets(e.tasks ?? e.aufgabenbereiche ?? e.beschreibung);
 
     const title = [position, company].filter(Boolean).join(" @ ");
 
@@ -146,7 +191,7 @@ export function mapLebenslaufToSectionParts(ll: AnyObj): MappedSection[] {
     : [];
 
   eduArr.forEach((e, i) => {
-    const institution = norm(e.institution ?? e.school ?? e.schule ?? e.unternehmen);
+    const institution = norm(e.institution ?? e.school ?? e.schule);
     const degree      = norm(e.degree ?? e.abschluss);
     const subject     = norm(e.subject ?? e.titel ?? e.ausbildungsart);
     const spanMY      = spanFromMY(e.startMonth, e.startYear, e.endMonth, e.endYear, e.isCurrent);

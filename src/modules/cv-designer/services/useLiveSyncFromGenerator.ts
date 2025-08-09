@@ -56,13 +56,39 @@ export function useLiveSyncFromGenerator(debounceMs = 200) {
   const sig = useMemo(
     () =>
       JSON.stringify({
-        pd: ll?.personalData ?? {},
+        pd: {
+          vorname: ll?.personalData?.vorname ?? '',
+          nachname: ll?.personalData?.nachname ?? '',
+          summary: ll?.personalData?.summary ?? '',
+          skillsSummary: ll?.personalData?.skillsSummary ?? '',
+          softSkillsSummary: ll?.personalData?.softSkillsSummary ?? '',
+          taetigkeitenSummary: ll?.personalData?.taetigkeitenSummary ?? ''
+        },
         wf:
-          ll?.berufserfahrung ??
-          ll?.workExperience ??
-          ll?.experience ??
-          [],
-        ed: ll?.ausbildung ?? ll?.education ?? [],
+          (ll?.berufserfahrung ?? ll?.workExperience ?? ll?.experience ?? []).map(exp => ({
+            id: exp.id,
+            position: exp.position,
+            companies: exp.companies,
+            startYear: exp.startYear,
+            startMonth: exp.startMonth,
+            endYear: exp.endYear,
+            endMonth: exp.endMonth,
+            isCurrent: exp.isCurrent,
+            aufgabenbereiche: exp.aufgabenbereiche,
+            source: exp.source
+          })),
+        ed: (ll?.ausbildung ?? ll?.education ?? []).map(edu => ({
+          id: edu.id,
+          abschluss: edu.abschluss,
+          institution: edu.institution,
+          ausbildungsart: edu.ausbildungsart,
+          startYear: edu.startYear,
+          startMonth: edu.startMonth,
+          endYear: edu.endYear,
+          endMonth: edu.endMonth,
+          isCurrent: edu.isCurrent,
+          source: edu.source
+        })),
         m: margins,
       }),
     [ll, margins]
@@ -76,7 +102,18 @@ export function useLiveSyncFromGenerator(debounceMs = 200) {
 
     timer.current = window.setTimeout(() => {
       const mapped = mapLebenslaufToSectionParts(ll);
-      if (import.meta.env.DEV) console.debug("[LiveSync] mapped", mapped);
+      if (import.meta.env.VITE_DEBUG_DESIGNER_SYNC === 'true') {
+        console.debug("[DesignerSync] ctx snapshot", {
+          personalData: ll?.personalData,
+          berufserfahrung: ll?.berufserfahrung?.length || 0,
+          ausbildung: ll?.ausbildung?.length || 0
+        });
+        console.debug("[DesignerSync] mapped", mapped.map(m => ({
+          group: m.group,
+          sourceKey: m.sourceKey,
+          partsCount: m.parts.length
+        })));
+      }
 
       const { elements, updatePartText, setInitialElements } =
         useDesignerStore.getState();
@@ -160,6 +197,14 @@ export function useLiveSyncFromGenerator(debounceMs = 200) {
         const newSecs = adds.map((a) =>
           buildSectionFromTemplate(a.tpl, a.frame, a.texts, a.meta, a.title)
         );
+
+        if (import.meta.env.VITE_DEBUG_DESIGNER_SYNC === 'true') {
+          console.debug("[DesignerSync] store elements", {
+            currentCount: current.length,
+            newSectionsCount: newSecs.length,
+            totalAfter: current.length + newSecs.length
+          });
+        }
 
         const current = useDesignerStore.getState().elements;
         if (!current.length) setInitialElements(newSecs);
