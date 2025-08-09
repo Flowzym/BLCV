@@ -140,9 +140,25 @@ export default function FabricCanvas() {
 
     return () => {
       const c = fCanvas.current;
+      // 1) globalen Listener entfernen
       if (c?.__bl_onDeleteActive) {
         window.removeEventListener("bl:delete-active", c.__bl_onDeleteActive);
       }
+      // 2) aktives Editing sauber beenden (verhindert hängenbleibende hiddenTextarea)
+      try {
+        const act: any = c?.getActiveObject?.();
+        if (act?.exitEditing) act.exitEditing();
+      } catch {}
+      // 3) Fabric-Ressourcen freigeben
+      try {
+        c?.dispose?.();
+      } catch {}
+      // 4) DOM-Backref leeren
+      try {
+        const el = canvasRef.current as any;
+        if (el && el.__fabricCanvas === c) el.__fabricCanvas = undefined;
+      } catch {}
+      // 5) Refs & Maps leeren
       fCanvas.current = null;
       fabricNs.current = null;
       objectsById.current.clear();
