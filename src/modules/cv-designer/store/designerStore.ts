@@ -85,6 +85,14 @@ function uid(prefix = "el"): string {
   return `${prefix}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
+function arrEq(a: string[], b: string[]) {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+  return true;
+}
+
 export const useDesignerStore = create<DesignerState>()(
   persist(
     (set, get) => ({
@@ -162,7 +170,7 @@ export const useDesignerStore = create<DesignerState>()(
       },
 
       select(ids) {
-        set({ selectedIds: [...ids] });
+        set((s) => (arrEq(s.selectedIds, ids) ? s : { ...s, selectedIds: [...ids] }));
       },
 
       setMargins(m) {
@@ -246,12 +254,8 @@ export const useDesignerStore = create<DesignerState>()(
       migrate: (persisted: any) => {
         if (!persisted?.state) return persisted;
         const s = persisted.state;
-
-        // 1) margins sicherstellen (alte Staaten hatten evtl. exportMargins oder gar nichts)
         const fallback: Margins = { top: 36, right: 36, bottom: 36, left: 36 };
         if (!s.margins) s.margins = s.exportMargins ?? fallback;
-
-        // 2) tokens auffüllen / erzeugen
         const snap = typeof s.snapSize === "number" ? s.snapSize : 20;
         if (!s.tokens) {
           s.tokens = defaultTokens(s.margins, snap);
@@ -260,13 +264,8 @@ export const useDesignerStore = create<DesignerState>()(
           if (!s.tokens.margins) s.tokens.margins = { ...s.margins };
           if (typeof s.tokens.snapSize !== "number") s.tokens.snapSize = snap;
         }
-
-        // 3) Top-Level snapSize synchronisieren
         if (typeof s.snapSize !== "number") s.snapSize = s.tokens.snapSize;
-
-        // 4) Altlast entfernen
         if (s.exportMargins) delete s.exportMargins;
-
         return { ...persisted, state: s };
       },
     }
