@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useLebenslauf } from "@/components/LebenslaufContext";
-import { useDesignerStore, GroupKey, PartKey, SectionElement } from "../store/designerStore";
-import { mapLebenslaufToSectionParts, MappedSection } from "./mapLebenslaufToSectionParts";
-import { Templates, buildSectionFromTemplate } from "../templates/sectionTemplates";
+import { useDesignerStore, PartKey, SectionElement } from "../store/designerStore";
+import { mapLebenslaufToSectionParts } from "./mapLebenslaufToSectionParts";
+import { Templates, buildSectionFromTemplate } from "../templates"; // <— geändert
 
 const PAGE_W = 595;
 const PAGE_H = 842;
@@ -18,14 +18,12 @@ function computeFrameForRow(col: "left" | "right", rowIndex: number, margins: Ma
   const w = col === "left" ? leftW : rightW;
   return { x, y, width: Math.min(w, width), height };
 }
-
 function sectionKey(e: SectionElement): string | undefined {
   return e.meta?.source?.key;
 }
 
 export function useLiveSyncFromGenerator(debounceMs = 200) {
   const ll = useLebenslauf();
-
   const elements = useDesignerStore((s) => s.elements);
   const margins = useDesignerStore((s) => s.margins);
 
@@ -41,9 +39,8 @@ export function useLiveSyncFromGenerator(debounceMs = 200) {
 
     if (timer.current) window.clearTimeout(timer.current);
     timer.current = window.setTimeout(() => {
-      const mapped = mapLebenslaufToSectionParts(ll); // Array<MappedSection>
+      const mapped = mapLebenslaufToSectionParts(ll);
 
-      // Index vorhandener Sektionen per source.key
       const existingByKey = new Map<string, SectionElement>();
       for (const e of elements) {
         if (e.kind !== "section") continue;
@@ -51,7 +48,7 @@ export function useLiveSyncFromGenerator(debounceMs = 200) {
         if (k) existingByKey.set(k, e);
       }
 
-      const nextAdds: Array<SectionElement> = [];
+      const nextAdds: SectionElement[] = [];
       let expRow = 0;
       let eduRow = 0;
       let contactPlaced = false;
@@ -60,43 +57,34 @@ export function useLiveSyncFromGenerator(debounceMs = 200) {
         const prev = m.sourceKey ? existingByKey.get(m.sourceKey) : undefined;
 
         if (!prev) {
-          // Neu anlegen aus Templates
           if (m.group === "kontakt" && !contactPlaced) {
             const tpl = Templates.contactRight;
-            const frame = { ...computeFrameForRow("right", 0, margins, tpl.baseSize.width, tpl.baseSize.height) };
+            const frame = computeFrameForRow("right", 0, margins, tpl.baseSize.width, tpl.baseSize.height);
             const texts: Partial<Record<PartKey, string>> = Object.fromEntries(m.parts.map((p) => [p.key, p.text]));
             const meta = { source: { key: m.sourceKey, group: m.group, template: tpl.id } };
-            const sec = buildSectionFromTemplate(tpl, frame, texts, meta, m.title);
-            nextAdds.push(sec);
+            nextAdds.push(buildSectionFromTemplate(tpl, frame, texts, meta, m.title));
             contactPlaced = true;
             continue;
           }
-
           if (m.group === "erfahrung") {
             const tpl = Templates.experienceLeft;
             const frame = computeFrameForRow("left", expRow++, margins, tpl.baseSize.width, tpl.baseSize.height);
             const texts: Partial<Record<PartKey, string>> = Object.fromEntries(m.parts.map((p) => [p.key, p.text]));
             const meta = { source: { key: m.sourceKey, group: m.group, template: tpl.id } };
-            const sec = buildSectionFromTemplate(tpl, frame, texts, meta, m.title);
-            nextAdds.push(sec);
+            nextAdds.push(buildSectionFromTemplate(tpl, frame, texts, meta, m.title));
             continue;
           }
-
           if (m.group === "ausbildung") {
             const tpl = Templates.educationLeft;
             const frame = computeFrameForRow("left", eduRow++, margins, tpl.baseSize.width, tpl.baseSize.height);
             const texts: Partial<Record<PartKey, string>> = Object.fromEntries(m.parts.map((p) => [p.key, p.text]));
             const meta = { source: { key: m.sourceKey, group: m.group, template: tpl.id } };
-            const sec = buildSectionFromTemplate(tpl, frame, texts, meta, m.title);
-            nextAdds.push(sec);
+            nextAdds.push(buildSectionFromTemplate(tpl, frame, texts, meta, m.title));
             continue;
           }
-
-          // Fallback: ignoriere unbekannte Gruppen
           continue;
         }
 
-        // Vorhanden → nur Parts updaten, die nicht gelockt sind
         for (const p of m.parts) {
           const local = prev.parts.find((x) => x.key === p.key);
           if (!local || local.lockText) continue;
@@ -104,7 +92,6 @@ export function useLiveSyncFromGenerator(debounceMs = 200) {
         }
       }
 
-      // Erstinitialisierung in einem Rutsch
       if (!elements.length && nextAdds.length) {
         setInitial(nextAdds);
       } else {
