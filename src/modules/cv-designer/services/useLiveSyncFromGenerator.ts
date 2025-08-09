@@ -31,6 +31,8 @@ const sectionKey = (e: SectionElement) => e.meta?.source?.key;
 export function useLiveSyncFromGenerator(debounceMs = 200) {
   const ll = useLebenslauf();
   const margins = useDesignerStore((s) => s.margins);
+  // ⏳ auf Persist-Rehydration warten, sonst werden neue Elemente überschrieben
+  const hydrated = useDesignerStore((s) => (s as any).hydrated ?? true);
 
   // alles, was die Layout-/Text-Sync-Reaktion beeinflusst, in die Signatur
   const sig = useMemo(
@@ -51,7 +53,7 @@ export function useLiveSyncFromGenerator(debounceMs = 200) {
   const timer = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!ll) return;
+    if (!ll || !hydrated) return;
     if (timer.current) window.clearTimeout(timer.current);
 
     timer.current = window.setTimeout(() => {
@@ -81,9 +83,7 @@ export function useLiveSyncFromGenerator(debounceMs = 200) {
       };
 
       const adds: Job[] = [];
-      let exp = 0,
-        edu = 0,
-        contactPlaced = false;
+      let exp = 0, edu = 0, contactPlaced = false;
 
       for (const m of mapped) {
         const texts = Object.fromEntries(
@@ -97,13 +97,7 @@ export function useLiveSyncFromGenerator(debounceMs = 200) {
             const tpl = Templates.contactRight;
             adds.push({
               tpl,
-              frame: computeFrameForRow(
-                "right",
-                0,
-                margins,
-                tpl.baseSize.width,
-                tpl.baseSize.height
-              ),
+              frame: computeFrameForRow("right", 0, margins, tpl.baseSize.width, tpl.baseSize.height),
               texts,
               meta: { source: { key: m.sourceKey, group: m.group, template: tpl.id } },
               title: m.title,
@@ -115,13 +109,7 @@ export function useLiveSyncFromGenerator(debounceMs = 200) {
             const tpl = Templates.experienceLeft;
             adds.push({
               tpl,
-              frame: computeFrameForRow(
-                "left",
-                exp++,
-                margins,
-                tpl.baseSize.width,
-                tpl.baseSize.height
-              ),
+              frame: computeFrameForRow("left", exp++, margins, tpl.baseSize.width, tpl.baseSize.height),
               texts,
               meta: { source: { key: m.sourceKey, group: m.group, template: tpl.id } },
               title: m.title,
@@ -132,13 +120,7 @@ export function useLiveSyncFromGenerator(debounceMs = 200) {
             const tpl = Templates.educationLeft;
             adds.push({
               tpl,
-              frame: computeFrameForRow(
-                "left",
-                edu++,
-                margins,
-                tpl.baseSize.width,
-                tpl.baseSize.height
-              ),
+              frame: computeFrameForRow("left", edu++, margins, tpl.baseSize.width, tpl.baseSize.height),
               texts,
               meta: { source: { key: m.sourceKey, group: m.group, template: tpl.id } },
               title: m.title,
@@ -159,8 +141,7 @@ export function useLiveSyncFromGenerator(debounceMs = 200) {
         }
       }
 
-      // WICHTIG: neue Sections als komplett gebaute Elemente einsetzen,
-      // damit parts[].text exakt erhalten bleibt
+      // WICHTIG: neue Sections als komplett gebaute Elemente einsetzen
       if (adds.length) {
         const newSecs = adds.map((a) =>
           buildSectionFromTemplate(a.tpl, a.frame, a.texts, a.meta, a.title)
@@ -178,5 +159,5 @@ export function useLiveSyncFromGenerator(debounceMs = 200) {
     return () => {
       if (timer.current) window.clearTimeout(timer.current);
     };
-  }, [sig]);
+  }, [sig, hydrated]);
 }
