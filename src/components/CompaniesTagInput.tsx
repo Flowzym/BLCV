@@ -2,7 +2,7 @@ import { useState } from 'react';
 import CompanyTag from './CompanyTag';
 import TagButtonFavorite from './ui/TagButtonFavorite';
 import AutocompleteInput from './AutocompleteInput';
-import { useLebenslauf } from '../context/LebenslaufContext';
+import { useLebenslauf } from './LebenslaufContext';
 
 interface CompaniesTagInputProps {
   value: string[];
