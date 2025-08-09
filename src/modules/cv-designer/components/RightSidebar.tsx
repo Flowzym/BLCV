@@ -1,5 +1,6 @@
 import React from "react";
 import { useDesignerStore } from "../store/designerStore";
+import PartTypographyPanel from "./PartTypographyPanel";
 
 const FALLBACK = { top: 36, right: 36, bottom: 36, left: 36 };
 
@@ -141,6 +142,13 @@ export default function RightSidebar() {
         <p className="text-xs text-gray-500 mt-2">
           Änderungen wirken sofort auf Textboxen im Canvas.
         </p>
+      </section>
+
+      <hr className="my-4" />
+
+      {/* Globale Feld-Typografie (wirkt auf alle Einträge eines Feldes der Gruppe) */}
+      <section>
+        <PartTypographyPanel />
       </section>
     </aside>
   );
