@@ -1,9 +1,13 @@
-import React, { useCallback } from "react";
+import React, { useCallback, useEffect } from "react";
 import { useDesignerStore } from "../store/designerStore";
 import { useLebenslauf } from "@/components/LebenslaufContext";
 import { buildSectionsFromLebenslauf, splitSectionByPage } from "../services/mapLebenslaufToSections";
 
 const A4_H = 842;
+
+function firstLineOf(text?: string) {
+  return (text || "").split("\n")[0]?.trim() || "";
+}
 
 export default function CanvasToolbar() {
   const addSection = useDesignerStore((s) => s.addSection);
@@ -19,34 +23,76 @@ export default function CanvasToolbar() {
   const margins = useDesignerStore((s) => s.margins);
   const fontSize = useDesignerStore((s) => s.tokens.fontSize);
   const lineHeight = useDesignerStore((s) => s.tokens.lineHeight);
+
   const appendSectionsAtEnd = useDesignerStore((s) => s.appendSectionsAtEnd);
+  const updateText = useDesignerStore((s) => s.updateText);
   const elements = useDesignerStore((s) => s.elements);
 
   const ll = useLebenslauf();
 
   const handleImportNow = useCallback(() => {
     if (!ll) { alert("Keine Lebenslaufdaten im Context gefunden."); return; }
+
     const base = buildSectionsFromLebenslauf(ll);
     if (!base.length) { alert("Im Lebenslauf sind derzeit keine importierbaren Daten."); return; }
+
     const split = base.flatMap((sec) =>
-      splitSectionByPage(sec, Number(fontSize) || 11, A4_H, { top: margins.top, bottom: margins.bottom }, Number(lineHeight) || 1.4)
+      splitSectionByPage(
+        sec,
+        Number(fontSize) || 11,
+        A4_H,
+        { top: margins.top, bottom: margins.bottom },
+        Number(lineHeight) || 1.4
+      )
     );
-    const haveTitles = new Set(
-      elements.filter((e) => e.kind === "section")
-        .map((e) => (e as any).text?.split("\n")[0]?.trim().toLowerCase())
-        .filter(Boolean)
-    );
-    const missing = split.filter((s) => !haveTitles.has((s.title || "").toLowerCase()));
-    if (!missing.length) { alert("Alle Sektionen sind bereits vorhanden – nichts zu importieren."); return; }
-    appendSectionsAtEnd(missing);
-  }, [ll, appendSectionsAtEnd, elements, fontSize, lineHeight, margins.top, margins.bottom]);
+
+    // Map bestehende Sections: title -> elementId
+    const byTitle = new Map<string, string>();
+    for (const el of elements) {
+      if (el.kind !== "section") continue;
+      const title = firstLineOf((el as any).text).toLowerCase();
+      if (title) byTitle.set(title, el.id);
+    }
+
+    const toAppend: Array<{ title?: string; content?: string }> = [];
+
+    for (const s of split) {
+      const title = (s.title || "").trim();
+      const id = byTitle.get(title.toLowerCase());
+      if (id) {
+        // UPDATE bestehende Section (nur Textinhalt)
+        const nextText = (title ? `${title}\n` : "") + (s.content || "");
+        updateText(id, nextText);
+      } else {
+        // APPEND neue Section
+        toAppend.push({ title, content: s.content || "" });
+      }
+    }
+
+    if (toAppend.length) appendSectionsAtEnd(toAppend);
+  }, [ll, elements, fontSize, lineHeight, margins.top, margins.bottom, updateText, appendSectionsAtEnd]);
 
   const handleDelete = useCallback(() => {
-    // Store-Selection löschen
-    deleteSelected();
-    // Fallback: aktive Canvas-Objekte (ohne __bl_id) entfernen
+    // 1) Immer erst Canvas-Fallback auslösen (löscht aktive Fabric-Objekte direkt)
     window.dispatchEvent(new Event("bl:delete-active"));
+    // 2) Dann Store-basierte Löschung (falls selectedIds noch gesetzt)
+    deleteSelected();
   }, [deleteSelected]);
+
+  // Globaler Hotkey: Entf/Backspace → Canvas-Löschung
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Delete" || e.key === "Backspace") {
+        e.preventDefault();
+        window.dispatchEvent(new Event("bl:delete-active"));
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
+        e.shiftKey ? redo() : undo();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [undo, redo]);
 
   return (
     <div className="flex items-center gap-2 px-2 py-2 border-b bg-white">
@@ -60,17 +106,20 @@ export default function CanvasToolbar() {
 
       <div className="mx-2 h-6 w-px bg-gray-200" />
 
-      <button className="px-2 py-1.5 border rounded" onClick={() => setZoom(Math.max(0.25, zoom - 0.1))}>−</button>
-      <span className="min-w-[48px] text-center">{Math.round(zoom * 100)}%</span>
-      <button className="px-2 py-1.5 border rounded" onClick={() => setZoom(Math.min(3, zoom + 0.1))}>+</button>
+      <button className="px-2 py-1.5 border rounded" onClick={() => setZoom(zoom - 0.1)}>-</button>
+      <span className="w-14 text-center">{Math.round((zoom || 1) * 100)}%</span>
+      <button className="px-2 py-1.5 border rounded" onClick={() => setZoom(zoom + 0.1)}>+</button>
       <button className="px-2 py-1.5 border rounded" onClick={() => setZoom(1)}>Reset</button>
 
-      <div className="mx-2 h-6 w-px bg-gray-200" />
-
-      <label className="text-sm flex items-center gap-2">
+      <label className="ml-2 text-sm text-gray-600">
         Snap:
-        <input type="number" className="w-16 border rounded px-1 py-0.5" value={snap} min={1}
-               onChange={(e) => setSnap(Number(e.target.value || 1))}/>
+        <input
+          type="number"
+          className="w-16 border rounded px-1 py-0.5 ml-1"
+          value={snap}
+          min={1}
+          onChange={(e) => setSnap(Number(e.target.value || 1))}
+        />
         px
       </label>
 
@@ -82,7 +131,7 @@ export default function CanvasToolbar() {
 
       <div className="mx-2 h-6 w-px bg-gray-200" />
 
-      <button className="px-2 py-1.5 border rounded" onClick={handleImportNow} title="Rohdaten importieren (append)">
+      <button className="px-2 py-1.5 border rounded" onClick={handleImportNow} title="Rohdaten importieren (update/append)">
         Re-Import aus Generator
       </button>
     </div>
