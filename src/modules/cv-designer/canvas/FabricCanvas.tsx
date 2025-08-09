@@ -31,7 +31,7 @@ export default function FabricCanvas() {
       const el = canvasRef.current;
       if (!el) return;
 
-      // Reuse, falls bereits eine Fabric-Instanz am Element hängt
+      // Reuse vorhandener Instanz (StrictMode-Schutz)
       let c: any = (el as any).__fabricCanvas;
       if (!c) {
         c = new fabric.Canvas(el, {
@@ -39,19 +39,18 @@ export default function FabricCanvas() {
           selection: true,
           backgroundColor: "#ffffff",
         });
-        (el as any).__fabricCanvas = c; // am DOM merken
+        (el as any).__fabricCanvas = c;
       }
       fCanvas.current = c;
 
-      // Grundkonfiguration jedes Mal setzen (auch bei Reuse)
       c.setWidth(PAGE_W);
       c.setHeight(PAGE_H);
       c.setZoom(zoom);
 
-      // Overlay anlegen, falls noch nicht vorhanden
+      // Overlay nur anlegen, falls noch nicht vorhanden
       ensureOverlay(c, fabric, margins);
 
-      // Events einmalig registrieren (idempotent)
+      // Events einmalig binden
       if (!(c as any).__bl_eventsBound) {
         (c as any).__bl_eventsBound = true;
 
@@ -83,12 +82,7 @@ export default function FabricCanvas() {
         c.on("object:modified", (e: any) => {
           const o = e.target;
           if (!o || !o.__bl_id) return;
-          updateFrame(o.__bl_id, {
-            x: o.left,
-            y: o.top,
-            width: o.width,
-            height: o.height,
-          });
+          updateFrame(o.__bl_id, { x: o.left, y: o.top, width: o.width, height: o.height });
         });
 
         c.on("mouse:dblclick", (e: any) => {
@@ -114,8 +108,7 @@ export default function FabricCanvas() {
 
     return () => {
       disposed = true;
-      // NICHT c.dispose(), um StrictMode-Doppelmounts abzufangen.
-      // Wir recyceln die Instanz bewusst; Cleanup: Cache nur leeren.
+      // nicht dispose() – wir recyceln die Instanz
       fCanvas.current = null;
       fabricNs.current = null;
       objectsById.current.clear();
@@ -129,7 +122,7 @@ export default function FabricCanvas() {
     reconcileCanvas(fCanvas.current, fabricNs.current, elements, objectsById.current);
   }, [elements]);
 
-  // margins → Overlay
+  // margins → Overlay anpassen
   useEffect(() => {
     const c = fCanvas.current;
     if (!c) return;
@@ -181,7 +174,11 @@ export default function FabricCanvas() {
   );
 }
 
-function ensureOverlay(c: any, fabric: any, margins: { top: number; right: number; bottom: number; left: number }) {
+function ensureOverlay(
+  c: any,
+  fabric: any,
+  margins: { top: number; right: number; bottom: number; left: number }
+) {
   const objs = c.getObjects() as any[];
   const hasBg = objs.some((o) => o.__is_bg);
   const hasMR = objs.some((o) => o.__is_marginRect);
@@ -198,7 +195,7 @@ function ensureOverlay(c: any, fabric: any, margins: { top: number; right: numbe
       hoverCursor: "default",
     });
     (bg as any).__is_bg = true;
-    c.add(bg);
+    c.add(bg); // zuerst → bleibt unten
   }
 
   if (!hasMR) {
@@ -215,15 +212,9 @@ function ensureOverlay(c: any, fabric: any, margins: { top: number; right: numbe
       strokeUniform: true,
     });
     (marginRect as any).__is_marginRect = true;
-    c.add(marginRect);
+    c.add(marginRect); // direkt über dem BG
   }
 
-  // sicherstellen, dass Overlay unten liegt
-  const all = c.getObjects();
-  const bgIdx = all.findIndex((o: any) => o.__is_bg);
-  const mrIdx = all.findIndex((o: any) => o.__is_marginRect);
-  if (bgIdx > -1) c.sendToBack(all[bgIdx]);
-  if (mrIdx > -1) c.sendBackwards(all[mrIdx]); // direkt über dem BG
   c.requestRenderAll();
 }
 
@@ -262,7 +253,7 @@ function reconcileCanvas(
         });
       }
       obj.__bl_id = el.id;
-      c.add(obj);
+      c.add(obj); // kommt automatisch über das Overlay
       map.set(el.id, obj);
     }
     obj.set({
@@ -276,19 +267,13 @@ function reconcileCanvas(
     }
   }
 
+  // Entferne gelöschte
   for (const [id, obj] of Array.from(map.entries())) {
     if (!existingIds.has(id)) {
       c.remove(obj);
       map.delete(id);
     }
   }
-
-  // Overlay wieder nach hinten
-  const all = c.getObjects() as any[];
-  const bg = all.find((o) => o.__is_bg);
-  const mr = all.find((o) => o.__is_marginRect);
-  if (bg) c.sendToBack(bg);
-  if (mr) c.sendBackwards(mr);
 
   c.requestRenderAll();
 }
