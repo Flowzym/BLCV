@@ -147,6 +147,460 @@ export default function CustomToolbar(props: CustomToolbarProps) {
   );
 
   // --- colorSuggestions + allButtons: belasse deinen bisherigen Code ---
+// ⬇️ Direkt UNTER colorSuggestions einfügen
+const allButtons: ToolbarButton[] = useMemo(() => [
+  // 1–10: History & Basics
+  {
+    id: 'undo',
+    priority: 1,
+    group: 'history',
+    handler: onUndo,
+    element: (
+      <button key="undo" onClick={onUndo}
+        className="p-2 text-gray-600 hover:text-orange-600 hover:bg-orange-50 rounded-md transition-colors duration-200"
+        title="Rückgängig (Strg+Z)">
+        <UndoIcon />
+      </button>
+    )
+  },
+  {
+    id: 'redo',
+    priority: 2,
+    group: 'history',
+    handler: onRedo,
+    element: (
+      <button key="redo" onClick={onRedo}
+        className="p-2 text-gray-600 hover:text-orange-600 hover:bg-orange-50 rounded-md transition-colors duration-200"
+        title="Wiederholen (Strg+Y)">
+        <RedoIcon />
+      </button>
+    )
+  },
+  {
+    id: 'bold',
+    priority: 3,
+    group: 'format',
+    handler: handleBold,
+    element: (
+      <button key="bold" onClick={handleBold}
+        className={getButtonClassName('bold', "p-2 text-gray-600 hover:text-orange-600 hover:bg-orange-50 rounded-md transition-colors duration-200")}
+        title="Fett (Strg+B)" style={getButtonIconStyle('bold')}>
+        <BoldIcon />
+      </button>
+    )
+  },
+  {
+    id: 'italic',
+    priority: 4,
+    group: 'format',
+    handler: handleItalic,
+    element: (
+      <button key="italic" onClick={handleItalic}
+        className={getButtonClassName('italic', "p-2 text-gray-600 hover:text-orange-600 hover:bg-orange-50 rounded-md transition-colors duration-200")}
+        title="Kursiv (Strg+I)" style={getButtonIconStyle('italic')}>
+        <ItalicIcon />
+      </button>
+    )
+  },
+  {
+    id: 'underline',
+    priority: 5,
+    group: 'format',
+    handler: handleUnderline,
+    element: (
+      <button key="underline" onClick={handleUnderline}
+        className={getButtonClassName('underline', "p-2 text-gray-600 hover:text-orange-600 hover:bg-orange-50 rounded-md transition-colors duration-200")}
+        title="Unterstrichen (Strg+U)" style={getButtonIconStyle('underline')}>
+        <UnderlineIcon />
+      </button>
+    )
+  },
+  // 11–20: Styles & Colors
+  {
+    id: 'header',
+    priority: 11,
+    group: 'style',
+    handler: () => {},
+    element: (
+      <select key="header" onChange={(e) => handleHeader(e.target.value)}
+        className="px-2 py-1 border-0 rounded text-xs focus:outline-none focus:ring-1 focus:ring-orange-500 bg-white"
+        title="Überschrift" defaultValue="">
+        <option value="">Normal</option>
+        <option value="1">H1</option>
+        <option value="2">H2</option>
+        <option value="3">H3</option>
+      </select>
+    )
+  },
+  {
+    id: 'font',
+    priority: 12,
+    group: 'style',
+    handler: () => {},
+    element: (
+      <select key="font" onChange={(e) => handleFont(e.target.value)}
+        className="px-2 py-1 border-0 rounded text-xs focus:outline-none focus:ring-1 focus:ring-orange-500 bg-white"
+        title="Schriftart" defaultValue="">
+        <option value="">Roboto</option>
+        <option value="serif">Times New Roman</option>
+        <option value="monospace">Courier New</option>
+        <option value="Arial">Arial</option>
+        <option value="Helvetica">Helvetica</option>
+        <option value="Georgia">Georgia</option>
+        <option value="Verdana">Verdana</option>
+        <option value="Tahoma">Tahoma</option>
+      </select>
+    )
+  },
+  {
+    id: 'size',
+    priority: 13,
+    group: 'style',
+    handler: () => {},
+    element: (
+      <select key="size" onChange={(e) => handleSize(e.target.value)}
+        className="px-2 py-1 border-0 rounded text-xs focus:outline-none focus:ring-1 focus:ring-orange-500 bg-white"
+        title="Schriftgröße" defaultValue="">
+        <option value="9px">9 pt</option><option value="10px">10 pt</option>
+        <option value="11px">11 pt</option><option value="12px">12 pt</option>
+        <option value="">14 pt</option><option value="16px">16 pt</option>
+        <option value="18px">18 pt</option><option value="20px">20 pt</option>
+        <option value="22px">22 pt</option><option value="24px">24 pt</option>
+      </select>
+    )
+  },
+  {
+    id: 'color',
+    priority: 14,
+    group: 'color',
+    handler: () => {},
+    element: (
+      <div key="color" className="relative group">
+        <div className="w-7 h-7 border border-gray-300 rounded cursor-pointer flex items-center justify-center"
+             title="Textfarbe" style={{ backgroundColor: currentTextColor }}>
+          <div className="w-4 h-4 rounded-full border border-white" style={{ backgroundColor: currentTextColor }}/>
+        </div>
+        <div className="absolute top-full left-0 mt-1 bg-white border rounded-md shadow-lg p-2 hidden group-hover:block z-50">
+          <div className="grid grid-cols-6 gap-1 mb-2">
+            {colorSuggestions.map(c => (
+              <button key={c} onClick={() => handleColor(c)}
+                className="w-6 h-6 rounded border border-gray-300 hover:scale-110 transition-transform"
+                style={{ backgroundColor: c }} title={c}/>
+            ))}
+          </div>
+          <input type="color" value={currentTextColor} onChange={(e)=>handleColor(e.target.value)}
+                 className="w-full h-8 border border-gray-300 rounded cursor-pointer" title="Benutzerdefinierte Farbe"/>
+        </div>
+      </div>
+    )
+  },
+  {
+    id: 'background',
+    priority: 15,
+    group: 'color',
+    handler: () => {},
+    element: (
+      <div key="background" className="relative group">
+        <div className="w-7 h-7 border border-gray-300 rounded cursor-pointer flex items-center justify-center" title="Hintergrundfarbe">
+          <div className="w-4 h-4 rounded border border-gray-300" style={{ backgroundColor: currentBackgroundColor }}/>
+        </div>
+        <div className="absolute top-full left-0 mt-1 bg-white border rounded-md shadow-lg p-2 hidden group-hover:block z-50">
+          <div className="grid grid-cols-6 gap-1 mb-2">
+            {colorSuggestions.map(c => (
+              <button key={c} onClick={() => handleBackground(c)}
+                className="w-6 h-6 rounded border border-gray-300 hover:scale-110 transition-transform"
+                style={{ backgroundColor: c }} title={c}/>
+            ))}
+          </div>
+          <input type="color" value={currentBackgroundColor} onChange={(e)=>handleBackground(e.target.value)}
+                 className="w-full h-8 border border-gray-300 rounded cursor-pointer" title="Benutzerdefinierte Hintergrundfarbe"/>
+        </div>
+      </div>
+    )
+  },
+  {
+    id: 'strike',
+    priority: 16,
+    group: 'format',
+    handler: handleStrike,
+    element: (
+      <button key="strike" onClick={handleStrike}
+        className={getButtonClassName('strike', "p-2 text-gray-600 hover:text-orange-600 hover:bg-orange-50 rounded-md transition-colors duration-200")}
+        title="Durchgestrichen" style={getButtonIconStyle('strike')}>
+        <StrikeIcon />
+      </button>
+    )
+  },
+  {
+    id: 'line-height',
+    priority: 17,
+    group: 'style',
+    handler: () => {},
+    element: (
+      <div key="line-height" className="relative group">
+        <button className="p-2 text-gray-600 hover:text-orange-600 hover:bg-orange-50 rounded-md transition-colors duration-200" title="Zeilenabstand">
+          <LineHeightIcon />
+        </button>
+        <div className="absolute top-full left-0 mt-1 bg-white border rounded-md shadow-lg hidden group-hover:block z-50">
+          <button onClick={() => handleLineHeight('1')} className="block w-full px-3 py-1 text-left hover:bg-gray-100 text-sm">1.0</button>
+          <button onClick={() => handleLineHeight('1.15')} className="block w-full px-3 py-1 text-left hover:bg-gray-100 text-sm">1.15</button>
+          <button onClick={() => handleLineHeight('1.5')} className="block w-full px-3 py-1 text-left hover:bg-gray-100 text-sm">1.5</button>
+          <button onClick={() => handleLineHeight('2')} className="block w-full px-3 py-1 text-left hover:bg-gray-100 text-sm">2.0</button>
+        </div>
+      </div>
+    )
+  },
+
+  // 21–30: Listen & Ausrichtung
+  {
+    id: 'list-ordered',
+    priority: 21,
+    group: 'list',
+    handler: () => handleList('ordered'),
+    element: (
+      <button key="list-ordered" onClick={() => handleList('ordered')}
+        className={getButtonClassName('list-ordered', "p-2 text-gray-600 hover:text-orange-600 hover:bg-orange-50 rounded-md transition-colors duration-200")}
+        title="Nummerierte Liste" style={getButtonIconStyle('list-ordered')}>
+        <ListOrderedIcon />
+      </button>
+    )
+  },
+  {
+    id: 'list-bullet',
+    priority: 22,
+    group: 'list',
+    handler: () => handleList('bullet'),
+    element: (
+      <button key="list-bullet" onClick={() => handleList('bullet')}
+        className={getButtonClassName('list-bullet', "p-2 text-gray-600 hover:text-orange-600 hover:bg-orange-50 rounded-md transition-colors duration-200")}
+        title="Aufzählungsliste" style={getButtonIconStyle('list-bullet')}>
+        <ListBulletIcon />
+      </button>
+    )
+  },
+  {
+    id: 'indent-decrease',
+    priority: 23,
+    group: 'indent',
+    handler: () => handleIndent('-1'),
+    element: (
+      <button key="indent-decrease" onClick={() => handleIndent('-1')}
+        className="p-2 text-gray-600 hover:text-orange-600 hover:bg-orange-50 rounded-md transition-colors duration-200"
+        title="Einzug verringern">
+        <IndentDecreaseIcon />
+      </button>
+    )
+  },
+  {
+    id: 'indent-increase',
+    priority: 24,
+    group: 'indent',
+    handler: () => handleIndent('+1'),
+    element: (
+      <button key="indent-increase" onClick={() => handleIndent('+1')}
+        className="p-2 text-gray-600 hover:text-orange-600 hover:bg-orange-50 rounded-md transition-colors duration-200"
+        title="Einzug erhöhen">
+        <IndentIncreaseIcon />
+      </button>
+    )
+  },
+  {
+    id: 'align-left',
+    priority: 25,
+    group: 'align',
+    handler: () => handleAlign(''),
+    element: (
+      <button key="align-left" onClick={() => handleAlign('')}
+        className={getButtonClassName('align-left', "p-2 text-gray-600 hover:text-orange-600 hover:bg-orange-50 rounded-md transition-colors duration-200")}
+        title="Linksbündig" style={getButtonIconStyle('align-left')}>
+        <AlignLeftIcon />
+      </button>
+    )
+  },
+  {
+    id: 'align-center',
+    priority: 26,
+    group: 'align',
+    handler: () => handleAlign('center'),
+    element: (
+      <button key="align-center" onClick={() => handleAlign('center')}
+        className={getButtonClassName('align-center', "p-2 text-gray-600 hover:text-orange-600 hover:bg-orange-50 rounded-md transition-colors duration-200")}
+        title="Zentriert" style={getButtonIconStyle('align-center')}>
+        <AlignCenterIcon />
+      </button>
+    )
+  },
+  {
+    id: 'align-right',
+    priority: 27,
+    group: 'align',
+    handler: () => handleAlign('right'),
+    element: (
+      <button key="align-right" onClick={() => handleAlign('right')}
+        className={getButtonClassName('align-right', "p-2 text-gray-600 hover:text-orange-600 hover:bg-orange-50 rounded-md transition-colors duration-200")}
+        title="Rechtsbündig" style={getButtonIconStyle('align-right')}>
+        <AlignRightIcon />
+      </button>
+    )
+  },
+  {
+    id: 'align-justify',
+    priority: 28,
+    group: 'align',
+    handler: () => handleAlign('justify'),
+    element: (
+      <button key="align-justify" onClick={() => handleAlign('justify')}
+        className={getButtonClassName('align-justify', "p-2 text-gray-600 hover:text-orange-600 hover:bg-orange-50 rounded-md transition-colors duration-200")}
+        title="Blocksatz" style={getButtonIconStyle('align-justify')}>
+        <AlignJustifyIcon />
+      </button>
+    )
+  },
+
+  // 31–40: Specials & Tools
+  {
+    id: 'link',
+    priority: 31,
+    group: 'special',
+    handler: handleLink,
+    element: (
+      <button key="link" onClick={handleLink}
+        className={getButtonClassName('link', "p-2 text-gray-600 hover:text-orange-600 hover:bg-orange-50 rounded-md transition-colors duration-200")}
+        title="Link einfügen" style={getButtonIconStyle('link')}>
+        <LinkIcon />
+      </button>
+    )
+  },
+  {
+    id: 'blockquote',
+    priority: 32,
+    group: 'special',
+    handler: handleBlockquote,
+    element: (
+      <button key="blockquote" onClick={handleBlockquote}
+        className={getButtonClassName('blockquote', "p-2 text-gray-600 hover:text-orange-600 hover:bg-orange-50 rounded-md transition-colors duration-200")}
+        title="Zitat" style={getButtonIconStyle('blockquote')}>
+        <QuoteIcon />
+      </button>
+    )
+  },
+  {
+    id: 'clean',
+    priority: 33,
+    group: 'special',
+    handler: handleClean,
+    element: (
+      <button key="clean" onClick={handleClean}
+        className="p-2 text-gray-600 hover:text-orange-600 hover:bg-orange-50 rounded-md transition-colors duration-200"
+        title="Formatierung entfernen">
+        <CleanIcon />
+      </button>
+    )
+  },
+  {
+    id: 'export',
+    priority: 34,
+    group: 'tools',
+    handler: () => {},
+    element: (
+      <div key="export" className="relative group">
+        <button className="p-2 text-gray-600 hover:text-orange-600 hover:bg-orange-50 rounded-md transition-colors duration-200" title="Exportieren">
+          <ExportIcon />
+        </button>
+        <div className="absolute top-full left-0 mt-1 bg-white border rounded-md shadow-lg hidden group-hover:block z-50">
+          <button onClick={onPrint} className="block w-full px-3 py-1 text-left hover:bg-gray-100 text-sm">PDF drucken</button>
+          <button onClick={() => {}} className="block w-full px-3 py-1 text-left hover:bg-gray-100 text-sm">DOCX</button>
+          <button onClick={() => {}} className="block w-full px-3 py-1 text-left hover:bg-gray-100 text-sm">TXT</button>
+        </div>
+      </div>
+    )
+  },
+  {
+    id: 'select-all',
+    priority: 35,
+    group: 'clipboard',
+    handler: onSelectAll,
+    element: (
+      <button key="select-all" onClick={onSelectAll}
+        className="p-2 text-gray-600 hover:text-orange-600 hover:bg-orange-50 rounded-md transition-colors duration-200"
+        title="Alles auswählen (Strg+A)">
+        <SelectAllIcon />
+      </button>
+    )
+  },
+  {
+    id: 'copy',
+    priority: 36,
+    group: 'clipboard',
+    handler: onCopy,
+    element: (
+      <button key="copy" onClick={onCopy}
+        className="p-2 text-gray-600 hover:text-orange-600 hover:bg-orange-50 rounded-md transition-colors duration-200"
+        title="Kopieren (Strg+C)">
+        <CopyIcon />
+      </button>
+    )
+  },
+  {
+    id: 'paste',
+    priority: 37,
+    group: 'clipboard',
+    handler: onPaste,
+    element: (
+      <button key="paste" onClick={onPaste}
+        className="p-2 text-gray-600 hover:text-orange-600 hover:bg-orange-50 rounded-md transition-colors duration-200"
+        title="Einfügen (Strg+V)">
+        <PasteIcon />
+      </button>
+    )
+  },
+  {
+    id: 'print',
+    priority: 38,
+    group: 'clipboard',
+    handler: onPrint,
+    element: (
+      <button key="print" onClick={onPrint}
+        className="p-2 text-gray-600 hover:text-orange-600 hover:bg-orange-50 rounded-md transition-colors duration-200"
+        title="Drucken (Strg+P)">
+        <PrintIcon />
+      </button>
+    )
+  },
+  {
+    id: 'templates',
+    priority: 39,
+    group: 'tools',
+    handler: onTemplates,
+    element: (
+      <button key="templates" onClick={onTemplates}
+        className="p-2 text-gray-600 hover:text-orange-600 hover:bg-orange-50 rounded-md transition-colors duration-200"
+        title="Vorlagen verwalten">
+        <TemplatesIcon />
+      </button>
+    )
+  },
+  {
+    id: 'settings',
+    priority: 40,
+    group: 'tools',
+    handler: onSettings,
+    element: (
+      <button key="settings" onClick={onSettings}
+        className="p-2 text-gray-600 hover:text-orange-600 hover:bg-orange-50 rounded-md transition-colors duration-200"
+        title="Editor-Einstellungen">
+        <SettingsIcon />
+      </button>
+    )
+  },
+], [
+  onUndo, onRedo, handleBold, handleItalic, handleUnderline, handleStrike,
+  handleHeader, handleFont, handleSize, handleColor, handleBackground,
+  handleList, handleIndent, handleAlign, handleLink, handleBlockquote,
+  handleClean, onSelectAll, onCopy, onPaste, onPrint, onTemplates, onSettings,
+  getButtonClassName, getButtonIconStyle, currentTextColor, currentBackgroundColor,
+  handleLineHeight, colorSuggestions
+]);
 
   // … deinen kompletten allButtons-Block hier einfügen (unverändert) …
 
