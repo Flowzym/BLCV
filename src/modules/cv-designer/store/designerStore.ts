@@ -1,4 +1,3 @@
-// src/modules/cv-designer/store/designerStore.ts
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
@@ -45,7 +44,11 @@ type DesignerState = {
   addPhoto(partial?: Partial<CanvasElement>): void;
   updateText(id: string, text: string): void;
   updateFrame(id: string, frame: Partial<Frame>): void;
+  /** löscht die im Store selektierten Elemente */
   deleteSelected(): void;
+  /** neu: löscht exakt die übergebenen IDs (wird vom Canvas aufgerufen) */
+  deleteByIds(ids: string[]): void;
+
   select(ids: string[]): void;
   setMargins(m: Partial<Margins>): void;
   setSnapSize(n: number): void;
@@ -53,7 +56,6 @@ type DesignerState = {
   setTokens(partial: Partial<StyleTokens>): void;
 
   setInitialElementsFromSections(sections: Array<{ title?: string; content?: string }>): void;
-  /** Neu: fehlende Sections unten anhängen, bestehendes Layout bleibt erhalten. */
   appendSectionsAtEnd(sections: Array<{ title?: string; content?: string }>): void;
 
   undo(): void;
@@ -94,8 +96,7 @@ function uid(prefix = "el"): string {
 }
 function arrEq(a: string[], b: string[]) {
   if (a === b) return true;
-  if (!a || !b) return false;
-  if (a.length !== b.length) return false;
+  if (!a || !b || a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
   return true;
 }
@@ -177,6 +178,18 @@ export const useDesignerStore = create<DesignerState>()(
         });
       },
 
+      /** robust: direkte ID-Löschung (vom Canvas aufgerufen) */
+      deleteByIds(ids) {
+        const list = Array.isArray(ids) ? ids.filter(Boolean) : [];
+        if (!list.length) return;
+        set((s) => {
+          const toDelete = new Set(list);
+          const next = { ...s, elements: s.elements.filter((e) => !toDelete.has(e.id)), selectedIds: [] };
+          const u = s.undoStack.concat(snapshot(s)).slice(-HISTORY_LIMIT);
+          return { ...next, undoStack: u, redoStack: [] };
+        });
+      },
+
       select(ids) {
         set((s) => (arrEq(s.selectedIds, ids) ? s : { ...s, selectedIds: [...ids] }));
       },
@@ -217,8 +230,8 @@ export const useDesignerStore = create<DesignerState>()(
           const top = s.margins.top;
           const contentW = PAGE_W - left - right;
 
-          const fs = Number(s.tokens.fontSize) > 0 ? Number(s.tokens.fontSize) : 11;
-          const lh = Number(s.tokens.lineHeight) > 0 ? Number(s.tokens.lineHeight) : 1.4;
+          const fs = Number(s.tokens.fontSize) || 11;
+          const lh = Number(s.tokens.lineHeight) || 1.4;
           const lineCost = Math.ceil(fs * lh);
           const titleCost = Math.ceil(fs * 1.6);
           const spacing = Math.max(6, Math.round(s.tokens.sectionSpacing));
@@ -259,16 +272,14 @@ export const useDesignerStore = create<DesignerState>()(
           const right = s.margins.right;
           const contentW = PAGE_W - left - right;
 
-          const fs = Number(s.tokens.fontSize) > 0 ? Number(s.tokens.fontSize) : 11;
-          const lh = Number(s.tokens.lineHeight) > 0 ? Number(s.tokens.lineHeight) : 1.4;
+          const fs = Number(s.tokens.fontSize) || 11;
+          const lh = Number(s.tokens.lineHeight) || 1.4;
           const lineCost = Math.ceil(fs * lh);
           const titleCost = Math.ceil(fs * 1.6);
           const spacing = Math.max(6, Math.round(s.tokens.sectionSpacing));
 
-          // unterstes Y finden
-          const maxBottom =
-            s.elements.reduce((y, e) => Math.max(y, e.frame.y), s.margins.top) + lineCost + spacing;
-          let cursorY = Math.max(maxBottom, s.margins.top);
+          const maxY = s.elements.reduce((acc, e) => Math.max(acc, e.frame.y), s.margins.top);
+          let cursorY = maxY + lineCost + spacing;
 
           const appended: CanvasElement[] = [];
           for (const sec of sections) {
