@@ -1,56 +1,41 @@
-import { saveAs } from "file-saver";
-import type { Section } from "@/types/section";
-import type { StyleConfig } from "@/modules/cv-designer/types/styles";
+// Single-Source Export Registry for Better_Letter (Designer + weitere Module)
+export type ExportType = "pdf" | "docx";
 
-const DEFAULT_STYLE = { fontFamily: 'Inter', fontSize: 12, colorPrimary: '#111827', spacing: 8 } as const;
+export type ExportContext = {
+  // Eine der beiden Quellen (Designer nutzt meist elements)
+  elements?: any[];     // Canvas-/Designer-Elemente
+  sections?: any[];     // Generische CV-Sections
+  tokens?: any;         // Style-/Design-Tokens (Schriften, Margins etc.)
+  fileName?: string;    // gewünschter Dateiname (ohne Extension)
+};
 
-export interface ExportContext {
-  sections: Section[];
-  style: StyleConfig;
+export type ExportStrategy = (ctx: ExportContext) => Promise<Blob>;
+
+const registry = new Map<ExportType, ExportStrategy>();
+
+export function registerExportStrategy(type: ExportType, fn: ExportStrategy) {
+  registry.set(type, fn);
 }
 
-export interface ExportHooks {
-  onStart?: () => void;
-  onProgress?: (p: number) => void; // 0..100
-  onSuccess?: (blob: Blob) => void;
-  onError?: (err: any) => void;
+export function unregisterExportStrategy(type: ExportType) {
+  registry.delete(type);
 }
 
-export interface ExportStrategy {
-  id: string;
-  supports(type: "pdf" | "docx"): boolean;
-  render(ctx: ExportContext, type: "pdf" | "docx", hooks?: ExportHooks): Promise<Blob>;
+export function getAvailableExportTypes(): ExportType[] {
+  return Array.from(registry.keys());
 }
 
-const registry: ExportStrategy[] = [];
-
-export function registerExportStrategy(strategy: ExportStrategy) {
-  if (!registry.find((s) => s.id === strategy.id)) registry.push(strategy);
-}
-
-export async function exportDocument(
-  origin: "wizard" | "designer",
-  type: "pdf" | "docx",
-  ctx: ExportContext,
-  hooks?: ExportHooks
-) {
-  const strat =
-    registry.find((s) => s.id === origin && s.supports(type)) ||
-    registry.find((s) => s.supports(type));
+export async function runExport(type: ExportType, ctx: ExportContext): Promise<Blob> {
+  const strat = registry.get(type);
   if (!strat) {
-    hooks?.onError?.(new Error(`No export strategy for ${origin} with ${type}`));
-    throw new Error(`No export strategy for ${origin} with ${type}`);
+    throw new Error(`No export strategy registered for type "${type}"`);
   }
-  try {
-    hooks?.onStart?.();
-    hooks?.onProgress?.(10);
-    const blob = await strat.render(ctx, type, hooks);
-    hooks?.onProgress?.(100);
-    hooks?.onSuccess?.(blob);
-    saveAs(blob, `Better_Letter_${origin}.${type}`);
-    return blob;
-  } catch (e) {
-    hooks?.onError?.(e);
-    throw e;
-  }
+  // Minimaler Guard: nichts Crashen lassen
+  const safeCtx: ExportContext = {
+    elements: ctx.elements ?? [],
+    sections: ctx.sections ?? [],
+    tokens: ctx.tokens ?? {},
+    fileName: (ctx.fileName || "export").replace(/\.(pdf|docx)$/i, "")
+  };
+  return strat(safeCtx);
 }
