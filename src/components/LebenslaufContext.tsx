@@ -8,6 +8,7 @@ interface PersonalData {
   skillsSummary?: string; // Aggregated skills from ProfileInput
   softSkillsSummary?: string; // Aggregated soft skills from ProfileInput
   taetigkeitenSummary?: string; // Aggregated tätigkeiten from ProfileInput
+  taetigkeitenSummary?: string; // Aggregated tätigkeiten from ProfileInput
 }
 
 interface Experience {
@@ -23,6 +24,7 @@ interface Experience {
   zusatzangaben: string;
   leasingCompaniesList?: string[];
   source?: 'manual' | 'profile'; // Track data source for non-destructive updates
+  source?: 'manual' | 'profile'; // Track data source for non-destructive updates
 }
 
 interface Education {
@@ -36,6 +38,7 @@ interface Education {
   endYear: string | null;
   isCurrent: boolean;
   zusatzangaben: string;
+  source?: 'manual' | 'profile'; // Track data source for non-destructive updates
   source?: 'manual' | 'profile'; // Track data source for non-destructive updates
 }
 
