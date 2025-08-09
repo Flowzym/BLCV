@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from "react";
 import { useDesignerStore, CanvasElement } from "../store/designerStore";
 import getFabric from "@/lib/fabric-shim";
 
-const PAGE_W = 595; // A4 @72dpi
+const PAGE_W = 595;
 const PAGE_H = 842;
 
 export default function FabricCanvas() {
@@ -17,7 +17,7 @@ export default function FabricCanvas() {
   const margins = useDesignerStore((s) => s.margins);
   const snapSize = useDesignerStore((s) => s.snapSize);
   const zoom = useDesignerStore((s) => s.zoom);
-  const tokens = useDesignerStore((s) => s.tokens); // ⬅️ neu: Styles aus Tokens
+  const tokens = useDesignerStore((s) => s.tokens);
 
   const updateFrame = useDesignerStore((s) => s.updateFrame);
   const updateText = useDesignerStore((s) => s.updateText);
@@ -30,7 +30,7 @@ export default function FabricCanvas() {
     return true;
   };
 
-  // Init/Re-use
+  // Init
   useEffect(() => {
     (async () => {
       const fabric = await getFabric();
@@ -45,6 +45,7 @@ export default function FabricCanvas() {
         (el as any).__fabricCanvas = c;
       }
       fCanvas.current = c;
+      (window as any).__bl_fcanvas = c; // debug
 
       c.setWidth(PAGE_W);
       c.setHeight(PAGE_H);
@@ -58,16 +59,16 @@ export default function FabricCanvas() {
         c.on("selection:created", () => {
           if (syncingRef.current) return;
           const ids = (c.getActiveObjects() || []).map((o: any) => o.__bl_id).filter(Boolean);
-          if (!arrEq(selectedIds, ids)) select(ids);
+          select(ids);
         });
         c.on("selection:updated", () => {
           if (syncingRef.current) return;
           const ids = (c.getActiveObjects() || []).map((o: any) => o.__bl_id).filter(Boolean);
-          if (!arrEq(selectedIds, ids)) select(ids);
+          select(ids);
         });
         c.on("selection:cleared", () => {
           if (syncingRef.current) return;
-          if (selectedIds.length) select([]);
+          select([]);
         });
 
         c.on("object:moving", (e: any) => {
@@ -90,7 +91,6 @@ export default function FabricCanvas() {
           if (!o || !o.__bl_id) return;
           updateFrame(o.__bl_id, { x: o.left, y: o.top, width: o.width, height: o.height });
         });
-
         c.on("mouse:dblclick", (e: any) => {
           const t = e.target;
           if (t && t.type === "textbox" && typeof (t as any).enterEditing === "function") {
@@ -102,13 +102,26 @@ export default function FabricCanvas() {
           const t = e.target;
           if (t && t.__bl_id && typeof t.text === "string") updateText(t.__bl_id, t.text);
         });
+
+        // ← robustes Löschen über aktives Objekt (falls Store-Selection aus irgendeinem Grund leer ist)
+        const onDeleteActive = () => {
+          const ids = (c.getActiveObjects() || []).map((o: any) => o.__bl_id).filter(Boolean);
+          if (ids.length) {
+            useDesignerStore.getState().deleteByIds(ids);
+          }
+        };
+        (c as any).__bl_onDeleteActive = onDeleteActive;
+        window.addEventListener("bl:delete-active", onDeleteActive);
       }
 
-      // erstes Sync
       reconcileCanvas(c, fabric, elements, tokens, objectsById.current);
     })();
 
     return () => {
+      const c = fCanvas.current;
+      if (c?.__bl_onDeleteActive) {
+        window.removeEventListener("bl:delete-active", c.__bl_onDeleteActive);
+      }
       fCanvas.current = null;
       fabricNs.current = null;
       objectsById.current.clear();
@@ -116,13 +129,13 @@ export default function FabricCanvas() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // elements → Canvas
+  // elements/tokens → Canvas
   useEffect(() => {
     if (!fCanvas.current || !fabricNs.current) return;
     reconcileCanvas(fCanvas.current, fabricNs.current, elements, tokens, objectsById.current);
-  }, [elements, tokens]); // ⬅️ bei Token-Änderung Textstile aktualisieren
+  }, [elements, tokens]);
 
-  // margins → Overlay
+  // margins → overlay
   useEffect(() => {
     const c = fCanvas.current;
     if (!c) return;
@@ -138,7 +151,7 @@ export default function FabricCanvas() {
     }
   }, [margins]);
 
-  // zoom → Canvasgröße
+  // zoom
   useEffect(() => {
     const c = fCanvas.current;
     if (!c) return;
@@ -148,7 +161,7 @@ export default function FabricCanvas() {
     c.requestRenderAll();
   }, [zoom]);
 
-  // store → canvas (Selection) mit Guard
+  // store → canvas (Selection)
   useEffect(() => {
     const c = fCanvas.current;
     const fabric = fabricNs.current;
@@ -189,14 +202,8 @@ function ensureOverlay(
 
   if (!hasBg) {
     const bg = new fabric.Rect({
-      left: 0,
-      top: 0,
-      width: PAGE_W,
-      height: PAGE_H,
-      fill: "#ffffff",
-      selectable: false,
-      evented: false,
-      hoverCursor: "default",
+      left: 0, top: 0, width: PAGE_W, height: PAGE_H,
+      fill: "#ffffff", selectable: false, evented: false, hoverCursor: "default",
     });
     (bg as any).__is_bg = true;
     c.add(bg);
@@ -204,16 +211,12 @@ function ensureOverlay(
 
   if (!hasMR) {
     const marginRect = new fabric.Rect({
-      left: margins.left,
-      top: margins.top,
+      left: margins.left, top: margins.top,
       width: PAGE_W - margins.left - margins.right,
       height: PAGE_H - margins.top - margins.bottom,
       fill: "rgba(0,0,0,0)",
-      stroke: "#93c5fd",
-      strokeDashArray: [6, 6],
-      selectable: false,
-      evented: false,
-      strokeUniform: true,
+      stroke: "#93c5fd", strokeDashArray: [6, 6],
+      selectable: false, evented: false, strokeUniform: true,
     });
     (marginRect as any).__is_marginRect = true;
     c.add(marginRect);
@@ -241,49 +244,29 @@ function reconcileCanvas(
     if (!obj) {
       if (el.kind === "section") {
         obj = new fabric.Textbox(el.text || "", {
-          left: el.frame.x,
-          top: el.frame.y,
-          width: el.frame.width || 480,
-          fontFamily,
-          fontSize,
-          lineHeight,
-          fill: color,
-          selectable: true,
-          editable: true,
+          left: el.frame.x, top: el.frame.y, width: el.frame.width || 480,
+          fontFamily, fontSize, lineHeight, fill: color, selectable: true, editable: true,
         });
       } else if (el.kind === "photo") {
         obj = new fabric.Rect({
-          left: el.frame.x,
-          top: el.frame.y,
-          width: el.frame.width || 120,
-          height: el.frame.height || 120,
-          fill: "#e5e7eb",
-          stroke: "#9ca3af",
-          strokeUniform: true,
-          selectable: true,
+          left: el.frame.x, top: el.frame.y,
+          width: el.frame.width || 120, height: el.frame.height || 120,
+          fill: "#e5e7eb", stroke: "#9ca3af", strokeUniform: true, selectable: true,
         });
       }
       obj.__bl_id = el.id;
       c.add(obj);
       map.set(el.id, obj);
     }
-    // immer aktualisieren (Tokens können sich ändern)
+    // update always
     obj.set({
-      left: el.frame.x,
-      top: el.frame.y,
-      width: el.frame.width || obj.width,
-      height: el.frame.height || obj.height,
-      ...(el.kind === "section" && {
-        fontFamily,
-        fontSize,
-        lineHeight,
-        fill: color,
-        text: (el as any).text ?? "",
-      }),
+      left: el.frame.x, top: el.frame.y,
+      width: el.frame.width || obj.width, height: el.frame.height || obj.height,
+      ...(el.kind === "section" && { fontFamily, fontSize, lineHeight, fill: color, text: (el as any).text ?? "" }),
     });
   }
 
-  // Entferne gelöschte
+  // remove deleted
   for (const [id, obj] of Array.from(map.entries())) {
     if (!existingIds.has(id)) {
       c.remove(obj);
