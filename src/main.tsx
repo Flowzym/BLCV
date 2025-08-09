@@ -1,18 +1,14 @@
 import { createRoot } from "react-dom/client";
 import App from "./App";
-import {
-  BrowserRouter,
-  useInRouterContext,
-} from "react-router-dom";
+import { BrowserRouter, useInRouterContext } from "react-router-dom";
 
 // Global Styles
 import "./styles/tokens.css";
 import "./index.css";
 import "react-quill/dist/quill.snow.css";
 
-// Wrapper, der nur dann einen Router hinzufügt, wenn keiner existiert.
-// So crasht useRoutes() nie – auch wenn App mal ohne Router gerendert wird
-// (z. B. in einem zweiten Entry).
+// Guard: Falls App ohne Router gerendert wird (zweiter Entry, Tests, Extension),
+// wird hier automatisch ein BrowserRouter drumgelegt.
 function AppWithRouterGuard() {
   const inside = useInRouterContext();
   return inside ? <App /> : (
