@@ -2,48 +2,49 @@
 import React, { useEffect, useRef } from "react";
 import DesignerShell from "@/modules/cv-designer/components/DesignerShell";
 import { useDesignerStore } from "@/modules/cv-designer/store/designerStore";
-import { buildSingleErfahrungSection, splitSectionByPage } from "@/modules/cv-designer/services/mapLebenslaufToSections";
+import {
+  buildSingleErfahrungSection,
+  splitSectionByPage,
+} from "@/modules/cv-designer/services/mapLebenslaufToSections";
 
-// ⬇️ Der Hook kommt aus deinem Repo.
-// Falls der Export bei dir anders heißt, bitte den Import-Namen hier anpassen.
+// Aus deinem Repo:
 import { useLebenslauf } from "@/components/LebenslaufContext";
 
-const A4_HEIGHT = 842; // px @72dpi (wir rendern Canvas in 72dpi-Koordinaten)
+const A4_HEIGHT = 842; // px @72dpi
 
 export default function DesignerPage() {
   const { elements, setInitialElementsFromSections } = useDesignerStore((s) => ({
     elements: s.elements,
     setInitialElementsFromSections: s.setInitialElementsFromSections,
   }));
-  const fontSize = useDesignerStore((s) => s.tokens.fontSize);
-  const margins = useDesignerStore((s) => s.exportMargins);
 
-  const lebenslauf = useLebenslauf?.(); // defensiv
+  // ⚠️ robust: Tokens und Margins kommen aus dem Store (kein exportMargins)
+  const fontSize = useDesignerStore((s) => s.tokens?.fontSize ?? 11);
+  const lineHeight = useDesignerStore((s) => s.tokens?.lineHeight ?? 1.4);
+  const margins = useDesignerStore((s) => s.margins);
+
+  const lebenslauf = typeof useLebenslauf === "function" ? useLebenslauf() : undefined;
   const importedOnce = useRef(false);
 
-  // Initial-Import: Nur wenn der Canvas leer ist (kein Überschreiben!)
+  // Initial-Import: Nur wenn leer (kein Auto-Overwrite)
   useEffect(() => {
     if (importedOnce.current) return;
     if (!lebenslauf) return;
     if (elements.length > 0) return;
 
-    // 1) Eine große "Erfahrung"-Section bauen
+    // 1) Eine große "Erfahrung"-Section bauen (heuristisch)
     const base = buildSingleErfahrungSection(lebenslauf);
     if (!base.length) return;
 
-    // 2) In seitenverträgliche Chunks splitten (heuristisch)
-    const split = base.flatMap(sec =>
-      splitSectionByPage(sec, fontSize || 12, A4_HEIGHT, { top: margins.top, bottom: margins.bottom })
+    // 2) Heuristischer Seiten-Split (A4, Ränder, Font)
+    const split = base.flatMap((sec) =>
+      splitSectionByPage(sec, fontSize, A4_HEIGHT, { top: margins.top, bottom: margins.bottom }, lineHeight)
     );
 
     // 3) In den Designer übernehmen (nur initial)
-    setInitialElementsFromSections(
-      split.map(s => ({ title: s.title, content: s.content }))
-    );
-
+    setInitialElementsFromSections(split.map((s) => ({ title: s.title, content: s.content })));
     importedOnce.current = true;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lebenslauf, elements.length]);
+  }, [lebenslauf, elements.length, fontSize, lineHeight, margins.top, margins.bottom, setInitialElementsFromSections]);
 
   return (
     <main className="h-full">
