@@ -5,7 +5,6 @@ import AutocompleteInput from './AutocompleteInput';
 import { useLebenslauf } from './LebenslaufContext';
 
 interface ProfileInputProps {
-  onContentChange: (content: string) => void;
   profileConfig: {
     berufe?: string[];
     taetigkeiten?: string[];
@@ -36,7 +35,6 @@ interface FavoritesConfig {
 type ProfileArraysKey = keyof Omit<ProfileData, 'zusatzangaben'>;
 
 export default function ProfileInput({
-  onContentChange,
   profileConfig,
   initialContent = '',
 }: ProfileInputProps) {

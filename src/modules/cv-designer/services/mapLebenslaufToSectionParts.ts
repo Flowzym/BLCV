@@ -45,8 +45,8 @@ function spanFromMY(
   cur?: boolean
 ) {
   const fmt = (m?: string | null, y?: string | null) => {
-    const mm = (m ?? "").toString().padStart(2, "0").replace(/^0{2}$/, "");
-    const yy = (y ?? "").toString();
+    const mm = (m ?? "").toString().replace(/^null$/, "").padStart(2, "0").replace(/^0{2}$/, "");
+    const yy = (y ?? "").toString().replace(/^null$/, "");
     if (!yy || yy === "null") return "";
     return mm ? `${mm}/${yy}` : yy;
   };

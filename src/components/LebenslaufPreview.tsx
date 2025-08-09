@@ -278,11 +278,6 @@ export default function LebenslaufPreview({ inputRef }: LebenslaufPreviewProps) 
                   <span className="font-medium">Geburtsdatum:</span> {personalData.geburtsdatum}
                 </div>
               )}
-              {personalData?.summary && (
-                <div>
-                  <span className="font-medium">Zusammenfassung:</span> {personalData.summary}
-                </div>
-              )}
               {personalData?.skillsSummary && (
                 <div>
                   <span className="font-medium">Fachliche Kompetenzen:</span> {personalData.skillsSummary}
@@ -296,6 +291,11 @@ export default function LebenslaufPreview({ inputRef }: LebenslaufPreviewProps) 
               {personalData?.taetigkeitenSummary && (
                 <div>
                   <span className="font-medium">Tätigkeitsbereiche:</span> {personalData.taetigkeitenSummary}
+                </div>
+              )}
+              {personalData?.summary && (
+                <div>
+                  <span className="font-medium">Zusammenfassung:</span> {personalData.summary}
                 </div>
               )}
             </div>
