@@ -31,8 +31,26 @@ const sectionKey = (e: SectionElement) => e.meta?.source?.key;
 export function useLiveSyncFromGenerator(debounceMs = 200) {
   const ll = useLebenslauf();
   const margins = useDesignerStore((s) => s.margins);
-  // ⏳ auf Persist-Rehydration warten, sonst werden neue Elemente überschrieben
-  const hydrated = useDesignerStore((s) => (s as any).hydrated ?? true);
+  // Hinweis: wir blockieren NICHT mehr hart auf "hydrated",
+  // sondern retriggern zusätzlich nach Persist-Hydration.
+  const hydratedState = useDesignerStore((s) => (s as any).hydrated);
+
+  // Nach Persist-Hydration einmal nachtriggern (Zustand v4 API)
+  useEffect(() => {
+    const api: any = useDesignerStore as any;
+    const persisted = api?.persist;
+    const reRun = () => {
+      try {
+        const m = useDesignerStore.getState().margins;
+        // no-op Set → löst Effekt erneut aus, ohne Werte zu ändern
+        useDesignerStore.setState({ margins: { ...m } });
+      } catch {}
+    };
+    if (persisted?.onFinishHydration) {
+      const unsub = persisted.onFinishHydration(reRun);
+      return () => unsub?.();
+    }
+  }, []);
 
   // alles, was die Layout-/Text-Sync-Reaktion beeinflusst, in die Signatur
   const sig = useMemo(
@@ -53,16 +71,13 @@ export function useLiveSyncFromGenerator(debounceMs = 200) {
   const timer = useRef<number | null>(null);
 
   useEffect(() => {
-    if (!ll || !hydrated) return;
+    if (!ll) return;
     if (timer.current) window.clearTimeout(timer.current);
 
     timer.current = window.setTimeout(() => {
       const mapped = mapLebenslaufToSectionParts(ll);
-      if (import.meta.env.DEV) {
-        console.debug("[LiveSync] mapped", mapped);
-      }
+      if (import.meta.env.DEV) console.debug("[LiveSync] mapped", mapped);
 
-      // Wichtig: keine Add-Action verwenden, die Parts neu konstruiert.
       const { elements, updatePartText, setInitialElements } =
         useDesignerStore.getState();
 
@@ -91,7 +106,6 @@ export function useLiveSyncFromGenerator(debounceMs = 200) {
         ) as Partial<Record<PartKey, string>>;
         const prev = m.sourceKey ? existing.get(m.sourceKey) : undefined;
 
-        // Neu: create-Jobs sammeln
         if (!prev) {
           if (m.group === "kontakt" && !contactPlaced) {
             const tpl = Templates.contactRight;
@@ -141,23 +155,18 @@ export function useLiveSyncFromGenerator(debounceMs = 200) {
         }
       }
 
-      // WICHTIG: neue Sections als komplett gebaute Elemente einsetzen
+      // neue Sections bauen & einsetzen
       if (adds.length) {
         const newSecs = adds.map((a) =>
           buildSectionFromTemplate(a.tpl, a.frame, a.texts, a.meta, a.title)
         );
 
         const current = useDesignerStore.getState().elements;
-        if (!current.length) {
-          setInitialElements(newSecs);
-        } else {
-          setInitialElements([...current, ...newSecs]);
-        }
+        if (!current.length) setInitialElements(newSecs);
+        else setInitialElements([...current, ...newSecs]);
       }
     }, debounceMs) as unknown as number;
 
-    return () => {
-      if (timer.current) window.clearTimeout(timer.current);
-    };
-  }, [sig, hydrated]);
+    return () => { if (timer.current) window.clearTimeout(timer.current); };
+  }, [sig, hydratedState]);
 }
