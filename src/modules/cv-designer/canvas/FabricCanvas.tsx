@@ -10,6 +10,8 @@ export default function FabricCanvas() {
   const fabricNs = useRef<any>(null);
   const fCanvas = useRef<any>(null);
   const syncingRef = useRef(false);
+
+  // id -> fabric object
   const objectsById = useRef(new Map<string, any>());
 
   const elements = useDesignerStore((s) => s.elements);
@@ -30,7 +32,7 @@ export default function FabricCanvas() {
     return true;
   };
 
-  // Init
+  /* ---------------- init ---------------- */
   useEffect(() => {
     (async () => {
       const fabric = await getFabric();
@@ -41,7 +43,11 @@ export default function FabricCanvas() {
 
       let c: any = (el as any).__fabricCanvas;
       if (!c) {
-        c = new fabric.Canvas(el, { preserveObjectStacking: true, selection: true, backgroundColor: "#ffffff" });
+        c = new fabric.Canvas(el, {
+          preserveObjectStacking: true,
+          selection: true,
+          backgroundColor: "#ffffff",
+        });
         (el as any).__fabricCanvas = c;
       }
       fCanvas.current = c;
@@ -52,6 +58,11 @@ export default function FabricCanvas() {
       c.setZoom(zoom);
 
       ensureOverlay(c, fabric, margins);
+      // 1) Map aus vorhandenen Objekten hydratisieren (falls aus alter Session vorhanden)
+      hydrateMapFromCanvas(c, objectsById.current);
+
+      // 2) Verwaiste Objekte (ohne __bl_id, nicht overlay) rigoros entfernen
+      purgeStrays(c);
 
       if (!(c as any).__bl_eventsBound) {
         (c as any).__bl_eventsBound = true;
@@ -103,17 +114,27 @@ export default function FabricCanvas() {
           if (t && t.__bl_id && typeof t.text === "string") updateText(t.__bl_id, t.text);
         });
 
-        // ← robustes Löschen über aktives Objekt (falls Store-Selection aus irgendeinem Grund leer ist)
+        // Delete-Fallback: löscht aktive Canvas-Objekte ohne __bl_id (rein visuelle Altlasten)
         const onDeleteActive = () => {
-          const ids = (c.getActiveObjects() || []).map((o: any) => o.__bl_id).filter(Boolean);
+          const act = (c.getActiveObjects() || []) as any[];
+          const ids = act.map((o) => o.__bl_id).filter(Boolean);
+          // 1) wenn ids vorhanden → store-basiert löschen
           if (ids.length) {
             useDesignerStore.getState().deleteByIds(ids);
+            return;
           }
+          // 2) sonst: alle aktiven (ohne id) entfernen
+          for (const o of act) {
+            if (!o.__is_bg && !o.__is_marginRect) c.remove(o);
+          }
+          c.discardActiveObject();
+          c.requestRenderAll();
         };
         (c as any).__bl_onDeleteActive = onDeleteActive;
         window.addEventListener("bl:delete-active", onDeleteActive);
       }
 
+      // erster reconcile gegen aktuellen store
       reconcileCanvas(c, fabric, elements, tokens, objectsById.current);
     })();
 
@@ -129,19 +150,19 @@ export default function FabricCanvas() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // elements/tokens → Canvas
+  /* ----------- props -> canvas ----------- */
   useEffect(() => {
     if (!fCanvas.current || !fabricNs.current) return;
     reconcileCanvas(fCanvas.current, fabricNs.current, elements, tokens, objectsById.current);
   }, [elements, tokens]);
 
-  // margins → overlay
+  // margins -> overlay
   useEffect(() => {
     const c = fCanvas.current;
     if (!c) return;
-    const marginRect = (c.getObjects() as any[]).find((o) => o.__is_marginRect);
-    if (marginRect) {
-      marginRect.set({
+    const r = (c.getObjects() as any[]).find((o) => o.__is_marginRect);
+    if (r) {
+      r.set({
         left: margins.left,
         top: margins.top,
         width: PAGE_W - margins.left - margins.right,
@@ -161,7 +182,7 @@ export default function FabricCanvas() {
     c.requestRenderAll();
   }, [zoom]);
 
-  // store → canvas (Selection)
+  // store-selection -> canvas
   useEffect(() => {
     const c = fCanvas.current;
     const fabric = fabricNs.current;
@@ -191,16 +212,15 @@ export default function FabricCanvas() {
   );
 }
 
+/* ------------- helpers ------------- */
+
 function ensureOverlay(
   c: any,
   fabric: any,
   margins: { top: number; right: number; bottom: number; left: number }
 ) {
   const objs = c.getObjects() as any[];
-  const hasBg = objs.some((o) => o.__is_bg);
-  const hasMR = objs.some((o) => o.__is_marginRect);
-
-  if (!hasBg) {
+  if (!objs.some((o) => o.__is_bg)) {
     const bg = new fabric.Rect({
       left: 0, top: 0, width: PAGE_W, height: PAGE_H,
       fill: "#ffffff", selectable: false, evented: false, hoverCursor: "default",
@@ -208,8 +228,7 @@ function ensureOverlay(
     (bg as any).__is_bg = true;
     c.add(bg);
   }
-
-  if (!hasMR) {
+  if (!objs.some((o) => o.__is_marginRect)) {
     const marginRect = new fabric.Rect({
       left: margins.left, top: margins.top,
       width: PAGE_W - margins.left - margins.right,
@@ -221,7 +240,22 @@ function ensureOverlay(
     (marginRect as any).__is_marginRect = true;
     c.add(marginRect);
   }
+  c.requestRenderAll();
+}
 
+// baut objectsById aus evtl. vorhandenen Objekten (mit __bl_id) auf
+function hydrateMapFromCanvas(c: any, map: Map<string, any>) {
+  map.clear();
+  for (const o of c.getObjects() as any[]) {
+    if (o.__bl_id) map.set(o.__bl_id, o);
+  }
+}
+
+// löscht alles, was keine id hat und nicht overlay ist (verwaiste Altlasten)
+function purgeStrays(c: any) {
+  for (const o of [...(c.getObjects() as any[])]) {
+    if (!o.__bl_id && !o.__is_bg && !o.__is_marginRect) c.remove(o);
+  }
   c.requestRenderAll();
 }
 
@@ -232,14 +266,18 @@ function reconcileCanvas(
   tokens: any,
   map: Map<string, any>
 ) {
-  const existingIds = new Set<string>();
+  // Straights zuerst weg, Map neu hydratisieren (falls zwischenzeitlich etwas manuell entfernt wurde)
+  purgeStrays(c);
+  hydrateMapFromCanvas(c, map);
+
+  const keepIds = new Set<string>();
   const fontFamily = tokens?.fontFamily ?? "Helvetica, Arial, sans-serif";
   const fontSize = Number(tokens?.fontSize) > 0 ? Number(tokens.fontSize) : 11;
   const lineHeight = Number(tokens?.lineHeight) > 0 ? Number(tokens.lineHeight) : 1.4;
   const color = tokens?.colorPrimary ?? "#111111";
 
   for (const el of elements) {
-    existingIds.add(el.id);
+    keepIds.add(el.id);
     let obj = map.get(el.id);
     if (!obj) {
       if (el.kind === "section") {
@@ -258,7 +296,6 @@ function reconcileCanvas(
       c.add(obj);
       map.set(el.id, obj);
     }
-    // update always
     obj.set({
       left: el.frame.x, top: el.frame.y,
       width: el.frame.width || obj.width, height: el.frame.height || obj.height,
@@ -266,9 +303,9 @@ function reconcileCanvas(
     });
   }
 
-  // remove deleted
+  // alles entfernen, was nicht mehr im store ist
   for (const [id, obj] of Array.from(map.entries())) {
-    if (!existingIds.has(id)) {
+    if (!keepIds.has(id)) {
       c.remove(obj);
       map.delete(id);
     }
