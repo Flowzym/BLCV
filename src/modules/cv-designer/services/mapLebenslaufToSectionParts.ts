@@ -61,31 +61,29 @@ function fmtMonthYear(d?: { y?: number; m?: number; raw?: string }): string {
 function dateRangeFrom(item: any): string {
   const startRaw =
     pick(item, ["startDate", "start", "from", "von", "beginn"]) ??
-    (pick(item, ["startYear"]) && `${pick(item, ["startYear"])}`) ??
-    undefined;
+    (pick(item, ["startYear"]) ? `${pick(item, ["startYear"])}` : undefined);
+
   const endRaw =
     pick(item, ["endDate", "end", "to", "bis"]) ??
-    (pick(item, ["endYear"]) && `${pick(item, ["endYear"])}`) ??
-    undefined;
+    (pick(item, ["endYear"]) ? `${pick(item, ["endYear"])}` : undefined);
 
-  const start =
-    startRaw ??
-    (pick(item, ["startMonth"]) || pick(item, ["fromMonth"])) && // combine month+year if split
-      `${pick(item, ["startYear", "fromYear"], "")}-${String(pick(item, ["startMonth", "fromMonth"], 1)).toString().padStart(2, "0")}`;
+  // Kombiniere Monat+Jahr nur, wenn ein Jahr existiert (sonst parseDateToken→raw)
+  const sm = pick(item, ["startMonth", "fromMonth"]);
+  const sy = pick(item, ["startYear", "fromYear"]);
+  const start = startRaw ?? (sy != null ? `${sy}-${String(sm ?? 1).toString().padStart(2, "0")}` : undefined);
 
-  const end =
-    endRaw ??
-    (pick(item, ["endMonth"]) || pick(item, ["toMonth"])) &&
-      `${pick(item, ["endYear", "toYear"], "")}-${String(pick(item, ["endMonth", "toMonth"], 1)).toString().padStart(2, "0")}`;
+  const em = pick(item, ["endMonth", "toMonth"]);
+  const ey = pick(item, ["endYear", "toYear"]);
+  const end = endRaw ?? (ey != null ? `${ey}-${String(em ?? 1).toString().padStart(2, "0")}` : undefined);
 
   const s = parseDateToken(start);
   const e = parseDateToken(end);
 
   const left = fmtMonthYear(s);
   let right = fmtMonthYear(e);
-  if (!right && (endRaw === undefined || end === undefined)) right = "heute";
+  if (!right && (endRaw === undefined && ey == null && em == null)) right = "heute";
 
-  return nn(left, "-", right).replace(/\s*-\s*$/, ""); // falls kein right
+  return nn(left, "-", right).replace(/\s*-\s*$/, "");
 }
 
 function bulletsFrom(item: any): string {
@@ -184,29 +182,11 @@ export function mapLebenslaufToSectionParts(lebenslauf: any): MappedSection[] {
       parts: [
         { key: "titel", text: "Ausbildung" },
         { key: "zeitraum", text: zeitraum },
-        { key: "unternehmen", text: institution }, // Template erwartet "unternehmen"-Feldposition
+        { key: "unternehmen", text: institution },
         { key: "abschluss", text: abschluss },
       ],
     });
   }
-
-  /* ---- Skills (optional, falls du später Parts brauchst) ----
-  const skills =
-    (Array.isArray(lebenslauf?.skills) && lebenslauf.skills) ||
-    (Array.isArray(lebenslauf?.faehigkeiten) && lebenslauf.faehigkeiten) ||
-    [];
-  if (skills.length) {
-    out.push({
-      group: "kenntnisse",
-      sourceKey: "skills:main",
-      title: "Fähigkeiten",
-      parts: [
-        { key: "titel", text: "Fähigkeiten" },
-        { key: "skills", text: Array.isArray(skills) ? skills.map((s:any)=> (s?.name ?? s)).join(", ") : j(skills) },
-      ],
-    });
-  }
-  ------------------------------------------------------------ */
 
   return out;
 }
