@@ -9,6 +9,7 @@ export default function FabricCanvas() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const fabricNs = useRef<any>(null);
   const fCanvas = useRef<any>(null);
+  const syncingRef = useRef(false); // 🔒 verhindert Feedback-Loop
   const objectsById = useRef(new Map<string, any>());
 
   const elements = useDesignerStore((s) => s.elements);
@@ -21,6 +22,14 @@ export default function FabricCanvas() {
   const updateText = useDesignerStore((s) => s.updateText);
   const select = useDesignerStore((s) => s.select);
 
+  // helper
+  const arrEq = (a: string[], b: string[]) => {
+    if (a === b) return true;
+    if (!a || !b || a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+    return true;
+  };
+
   useEffect(() => {
     let disposed = false;
 
@@ -30,15 +39,9 @@ export default function FabricCanvas() {
 
       const el = canvasRef.current;
       if (!el) return;
-
-      // Reuse vorhandener Instanz (StrictMode-Schutz)
       let c: any = (el as any).__fabricCanvas;
       if (!c) {
-        c = new fabric.Canvas(el, {
-          preserveObjectStacking: true,
-          selection: true,
-          backgroundColor: "#ffffff",
-        });
+        c = new fabric.Canvas(el, { preserveObjectStacking: true, selection: true, backgroundColor: "#ffffff" });
         (el as any).__fabricCanvas = c;
       }
       fCanvas.current = c;
@@ -47,22 +50,28 @@ export default function FabricCanvas() {
       c.setHeight(PAGE_H);
       c.setZoom(zoom);
 
-      // Overlay nur anlegen, falls noch nicht vorhanden
       ensureOverlay(c, fabric, margins);
 
-      // Events einmalig binden
       if (!(c as any).__bl_eventsBound) {
         (c as any).__bl_eventsBound = true;
 
         c.on("selection:created", () => {
+          if (syncingRef.current) return;
           const active = c.getActiveObjects() || [];
-          select(active.map((o: any) => o.__bl_id).filter(Boolean));
+          const ids = active.map((o: any) => o.__bl_id).filter(Boolean);
+          // nur setzen, wenn wirklich anders
+          if (!arrEq(selectedIds, ids)) select(ids);
         });
         c.on("selection:updated", () => {
+          if (syncingRef.current) return;
           const active = c.getActiveObjects() || [];
-          select(active.map((o: any) => o.__bl_id).filter(Boolean));
+          const ids = active.map((o: any) => o.__bl_id).filter(Boolean);
+          if (!arrEq(selectedIds, ids)) select(ids);
         });
-        c.on("selection:cleared", () => select([]));
+        c.on("selection:cleared", () => {
+          if (syncingRef.current) return;
+          if (selectedIds.length) select([]);
+        });
 
         c.on("object:moving", (e: any) => {
           const o = e.target;
@@ -100,7 +109,6 @@ export default function FabricCanvas() {
         });
       }
 
-      // Inhalte synchronisieren
       reconcileCanvas(c, fabric, elements, objectsById.current);
 
       if (disposed) return;
@@ -108,7 +116,6 @@ export default function FabricCanvas() {
 
     return () => {
       disposed = true;
-      // nicht dispose() – wir recyceln die Instanz
       fCanvas.current = null;
       fabricNs.current = null;
       objectsById.current.clear();
@@ -122,7 +129,7 @@ export default function FabricCanvas() {
     reconcileCanvas(fCanvas.current, fabricNs.current, elements, objectsById.current);
   }, [elements]);
 
-  // margins → Overlay anpassen
+  // margins → Overlay
   useEffect(() => {
     const c = fCanvas.current;
     if (!c) return;
@@ -148,21 +155,31 @@ export default function FabricCanvas() {
     c.requestRenderAll();
   }, [zoom]);
 
-  // store selection → canvas selection
+  // store → canvas (Selection), mit Reentrancy-Guard
   useEffect(() => {
     const c = fCanvas.current;
     const fabric = fabricNs.current;
     if (!c || !fabric) return;
-    const toSel = c
-      .getObjects()
-      .filter((o: any) => o.__bl_id && selectedIds.includes(o.__bl_id) && o.selectable !== false);
+
+    const current = (c.getActiveObjects() || []).map((o: any) => o.__bl_id).filter(Boolean);
+    if (arrEq(current, selectedIds)) return;
+
+    syncingRef.current = true;
     c.discardActiveObject();
-    if (toSel.length === 1) c.setActiveObject(toSel[0]);
-    if (toSel.length > 1) {
+
+    const toSel = c.getObjects().filter((o: any) => o.__bl_id && selectedIds.includes(o.__bl_id) && o.selectable !== false);
+    if (toSel.length === 1) {
+      c.setActiveObject(toSel[0]);
+    } else if (toSel.length > 1) {
       const sel = new fabric.ActiveSelection(toSel, { canvas: c });
       c.setActiveObject(sel);
     }
     c.requestRenderAll();
+    // nach dem nächsten Paint wieder freigeben
+    setTimeout(() => {
+      syncingRef.current = false;
+    }, 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedIds]);
 
   return (
@@ -195,7 +212,7 @@ function ensureOverlay(
       hoverCursor: "default",
     });
     (bg as any).__is_bg = true;
-    c.add(bg); // zuerst → bleibt unten
+    c.add(bg);
   }
 
   if (!hasMR) {
@@ -212,7 +229,7 @@ function ensureOverlay(
       strokeUniform: true,
     });
     (marginRect as any).__is_marginRect = true;
-    c.add(marginRect); // direkt über dem BG
+    c.add(marginRect);
   }
 
   c.requestRenderAll();
@@ -253,7 +270,7 @@ function reconcileCanvas(
         });
       }
       obj.__bl_id = el.id;
-      c.add(obj); // kommt automatisch über das Overlay
+      c.add(obj);
       map.set(el.id, obj);
     }
     obj.set({
@@ -267,7 +284,6 @@ function reconcileCanvas(
     }
   }
 
-  // Entferne gelöschte
   for (const [id, obj] of Array.from(map.entries())) {
     if (!existingIds.has(id)) {
       c.remove(obj);
