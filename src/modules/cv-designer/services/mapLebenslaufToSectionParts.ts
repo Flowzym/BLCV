@@ -1,120 +1,154 @@
-// src/modules/cv-designer/services/mapLebenslaufToSectionParts.ts
+// Robust Mapping vom Lebenslauf-Generator → CV-Designer Sections/Parts.
+// Unterstützt Arrays (companies[], position[], institution[], abschluss[])
+// sowie Monat/Jahr-Felder (startMonth/Year, endMonth/Year, isCurrent).
+
 import type { GroupKey, PartKey } from "../store/designerStore";
 
-type UnknownObj = Record<string, any>;
+type AnyObj = Record<string, any>;
 
 export type MappedSection = {
   group: GroupKey;
-  sourceKey: string;        // stabiler Schlüssel, damit Updates greifen
+  sourceKey: string;          // stabil: z.B. "exp:<id>:<startYear>:<endYear>"
   title?: string;
   parts: Array<{ key: PartKey; text?: string }>;
 };
 
-/** Hilfsfunktionen */
-function fmtSpan(a?: string, b?: string) {
-  const s = [a, b].filter(Boolean).join(" – ");
-  return s || "";
-}
-function joinLines(lines: (string | undefined | null)[]) {
-  return lines.filter(Boolean).join("\n");
-}
-function normString(v: any) {
+function pickString(v: any): string {
   if (v == null) return "";
-  return String(v);
+  if (Array.isArray(v)) {
+    const first = v.find((s) => typeof s === "string" && s.trim());
+    return typeof first === "string" ? first.trim() : "";
+  }
+  if (typeof v === "string") return v.trim();
+  return String(v ?? "").trim();
 }
-/** baut einen stabilen Key pro Eintrag */
-function stableKey(prefix: string, o: UnknownObj, idx: number) {
-  const id =
-    o.id ??
-    o.uuid ??
-    `${o.company || o.unternehmen || o.school || o.schule || "n"}:${o.start || o.von || "?"}:${o.end || o.bis || "?"}`;
-  return `${prefix}:${id}:${idx}`;
+function norm(v: any) {
+  return pickString(v).replace(/\s+/g, " ").trim();
+}
+function bullets(v: any) {
+  const arr = Array.isArray(v) ? v : [v];
+  const items = arr.map(pickString).filter(Boolean);
+  return items.length ? items.map((s) => `• ${s}`).join("\n") : "";
+}
+function spanFromMY(
+  sm?: string | null,
+  sy?: string | null,
+  em?: string | null,
+  ey?: string | null,
+  cur?: boolean
+) {
+  const fmt = (m?: string | null, y?: string | null) => {
+    const mm = (m ?? "").toString().padStart(2, "0").replace(/^0{2}$/, "");
+    const yy = (y ?? "").toString();
+    if (!yy) return "";
+    return mm ? `${mm}/${yy}` : yy;
+  };
+  const from = fmt(sm, sy);
+  const to = cur ? "heute" : fmt(em, ey);
+  if (from && to) return `${from} – ${to}`;
+  return from || to || "";
+}
+function spanFallback(o: AnyObj) {
+  const s = pickString(o.start ?? o.von);
+  const e = pickString(o.end ?? o.bis);
+  if (s && e) return `${s} – ${e}`;
+  return s || e || "";
+}
+function stableKey(prefix: string, o: AnyObj, idx: number) {
+  const id = pickString(o.id) || pickString(o.uuid) || `${idx}`;
+  const sy = pickString(o.startYear);
+  const ey = pickString(o.endYear);
+  return `${prefix}:${id}:${sy}:${ey}`;
 }
 
-/**
- * Erwartete Felder (wir lesen deutsch + englische Varianten):
- * - Erfahrung: { position|titel|role, company|unternehmen, start|von, end|bis, city|ort, tasks|taetigkeiten|beschreibung[] }
- * - Ausbildung: { degree|abschluss, school|unternehmen|schule, start|von, end|bis, subject|titel }
- * - Kontakt: ll.personalData: { name, email, phone|telefon, city|ort, street|adresse, website, linkedin, github, ... }
- */
-export function mapLebenslaufToSectionParts(ll: UnknownObj): MappedSection[] {
+export function mapLebenslaufToSectionParts(ll: AnyObj): MappedSection[] {
   const out: MappedSection[] = [];
 
-  // Kontakt (rechte Spalte)
+  // ---- Kontakt / rechte Spalte
   const pd = ll?.personalData ?? ll?.person ?? {};
-  const contactLines = [
-    pd.name,
-    pd.email,
-    pd.phone ?? pd.telefon,
-    joinLines([pd.street ?? pd.adresse, pd.postalCode, pd.city ?? pd.ort].filter(Boolean)).replace(/\n+/g, " "),
-    pd.website,
-    pd.linkedin,
-    pd.github,
-  ]
-    .filter(Boolean)
-    .join("\n");
-  if (contactLines) {
-    out.push({
-      group: "kontakt",
-      sourceKey: "contact:main",
-      title: "Kontakt",
-      parts: [
-        { key: "titel", text: "Kontakt" },
-        { key: "kontakt", text: contactLines },
-      ],
-    });
+  if (pd && Object.keys(pd).length) {
+    const contact = [
+      norm(pd.name),
+      norm(pd.email),
+      norm(pd.phone ?? pd.telefon),
+      norm(pd.city ?? pd.ort),
+      norm(pd.street ?? pd.adresse),
+      norm(pd.website),
+      norm(pd.linkedin),
+      norm(pd.github),
+    ]
+      .filter(Boolean)
+      .join(" · ");
+    if (contact) {
+      out.push({
+        group: "kontakt",
+        sourceKey: "contact:main",
+        title: "Kontakt",
+        parts: [{ key: "kontakt", text: contact }],
+      });
+    }
   }
 
-  // Berufserfahrung (linke Spalte)
-  const expArr: UnknownObj[] =
-    ll?.berufserfahrung ?? ll?.workExperience ?? ll?.experience ?? [];
-  expArr.forEach((e, i) => {
-    const position = e.position ?? e.titel ?? e.role;
-    const company = e.unternehmen ?? e.company;
-    const span = fmtSpan(normString(e.von ?? e.start), normString(e.bis ?? e.end));
-    const ort = normString(e.ort ?? e.city);
+  // ---- Erfahrung / linke Spalte
+  const erfArr: AnyObj[] =
+    Array.isArray(ll?.berufserfahrung) ? ll.berufserfahrung
+    : Array.isArray(ll?.workExperience) ? ll.workExperience
+    : Array.isArray(ll?.experience) ? ll.experience
+    : [];
 
-    // Tätigkeiten als Aufzählung
-    let tasks = e.taetigkeiten ?? e.tasks ?? e.beschreibung ?? e.description;
-    if (Array.isArray(tasks)) {
-      tasks = tasks.map(normString).filter(Boolean).join("\n• ");
-      tasks = tasks ? `• ${tasks}` : "";
-    } else {
-      tasks = normString(tasks);
-    }
+  erfArr.forEach((e, i) => {
+    const company  = norm(e.company ?? e.unternehmen ?? e.companies);
+    const position = norm(e.position ?? e.titel ?? e.role);
+    const city     = norm(e.city ?? e.ort);
+    const spanMY   = spanFromMY(e.startMonth, e.startYear, e.endMonth, e.endYear, e.isCurrent);
+    const spanFB   = spanMY || spanFallback(e);
+    const tasks    = bullets(e.tasks ?? e.taetigkeiten ?? e.beschreibung ?? e.aufgabenbereiche);
+
+    const title = [position, company].filter(Boolean).join(" @ ");
+
+    const parts: Array<{ key: PartKey; text?: string }> = [
+      { key: "titel",       text: title || position || company || "Berufserfahrung" },
+      { key: "zeitraum",    text: spanFB },
+      { key: "unternehmen", text: company },
+    ];
+    if (position) parts.push({ key: "position", text: position });
+    if (city)     parts.push({ key: "ort",      text: city });
+    if (tasks)    parts.push({ key: "taetigkeiten", text: tasks });
 
     out.push({
       group: "erfahrung",
       sourceKey: stableKey("exp", e, i),
-      title: position || company || "Erfahrung",
-      parts: [
-        { key: "titel",        text: normString(position || company || "") },
-        { key: "zeitraum",     text: joinLines([span, ort ? `· ${ort}` : ""].filter(Boolean)) },
-        { key: "unternehmen",  text: normString(company) },
-        { key: "position",     text: normString(position) },
-        { key: "taetigkeiten", text: normString(tasks) },
-      ],
+      title,
+      parts,
     });
   });
 
-  // Ausbildung (linke Spalte)
-  const eduArr: UnknownObj[] = ll?.ausbildung ?? ll?.education ?? [];
+  // ---- Ausbildung / linke Spalte
+  const eduArr: AnyObj[] =
+    Array.isArray(ll?.ausbildung) ? ll.ausbildung
+    : Array.isArray(ll?.education) ? ll.education
+    : [];
+
   eduArr.forEach((e, i) => {
-    const degree = e.abschluss ?? e.degree;
-    const school = e.unternehmen ?? e.school ?? e.schule;
-    const title  = e.titel ?? e.subject ?? degree ?? school ?? "Ausbildung";
-    const span   = fmtSpan(normString(e.von ?? e.start), normString(e.bis ?? e.end));
+    const institution = norm(e.institution ?? e.school ?? e.schule ?? e.unternehmen);
+    const degree      = norm(e.degree ?? e.abschluss);
+    const subject     = norm(e.subject ?? e.titel ?? e.ausbildungsart);
+    const spanMY      = spanFromMY(e.startMonth, e.startYear, e.endMonth, e.endYear, e.isCurrent);
+    const spanFB      = spanMY || spanFallback(e);
+
+    const title = [degree || subject, institution].filter(Boolean).join(" · ");
+    const parts: Array<{ key: PartKey; text?: string }> = [
+      { key: "titel",       text: title || subject || degree || "Ausbildung" },
+      { key: "zeitraum",    text: spanFB },
+      { key: "unternehmen", text: institution }, // Designer-PartKey heißt "unternehmen"
+    ];
+    if (degree) parts.push({ key: "abschluss", text: degree });
 
     out.push({
       group: "ausbildung",
       sourceKey: stableKey("edu", e, i),
       title,
-      parts: [
-        { key: "titel",       text: normString(title) },
-        { key: "zeitraum",    text: span },
-        { key: "unternehmen", text: normString(school) }, // WICHTIG: key heißt "unternehmen"
-        { key: "abschluss",   text: normString(degree) },
-      ],
+      parts,
     });
   });
 
