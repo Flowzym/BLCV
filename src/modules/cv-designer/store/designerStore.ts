@@ -1,7 +1,9 @@
+// src/modules/cv-designer/store/designerStore.ts
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
 export type Frame = { x: number; y: number; width: number; height: number };
+
 export type CanvasElement =
   | { kind: "section"; id: string; frame: Frame; title?: string; text: string }
   | { kind: "photo"; id: string; frame: Frame; src?: string };
@@ -29,6 +31,7 @@ type HistorySnap = {
 };
 
 type DesignerState = {
+  // state
   elements: CanvasElement[];
   selectedIds: string[];
   margins: Margins;
@@ -36,9 +39,11 @@ type DesignerState = {
   zoom: number;
   tokens: StyleTokens;
 
+  // history
   undoStack: HistorySnap[];
   redoStack: HistorySnap[];
 
+  // actions
   addSection(partial?: Partial<CanvasElement & { text: string }>): void;
   addPhoto(partial?: Partial<CanvasElement>): void;
   updateText(id: string, text: string): void;
@@ -50,7 +55,7 @@ type DesignerState = {
   setZoom(z: number): void;
   setTokens(partial: Partial<StyleTokens>): void;
 
-  /** Initialer Import aus Generator — platziert mehrere Sections vertikal. */
+  /** Initialer Import aus Lebenslauf-Generator – mehrere Sections vertikal platzieren, ohne bestehende Layouts zu überschreiben. */
   setInitialElementsFromSections(sections: Array<{ title?: string; content?: string }>): void;
 
   undo(): void;
@@ -59,7 +64,7 @@ type DesignerState = {
 };
 
 const HISTORY_LIMIT = 50;
-const PAGE_W = 595; // 72dpi A4
+const PAGE_W = 595; // A4 @72dpi
 const PAGE_H = 842;
 
 function defaultTokens(margins: Margins, snapSize = 20): StyleTokens {
@@ -107,6 +112,7 @@ export const useDesignerStore = create<DesignerState>()(
       snapSize: 20,
       zoom: 1,
       tokens: defaultTokens({ top: 36, right: 36, bottom: 36, left: 36 }, 20),
+
       undoStack: [],
       redoStack: [],
 
@@ -206,6 +212,7 @@ export const useDesignerStore = create<DesignerState>()(
         });
       },
 
+      /** Mehrere Sections vertikal platzieren – einfache Heuristik nach Tokens; kein Überschreiben existierender Layouts an dieser Stelle. */
       setInitialElementsFromSections(sections) {
         if (!sections?.length) return;
         set((s) => {
@@ -221,22 +228,13 @@ export const useDesignerStore = create<DesignerState>()(
           const spacing = Math.max(6, Math.round(s.tokens.sectionSpacing));
 
           let cursorY = top;
-
           const newElements: CanvasElement[] = [];
 
           for (const sec of sections) {
             const title = (sec.title || "").trim();
             const text = (sec.content || "").toString();
-
-            // grobe Höhenabschätzung, um Y zu staffeln
-            const lines = [title ? "X" : "", ...text.split("\n")].filter(() => true);
+            const lines = [title ? "X" : "", ...text.split("\n")];
             const estHeight = (title ? titleCost : 0) + lines.length * lineCost;
-
-            // wenn kein Platz mehr: (einfach) stoppen — Feinsplitting kommt über splitSectionByPage + Re-Import
-            if (cursorY + estHeight > PAGE_H - s.margins.bottom) {
-              // optional: hier abbrechen oder auf nächste Seite verweisen
-              break;
-            }
 
             newElements.push({
               kind: "section",
@@ -247,6 +245,11 @@ export const useDesignerStore = create<DesignerState>()(
             });
 
             cursorY += estHeight + spacing;
+
+            // Falls über die Seite hinaus: grobe Korrektur (wir brechen NICHT ab; echte Mehrseiten-Layouts kommen später).
+            if (cursorY > PAGE_H - s.margins.bottom) {
+              cursorY = PAGE_H - s.margins.bottom - (lineCost + spacing);
+            }
           }
 
           const next = { ...s, elements: newElements };
@@ -301,8 +304,11 @@ export const useDesignerStore = create<DesignerState>()(
         if (!persisted?.state) return persisted;
         const s = persisted.state;
         const fallback: Margins = { top: 36, right: 36, bottom: 36, left: 36 };
+
         if (!s.margins) s.margins = s.exportMargins ?? fallback;
+
         const snap = typeof s.snapSize === "number" ? s.snapSize : 20;
+
         if (!s.tokens) {
           s.tokens = defaultTokens(s.margins, snap);
         } else {
@@ -310,8 +316,10 @@ export const useDesignerStore = create<DesignerState>()(
           if (!s.tokens.margins) s.tokens.margins = { ...s.margins };
           if (typeof s.tokens.snapSize !== "number") s.tokens.snapSize = snap;
         }
+
         if (typeof s.snapSize !== "number") s.snapSize = s.tokens.snapSize;
         if (s.exportMargins) delete s.exportMargins;
+
         return { ...persisted, state: s };
       },
     }
