@@ -49,13 +49,18 @@ type DesignerState = {
   setSnapSize(n: number): void;
   setZoom(z: number): void;
   setTokens(partial: Partial<StyleTokens>): void;
+
+  /** Initialer Import aus Generator — platziert mehrere Sections vertikal. */
   setInitialElementsFromSections(sections: Array<{ title?: string; content?: string }>): void;
+
   undo(): void;
   redo(): void;
   commit(): void;
 };
 
 const HISTORY_LIMIT = 50;
+const PAGE_W = 595; // 72dpi A4
+const PAGE_H = 842;
 
 function defaultTokens(margins: Margins, snapSize = 20): StyleTokens {
   return {
@@ -203,21 +208,48 @@ export const useDesignerStore = create<DesignerState>()(
 
       setInitialElementsFromSections(sections) {
         if (!sections?.length) return;
-        const joined = sections
-          .map((s) => {
-            const title = s.title ? `${s.title}\n` : "";
-            return `${title}${s.content ?? ""}`;
-          })
-          .join("\n");
         set((s) => {
-          const init: CanvasElement = {
-            kind: "section",
-            id: uid("sec"),
-            frame: { x: 60, y: 60, width: 480, height: 0 },
-            title: "Erfahrung",
-            text: joined,
-          };
-          const next = { ...s, elements: [init] };
+          const left = s.margins.left;
+          const right = s.margins.right;
+          const top = s.margins.top;
+          const contentW = PAGE_W - left - right;
+
+          const fs = Number(s.tokens.fontSize) > 0 ? Number(s.tokens.fontSize) : 11;
+          const lh = Number(s.tokens.lineHeight) > 0 ? Number(s.tokens.lineHeight) : 1.4;
+          const lineCost = Math.ceil(fs * lh);
+          const titleCost = Math.ceil(fs * 1.6);
+          const spacing = Math.max(6, Math.round(s.tokens.sectionSpacing));
+
+          let cursorY = top;
+
+          const newElements: CanvasElement[] = [];
+
+          for (const sec of sections) {
+            const title = (sec.title || "").trim();
+            const text = (sec.content || "").toString();
+
+            // grobe Höhenabschätzung, um Y zu staffeln
+            const lines = [title ? "X" : "", ...text.split("\n")].filter(() => true);
+            const estHeight = (title ? titleCost : 0) + lines.length * lineCost;
+
+            // wenn kein Platz mehr: (einfach) stoppen — Feinsplitting kommt über splitSectionByPage + Re-Import
+            if (cursorY + estHeight > PAGE_H - s.margins.bottom) {
+              // optional: hier abbrechen oder auf nächste Seite verweisen
+              break;
+            }
+
+            newElements.push({
+              kind: "section",
+              id: uid("sec"),
+              frame: { x: left, y: cursorY, width: contentW, height: 0 },
+              title: title || undefined,
+              text: (title ? `${title}\n` : "") + text,
+            });
+
+            cursorY += estHeight + spacing;
+          }
+
+          const next = { ...s, elements: newElements };
           const u = s.undoStack.concat(snapshot(s)).slice(-HISTORY_LIMIT);
           return { ...next, undoStack: u, redoStack: [] };
         });
@@ -229,7 +261,14 @@ export const useDesignerStore = create<DesignerState>()(
         if (!prev) return;
         const newUndo = s.undoStack.slice(0, -1);
         const red = s.redoStack.concat(snapshot(s)).slice(-HISTORY_LIMIT);
-        set({ elements: prev.elements, margins: prev.margins, zoom: prev.zoom, tokens: prev.tokens, undoStack: newUndo, redoStack: red });
+        set({
+          elements: prev.elements,
+          margins: prev.margins,
+          zoom: prev.zoom,
+          tokens: prev.tokens,
+          undoStack: newUndo,
+          redoStack: red,
+        });
       },
 
       redo() {
@@ -238,7 +277,14 @@ export const useDesignerStore = create<DesignerState>()(
         if (!next) return;
         const newRedo = s.redoStack.slice(0, -1);
         const und = s.undoStack.concat(snapshot(s)).slice(-HISTORY_LIMIT);
-        set({ elements: next.elements, margins: next.margins, zoom: next.zoom, tokens: next.tokens, undoStack: und, redoStack: newRedo });
+        set({
+          elements: next.elements,
+          margins: next.margins,
+          zoom: next.zoom,
+          tokens: next.tokens,
+          undoStack: und,
+          redoStack: newRedo,
+        });
       },
 
       commit() {
