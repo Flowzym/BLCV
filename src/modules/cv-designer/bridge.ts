@@ -1,4 +1,4 @@
-// Kleine Bridge zwischen Generator und Designer – ohne Inline-Script.
+// Bridge zwischen Generator und Designer – robuste Initialisierung
 
 type Parts = unknown[]; // <-- bei dir ggf. richtiger Typ (CanvasPart[])
 
@@ -12,10 +12,24 @@ declare global {
 let listener: ((parts: Parts) => void) | null = null;
 
 export function initDesignerBridge() {
-  // Sicherstellen, dass die globalen Funktionen immer definiert sind
-  // Designer registriert seinen Callback
-  window.ns_setupCallback = (cb) => { listener = cb; };
-  // Generator ruft diese Funktion auf, um Parts zu senden
-  window.ns_dispatchPartsFromGenerator = (parts) => { listener?.(parts); };
+  console.log('[BRIDGE] Initializing designer bridge...');
+  
+  // Robuste Initialisierung: Funktionen sind IMMER definiert
+  window.ns_setupCallback = (cb: (parts: Parts) => void) => {
+    console.log('[BRIDGE] Callback registered');
+    listener = cb;
+  };
+  
+  window.ns_dispatchPartsFromGenerator = (parts: Parts) => {
+    console.log('[BRIDGE] Dispatching parts:', parts);
+    if (listener) {
+      listener(parts);
+    } else {
+      console.warn('[BRIDGE] No listener registered yet, parts ignored');
+    }
+  };
+  
+  console.log('[BRIDGE] Bridge initialized successfully');
+}
 
 }
