@@ -270,6 +270,10 @@ export default function FabricCanvas() {
         DBG(`Added textbox to section group ${section.id}`);
       }
 
+      // Update group coordinates after adding all objects
+      sectionGroup.setCoords();
+      DBG(`Updated coordinates for section group ${section.id}`);
+
       // Add section group to canvas
       fabricCanvas.add(sectionGroup);
       DBG(`Added section group ${section.id} to canvas`);
