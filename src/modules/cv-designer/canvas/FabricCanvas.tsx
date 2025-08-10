@@ -390,14 +390,22 @@ export default function FabricCanvas() {
               calculatedNewWidth: newWidth
             });
             
+            // CRITICAL: Reset position to original offsets FIRST
+            obj.set({
+              left: obj.originalOffsetX,
+              top: obj.originalOffsetY
+            });
+            
+            // Then update width and ensure no scaling
             obj.set({
               width: newWidth,
-              left: obj.originalOffsetX,
-              top: obj.originalOffsetY,
               scaleX: 1,
               scaleY: 1,
               dirty: true
             });
+            
+            // Update textbox coordinates BEFORE text reflow
+            obj.setCoords();
             
             // Force text reflow by re-setting the text content
             const currentText = obj.text;
@@ -407,6 +415,8 @@ export default function FabricCanvas() {
             // Force object to recalculate its dimensions
             obj._clearCache();
             obj.initDimensions();
+            
+            // Final coordinate update after all changes
             obj.setCoords();
             
             // Log final state after all changes
@@ -427,6 +437,9 @@ export default function FabricCanvas() {
             DBG(`=== TEXTBOX UPDATE COMPLETE ===`);
           }
         });
+        
+        // Update group coordinates after all child objects have been repositioned
+        sectionGroup.setCoords();
         
         // Force canvas re-render
         fabricCanvas.renderAll();
