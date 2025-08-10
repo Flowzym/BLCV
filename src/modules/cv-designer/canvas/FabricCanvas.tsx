@@ -55,14 +55,48 @@ export default function FabricCanvas() {
           canvas.selection = true;
           canvas.preserveObjectStacking = true;
 
+          // 🔧 Wichtig für Klicks auf Kinder in Gruppen:
+          canvas.subTargetCheck = true;
+          canvas.perPixelTargetFind = true;
+          canvas.targetFindTolerance = 4;
+
           setFabricCanvas(canvas);
           installSectionResize(canvas);
 
-          // Click-Handler für Edit
+          // Click-Handler für Edit (nutzt subTargets)
           canvas.on("mouse:down", (e: any) => {
-            const t = e.target;
+            let t: any = null;
+
+            // a) Bevorzugt: ein Kind in der Trefferliste (subTargets)
+            if (Array.isArray(e.subTargets) && e.subTargets.length) {
+              t = e.subTargets.find((o: any) => o?.type === "textbox") ?? null;
+            }
+
+            // b) Fallback: direkter Target ist eine Textbox
+            if (!t && e.target && e.target.type === "textbox") {
+              t = e.target;
+            }
+
+            // c) Zweiter Fallback: Gruppe getroffen → nächstliegende Textbox unter Pointer suchen
+            if (!t && e.target && e.target.type === "group") {
+              const grp = e.target;
+              const pointer = canvas.getPointer(e.e);
+              const hit = (grp._objects || []).find((child: any) => {
+                if (child.type !== "textbox") return false;
+                const r = child.getBoundingRect(true, true);
+                return (
+                  pointer.x >= r.left &&
+                  pointer.x <= r.left + r.width &&
+                  pointer.y >= r.top &&
+                  pointer.y <= r.top + r.height
+                );
+              });
+              if (hit) t = hit;
+            }
+
             if (!t) return;
-            // Wir erlauben Edit nur, wenn es eine Textbox in einer Section-Gruppe ist
+
+            // nur Textboxen mit unseren Metadaten sind editierbar
             if (t.type === "textbox" && t.sectionId && t.fieldType) {
               const grp = t.group; // fabric.Group
               if (grp) {
@@ -152,15 +186,15 @@ export default function FabricCanvas() {
             tokens?.colorPrimary ||
             "#000000",
           fontWeight:
-            part.fontWeight || localPartStyle.fontWeight || (globalStyle.fontWeight as any) || "normal",
+            (part.fontWeight as any) || (localPartStyle.fontWeight as any) || (globalStyle.fontWeight as any) || "normal",
           fontStyle:
-            part.fontStyle ||
+            (part.fontStyle as any) ||
             (localPartStyle.italic ? "italic" : (globalStyle.fontStyle as any)) ||
             "normal",
           lineHeight:
             part.lineHeight ||
             localPartStyle.lineHeight ||
-            globalStyle.lineHeight ||
+            (globalStyle.lineHeight as any) ||
             tokens?.lineHeight ||
             1.4,
           charSpacing:
@@ -176,7 +210,8 @@ export default function FabricCanvas() {
           ...finalStyle,
           splitByGrapheme: true,
           breakWords: true,
-          selectable: false, evented: true, // evented true, damit mouse:down trifft
+          // ⬇️ wichtig: evented true, selectable kann false bleiben
+          selectable: false, evented: true,
           hasControls: false, hasBorders: false, editable: false,
           lockScalingX: true, lockScalingY: true,
           lockMovementX: true, lockMovementY: true, lockUniScaling: true,
@@ -227,6 +262,8 @@ export default function FabricCanvas() {
         transparentCorners: false,
         borderColor: "#3b82f6",
         cornerColor: "#3b82f6",
+        // ⬇️ wichtig: Kinder in der Gruppe klickbar machen
+        subTargetCheck: true,
       }) as any;
 
       sectionGroup.data = {
