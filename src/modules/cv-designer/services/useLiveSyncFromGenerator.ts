@@ -3,7 +3,6 @@ import { useEffect, useMemo, useRef } from "react";
 import { useLebenslauf } from "@/components/LebenslaufContext";
 import { useDesignerStore } from "../store/designerStore";
 import { mapLebenslaufToSectionParts } from "./mapLebenslaufToSectionParts";
-import { flattenSectionsToElements } from "./flatten";
 import { useDesignerCvSnapshot } from "../selectors/cvSelectors";
 
 const DBG = (msg: string, ...args: any[]) => {
@@ -40,7 +39,7 @@ const sectionKey = (e: SectionElement) => e.meta?.source?.key;
 export function useLiveSyncFromGenerator(debounceMs = 200) {
   const ll = useLebenslauf();
   const cvSnapshot = useDesignerCvSnapshot();
-  const { setSections, setElements, bump } = useDesignerStore();
+  const { setSections, bump } = useDesignerStore();
 
   // Signature für Reaktivität
   const sig = useMemo(
@@ -89,28 +88,26 @@ export function useLiveSyncFromGenerator(debounceMs = 200) {
     if (timer.current) window.clearTimeout(timer.current);
 
     timer.current = window.setTimeout(() => {
-      const mapped = mapLebenslaufToSectionParts(ll);
-
-      if (import.meta.env.VITE_DEBUG_DESIGNER_SYNC === 'true') {
-      }
       DBG('useLiveSyncFromGenerator triggered');
       
       const sections = mapLebenslaufToSectionParts(ll);
-      const elements = flattenSectionsToElements(sections);
       
       setSections(sections);
-      setElements(elements);
       bump();
       
       DBG('Synced to store:', { 
-        sections: sections.length, 
-        elements: elements.length, 
-        firstText: elements.find(e => e.type === 'text')?.text 
+        sectionsCount: sections.length,
+        firstSection: sections[0] ? {
+          id: sections[0].id,
+          title: sections[0].title,
+          partsCount: sections[0].parts.length,
+          frame: { x: sections[0].x, y: sections[0].y, width: sections[0].width, height: sections[0].height }
+        } : null
       });
     }, debounceMs) as unknown as number;
 
     return () => { 
       if (timer.current) window.clearTimeout(timer.current); 
     };
-  }, [sig, cvSnapshot.__dep__, setSections, setElements, bump, ll]);
+  }, [sig, cvSnapshot.__dep__, setSections, bump, ll]);
 }
