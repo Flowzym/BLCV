@@ -306,21 +306,59 @@ export default function FabricCanvas() {
       fabricCanvas.add(sectionGroup);
       DBG(`Added section group ${section.id} to canvas`);
       
-      // Add event listener to update textbox widths when section is resized
+      // Add aggressive event listener to update textbox widths when section is resized
       sectionGroup.on('modified', function() {
+        DBG(`Section ${section.id} modified - updating textbox widths:`, {
+          sectionGroupWidth: sectionGroup.width,
+          sectionGroupHeight: sectionGroup.height,
+          sectionGroupScaleX: sectionGroup.scaleX,
+          sectionGroupScaleY: sectionGroup.scaleY
+        });
+        
         const groupObjects = sectionGroup.getObjects();
         groupObjects.forEach((obj: any) => {
           if (obj.type === 'textbox' && obj.sectionRef && obj.originalOffsetX !== undefined) {
             const newWidth = Math.max(50, sectionGroup.width - obj.originalOffsetX - 20);
+            
+            DBG(`Updating textbox ${obj.id || 'unknown'}:`, {
+              oldWidth: obj.width,
+              newWidth: newWidth,
+              oldScaleX: obj.scaleX,
+              oldScaleY: obj.scaleY,
+              originalOffsetX: obj.originalOffsetX,
+              sectionGroupWidth: sectionGroup.width
+            });
+            
             obj.set({
               width: newWidth,
               scaleX: 1,
-              scaleY: 1
+              scaleY: 1,
+              dirty: true
             });
+            
+            // Force text reflow by re-setting the text content
+            const currentText = obj.text;
+            obj.set('text', '');
+            obj.set('text', currentText);
+            
+            // Force object to recalculate its dimensions
+            obj._clearCache();
+            obj._setTextStyles();
+            obj.initDimensions();
             obj.setCoords();
+            
+            DBG(`Textbox ${obj.id || 'unknown'} updated:`, {
+              finalWidth: obj.width,
+              finalScaleX: obj.scaleX,
+              finalScaleY: obj.scaleY,
+              textLength: obj.text?.length || 0
+            });
           }
         });
+        
+        // Force canvas re-render
         fabricCanvas.renderAll();
+        DBG(`Section ${section.id} modification complete - canvas re-rendered`);
       });
     }
 
