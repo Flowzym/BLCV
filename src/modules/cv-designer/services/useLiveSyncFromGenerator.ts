@@ -100,34 +100,23 @@ export function useLiveSyncFromGenerator(debounceMs = 200) {
 
     timer.current = window.setTimeout(() => {
       const mapped = mapLebenslaufToSectionParts(ll);
-      if (import.meta.env.VITE_DEBUG_DESIGNER_SYNC === 'true') {
-        console.debug("[DesignerSync] ctx snapshot", {
-          personalData: cvSnapshot.personalData,
-          experiences: cvSnapshot.experiences?.length || 0,
-          educations: cvSnapshot.educations?.length || 0
-        });
-        console.debug("[DesignerSync] mapped", mapped.map(m => ({
-          group: m.group,
-          sourceKey: m.sourceKey,
-          partsCount: m.parts.length
-        })));
-      }
-
-      if (import.meta.env.VITE_DEBUG_DESIGNER_SYNC === 'true') {
-        console.debug("[DesignerSync] ctx snapshot", {
-          personalData: cvSnapshot.personalData,
-          experiences: cvSnapshot.experiences?.length || 0,
-          educations: cvSnapshot.educations?.length || 0
-        });
-        console.debug("[DesignerSync] mapped", mapped.map(m => ({
-          group: m.group,
-          sourceKey: m.sourceKey,
-          partsCount: m.parts.length
-        })));
-      }
 
       const { elements, updatePartText, setInitialElements } =
         useDesignerStore.getState();
+
+      if (import.meta.env.VITE_DEBUG_DESIGNER_SYNC === 'true') {
+        console.debug("[useLiveSyncFromGenerator] Processing:", {
+          mappedSections: mapped.length,
+          currentElements: elements.length,
+          mapped: mapped.map(m => ({
+            group: m.group,
+            sourceKey: m.sourceKey,
+            title: m.title,
+            partsCount: m.parts.length,
+            firstPartText: m.parts[0]?.text?.substring(0, 30) + '...'
+          }))
+        });
+      }
 
       // vorhandene Sections nach sourceKey indizieren
       const existing = new Map<string, SectionElement>();
@@ -154,6 +143,15 @@ export function useLiveSyncFromGenerator(debounceMs = 200) {
         ) as Partial<Record<PartKey, string>>;
         const prev = existing.get(m.sourceKey);
 
+        if (import.meta.env.VITE_DEBUG_DESIGNER_SYNC === 'true') {
+          console.debug(`[useLiveSyncFromGenerator] Processing section ${m.sourceKey}:`, {
+            group: m.group,
+            title: m.title,
+            texts,
+            hasExisting: !!prev
+          });
+        }
+
         if (!prev) {
           if (m.group === "kontakt" && !contactPlaced) {
             const tpl = Templates.contactRight;
@@ -176,6 +174,13 @@ export function useLiveSyncFromGenerator(debounceMs = 200) {
               meta: { source: { key: m.sourceKey, group: m.group, template: tpl.id } },
               title: m.title,
             });
+            if (import.meta.env.VITE_DEBUG_DESIGNER_SYNC === 'true') {
+              console.debug(`[useLiveSyncFromGenerator] Adding experience section:`, {
+                sourceKey: m.sourceKey,
+                texts,
+                frame: computeFrameForRow("left", exp-1, margins, tpl.baseSize.width, tpl.baseSize.height)
+              });
+            }
             continue;
           }
           if (m.group === "ausbildung") {
@@ -187,6 +192,32 @@ export function useLiveSyncFromGenerator(debounceMs = 200) {
               meta: { source: { key: m.sourceKey, group: m.group, template: tpl.id } },
               title: m.title,
             });
+            if (import.meta.env.VITE_DEBUG_DESIGNER_SYNC === 'true') {
+              console.debug(`[useLiveSyncFromGenerator] Adding education section:`, {
+                sourceKey: m.sourceKey,
+                texts,
+                frame: computeFrameForRow("left", edu-1, margins, tpl.baseSize.width, tpl.baseSize.height)
+              });
+            }
+            continue;
+          }
+          // ProfileInput sections (summary, skills, etc.)
+          if (m.group === "profil" || m.group === "kenntnisse" || m.group === "softskills") {
+            const tpl = Templates.contactRight; // Reuse contact template for now
+            adds.push({
+              tpl,
+              frame: computeFrameForRow("right", contactPlaced ? 1 : 0, margins, tpl.baseSize.width, tpl.baseSize.height),
+              texts,
+              meta: { source: { key: m.sourceKey, group: m.group, template: tpl.id } },
+              title: m.title,
+            });
+            if (import.meta.env.VITE_DEBUG_DESIGNER_SYNC === 'true') {
+              console.debug(`[useLiveSyncFromGenerator] Adding profile section:`, {
+                sourceKey: m.sourceKey,
+                group: m.group,
+                texts
+              });
+            }
             continue;
           }
           continue;
@@ -195,17 +226,17 @@ export function useLiveSyncFromGenerator(debounceMs = 200) {
         // Updates: nur Text aktualisieren, wenn sich etwas geändert hat & nicht gelocked
         for (const p of m.parts) {
           const local = prev.parts.find((x) => x.key === p.key);
-          if (import.meta.env.VITE_DEBUG_DESIGNER_SYNC === 'true') {
-            console.debug("[DesignerSync] store elements", {
-              currentCount: elements.length,
-              newSectionsCount: newSecs.length,
-              totalAfter: elements.length + newSecs.length
-            });
-          }
-
           if (!local || local.lockText) continue;
           const incoming = p.text ?? "";
           if ((local.text ?? "") !== incoming) {
+            if (import.meta.env.VITE_DEBUG_DESIGNER_SYNC === 'true') {
+              console.debug(`[useLiveSyncFromGenerator] Updating part text:`, {
+                sectionId: prev.id,
+                partKey: p.key,
+                oldText: local.text?.substring(0, 30) + '...',
+                newText: incoming.substring(0, 30) + '...'
+              });
+            }
             updatePartText(prev.id, p.key, incoming);
           }
         }
@@ -218,10 +249,17 @@ export function useLiveSyncFromGenerator(debounceMs = 200) {
         );
 
         if (import.meta.env.VITE_DEBUG_DESIGNER_SYNC === 'true') {
-          console.debug("[DesignerSync] store elements", {
+          console.debug("[useLiveSyncFromGenerator] Adding new sections to store:", {
             currentCount: elements.length,
             newSectionsCount: newSecs.length,
-            totalAfter: elements.length + newSecs.length
+            totalAfter: elements.length + newSecs.length,
+            newSections: newSecs.map(s => ({
+              id: s.id,
+              group: s.group,
+              sourceKey: s.meta?.source?.key,
+              partsCount: s.parts.length,
+              firstPartText: s.parts[0]?.text?.substring(0, 30) + '...'
+            }))
           });
         }
 

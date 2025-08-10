@@ -275,6 +275,23 @@ function reconcileCanvas(
   map:Map<string, any>,
   cvSnapshot: any
 ){
+  if (import.meta.env.VITE_DEBUG_DESIGNER_SYNC === 'true') {
+    console.debug('[FabricCanvas] reconcileCanvas called with:', {
+      elementsCount: elements.length,
+      elements: elements.map(e => ({
+        id: e.id,
+        kind: e.kind,
+        group: e.kind === 'section' ? e.group : undefined,
+        partsCount: e.kind === 'section' ? e.parts?.length || 0 : undefined,
+        sourceKey: e.kind === 'section' ? e.meta?.source?.key : undefined
+      })),
+      cvSnapshot: {
+        experiencesCount: cvSnapshot.experiences?.length || 0,
+        educationsCount: cvSnapshot.educations?.length || 0
+      }
+    });
+  }
+
   purgeStrays(c);
   hydrateMapFromCanvas(c, map);
 
@@ -333,9 +350,29 @@ function reconcileCanvas(
 
       // Get live text from CV snapshot for dynamic content
       let displayText = String(part.text ?? "");
+      
+      // Add fallback text for debugging
+      if (!displayText.trim()) {
+        displayText = `[${el.group}:${part.key}]`;
+      }
+      
       if (el.group === "erfahrung" && cvSnapshot.experiences) {
         const expId = el.meta?.source?.key?.replace('exp:', '');
         const exp = cvSnapshot.experiences.find((e: any) => e.id === expId);
+        
+        if (import.meta.env.VITE_DEBUG_DESIGNER_SYNC === 'true') {
+          console.debug(`[FabricCanvas] Experience mapping for ${expId}:`, {
+            found: !!exp,
+            partKey: part.key,
+            expData: exp ? {
+              positionLine: exp.positionLine,
+              companyLine: exp.companyLine,
+              period: exp.period,
+              tasksCount: exp.tasks?.length || 0
+            } : 'not found'
+          });
+        }
+        
         if (exp) {
           switch (part.key) {
             case "position":
@@ -356,6 +393,19 @@ function reconcileCanvas(
       if (el.group === "ausbildung" && cvSnapshot.educations) {
         const eduId = el.meta?.source?.key?.replace('edu:', '');
         const edu = cvSnapshot.educations.find((e: any) => e.id === eduId);
+        
+        if (import.meta.env.VITE_DEBUG_DESIGNER_SYNC === 'true') {
+          console.debug(`[FabricCanvas] Education mapping for ${eduId}:`, {
+            found: !!edu,
+            partKey: part.key,
+            eduData: edu ? {
+              titleLine: edu.titleLine,
+              institution: edu.institution,
+              period: edu.period
+            } : 'not found'
+          });
+        }
+        
         if (edu) {
           switch (part.key) {
             case "titel":
@@ -373,10 +423,24 @@ function reconcileCanvas(
           }
         }
       }
+      
+      if (import.meta.env.VITE_DEBUG_DESIGNER_SYNC === 'true') {
+        console.debug(`[FabricCanvas] Rendering part ${part.key} with text:`, {
+          elementId: el.id,
+          group: el.group,
+          partKey: part.key,
+          originalText: part.text?.substring(0, 30) + '...',
+          displayText: displayText.substring(0, 30) + '...',
+          position: { left, top, width, height }
+        });
+      }
+      
       if (!pObj){
         pObj = new fabric.Textbox(displayText, {
-          left, top, width, height,
-          selectable: true, editable: true
+          left, top, width, height: Math.max(height, 20),
+          selectable: true, editable: true,
+          visible: true,
+          opacity: 1
         });
         pObj.__bl_id   = el.id;
         pObj.__bl_part = part.key;
@@ -388,10 +452,38 @@ function reconcileCanvas(
         applyTextStyle(pObj, base, part.style, global);
         c.add(pObj); map.set(pKey, pObj);
       }else{
-        pObj.set({ left, top, width, height, text: displayText });
+        pObj.set({ 
+          left, top, width, 
+          height: Math.max(height, 20), 
+          text: displayText,
+          visible: true,
+          opacity: 1
+        });
         applyTextStyle(pObj, base, part.style, global);
       }
       keep.add(pKey);
+    }
+  }
+
+  // Add test section if no elements exist
+  if (elements.length === 0) {
+    const testKey = "test:hello";
+    if (!map.has(testKey)) {
+      const testObj = new fabric.Textbox("Hello Canvas - Test Text", {
+        left: 50, top: 50, width: 200, height: 30,
+        selectable: true, editable: false,
+        visible: true, opacity: 1,
+        fontSize: 14, fontFamily: "Arial"
+      });
+      testObj.__bl_id = "test";
+      testObj.__bl_part = "test";
+      c.add(testObj);
+      map.set(testKey, testObj);
+      keep.add(testKey);
+      
+      if (import.meta.env.VITE_DEBUG_DESIGNER_SYNC === 'true') {
+        console.debug('[FabricCanvas] Added test text for debugging');
+      }
     }
   }
 

@@ -133,7 +133,8 @@ export const useDesignerStore = create<DesignerState>()(
               kind: e.kind,
               group: e.kind === 'section' ? e.group : undefined,
               partsCount: e.kind === 'section' ? e.parts?.length || 0 : undefined,
-              sourceKey: e.kind === 'section' ? e.meta?.source?.key : undefined
+              sourceKey: e.kind === 'section' ? e.meta?.source?.key : undefined,
+              firstPartText: e.kind === 'section' && e.parts?.length > 0 ? e.parts[0].text?.substring(0, 30) + '...' : 'no parts'
             }))
           });
         }

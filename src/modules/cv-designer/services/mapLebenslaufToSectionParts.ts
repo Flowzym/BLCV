@@ -1,29 +1,55 @@
-// Robust Mapping vom Lebenslauf-Generator → CV-Designer Sections/Parts.
-// Unterstützt Arrays (companies[], position[], institution[], abschluss[])
-// sowie Monat/Jahr-Felder (startMonth/Year, endMonth/Year, isCurrent).
+// Text-Mapping (Generator → einfache Text-Sektionen) + Chunking nach A4-Höhe.
+// Wird u.a. vom (älteren) Import/Update-Flow genutzt.
+//
+// Exporte:
+//   - buildSectionsFromLebenslauf(lebenslauf) => Array<{ title, content, group?, key? }>
+//   - splitSectionByPage(section, fontSize, pageHeight, {top,bottom}, lineHeight)
+//   - mapLebenslaufToSectionParts(ctx) => MappedSection[]
 
 import type { GroupKey, PartKey } from "../store/designerStore";
 
-type AnyObj = Record<string, any>;
+export interface TextSection {
+  title?: string;
+  content: string;
+  group?: GroupKey;
+  key?: string;   // optional: stabiler Schlüssel (z. B. "experience:<id>")
+}
 
 export type MappedSection = {
   group: GroupKey;
-  sourceKey: string;          // stabil: z.B. "exp:<id>:<startYear>:<endYear>"
+  sourceKey: string;          // stabil: z.B. "exp:<id>"
   title?: string;
   parts: Array<{ key: PartKey; text?: string }>;
 };
 
-function pickString(v: any): string {
+// helpers
+function j(v: any, sep = " "): string {
   if (v == null) return "";
   if (Array.isArray(v)) {
-    const first = v.find((s) => typeof s === "string" && s.trim());
-    return typeof first === "string" ? first.trim() : "";
+    return v.map(item => String(item ?? "").trim()).filter(Boolean).join(sep);
   }
-  if (typeof v === "string") return v.trim();
   return String(v ?? "").trim();
 }
 
-function norm(v: any) {
+function lines(v: any): string[] {
+  if (v == null) return [];
+  return String(v).replace(/\r\n/g, "\n").split("\n");
+}
+
+function formatPeriod(sm: string|null, sy: string|null, em: string|null, ey: string|null, current: boolean): string {
+  const fmt = (m?: string|null, y?: string|null) => {
+    if (!y || y === 'null') return '';
+    const month = m && m !== 'null' ? m.padStart(2, '0') : '';
+    return month ? `${month}.${y}` : y;
+  };
+  const start = fmt(sm, sy);
+  const end = current ? 'heute' : fmt(em, ey);
+  if (!start && !end) return '';
+  if (start && end) return `${start} – ${end}`;
+  return start || end;
+}
+
+function norm(v: any): string {
   if (v == null) return "";
   if (Array.isArray(v)) {
     return v.map(item => String(item ?? "").trim()).filter(Boolean).join(", ");
@@ -31,75 +57,25 @@ function norm(v: any) {
   return String(v ?? "").trim().replace(/\s+/g, " ");
 }
 
-function bullets(v: any) {
-  const arr = Array.isArray(v) ? v : [v];
-  const items = arr.map(pickString).filter(Boolean);
-  return items.length ? items.map((s) => `• ${s}`).join("\n") : "";
-}
-
-function spanFromMY(
-  sm?: string | null,
-  sy?: string | null,
-  em?: string | null,
-  ey?: string | null,
-  cur?: boolean
-) {
-  const fmt = (m?: string | null, y?: string | null) => {
-    const mm = (m ?? "").toString().replace(/^null$/, "").padStart(2, "0").replace(/^0{2}$/, "");
-    const yy = (y ?? "").toString().replace(/^null$/, "");
-    if (!yy || yy === "null") return "";
-    return mm ? `${mm}/${yy}` : yy;
-  };
-  const from = fmt(sm, sy);
-  const to = cur ? "heute" : fmt(em, ey);
-  if (from && to) return `${from} – ${to}`;
-  return from || to || "";
-}
-
-function spanFallback(o: AnyObj) {
-  const s = pickString(o.start ?? o.von);
-  const e = pickString(o.end ?? o.bis);
-  if (s && e) return `${s} – ${e}`;
-  return s || e || "";
-}
-function stableKey(prefix: string, o: AnyObj, idx: number) {
-  const id = pickString(o.id) || `auto-${idx}`;
-  return `${prefix}:${id}`;
-}
-
-export function mapLebenslaufToSectionParts(ll: AnyObj): MappedSection[] {
+export function mapLebenslaufToSectionParts(ll: any): MappedSection[] {
   const out: MappedSection[] = [];
+  
+  if (import.meta.env.VITE_DEBUG_DESIGNER_SYNC === 'true') {
+    console.debug('[mapLebenslaufToSectionParts] Input data:', {
+      personalData: ll?.personalData ? Object.keys(ll.personalData) : 'none',
+      berufserfahrung: ll?.berufserfahrung?.length || 0,
+      ausbildung: ll?.ausbildung?.length || 0
+    });
+  }
 
-  // ---- Kontakt / rechte Spalte
-  const pd = ll?.personalData ?? ll?.person ?? {};
+  // ---- Kontakt / PersonalData
+  const pd = ll?.personalData ?? {};
   if (pd && Object.keys(pd).length) {
-    const fullName =
-      [norm(pd.titel), norm(pd.vorname), norm(pd.nachname)]
-        .filter(Boolean)
-        .join(" ")
-        .trim() || norm(pd.name);
-    const phone =
-      [norm(pd.telefonVorwahl), norm(pd.telefon)]
-        .filter(Boolean)
-        .join(" ")
-        .trim() || norm(pd.phone);
-    const website =
-      Array.isArray(pd.socialMedia)
-        ? pd.socialMedia.map(norm).filter(Boolean).join(", ")
-        : norm(pd.website);
+    const fullName = [norm(pd.titel), norm(pd.vorname), norm(pd.nachname)].filter(Boolean).join(" ").trim() || norm(pd.name);
+    const phone = [norm(pd.telefonVorwahl), norm(pd.telefon)].filter(Boolean).join(" ").trim() || norm(pd.phone);
+    const website = Array.isArray(pd.socialMedia) ? pd.socialMedia.map(norm).filter(Boolean).join(", ") : norm(pd.website);
 
-    const contact = [
-      fullName,
-      norm(pd.email),
-      phone,
-      norm(pd.city ?? pd.ort),
-      norm(pd.street ?? pd.adresse),
-      website,
-      norm(pd.linkedin),
-      norm(pd.github),
-    ]
-      .filter(Boolean)
-      .join(" · ");
+    const contact = [fullName, norm(pd.email), phone, norm(pd.city ?? pd.ort), norm(pd.street ?? pd.adresse), website, norm(pd.linkedin), norm(pd.github)].filter(Boolean).join(" · ");
 
     if (contact) {
       out.push({
@@ -110,13 +86,13 @@ export function mapLebenslaufToSectionParts(ll: AnyObj): MappedSection[] {
       });
     }
 
-    // Add ProfileInput aggregated data as separate sections
+    // ProfileInput aggregated data
     if (pd.summary?.trim()) {
       out.push({
         group: "profil",
         sourceKey: "profile:summary",
         title: "Profil",
-        parts: [{ key: "titel", text: pd.summary }],
+        parts: [{ key: "titel", text: pd.summary.trim() }],
       });
     }
 
@@ -125,7 +101,7 @@ export function mapLebenslaufToSectionParts(ll: AnyObj): MappedSection[] {
         group: "kenntnisse",
         sourceKey: "profile:skills",
         title: "Fachliche Kompetenzen",
-        parts: [{ key: "skills", text: pd.skillsSummary }],
+        parts: [{ key: "skills", text: pd.skillsSummary.trim() }],
       });
     }
 
@@ -134,109 +110,108 @@ export function mapLebenslaufToSectionParts(ll: AnyObj): MappedSection[] {
         group: "softskills",
         sourceKey: "profile:softskills",
         title: "Persönliche Kompetenzen",
-        parts: [{ key: "skills", text: pd.softSkillsSummary }],
+        parts: [{ key: "skills", text: pd.softSkillsSummary.trim() }],
       });
     }
 
     if (pd.taetigkeitenSummary?.trim()) {
       out.push({
         group: "erfahrung",
-      title: "Kontakt",
+        sourceKey: "profile:taetigkeiten",
         title: "Tätigkeitsbereiche",
-        parts: [{ key: "taetigkeiten", text: pd.taetigkeitenSummary }],
+        parts: [{ key: "taetigkeiten", text: pd.taetigkeitenSummary.trim() }],
       });
     }
   }
 
-  // Add ProfileInput aggregated data as separate sections
-  if (pd.skillsSummary?.trim()) {
-    out.push({
-      title: "Fachliche Kompetenzen",
-      content: pd.skillsSummary,
-      group: "kenntnisse",
-      key: "profile:skills",
-    });
-  }
+  // ---- Berufserfahrung
+  const erfArr = Array.isArray(ll?.berufserfahrung) ? ll.berufserfahrung : [];
+  erfArr.forEach((exp, i) => {
+    const positionLine = Array.isArray(exp.position) ? exp.position.join(" / ") : (exp.position || "");
+    const companyLine = [
+      Array.isArray(exp.companies) ? exp.companies.join(" // ") : (exp.companies || ""),
+      (exp.leasingCompaniesList?.length ? `(über ${exp.leasingCompaniesList.join(", ")})` : "")
+    ].filter(Boolean).join(" ");
+    const period = formatPeriod(exp.startMonth, exp.startYear, exp.endMonth, exp.endYear, !!exp.isCurrent);
+    const tasks = Array.isArray(exp.aufgabenbereiche) ? exp.aufgabenbereiche.map(t => `• ${t}`).join('\n') : '';
 
-  if (pd.softSkillsSummary?.trim()) {
-    out.push({
-      title: "Persönliche Kompetenzen", 
-      content: pd.softSkillsSummary,
-      group: "softskills",
-      key: "profile:softskills",
-    });
-  }
-
-  if (pd.taetigkeitenSummary?.trim()) {
-    out.push({
-      title: "Tätigkeitsbereiche",
-      content: pd.taetigkeitenSummary,
-      group: "erfahrung",
-      key: "profile:taetigkeiten",
-    });
-  }
-  // ---- Erfahrung / linke Spalte
-  const erfArr: AnyObj[] =
-    Array.isArray(ll?.berufserfahrung) ? ll.berufserfahrung
-    : Array.isArray(ll?.workExperience) ? ll.workExperience
-    : Array.isArray(ll?.experience) ? ll.experience
-    : [];
-
-  erfArr.forEach((e, i) => {
-    const company  = norm(e.company ?? e.unternehmen ?? e.companies);
-    const position = norm(e.position ?? e.titel ?? e.role);
-    const city     = norm(e.city ?? e.ort);
-    const spanMY   = spanFromMY(e.startMonth, e.startYear, e.endMonth, e.endYear, e.isCurrent);
-    const spanFB   = spanMY || spanFallback(e);
-    const tasks    = bullets(e.tasks ?? e.aufgabenbereiche ?? e.beschreibung);
-
-    const title = [position, company].filter(Boolean).join(" @ ");
-
-    const parts: Array<{ key: PartKey; text?: string }> = [
-      { key: "titel",       text: title || position || company || "Berufserfahrung" },
-      { key: "zeitraum",    text: spanFB },
-      { key: "unternehmen", text: company },
+    const parts: Array<{ key: PartKey; text: string }> = [
+      { key: "position", text: positionLine || "Position" },
+      { key: "unternehmen", text: companyLine || "Unternehmen" },
+      { key: "zeitraum", text: period || "Zeitraum" },
     ];
-    if (position) parts.push({ key: "position", text: position });
-    if (city)     parts.push({ key: "ort",      text: city });
-    if (tasks)    parts.push({ key: "taetigkeiten", text: tasks });
+    
+    if (tasks) {
+      parts.push({ key: "taetigkeiten", text: tasks });
+    }
 
     out.push({
       group: "erfahrung",
-      sourceKey: `exp:${e.id || `auto-${i}`}`,
-      title,
+      sourceKey: `exp:${exp.id}`,
+      title: positionLine || companyLine || "Berufserfahrung",
       parts,
     });
+    
+    if (import.meta.env.VITE_DEBUG_DESIGNER_SYNC === 'true') {
+      console.debug(`[mapLebenslaufToSectionParts] Experience ${i}:`, {
+        id: exp.id,
+        positionLine,
+        companyLine,
+        period,
+        tasksCount: exp.aufgabenbereiche?.length || 0
+      });
+    }
   });
 
-  // ---- Ausbildung / linke Spalte
-  const eduArr: AnyObj[] =
-    Array.isArray(ll?.ausbildung) ? ll.ausbildung
-    : Array.isArray(ll?.education) ? ll.education
-    : [];
+  // ---- Ausbildung
+  const eduArr = Array.isArray(ll?.ausbildung) ? ll.ausbildung : [];
+  eduArr.forEach((edu, i) => {
+    const titleLine = [
+      Array.isArray(edu.ausbildungsart) ? edu.ausbildungsart.join(" / ") : (edu.ausbildungsart || ""),
+      Array.isArray(edu.abschluss) ? edu.abschluss.join(" / ") : (edu.abschluss || "")
+    ].filter(Boolean).join(" - ").trim();
+    const institution = Array.isArray(edu.institution) ? edu.institution.join(", ") : (edu.institution || "");
+    const period = formatPeriod(edu.startMonth, edu.startYear, edu.endMonth, edu.endYear, !!edu.isCurrent);
 
-  eduArr.forEach((e, i) => {
-    const institution = norm(e.institution ?? e.school ?? e.schule);
-    const degree      = norm(e.degree ?? e.abschluss);
-    const subject     = norm(e.subject ?? e.titel ?? e.ausbildungsart);
-    const spanMY      = spanFromMY(e.startMonth, e.startYear, e.endMonth, e.endYear, e.isCurrent);
-    const spanFB      = spanMY || spanFallback(e);
-
-    const title = [degree || subject, institution].filter(Boolean).join(" · ");
-    const parts: Array<{ key: PartKey; text?: string }> = [
-      { key: "titel",       text: title || subject || degree || "Ausbildung" },
-      { key: "zeitraum",    text: spanFB },
-      { key: "unternehmen", text: institution }, // Designer-PartKey heißt "unternehmen"
+    const parts: Array<{ key: PartKey; text: string }> = [
+      { key: "titel", text: titleLine || "Ausbildung" },
+      { key: "unternehmen", text: institution || "Institution" },
+      { key: "zeitraum", text: period || "Zeitraum" },
     ];
-    if (degree) parts.push({ key: "abschluss", text: degree });
+    
+    if (edu.zusatzangaben?.trim()) {
+      parts.push({ key: "abschluss", text: edu.zusatzangaben.trim() });
+    }
 
     out.push({
       group: "ausbildung",
-      sourceKey: `edu:${e.id || `auto-${i}`}`,
-      title,
+      sourceKey: `edu:${edu.id}`,
+      title: titleLine || institution || "Ausbildung",
       parts,
     });
+    
+    if (import.meta.env.VITE_DEBUG_DESIGNER_SYNC === 'true') {
+      console.debug(`[mapLebenslaufToSectionParts] Education ${i}:`, {
+        id: edu.id,
+        titleLine,
+        institution,
+        period
+      });
+    }
   });
+
+  if (import.meta.env.VITE_DEBUG_DESIGNER_SYNC === 'true') {
+    console.debug('[mapLebenslaufToSectionParts] Final output:', {
+      sectionsCount: out.length,
+      sections: out.map(s => ({
+        group: s.group,
+        sourceKey: s.sourceKey,
+        title: s.title,
+        partsCount: s.parts.length,
+        firstPartText: s.parts[0]?.text?.substring(0, 50) + '...'
+      }))
+    });
+  }
 
   return out;
 }
