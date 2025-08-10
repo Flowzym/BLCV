@@ -241,9 +241,19 @@ export default function FabricCanvas() {
           selectable: true,
           evented: true,
           
-          // Prevent text distortion
+          // Prevent text distortion - CRITICAL for proper text rendering
           scaleX: 1,
           scaleY: 1,
+          lockScalingX: true,
+          lockScalingY: true,
+          lockUniScaling: true,
+          hasControls: true,
+          hasBorders: true,
+          cornerStyle: 'rect',
+          cornerSize: 6,
+          transparentCorners: false,
+          borderColor: '#178bff',
+          cornerColor: '#178bff',
           opacity: 1,
           visible: true,
           
@@ -251,6 +261,26 @@ export default function FabricCanvas() {
           ...(part.letterSpacing && { charSpacing: part.letterSpacing * 1000 }) // Fabric uses 1/1000 em units
         });
 
+        // CRITICAL: Ensure text reflows when width changes
+        textObj.on('scaling', function() {
+          // Prevent scaling by resetting scale and adjusting width instead
+          const newWidth = textObj.width * textObj.scaleX;
+          textObj.set({
+            width: newWidth,
+            scaleX: 1,
+            scaleY: 1
+          });
+          textObj.setCoords();
+        });
+
+        textObj.on('modified', function() {
+          // Ensure scale stays at 1 after any modification
+          textObj.set({
+            scaleX: 1,
+            scaleY: 1
+          });
+          textObj.setCoords();
+        });
         DBG(`Created textbox for ${part.id}:`, {
           text: displayText.substring(0, 50) + '...',
           left: textObj.left,
