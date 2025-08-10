@@ -18,6 +18,7 @@ export default function FabricCanvas(){
   const canvasRef  = useRef<HTMLCanvasElement|null>(null);
   const fabricNs   = useRef<any>(null);
   const fCanvas    = useRef<any>(null);
+  const isInitialized = useRef<boolean>(false);
 
   const elements = useDesignerStore(s => s.elements);
   const version = useDesignerStore(s => s.version);
@@ -25,6 +26,12 @@ export default function FabricCanvas(){
 
   /* ---------------- init ---------------- */
   useEffect(()=>{
+    // Prevent multiple initializations
+    if (isInitialized.current) {
+      DBG('Canvas already initialized, skipping');
+      return;
+    }
+
     DBG('FabricCanvas mount');
     (async()=>{
       const fabric = await getFabric();
@@ -49,10 +56,10 @@ export default function FabricCanvas(){
         backgroundColor: "#ffffff" 
       });
       fCanvas.current = c;
+      isInitialized.current = true;
       
       c.setWidth(PAGE_W); 
       c.setHeight(PAGE_H); 
-      c.setZoom(zoom);
       
       // Probe-Text für Sichtbarkeits-Test
       const probe = new fabric.Text('[probe] Hello Designer', { 
@@ -81,6 +88,7 @@ export default function FabricCanvas(){
       } catch {}
       fCanvas.current = null;
       fabricNs.current = null;
+      isInitialized.current = false;
     };
   }, []);
 
