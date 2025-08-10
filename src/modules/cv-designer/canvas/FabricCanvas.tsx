@@ -74,6 +74,10 @@ export default function FabricCanvas(){
     return () => {
       try {
         fCanvas.current?.dispose?.();
+        // Explicitly clear Fabric.js reference on DOM element
+        if (canvasRef.current) {
+          (canvasRef.current as any).__fabricCanvas = undefined;
+        }
       } catch {}
       fCanvas.current = null;
       fabricNs.current = null;
