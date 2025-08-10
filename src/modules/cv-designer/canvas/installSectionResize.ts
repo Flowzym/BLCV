@@ -1,113 +1,106 @@
-// src/modules/cv-designer/canvas/installSectionResize.ts
 import { fabric } from "fabric";
 
 /**
  * Scale→Resize: Gruppen-Scale wird in width/height überführt.
- * Text wird nie skaliert; Umbruch nur via 'width'.
- * Anchored-Padding (px) + optionales Flow-Layout (order/gapBefore).
- * Auto-Height: Gruppenhöhe passt sich nach Layout dem Inhalt an.
+ * Text wird NIE skaliert; Umbruch nur via `width`.
+ * Reflow berücksichtigt Padding/Indent, Flow-Reihenfolge und Auto-Height.
  */
 
-type WithData = fabric.Object & {
-  data?: Record<string, any>;
-  __ratiosComputed?: boolean;
-  __baseW?: number;
-  __baseH?: number;
-};
+type FObj = fabric.Object & { data?: Record<string, any> };
+type G = fabric.Group & { data?: Record<string, any>; _objects?: FObj[] };
 
-function asNum(v: any, fallback = 0) {
+const num = (v: any, d = 0) => {
   const n = Number(v);
-  return Number.isFinite(n) ? n : fallback;
-}
+  return Number.isFinite(n) ? n : d;
+};
 
 export function installSectionResize(canvas: fabric.Canvas) {
   const onScaling = (e: fabric.IEvent<Event>) => {
-    const target = e.target as any;
-    if (!target || target.type !== "group") return;
+    const g = e.target as G;
+    if (!g || g.type !== "group") return;
 
-    // Cache sanft deaktivieren für flüssiges Resizing
-    const prevCache = target.objectCaching;
-    target.objectCaching = false;
+    // flüssigeres Resizing
+    const prevCache = g.objectCaching;
+    g.objectCaching = false;
 
-    const nw = asNum(target.width, 0) * asNum(target.scaleX, 1);
-    const nh = asNum(target.height, 0) * asNum(target.scaleY, 1);
+    // echtes Resize (scale -> width/height)
+    const newW = num(g.width) * num(g.scaleX, 1);
+    const newH = num(g.height) * num(g.scaleY, 1);
+    g.set({ width: newW, height: newH, scaleX: 1, scaleY: 1 });
 
-    target.set({ width: nw, height: nh, scaleX: 1, scaleY: 1 });
+    const halfW = newW / 2;
+    const halfH = newH / 2;
+    const children = (g._objects || []) as FObj[];
 
-    // Content-Breite & Anchoring
-    const padL = asNum(target.data?.padL, 0); // optional auf Gruppenebene
-    const padR = asNum(target.data?.padR, 0);
-    const contentWidth = Math.max(1, nw - padL - padR);
-    const halfW = nw / 2;
-
-    // Reflow aller Kinder
-    let yCursor = -nh / 2;
-    const children: any[] = (target._objects || []).slice();
-
-    // Frame-Rect (falls vorhanden) an den Anfang erwarten:
-    const frame = children.find((c) => c?.data?.isFrame);
+    // Frame (falls vorhanden) anpassen
+    const frame = children.find((c) => c?.data?.isFrame) as fabric.Rect | undefined;
     if (frame) {
-      frame.set({
-        left: -nw / 2,
-        top: -nh / 2,
-        width: nw,
-        height: nh,
-        scaleX: 1,
-        scaleY: 1,
-      });
+      frame.set({ left: -halfW, top: -halfH, width: newW, height: newH, scaleX: 1, scaleY: 1 });
       frame.setCoords();
     }
 
-    const textChildren = children.filter((c) => c?.type === "textbox");
+    // Nur Text-Kinder für Flow
+    const textChildren = children.filter((c) => (c as any).type === "textbox") as (fabric.Textbox & {
+      data?: any;
+    })[];
 
-    // Flow-Layout: in definierter Reihenfolge, mit Abständen
+    // WICHTIG: `padT` wurde beim Erstellen als SEC_PAD_T + gapBefore gesetzt.
+    // Deshalb leiten wir hier das echte Section-Top-Padding ab: min(padT - gapBefore)
+    const secPadT = textChildren.length
+      ? Math.max(0, Math.min(...textChildren.map((t) => num(t.data?.padT) - num(t.data?.gapBefore))))
+      : 0;
+
+    // Section-Bottom-Padding = max(padB) (einmalig am Ende)
+    const secPadB = textChildren.length ? Math.max(...textChildren.map((t) => num(t.data?.padB))) : 0;
+
+    // Flow-Reflow
+    let cursorY = -halfH + secPadT; // Start am oberen Innenrand
+    let contentHeight = secPadT;    // für Auto-Height-Berechnung
+
     textChildren
-      .sort((a: any, b: any) => asNum(a.data?.order, 0) - asNum(b.data?.order, 0))
-      .forEach((child: any) => {
-        const indentPx = asNum(child.data?.indentPx, 0);
-        const padT = asNum(child.data?.padT, 0);
-        const padB = asNum(child.data?.padB, 0);
+      .sort((a, b) => num(a.data?.order, 0) - num(b.data?.order, 0))
+      .forEach((tb) => {
+        const padL = num(tb.data?.padL, 0);
+        const padR = num(tb.data?.padR, 0);
+        const indentPx = num(tb.data?.indentPx, 0);
+        const gapBefore = num(tb.data?.gapBefore, 0);
 
-        const cw = Math.max(1, contentWidth - indentPx);
-        const tlX = -halfW + padL + indentPx;
+        const availW = Math.max(1, newW - padL - padR - indentPx);
+        const left = -halfW + padL + indentPx;
 
-        // vertikale Positionierung (Flow)
-        if (child.data?.flow) {
-          yCursor += padT;
-          child.set({ left: tlX, top: yCursor, width: cw, scaleX: 1, scaleY: 1 });
-          child._clearCache?.();
-          child.initDimensions?.();
-          child.setCoords();
-          const br = child.getBoundingRect(true, true);
-          yCursor += br.height + padB + asNum(child.data?.gapBefore, 0);
-        } else {
-          // Absolut platzierte Kinder beibehalten (nur Breite anpassen)
-          child.set({ left: tlX, width: cw, scaleX: 1, scaleY: 1 });
-          child._clearCache?.();
-          child.initDimensions?.();
-          child.setCoords();
-        }
+        // Nur gapBefore je Feld addieren (SEC_PAD_T NICHT erneut pro Feld!)
+        cursorY += gapBefore;
+        contentHeight += gapBefore;
+
+        (tb as any).set({ left, top: cursorY, width: availW, scaleX: 1, scaleY: 1 });
+        (tb as any)._clearCache?.();
+        (tb as any).initDimensions?.();
+        (tb as any).setCoords();
+
+        const br = (tb as any).getBoundingRect(true, true);
+        cursorY += br.height;
+        contentHeight += br.height;
       });
 
-    // Auto-Height (mindestens minHeight)
-    const minH = asNum(target.data?.minHeight, 32);
-    const computedHeight = Math.max(minH, yCursor + nh / 2);
-    target.set({ height: computedHeight });
+    // Einmalig Bottom-Padding addieren
+    contentHeight += secPadB;
 
-    target.setCoords();
+    // Auto-Height (mindestens minHeight)
+    const minH = num(g.data?.minHeight, 32);
+    const finalH = Math.max(minH, contentHeight);
+    g.set({ height: finalH });
+
+    g.setCoords();
     canvas.requestRenderAll();
 
-    // Cache-Flag wiederherstellen
-    target.objectCaching = prevCache;
+    g.objectCaching = prevCache;
   };
 
   const onModified = (e: fabric.IEvent<Event>) => {
-    const target = e.target as fabric.Group;
-    if (!target || target.type !== "group") return;
-
-    // Sicherheit: Koordinaten neu setzen
-    target.setCoords();
-    (target._objects || []).forEach((child: any) => child?.setCoords?.());
+    const g = e.target as G;
+    if (!g || g.type !== "group") return;
+    g.setCoords();
+    (g._objects || []).forEach((ch: any) => ch?.setCoords?.());
     canvas.requestRenderAll();
   };
 
