@@ -102,7 +102,7 @@ export default function FabricCanvas() {
       const canvas = new fabric.Canvas(node, {
         preserveObjectStacking: true,
         selection: true,
-        backgroundColor: '#ffffff',
+        backgroundColor: '#ffffff', // Weißer Hintergrund (normal)
         width: PAGE_W,
         height: PAGE_H,
         skipTargetFind: false
@@ -458,9 +458,9 @@ export default function FabricCanvas() {
               DBG('WARNING: fontSize is zero or negative!', finalStyle.fontSize);
               finalStyle.fontSize = 12; // Fallback
             }
-            if (!finalStyle.fill || finalStyle.fill === '#ffffff') {
-              DBG('WARNING: Text color is white or empty!', finalStyle.fill);
-              finalStyle.fill = '#ff0000'; // TEMP: Rote Schrift für Sichtbarkeit
+            if (!finalStyle.fill) {
+              DBG('WARNING: Text color is empty, using fallback!', finalStyle.fill);
+              finalStyle.fill = '#000000'; // Schwarze Schrift als Fallback
             }
             
             try {
