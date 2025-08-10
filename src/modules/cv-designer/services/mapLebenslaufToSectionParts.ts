@@ -141,13 +141,40 @@ export function mapLebenslaufToSectionParts(ll: AnyObj): MappedSection[] {
     if (pd.taetigkeitenSummary?.trim()) {
       out.push({
         group: "erfahrung",
-        sourceKey: "profile:taetigkeiten",
+      title: "Kontakt",
         title: "Tätigkeitsbereiche",
         parts: [{ key: "taetigkeiten", text: pd.taetigkeitenSummary }],
       });
     }
   }
 
+  // Add ProfileInput aggregated data as separate sections
+  if (pd.skillsSummary?.trim()) {
+    out.push({
+      title: "Fachliche Kompetenzen",
+      content: pd.skillsSummary,
+      group: "kenntnisse",
+      key: "profile:skills",
+    });
+  }
+
+  if (pd.softSkillsSummary?.trim()) {
+    out.push({
+      title: "Persönliche Kompetenzen", 
+      content: pd.softSkillsSummary,
+      group: "softskills",
+      key: "profile:softskills",
+    });
+  }
+
+  if (pd.taetigkeitenSummary?.trim()) {
+    out.push({
+      title: "Tätigkeitsbereiche",
+      content: pd.taetigkeitenSummary,
+      group: "erfahrung",
+      key: "profile:taetigkeiten",
+    });
+  }
   // ---- Erfahrung / linke Spalte
   const erfArr: AnyObj[] =
     Array.isArray(ll?.berufserfahrung) ? ll.berufserfahrung

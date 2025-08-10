@@ -141,6 +141,21 @@ export default function FabricCanvas(){
   /* ----------- props -> canvas ----------- */
   useEffect(()=>{
     if(!fCanvas.current || !fabricNs.current) return;
+    if (import.meta.env.VITE_DEBUG_DESIGNER_SYNC === 'true') {
+      console.debug('[FabricCanvas] reconcileCanvas called with:', {
+        elementsCount: elements.length,
+        elements: elements.map(e => ({
+          id: e.id,
+          kind: e.kind,
+          group: e.kind === 'section' ? e.group : undefined,
+          partsCount: e.kind === 'section' ? e.parts?.length || 0 : undefined
+        })),
+        cvSnapshot: {
+          experiencesCount: cvSnapshot.experiences?.length || 0,
+          educationsCount: cvSnapshot.educations?.length || 0
+        }
+      });
+    }
     reconcileCanvas(fCanvas.current, fabricNs.current, elements, tokens, partStyles, objectsByKey.current, cvSnapshot);
   },[elements, tokens, partStyles, cvSnapshot.__dep__]);
 

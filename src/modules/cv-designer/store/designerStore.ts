@@ -124,7 +124,21 @@ export const useDesignerStore = create<DesignerState>()(
         return { elements: arr };
       }),
 
-      setInitialElements:(elems)=>set((s)=>({ elements: elems, undoStack:[...s.undoStack,s.elements], redoStack:[] })),
+      setInitialElements:(elems)=>set((s)=>{
+        if (import.meta.env.VITE_DEBUG_DESIGNER_SYNC === 'true') {
+          console.debug('[DesignerStore] setInitialElements called with:', {
+            elementsCount: elems.length,
+            elements: elems.map(e => ({
+              id: e.id,
+              kind: e.kind,
+              group: e.kind === 'section' ? e.group : undefined,
+              partsCount: e.kind === 'section' ? e.parts?.length || 0 : undefined,
+              sourceKey: e.kind === 'section' ? e.meta?.source?.key : undefined
+            }))
+          });
+        }
+        return { elements: elems, undoStack:[...s.undoStack,s.elements], redoStack:[] };
+      }),
 
       addPhoto:(partial={})=>set((s)=>{
         const el: PhotoElement = { kind:"photo", id:uid("ph"), frame: partial.frame ?? {x:60,y:60,width:120,height:120}, src: partial.src };

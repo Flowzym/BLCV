@@ -113,6 +113,19 @@ export function useLiveSyncFromGenerator(debounceMs = 200) {
         })));
       }
 
+      if (import.meta.env.VITE_DEBUG_DESIGNER_SYNC === 'true') {
+        console.debug("[DesignerSync] ctx snapshot", {
+          personalData: cvSnapshot.personalData,
+          experiences: cvSnapshot.experiences?.length || 0,
+          educations: cvSnapshot.educations?.length || 0
+        });
+        console.debug("[DesignerSync] mapped", mapped.map(m => ({
+          group: m.group,
+          sourceKey: m.sourceKey,
+          partsCount: m.parts.length
+        })));
+      }
+
       const { elements, updatePartText, setInitialElements } =
         useDesignerStore.getState();
 
@@ -182,6 +195,14 @@ export function useLiveSyncFromGenerator(debounceMs = 200) {
         // Updates: nur Text aktualisieren, wenn sich etwas geändert hat & nicht gelocked
         for (const p of m.parts) {
           const local = prev.parts.find((x) => x.key === p.key);
+          if (import.meta.env.VITE_DEBUG_DESIGNER_SYNC === 'true') {
+            console.debug("[DesignerSync] store elements", {
+              currentCount: elements.length,
+              newSectionsCount: newSecs.length,
+              totalAfter: elements.length + newSecs.length
+            });
+          }
+
           if (!local || local.lockText) continue;
           const incoming = p.text ?? "";
           if ((local.text ?? "") !== incoming) {
