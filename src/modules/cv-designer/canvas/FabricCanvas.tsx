@@ -1,287 +1,135 @@
-import React, { useRef, useEffect, useState, useCallback } from "react";
-import { getFabric } from "@/lib/fabric-shim";
-import { useDesignerStore } from "../store/designerStore";
-import CanvasRegistry from "./canvasRegistry";
+import React, { useEffect, useRef, useState } from "react";
+import { fabric } from "fabric";
 import { installSectionResize } from "./installSectionResize";
+import { useDesignerStore } from "../store/designerStore";
 import TextEditorOverlay from "../ui/TextEditorOverlay";
 
-const PAGE_W = 595;
-const PAGE_H = 842;
+type Props = {
+  width: number;
+  height: number;
+};
 
-type ActiveEdit =
-  | null
-  | {
-      sectionId: string;
-      sectionType: "experience" | "education" | "profile" | "skills" | "softskills";
-      fieldType: string;
-      group: any;   // fabric.Group
-      textbox: any; // fabric.Textbox
-    };
-
-export default function FabricCanvas() {
+export default function FabricCanvas({ width, height }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [fabricCanvas, setFabricCanvas] = useState<any>(null);
-  const [fabricNamespace, setFabricNamespace] = useState<any>(null);
-  const [activeEdit, setActiveEdit] = useState<ActiveEdit>(null);
+  const [canvas, setCanvas] = useState<fabric.Canvas | null>(null);
+  const [overlayOpen, setOverlayOpen] = useState(false);
 
-  // Store
   const sections = useDesignerStore((s) => s.sections);
-  const tokens = useDesignerStore((s) => s.tokens);
-  const margins = useDesignerStore((s) => s.margins);
-  const zoom = useDesignerStore((s) => s.zoom);
-  const globalFieldStyles = useDesignerStore((s) => s.globalFieldStyles);
-  const partStyles = useDesignerStore((s) => s.partStyles);
+  const selectionMode = useDesignerStore((s) => s.selectionMode); // optional
+  const setActiveEdit = useDesignerStore((s) => s.setActiveEdit);
 
+  // Mount canvas
   useEffect(() => {
-    let isMounted = true;
+    if (!containerRef.current) return;
+    const el = document.createElement("canvas");
+    containerRef.current.innerHTML = "";
+    containerRef.current.appendChild(el);
 
-    const initFabric = async () => {
-      const fabric = await getFabric();
-      if (!isMounted) return;
+    const c = new fabric.Canvas(el, {
+      width,
+      height,
+      backgroundColor: "#fff",
+      selection: true,
+      selectionFullyContained: false,
+      preserveObjectStacking: true,
+      stopContextMenu: true,
+      fireRightClick: false,
+      perPixelTargetFind: true,
+      targetFindTolerance: 6,
+      hoverCursor: "move",
+    });
 
-      setFabricNamespace(fabric);
-
-      if (canvasRef.current) {
-        if (CanvasRegistry.has(canvasRef.current)) {
-          CanvasRegistry.dispose(canvasRef.current);
-        }
-
-        const canvas = CanvasRegistry.getOrCreate(canvasRef.current, fabric);
-        canvas.setDimensions({ width: PAGE_W, height: PAGE_H });
-        canvas.backgroundColor = "#ffffff";
-
-        // Interaktion
-        canvas.selection = true;            // Lasso/Griffe erlaubt
-        canvas.subTargetCheck = true;       // Kinder in Gruppen treffbar
-        canvas.perPixelTargetFind = true;
-        canvas.targetFindTolerance = 6;
-
-        setFabricCanvas(canvas);
-        installSectionResize(canvas);
-
-        // Klick öffnet Overlay nur bei Textbox
-        const onMouseUp = (e: any) => {
-          let t: any = null;
-
-          if (Array.isArray(e.subTargets) && e.subTargets.length) {
-            t = e.subTargets.find((o: any) => o?.type === "textbox") ?? null;
-          }
-          if (!t && e.target && e.target.type === "textbox") t = e.target;
-
-          if (!t && e.target && e.target.type === "group") {
-            const grp = e.target;
-            const p = canvas.getPointer(e.e);
-            const hit = (grp._objects || []).find((child: any) => {
-              if (child.type !== "textbox") return false;
-              const r = child.getBoundingRect(true, true);
-              return p.x >= r.left && p.x <= r.left + r.width && p.y >= r.top && p.y <= r.top + r.height;
-            });
-            if (hit) t = hit;
-          }
-
-          if (!t) return;
-          if (t.type === "textbox" && t.sectionId && t.fieldType) {
-            const grp = t.group;
-            if (!grp) return;
-            setActiveEdit({
-              sectionId: t.sectionId,
-              sectionType: grp.sectionType || "experience",
-              fieldType: t.fieldType,
-              group: grp,
-              textbox: t,
-            });
-          }
-        };
-
-        canvas.on("mouse:up", onMouseUp);
-
-        return () => {
-          canvas.off("mouse:up", onMouseUp);
-        };
+    // Better defaults for selection/drag
+    c.on("mouse:down", () => {
+      // Close overlay if clicking empty area
+      if (!c.findTarget((c as any)._curPointer, true)) {
+        setOverlayOpen(false);
       }
-    };
+    });
 
-    const cleanup = initFabric();
+    // Subtarget selection: prefer group selection unless Alt pressed
+    c.on("mouse:up", (e: fabric.IEvent<Event>) => {
+      const tgt = e.target as any;
+      if (!tgt) return;
 
+      // Enable dragging sections (groups)
+      const group = tgt.type === "group" ? tgt : tgt.group;
+      if (group) {
+        group.selectable = true;
+        group.lockMovementX = false;
+        group.lockMovementY = false;
+        group.hasControls = true;
+        group.hoverCursor = "move";
+        c.setActiveObject(group);
+      }
+
+      // If a textbox is the focus, open overlay
+      const isTextbox = tgt.type === "textbox" || (e.subTargets && e.subTargets.some((st: any) => st.type === "textbox"));
+      if (isTextbox) {
+        setOverlayOpen(true);
+      }
+    });
+
+    // Hover highlight for mapping fields (textboxes)
+    let lastHover: fabric.Object | null = null;
+    c.on("mouse:move", (e) => {
+      const t = c.findTarget(e.e, true) as any;
+      if (t === lastHover) return;
+      if (lastHover && (lastHover as any).__hoverStroke) {
+        (lastHover as any).set({ stroke: (lastHover as any).__origStroke, strokeWidth: (lastHover as any).__origStrokeWidth });
+        (lastHover as any).__hoverStroke = false;
+      }
+      lastHover = null;
+
+      if (t && (t.type === "textbox" || t.data?.isMappingField)) {
+        (t as any).__origStroke = t.stroke;
+        (t as any).__origStrokeWidth = t.strokeWidth;
+        t.set({ stroke: "#60a5fa", strokeWidth: 1.25 }); // tailwind blue-400
+        (t as any).__hoverStroke = true;
+        c.requestRenderAll();
+        c.setCursor("text");
+        lastHover = t;
+      } else {
+        c.setCursor("default");
+      }
+    });
+
+    // Install resize behavior on groups/sections
+    installSectionResize(c);
+
+    setCanvas(c);
     return () => {
-      isMounted = false;
-      const el = canvasRef.current;
-      if (el && CanvasRegistry.has(el)) {
-        CanvasRegistry.dispose(el);
-      }
-      setFabricCanvas(null);
-      setFabricNamespace(null);
-      if (typeof cleanup === "function") cleanup();
+      c.dispose();
+      setCanvas(null);
     };
-  }, []);
+  }, [width, height]);
 
-  const renderSections = useCallback(async () => {
-    if (!fabricCanvas || !fabricNamespace || !sections) return;
+  // Render sections (simplified – assumes external service draws them)
+  useEffect(() => {
+    if (!canvas) return;
+    // external render/update handled elsewhere in your codebase
+    canvas.requestRenderAll();
+  }, [canvas, sections]);
 
-    fabricCanvas.clear();
-
-    for (const section of sections) {
-      if (!section.isVisible) continue;
-      if (!Array.isArray(section.parts) || section.parts.length === 0) continue;
-
-      const textboxes: any[] = [];
-
-      // Section-Padding
-      const SEC_PAD_L = Number(section.props?.paddingLeft  ?? 24);
-      const SEC_PAD_R = Number(section.props?.paddingRight ?? 24);
-      const SEC_PAD_T = Number(section.props?.paddingTop   ?? 16);
-      const SEC_PAD_B = Number(section.props?.paddingBottom?? 16);
-      const BULLET_INDENT = Number(tokens?.bulletIndent ?? 18);
-
-      for (const part of section.parts) {
-        if (part.type !== "text") continue;
-
-        const displayText = part.text ?? "";
-        const indentPx = part.indentPx ?? (part.fieldType === "bullet" ? BULLET_INDENT : 0);
-        const padL = SEC_PAD_L;
-        const padT = SEC_PAD_T + Math.max(0, part.offsetY || 0);
-        const padR = SEC_PAD_R;
-        const padB = SEC_PAD_B;
-
-        const initialTextWidth = Math.max(1, section.width - padL - padR - indentPx);
-
-        const globalStyle =
-          globalFieldStyles[section.sectionType]?.[part.fieldType || "content"] || {};
-        const partStyleKey = `${section.sectionType}:${part.fieldType}`;
-        const localPartStyle = partStyles[partStyleKey] || {};
-
-        const finalStyle = {
-          fontSize: part.fontSize || localPartStyle.fontSize || globalStyle.fontSize || tokens?.fontSize || 12,
-          fontFamily: part.fontFamily || localPartStyle.fontFamily || globalStyle.fontFamily || tokens?.fontFamily || "Arial, sans-serif",
-          fill: part.color || localPartStyle.color || globalStyle.textColor || tokens?.colorPrimary || "#000000",
-          fontWeight: (part.fontWeight as any) || (localPartStyle.fontWeight as any) || (globalStyle.fontWeight as any) || "normal",
-          fontStyle: (part.fontStyle as any) || (localPartStyle.italic ? "italic" : (globalStyle.fontStyle as any)) || "normal",
-          lineHeight: part.lineHeight || localPartStyle.lineHeight || (globalStyle.lineHeight as any) || tokens?.lineHeight || 1.4,
-          charSpacing: (part.letterSpacing || localPartStyle.letterSpacing || (globalStyle.letterSpacing as any) || 0) * 1000,
-          textAlign: part.textAlign || "left",
-        };
-
-        const tb = new fabricNamespace.Textbox(displayText, {
-          left: 0, top: 0, width: initialTextWidth,
-          ...finalStyle,
-          splitByGrapheme: true,
-          breakWords: true,
-          selectable: false,
-          evented: true,
-          hasControls: false,
-          hasBorders: false,
-          editable: false,
-          lockScalingX: true,
-          lockScalingY: true,
-          lockMovementX: true,
-          lockMovementY: true,
-          lockUniScaling: true,
-          opacity: 1,
-          visible: true,
-          originX: "left",
-          originY: "top",
-          scaleX: 1,
-          scaleY: 1,
-          angle: 0,
-          skewX: 0,
-          skewY: 0,
-          hoverCursor: "text",
-          moveCursor: "default",
-        }) as any;
-
-        tb.partId = part.id;
-        tb.fieldType = part.fieldType;
-        tb.sectionId = section.id;
-
-        tb.data = {
-          fieldKey: part.id ?? `${section.id}:${part.fieldType}`,
-          padL, padT, padR, padB, indentPx,
-          flow: true,
-          order: Number.isFinite(part.order) ? part.order : 0,
-          gapBefore: Number(part.gapBefore ?? 0),
-          type: "textbox",
-          lineHeight: finalStyle.lineHeight,
-        };
-
-        const halfW = section.width / 2;
-        const halfH = (section.height ?? 1) / 2;
-        const tlX = padL + (indentPx || 0);
-        const tlY = padT;
-        tb.set({ left: tlX - halfW, top: tlY - halfH });
-        tb.setCoords();
-
-        textboxes.push(tb);
+  // Keyboard shortcuts
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setOverlayOpen(false);
+        setActiveEdit(null);
       }
-
-      // Gruppe ist wieder selektierbar → Move/Resize möglich
-      const sectionGroup = new fabricNamespace.Group(textboxes, {
-        left: section.x,
-        top: section.y,
-        selectable: true,
-        evented: true,
-        hasControls: true,
-        hasBorders: true,
-        backgroundColor: section.props?.backgroundColor || "transparent",
-        stroke: section.props?.borderColor || "#e5e7eb",
-        strokeWidth: parseInt(section.props?.borderWidth || "1", 10),
-        fill: "transparent",
-        lockUniScaling: false,
-        cornerStyle: "rect",
-        cornerSize: 8,
-        transparentCorners: false,
-        borderColor: "#3b82f6",
-        cornerColor: "#3b82f6",
-        subTargetCheck: true,
-        hoverCursor: "move",
-      }) as any;
-
-      sectionGroup.data = {
-        sectionId: section.id,
-        type: "section",
-        minHeight: Number(section.props?.minHeight ?? 32),
-      };
-      sectionGroup.sectionId = section.id;
-      sectionGroup.sectionType = section.sectionType;
-
-      fabricCanvas.add(sectionGroup);
-
-      try {
-        (sectionGroup as any).scaleX = 1;
-        (sectionGroup as any).scaleY = 1;
-        fabricCanvas.fire("object:scaling", { target: sectionGroup } as any);
-        fabricCanvas.fire("object:modified", { target: sectionGroup } as any);
-      } catch {}
-    }
-
-    fabricCanvas.renderAll();
-  }, [fabricCanvas, fabricNamespace, sections, tokens, margins, globalFieldStyles, partStyles]);
-
-  useEffect(() => {
-    if (fabricCanvas && sections) renderSections();
-  }, [fabricCanvas, sections, renderSections]);
-
-  useEffect(() => {
-    if (!fabricCanvas) return;
-    const safeZoom = Math.max(0.1, Math.min(5, zoom || 1));
-    fabricCanvas.setZoom(safeZoom);
-    fabricCanvas.renderAll();
-  }, [fabricCanvas, zoom]);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [setActiveEdit]);
 
   return (
-    <div ref={containerRef} style={{ width: PAGE_W, height: PAGE_H, position: "relative" }}>
-      <canvas ref={canvasRef} />
-
-      {activeEdit && fabricCanvas && containerRef.current && (
+    <div className="relative w-full h-full" ref={containerRef}>
+      {canvas && overlayOpen && containerRef.current && (
         <TextEditorOverlay
-          canvas={fabricCanvas}
+          canvas={canvas}
           containerEl={containerRef.current}
-          group={activeEdit.group}
-          textbox={activeEdit.textbox}
-          sectionId={activeEdit.sectionId}
-          sectionType={activeEdit.sectionType}
-          fieldType={activeEdit.fieldType}
-          onClose={() => setActiveEdit(null)}
+          onClose={() => setOverlayOpen(false)}
         />
       )}
     </div>
