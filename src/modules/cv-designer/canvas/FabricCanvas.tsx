@@ -1,164 +1,278 @@
-import React, { useEffect, useRef } from "react";
-import { useDesignerStore } from "../store/designerStore";
-import getFabric from "@/lib/fabric-shim";
-import type { CanvasElement } from "../services/flatten";
 
-const DBG = (msg: string, ...args: any[]) => {
-  if (import.meta.env.VITE_DEBUG_DESIGNER_SYNC === 'true') {
-    console.log('[DESIGNER]', msg, ...args);
-  } else {
-    console.log('[DESIGNER*]', msg, ...args);
-  }
+import React, { useEffect, useMemo, useRef } from 'react';
+import { fabric } from 'fabric';
+
+// -----------------------------------------------------------------------------
+// Types (self-contained so this file can drop into most codebases)
+// -----------------------------------------------------------------------------
+
+export type CanvasTextElement = {
+  id: string;
+  type: 'text';
+  x: number;
+  y: number;
+  width?: number;
+  height?: number;
+  text: string | null | undefined;
+  fontFamily?: string;
+  fontSize?: number; // px
+  lineHeight?: number; // unitless
+  fontWeight?: number | string;
+  fill?: string; // color
+  textAlign?: 'left' | 'center' | 'right' | 'justify';
+  visible?: boolean;
+  opacity?: number;
 };
 
-const PAGE_W = 595, PAGE_H = 842;
-type FabricNS = any;
+export type CanvasRectElement = {
+  id: string;
+  type: 'rect';
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  fill?: string;
+  stroke?: string;
+  strokeWidth?: number;
+  rx?: number;
+  ry?: number;
+  visible?: boolean;
+  opacity?: number;
+};
 
-export default function FabricCanvas(){
-  const canvasRef  = useRef<HTMLCanvasElement|null>(null);
-  const fabricNs   = useRef<any>(null);
-  const fCanvas    = useRef<any>(null);
-  const isInitialized = useRef<boolean>(false);
+export type CanvasElement = CanvasTextElement | CanvasRectElement;
 
-  const elements = useDesignerStore(s => s.elements);
-  const version = useDesignerStore(s => s.version);
-  const zoom = useDesignerStore(s => s.zoom);
+export interface FabricCanvasProps {
+  /** Raw elements to render */
+  elements: CanvasElement[];
+  /** Unscaled canvas size in pixels */
+  width: number;
+  height: number;
+  /** Percent 100 = 1.0 */
+  zoom?: number;
+  /** Background color (optional) */
+  backgroundColor?: string;
+  /** Called once the canvas is ready */
+  onReady?: (canvas: fabric.Canvas) => void;
+  /** When true (VITE_DEBUG_DESIGNER_SYNC=true), prints verbose logs */
+  debug?: boolean;
+}
 
-  /* ---------------- init ---------------- */
-  useEffect(()=>{
-    // Prevent multiple initializations
-    if (isInitialized.current) {
-      DBG('Canvas already initialized, skipping');
+// -----------------------------------------------------------------------------
+// Helper utils
+// -----------------------------------------------------------------------------
+
+const MIN_W = 20;
+const MIN_H = 20;
+
+function isText(el: CanvasElement): el is CanvasTextElement {
+  return el.type === 'text';
+}
+
+function isRect(el: CanvasElement): el is CanvasRectElement {
+  return el.type === 'rect';
+}
+
+function toNumberOr<T>(val: any, fallback: T): number | T {
+  const n = typeof val === 'string' ? parseFloat(val) : (typeof val === 'number' ? val : NaN);
+  return Number.isFinite(n) ? (n as number) : fallback;
+}
+
+function safeText(v: any): string {
+  // Fabric renders nothing for empty "", so ensure at least a whitespace
+  const s = v == null ? '' : String(v);
+  return s.trim().length > 0 ? s : ' ';
+}
+
+// -----------------------------------------------------------------------------
+// Component
+// -----------------------------------------------------------------------------
+
+/**
+ * FabricCanvas
+ * - Initializes fabric.Canvas exactly once per mount.
+ * - Disposes cleanly on unmount (and clears __fabricCanvas flag).
+ * - Applies zoom updates without re-creating the canvas.
+ * - Renders elements in a "clear & rebuild" strategy (stable and simple).
+ * - Avoids the dreaded "Trying to initialize a canvas that has already been initialized".
+ */
+export default function FabricCanvas(props: FabricCanvasProps) {
+  const {
+    elements,
+    width,
+    height,
+    zoom = 100,
+    backgroundColor = '#ffffff',
+    onReady,
+  } = props;
+
+  // Allow env to toggle debug without wiring prop everywhere
+  const debug = props.debug ?? (import.meta as any)?.env?.VITE_DEBUG_DESIGNER_SYNC === 'true';
+
+  const htmlCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const fabricRef = useRef<fabric.Canvas | null>(null);
+  const initializedRef = useRef(false);
+
+  // Derived zoom factor
+  const z = useMemo(() => {
+    const n = toNumberOr(zoom, 100) as number;
+    return Math.max(10, Math.min(600, n)) / 100; // clamp between 0.1 and 6.0
+  }, [zoom]);
+
+  // ---- Mount / Unmount: create & dispose fabric.Canvas ----------------------
+  useEffect(() => {
+    const el = htmlCanvasRef.current;
+    if (!el) return;
+
+    if (initializedRef.current) {
+      // Should not happen with [] deps, but let's be defensive
+      if (debug) console.warn('[FabricCanvas] init skipped (already initialized)');
       return;
     }
 
-    DBG('FabricCanvas mount');
-    (async()=>{
-      const fabric = await getFabric();
-      fabricNs.current = fabric;
+    // If some prior instance leaked, clean it up
+    const anyEl = el as any;
+    const leaked: fabric.Canvas | undefined = anyEl.__fabricCanvas;
+    if (leaked) {
+      try { leaked.dispose(); } catch {}
+      delete anyEl.__fabricCanvas;
+    }
 
-      const el = canvasRef.current; 
-      if(!el) return;
-      
-      // Check if canvas is already initialized and dispose it
-      if ((el as any).__fabricCanvas) {
-        try {
-          (el as any).__fabricCanvas.dispose();
-          DBG('Disposed existing canvas instance');
-        } catch (e) {
-          DBG('Error disposing existing canvas:', e);
-        }
-      }
-      
-      const c = new fabric.Canvas(el, { 
-        preserveObjectStacking: true, 
-        selection: true, 
-        backgroundColor: "#ffffff" 
-      });
-      fCanvas.current = c;
-      isInitialized.current = true;
-      
-      c.setWidth(PAGE_W); 
-      c.setHeight(PAGE_H); 
-      
-      // Probe-Text für Sichtbarkeits-Test
-      const probe = new fabric.Text('[probe] Hello Designer', { 
-        left: 40, 
-        top: 40, 
-        fill: '#111',
-        fontSize: 14,
-        visible: true,
-        opacity: 1,
-        selectable: false
-      });
-      c.add(probe);
-      DBG('Canvas probe added:', { left: 40, top: 40, text: '[probe] Hello Designer' });
-      
-      c.requestRenderAll();
-      DBG('FabricCanvas initialized');
-    })();
+    // Create the canvas
+    const canvas = new fabric.Canvas(el, {
+      selection: false,
+      backgroundColor,
+    });
 
+    // Store references & flags
+    fabricRef.current = canvas;
+    initializedRef.current = true;
+    (el as any).__fabricCanvas = canvas;
+
+    // Resize to the desired size
+    canvas.setWidth(width);
+    canvas.setHeight(height);
+
+    if (debug) {
+      console.log('[FabricCanvas]init', { width, height, backgroundColor });
+    }
+
+    // Fire onReady
+    onReady?.(canvas);
+
+    // Cleanup
     return () => {
+      if (debug) console.log('[FabricCanvas]dispose');
       try {
-        fCanvas.current?.dispose?.();
-        // Explicitly clear Fabric.js reference on DOM element
-        if (canvasRef.current) {
-          (canvasRef.current as any).__fabricCanvas = undefined;
-        }
-      } catch {}
-      fCanvas.current = null;
-      fabricNs.current = null;
-      isInitialized.current = false;
+        canvas.dispose();
+      } finally {
+        if ((el as any).__fabricCanvas) delete (el as any).__fabricCanvas;
+        fabricRef.current = null;
+        initializedRef.current = false;
+      }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  /* ----------- zoom updates ----------- */
+  // ---- Size updates (if width/height change) --------------------------------
   useEffect(() => {
-    const c = fCanvas.current;
-    if (!c) return;
-    
-    c.setZoom(zoom);
-    c.requestRenderAll();
-    DBG('Canvas zoom updated:', zoom);
-  }, [zoom]);
+    const canvas = fabricRef.current;
+    if (!canvas) return;
+    if (debug) console.log('[FabricCanvas]size', { width, height });
 
-  /* ----------- elements -> canvas rendering ----------- */
+    canvas.setWidth(width);
+    canvas.setHeight(height);
+    canvas.requestRenderAll();
+  }, [width, height, debug]);
+
+  // ---- Zoom updates ----------------------------------------------------------
   useEffect(() => {
-    const c = fCanvas.current;
-    const fabric = fabricNs.current;
-    if (!c || !fabric) return;
-    
-    DBG('Canvas render triggered:', { 
-      elementsCount: elements.length, 
-      version,
-      elements: elements.map(e => ({ id: e.id, type: e.type, text: e.text?.substring(0, 30) + '...' }))
-    });
+    const canvas = fabricRef.current;
+    if (!canvas) return;
+    const vp = canvas.viewportTransform ?? fabric.iMatrix.concat();
+    const prevZoom = canvas.getZoom();
+    if (Math.abs(prevZoom - z) < 0.0001) return;
 
-    // Clear existing objects (except probe)
-    const objects = c.getObjects();
-    objects.forEach((obj: any) => {
-      if (obj.text !== '[probe] Hello Designer') {
-        c.remove(obj);
-      }
-    });
+    // Zoom to top-left origin to keep coordinates intuitive
+    const point = new fabric.Point(0, 0);
+    canvas.zoomToPoint(point, z);
 
-    // Render elements
-    elements.forEach((el: CanvasElement, index: number) => {
-      if (el.type === 'text') {
-        const textObj = new fabric.Text(el.text ?? '', {
-          left: el.left ?? 20,
-          top: el.top ?? 20,
-          fontSize: el.fontSize ?? 12,
-          fontFamily: el.fontFamily ?? 'Arial',
-          fontWeight: el.bold ? 'bold' : 'normal',
-          fontStyle: el.italic ? 'italic' : 'normal',
-          fill: '#111',
-          opacity: 1,
-          visible: true,
-          selectable: false
+    if (debug) console.log('[FabricCanvas]zoom', { prev: prevZoom, next: z });
+  }, [z, debug]);
+
+  // ---- Render elements -------------------------------------------------------
+  useEffect(() => {
+    const canvas = fabricRef.current;
+    if (!canvas) return;
+
+    if (debug) {
+      console.log('[FabricCanvas]render elements', {
+        count: elements.length,
+        sample: elements.slice(0, 5),
+      });
+    }
+
+    // Clear old
+    canvas.clear();
+    canvas.setBackgroundColor(backgroundColor, () => {});
+
+    // Add objects
+    for (const el of elements) {
+      if (isText(el)) {
+        const txt = new fabric.Textbox(safeText(el.text), {
+          left: el.x,
+          top: el.y,
+          width: Math.max(MIN_W, el.width ?? MIN_W),
+          height: Math.max(MIN_H, el.height ?? MIN_H),
+          fontFamily: el.fontFamily ?? 'Inter, Arial, sans-serif',
+          fontSize: toNumberOr(el.fontSize, 14) as number,
+          lineHeight: toNumberOr(el.lineHeight, 1.4) as number,
+          fontWeight: el.fontWeight ?? 400,
+          fill: el.fill ?? '#111111',
+          textAlign: el.textAlign ?? 'left',
+          opacity: toNumberOr(el.opacity, 1) as number,
+          visible: el.visible !== false,
+          editable: false,
+          selectable: false,
+          hoverCursor: 'default',
         });
-        
-        c.add(textObj);
-        DBG(`Canvas draw text ${index}:`, { 
-          id: el.id, 
-          left: el.left, 
-          top: el.top, 
-          text: JSON.stringify(el.text),
-          textLength: el.text?.length || 0
+        (txt as any).meta = { id: el.id, type: el.type };
+        canvas.add(txt);
+      } else if (isRect(el)) {
+        const rect = new fabric.Rect({
+          left: el.x,
+          top: el.y,
+          width: Math.max(MIN_W, el.width),
+          height: Math.max(MIN_H, el.height),
+          fill: el.fill ?? 'transparent',
+          stroke: el.stroke ?? '#e5e7eb',
+          strokeWidth: toNumberOr(el.strokeWidth, 1) as number,
+          rx: toNumberOr(el.rx, 0) as number,
+          ry: toNumberOr(el.ry, 0) as number,
+          opacity: toNumberOr(el.opacity, 1) as number,
+          visible: el.visible !== false,
+          selectable: false,
+          hoverCursor: 'default',
         });
+        (rect as any).meta = { id: el.id, type: el.type };
+        canvas.add(rect);
+      } else {
+        if (debug) console.warn('[FabricCanvas]Unknown element', el);
       }
-    });
+    }
 
-    c.requestRenderAll();
-    DBG('Canvas rendered:', { objectsCount: c.getObjects().length });
-  }, [elements, version]);
+    canvas.requestRenderAll();
+  }, [elements, backgroundColor, debug]);
 
+  // ---- Render canvas element -------------------------------------------------
   return (
-    <div className="w-full h-full overflow-auto bg-neutral-100 flex items-center justify-center">
-      <div className="shadow-xl bg-white" style={{ width: PAGE_W*zoom, height: PAGE_H*zoom }}>
-        <canvas ref={canvasRef}/>
-      </div>
-    </div>
+    <canvas
+      ref={htmlCanvasRef}
+      style={{
+        width: `${width}px`,
+        height: `${height}px`,
+        display: 'block',
+      }}
+    />
   );
 }
-
