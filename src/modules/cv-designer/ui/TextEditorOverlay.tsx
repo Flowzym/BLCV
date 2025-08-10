@@ -1,11 +1,19 @@
-import React, { useEffect, useRef, useState } from "react";
+// src/modules/cv-designer/ui/TextEditorOverlay.tsx
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import type { fabric } from "fabric";
 import { fabricToDomRect } from "../utils/fabricToDomRect";
 import { useDesignerStore } from "../store/designerStore";
 
+type SectionKind = "experience" | "education" | "profile" | "skills" | "softskills" | "contact";
+
 type OverlayProps = {
   canvas: fabric.Canvas;
   containerEl: HTMLElement;
+  group: fabric.Group;
+  textbox: (fabric.Textbox & { data?: Record<string, any>; fieldType?: string; sectionId?: string });
+  sectionId: string;
+  sectionType: SectionKind;
+  fieldType: string;
   onClose: () => void;
 };
 
@@ -14,96 +22,43 @@ type LocalStyle = {
   fontSize?: number;
   lineHeight?: number;
   color?: string;
-  letterSpacing?: number; // UI in em, Fabric expects charSpacing in 1/1000 em
+  letterSpacing?: number; // UI in em; Fabric erwartet 1/1000 em
   bold?: boolean;
   italic?: boolean;
-  indentPx?: number;
+  indentPx?: number; // zusätzlicher Einzug links (px)
 };
 
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
 }
 
-// Helper: resolve current textbox & its group from fabric active object (supports subtargets)
-function getActiveTextbox(canvas: fabric.Canvas) {
-  const active = canvas.getActiveObject() as any;
-  if (!active) return null;
-  // If a group is active and a subtarget is stored
-  const sub = (canvas as any)._hoveredTarget || (active._objects && active._objects.find((o: any) => o.type === "textbox"));
-  if (active.type === "textbox") {
-    return { textbox: active as fabric.Textbox, group: active.group as fabric.Group | undefined };
-  }
-  if (sub && sub.type === "textbox") {
-    return { textbox: sub as fabric.Textbox, group: sub.group as fabric.Group | undefined };
-  }
-  // Fallback: first textbox inside group
-  if (active.type === "group" && (active as fabric.Group)._objects?.length) {
-    const t = (active as any)._objects.find((o: any) => o.type === "textbox");
-    if (t) return { textbox: t as fabric.Textbox, group: active as fabric.Group };
-  }
-  return null;
-}
+export default function TextEditorOverlay(props: OverlayProps) {
+  const { canvas, containerEl, group, textbox, sectionId, sectionType, fieldType, onClose } = props;
 
-export default function TextEditorOverlay({ canvas, containerEl, onClose }: OverlayProps) {
+  const updatePartStyleLocal = useDesignerStore((s) => s.updatePartStyleLocal);
   const setGlobalFieldStyle = useDesignerStore((s) => s.setGlobalFieldStyle);
   const bump = useDesignerStore((s) => s.bump);
 
-  const [style, setStyle] = useState<LocalStyle>({
-    fontFamily: undefined,
-    fontSize: 12,
-    lineHeight: 1.2,
-    color: "#000000",
-    letterSpacing: 0,
-    bold: false,
-    italic: false,
-    indentPx: 0,
+  const [style, setStyle] = useState<LocalStyle>(() => {
+    const tb: any = textbox || {};
+    return {
+      fontFamily: tb.fontFamily ?? undefined,
+      fontSize: Number(tb.fontSize ?? 12),
+      lineHeight: Number(tb.lineHeight ?? 1.2),
+      color: tb.fill ?? "#000000",
+      letterSpacing: Number(tb.charSpacing ?? 0) / 1000,
+      bold: (tb.fontWeight as any) === "bold",
+      italic: (tb.fontStyle as any) === "italic",
+      indentPx: Number(tb.data?.indentPx ?? 0),
+    };
   });
 
-  const [sectionType, setSectionType] = useState<string>("");
-  const [fieldType, setFieldType] = useState<string>("");
   const overlayRef = useRef<HTMLDivElement>(null);
-  const currentRef = useRef<{ textbox: fabric.Textbox; group?: fabric.Group } | null>(null);
 
-  // Keep overlay bound to the currently selected textbox (live)
-  useEffect(() => {
-    const updateFromSelection = () => {
-      const ref = getActiveTextbox(canvas);
-      if (!ref) return;
-      currentRef.current = ref;
-
-      const tb: any = ref.textbox;
-      setSectionType(tb.data?.sectionType || "");
-      setFieldType(tb.data?.fieldType || "");
-
-      setStyle({
-        fontFamily: tb.fontFamily ?? undefined,
-        fontSize: Number(tb.fontSize ?? 12),
-        lineHeight: Number(tb.lineHeight ?? 1.2),
-        color: tb.fill ?? "#000000",
-        letterSpacing: Number(tb.charSpacing ?? 0) / 1000,
-        bold: (tb.fontWeight as any) === "bold",
-        italic: (tb.fontStyle as any) === "italic",
-        indentPx: Number(tb.data?.indentPx ?? 0),
-      });
-    };
-
-    updateFromSelection();
-    canvas.on("selection:created", updateFromSelection);
-    canvas.on("selection:updated", updateFromSelection);
-    canvas.on("selection:cleared", onClose);
-
-    return () => {
-      canvas.off("selection:created", updateFromSelection);
-      canvas.off("selection:updated", updateFromSelection);
-      canvas.off("selection:cleared", onClose);
-    };
-  }, [canvas, onClose]);
-
-  // Reposition overlay on render/resize
+  // Overlay positioniert sich an der Textbox (Canvas → DOM)
   useEffect(() => {
     const reposition = () => {
-      if (!overlayRef.current || !currentRef.current) return;
-      const { textbox } = currentRef.current;
+      if (!overlayRef.current) return;
       const rect = fabricToDomRect(canvas, textbox, containerEl);
       overlayRef.current.style.left = `${rect.left}px`;
       overlayRef.current.style.top = `${Math.max(0, rect.top - 48)}px`;
@@ -117,43 +72,61 @@ export default function TextEditorOverlay({ canvas, containerEl, onClose }: Over
       canvas.off("after:render", handler);
       window.removeEventListener("resize", handler);
     };
-  }, [canvas, containerEl]);
+  }, [canvas, textbox, containerEl]);
 
+  // Sofortiger, lokaler Reflow (Canvas) + Persistenz im Store (Sektion, Feldtyp)
   const applyLocal = () => {
-    const ref = currentRef.current;
-    if (!ref) return;
-    const { textbox, group } = ref;
-    const next: Partial<fabric.Textbox> = {};
-    if (style.fontFamily) next.fontFamily = style.fontFamily as any;
-    if (Number.isFinite(style.fontSize)) next.fontSize = clamp(style.fontSize!, 6, 72) as any;
-    if (Number.isFinite(style.lineHeight)) next.lineHeight = clamp(style.lineHeight!, 0.8, 2) as any;
-    if (style.color) next.fill = style.color as any;
-    if (Number.isFinite(style.letterSpacing)) next.charSpacing = Math.round((style.letterSpacing || 0) * 1000) as any;
-    next.fontWeight = style.bold ? ("bold" as any) : ("normal" as any);
-    next.fontStyle = style.italic ? ("italic" as any) : ("" as any);
+    // 1) Store aktualisieren → persistenter Stil innerhalb dieser Sektion
+    updatePartStyleLocal(sectionId, fieldType as any, {
+      fontFamily: style.fontFamily,
+      fontSize: style.fontSize,
+      color: style.color,
+      lineHeight: style.lineHeight,
+      letterSpacing: style.letterSpacing,
+      fontWeight: style.bold ? "bold" : "normal",
+      italic: !!style.italic,
+    } as any);
 
-    const padL = Number((textbox as any).data?.padL ?? 0);
-    const padR = Number((textbox as any).data?.padR ?? 0);
-    const indentPx = clamp(Number(style.indentPx ?? 0), 0, 200);
-    (textbox as any).data = { ...(textbox as any).data, indentPx };
+    // 2) Sofortiger visueller Reflow der aktuell editierten Textbox (ohne Skalierung!)
+    const tb: any = textbox;
+    const grp: any = group;
 
-    const g = group || textbox.group;
-    const groupWidth = (g?.width ?? 0) * (g?.scaleX ?? 1);
+    const padL = Number(tb?.data?.padL ?? 0);
+    const padR = Number(tb?.data?.padR ?? 0);
+    const indentPx = clamp(Number(style.indentPx ?? tb?.data?.indentPx ?? 0), 0, 200);
+
+    tb.data = { ...(tb.data || {}), indentPx };
+
+    const groupWidth = (grp?.width ?? 0) * (grp?.scaleX ?? 1);
     const contentWidth = Math.max(1, groupWidth - padL - padR - indentPx);
     const halfW = groupWidth / 2;
     const tlX = -halfW + padL + indentPx;
 
-    (textbox as any).set({ ...next, left: tlX, width: contentWidth, scaleX: 1, scaleY: 1 });
-    (textbox as any)._clearCache?.();
-    (textbox as any).initDimensions?.();
-    (textbox as any).setCoords();
-    g?.setCoords();
+    const patch: Partial<fabric.Textbox> = {
+      fontFamily: style.fontFamily as any,
+      fontSize: clamp(Number(style.fontSize ?? 12), 6, 72) as any,
+      lineHeight: clamp(Number(style.lineHeight ?? 1.2), 0.8, 2) as any,
+      fill: style.color as any,
+      charSpacing: Math.round(Number(style.letterSpacing ?? 0) * 1000) as any,
+      fontWeight: (style.bold ? "bold" : "normal") as any,
+      fontStyle: (style.italic ? "italic" : "") as any,
+      left: tlX,
+      width: contentWidth,
+      scaleX: 1,
+      scaleY: 1,
+    };
+
+    tb.set(patch);
+    tb._clearCache?.();
+    tb.initDimensions?.();
+    tb.setCoords();
+    grp?.setCoords();
     canvas.requestRenderAll();
   };
 
+  // Global anwenden für alle Felder dieses Typs in allen Sektionen gleichen Typs
   const applyGlobal = () => {
-    if (!sectionType || !fieldType) return;
-    setGlobalFieldStyle(sectionType as any, fieldType as any, {
+    setGlobalFieldStyle(sectionType as any, fieldType, {
       fontFamily: style.fontFamily,
       fontSize: style.fontSize,
       color: style.color,
@@ -162,10 +135,11 @@ export default function TextEditorOverlay({ canvas, containerEl, onClose }: Over
       bold: !!style.bold,
       italic: !!style.italic,
     } as any);
-    bump();
-    onClose();
+    bump();        // Signalisiert Render-Neuaufbau
+    onClose();     // Overlay schließen
   };
 
+  // Shortcuts
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
