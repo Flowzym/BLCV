@@ -1,194 +1,105 @@
 // src/modules/cv-designer/canvas/installSectionResize.ts
-import { fabric } from "fabric";
+import { getFabric } from "@/lib/fabric-shim";
 
-type WithData = fabric.Object & {
-  data?: Record<string, any>;
-  // interne Hilfsmarker
-  __ratiosComputed?: boolean;
-  __baseW?: number;
-  __baseH?: number;
-};
-
-type Ratio = {
-  left: number;   // 0..1 relativ zur Gruppenbreite (TL-Referenz)
-  top: number;    // 0..1 relativ zur Gruppenhöhe (TL-Referenz)
-  width: number;  // 0..1 relativ zur Gruppenbreite
-  height: number; // 0..1 relativ zur Gruppenhöhe
-};
-
-declare global {
-  // wir hängen pro Child ein Ratio an (TS-Hilfstyp)
-  interface Object {
-    __ratio?: Ratio;
-  }
-}
+type WithData = fabric.Object & { data?: any };
 
 function isSectionGroup(obj: any): obj is fabric.Group & WithData {
-  if (!obj) return false;
-  // Erkennung: Group + Kennzeichen (passe bei Bedarf an eure Datenstruktur an)
-  const hasFlag =
-    (obj as any).data?.sectionId !== undefined ||
-    (obj as any).data?.type === "section" ||
-    (obj as any).data?.kind === "section";
-  return obj.type === "group" && hasFlag;
+  // Check if it's a group and has a sectionId in its data, indicating it's one of our custom section groups
+  return !!obj && obj.type === 'group' && !!(obj as any).sectionId;
 }
 
-/**
- * Initiale Ratio-Berechnung für Kinder relativ zur aktuellen Gruppenbox.
- * Koordinatenbasis: Gruppen-Top-Left (nicht Center).
- */
-function ensureChildRatios(group: fabric.Group & WithData) {
-  const gw = group.width ?? 1;
-  const gh = group.height ?? 1;
-  const halfW = gw / 2;
-  const halfH = gh / 2;
+function ensureRatios(group: fabric.Group & WithData) {
+  const g: any = group as any;
+  // Only compute ratios once
+  if (g.__ratiosComputed) return;
+  
+  const gw = group.width || 1;
+  const gh = group.height || 1;
 
-  // Merke Basismaße für spätere Resizes
-  if (!group.__baseW) group.__baseW = gw;
-  if (!group.__baseH) group.__baseH = gh;
-
-  (group._objects || []).forEach((child: any) => {
-    // Fabric-Group arbeitet standardmäßig mit child.left/top relativ zum Gruppenmittelpunkt.
-    // Wir rechnen auf TL-Referenz um:
-    const childWidth = (child.width ?? 0) * (child.scaleX ?? 1);
-    const childHeight = (child.height ?? 0) * (child.scaleY ?? 1);
-
-    // child.left/top: relativ zum Gruppenmittelpunkt
-    const relLeft = (child.left ?? 0) + halfW;
-    const relTop = (child.top ?? 0) + halfH;
-
+  group._objects.forEach((child: any) => {
+    // Calculate child's top-left corner relative to group's top-left corner
+    const lx = (child.left ?? 0) + (child.originX === 'center' ? child.width!/2 : 0);
+    )
+    const ty = (child.top ?? 0)  + (child.originY === 'center' ? child.height!/2 : 0);
+    )
+    
+    // Store ratios relative to group's original dimensions
     child.__ratio = {
-      left: gw ? relLeft / gw : 0,
-      top: gh ? relTop / gh : 0,
-      width: gw ? childWidth / gw : 0,
-      height: gh ? childHeight / gh : 0,
-    } as Ratio;
+      left: lx / gw,
+      top:  ty / gh,
+      width: (child.width || 0) / gw,
+      height: (child.height || 0) / gh,
+    };
   });
-
-  (group as WithData).__ratiosComputed = true;
+  g.__ratiosComputed = true;
 }
 
-/**
- * Wendet die gespeicherten Ratios auf neue Gruppenmaße an.
- * - Textboxen: nur über 'width' reflowen, scaleX/Y zurück auf 1
- * - Shapes/Bilder: Breite/Höhe proportional setzen
- * - Position: aus Ratio auf TL-Referenz berechnen und wieder in Center-Referenz übertragen
- */
-function applyRatios(
-  group: fabric.Group & WithData,
-  newW: number,
-  newH: number
-) {
-  const halfW = newW / 2;
-  const halfH = newH / 2;
-
-  (group._objects || []).forEach((child: any) => {
-    const r: Ratio | undefined = child.__ratio;
-    if (!r) return;
-
-    // Ziel-Position relativ zur Gruppen-TL
-    const tlX = r.left * newW;
-    const tlY = r.top * newH;
-
-    // Ziel-Maße
-    const targetW = Math.max(1, r.width * newW);
-    const targetH = Math.max(1, r.height * newH);
-
-    if (child.type === "textbox") {
-      // Text reflow via width, niemals skalieren
-      child.set({
-        width: targetW,
-        scaleX: 1,
-        scaleY: 1,
-        objectCaching: false, // Bitmap-Verzerrung vermeiden
-      });
-      child.set("dirty", true);
-      // Höhe ermittelt Fabric dynamisch nach dem nächste Render
-    } else if (
-      child.type === "rect" ||
-      child.type === "image" ||
-      child.type === "line" ||
-      child.type === "circle" ||
-      child.type === "triangle"
-    ) {
-      child.set({
-        width: targetW,
-        height: targetH,
-        scaleX: 1,
-        scaleY: 1,
-      });
-    } else {
-      // Fallback: nicht skalieren
-      child.set({ scaleX: 1, scaleY: 1 });
-    }
-
-    // Position wieder relativ zum Gruppenmittelpunkt (Fabric-Group-Koord-System)
-    child.set({
-      left: tlX - halfW,
-      top: tlY - halfH,
-    });
-
-    child.setCoords();
-  });
-
-  group.setCoords();
-}
-
-/**
- * Installer: konvertiert Gruppenskalierung in echtes Resize
- * und verhindert so Textverzerrung in Textboxen.
- */
-export function installSectionResize(canvas: fabric.Canvas) {
-  // Während der Interaktion nicht mehrfach feuern lassen
-  let isResizing = false;
+export async function installSectionResize(canvas: fabric.Canvas) {
+  const fabric = await getFabric();
 
   canvas.on("object:scaling", (e) => {
-    const target = e.target as fabric.Object & WithData;
+    const target = e.target as fabric.Group & WithData;
     if (!isSectionGroup(target)) return;
-    if (isResizing) return;
 
-    isResizing = true;
+    // Ensure ratios are computed (only once per group)
+    ensureRatios(target);
 
-    // Basisratios einmalig vorbereiten
-    if (!target.__ratiosComputed) {
-      ensureChildRatios(target as fabric.Group & WithData);
-    }
+    // Calculate new dimensions based on current scale
+    const newW = (target.width || 0) * (target.scaleX || 1);
+    const newH = (target.height || 0) * (target.scaleY || 1);
 
-    // neue Maße aus aktueller Skalierung ableiten
-    const baseW = target.width ?? 0;
-    const baseH = target.height ?? 0;
-    const newW = Math.max(1, baseW * (target.scaleX ?? 1));
-    const newH = Math.max(1, baseH * (target.scaleY ?? 1));
+    // Normalize the group: set new dimensions and reset scale to 1
+    target.set({ width: newW, height: newH, scaleX: 1, scaleY: 1 });
 
-    // Gruppenskalierung neutralisieren -> echtes Resize
-    target.set({
-      width: newW,
-      height: newH,
-      scaleX: 1,
-      scaleY: 1,
+    const gw = newW || 1;
+    const gh = newH || 1;
+    const children = (target as any)._objects as fabric.Object[];
+
+    children.forEach((child: any) => {
+      const r = child.__ratio;
+      if (!r) return;
+
+      // Update child's size based on new group dimensions and stored ratios
+      if (child.type === "textbox") {
+        // For textboxes, only width controls reflow. Height is auto-calculated.
+        // Set objectCaching to false temporarily to force re-render of text.
+        child.set({ width: Math.max(1, r.width * gw), scaleX:1, scaleY:1, objectCaching:false });
+        child.set("dirty", true); // Mark as dirty to ensure re-render
+      } else if (child.type === "rect" || child.type === "image" || child.type === "line") {
+        // For other objects, update both width and height
+        child.set({
+          width:  Math.max(1, r.width * gw),
+          height: Math.max(1, r.height * gh),
+          scaleX:1, scaleY:1
+        });
+      }
+
+      // Update child's position based on new group dimensions and stored ratios
+      // Positions are relative to the group's center, so adjust for top-left origin
+      const nx = r.left * gw;
+      const ny = r.top  * gh;
+      child.set({ left: nx, top: ny });
+      child.setCoords(); // Update child's coordinates
     });
 
-    applyRatios(target as fabric.Group & WithData, newW, newH);
-
-    // Render & Cleanup
-    canvas.requestRenderAll();
-    isResizing = false;
+    target.setCoords(); // Update group's coordinates
+    canvas.requestRenderAll(); // Request a re-render of the canvas
   });
 
   canvas.on("object:modified", (e) => {
-    const target = e.target as fabric.Object & WithData;
+    const target = e.target as fabric.Group & WithData;
     if (!isSectionGroup(target)) return;
-
-    // Nach dem finalen Loslassen Caches wieder aktivieren
-    (target._objects || []).forEach((child: any) => {
+    
+    // Final cleanup after scaling/modification is complete
+    (target as any)._objects?.forEach((child: any) => {
       if (child.type === "textbox") {
+        // Re-enable object caching for textboxes for performance
         child.set({ objectCaching: true });
-        child.set("dirty", true);
+        child.set("dirty", true); // Mark as dirty to ensure final re-render
       }
-      child.setCoords();
+      child.setCoords(); // Ensure all child coordinates are updated
     });
-
-    target.setCoords();
-    canvas.requestRenderAll();
+    target.setCoords(); // Ensure group coordinates are updated
+    canvas.requestRenderAll(); // Final re-render
   });
 }
