@@ -66,6 +66,16 @@ export default function FabricCanvas(){
       fCanvas.current = null;
       fabricNs.current = null;
     };
+  }, []);
+
+  /* ----------- zoom updates ----------- */
+  useEffect(() => {
+    const c = fCanvas.current;
+    if (!c) return;
+    
+    c.setZoom(zoom);
+    c.requestRenderAll();
+    DBG('Canvas zoom updated:', zoom);
   }, [zoom]);
 
   /* ----------- elements -> canvas rendering ----------- */
