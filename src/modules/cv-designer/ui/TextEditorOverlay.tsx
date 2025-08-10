@@ -1,289 +1,232 @@
-import React, { useRef, useEffect, useState, useCallback } from "react";
-import { getFabric } from "@/lib/fabric-shim";
-import { useDesignerStore } from "../store/designerStore";
-import CanvasRegistry from "./canvasRegistry";
-import { installSectionResize } from "./installSectionResize";
-import TextEditorOverlay from "../ui/TextEditorOverlay";
+import React, { useEffect, useRef, useState } from "react";
+import type { fabric } from "fabric";
+import { fabricToDomRect } from "../utils/fabricToDomRect";
+import { useDesignerStore, SectionType } from "../store/designerStore";
 
-const PAGE_W = 595;
-const PAGE_H = 842;
+type OverlayProps = {
+  canvas: fabric.Canvas;
+  containerEl: HTMLElement;
+  group: fabric.Group;
+  textbox: fabric.Textbox & { data?: Record<string, any>; fieldType?: string; sectionId?: string };
+  sectionId: string;
+  sectionType: SectionType;
+  fieldType: string;
+  onClose: () => void;
+};
 
-type ActiveEdit =
-  | null
-  | {
-      sectionId: string;
-      sectionType: "experience" | "education" | "profile" | "skills" | "softskills";
-      fieldType: string;
-      group: any;   // fabric.Group
-      textbox: any; // fabric.Textbox
-    };
+type LocalStyle = {
+  fontFamily?: string;
+  fontSize?: number;
+  lineHeight?: number;
+  color?: string;
+  letterSpacing?: number;
+  bold?: boolean;
+  italic?: boolean;
+  indentPx?: number;
+};
 
-export default function FabricCanvas() {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [fabricCanvas, setFabricCanvas] = useState<any>(null);
-  const [fabricNamespace, setFabricNamespace] = useState<any>(null);
-  const [activeEdit, setActiveEdit] = useState<ActiveEdit>(null);
+function clamp(n: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, n));
+}
 
-  // Store
-  const sections = useDesignerStore((s) => s.sections);
-  const tokens = useDesignerStore((s) => s.tokens);
-  const margins = useDesignerStore((s) => s.margins);
-  const zoom = useDesignerStore((s) => s.zoom);
-  const globalFieldStyles = useDesignerStore((s) => s.globalFieldStyles);
-  const partStyles = useDesignerStore((s) => s.partStyles);
+export default function TextEditorOverlay(props: OverlayProps) {
+  const { canvas, containerEl, group, textbox, sectionId, sectionType, fieldType, onClose } = props;
+
+  const setGlobalFieldStyle = useDesignerStore((s) => s.setGlobalFieldStyle);
+  const setSelectedTypographyField = useDesignerStore((s) => s.setSelectedTypographyField);
+  const bump = useDesignerStore((s) => s.bump);
+
+  const [style, setStyle] = useState<LocalStyle>(() => ({
+    fontFamily: (textbox.fontFamily as any) ?? undefined,
+    fontSize: Number(textbox.fontSize ?? 12),
+    lineHeight: Number((textbox.lineHeight as any) ?? 1.2),
+    color: (textbox.fill as any) ?? "#000000",
+    letterSpacing: Number((textbox.charSpacing as any) ?? 0) / 1000,
+    bold: (textbox.fontWeight as any) === "bold",
+    italic: (textbox.fontStyle as any) === "italic",
+    indentPx: Number((textbox as any).data?.indentPx ?? 0),
+  }));
+
+  const overlayRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    let isMounted = true;
-
-    const initFabric = async () => {
-      const fabric = await getFabric();
-      if (!isMounted) return;
-
-      setFabricNamespace(fabric);
-
-      if (canvasRef.current) {
-        if (CanvasRegistry.has(canvasRef.current)) {
-          CanvasRegistry.dispose(canvasRef.current);
-        }
-
-        const canvas = CanvasRegistry.getOrCreate(canvasRef.current, fabric);
-        canvas.setDimensions({ width: PAGE_W, height: PAGE_H });
-        canvas.backgroundColor = "#ffffff";
-
-        // Interaktion
-        canvas.selection = true;            // Lasso/Griffe erlaubt
-        canvas.subTargetCheck = true;       // Kinder in Gruppen treffbar
-        canvas.perPixelTargetFind = true;
-        canvas.targetFindTolerance = 6;
-
-        setFabricCanvas(canvas);
-        installSectionResize(canvas);
-
-        // Klick öffnet Overlay nur bei Textbox
-        const onMouseUp = (e: any) => {
-          let t: any = null;
-
-          if (Array.isArray(e.subTargets) && e.subTargets.length) {
-            t = e.subTargets.find((o: any) => o?.type === "textbox") ?? null;
-          }
-          if (!t && e.target && e.target.type === "textbox") t = e.target;
-
-          if (!t && e.target && e.target.type === "group") {
-            const grp = e.target;
-            const p = canvas.getPointer(e.e);
-            const hit = (grp._objects || []).find((child: any) => {
-              if (child.type !== "textbox") return false;
-              const r = child.getBoundingRect(true, true);
-              return p.x >= r.left && p.x <= r.left + r.width && p.y >= r.top && p.y <= r.top + r.height;
-            });
-            if (hit) t = hit;
-          }
-
-          if (!t) return;
-          if (t.type === "textbox" && t.sectionId && t.fieldType) {
-            const grp = t.group;
-            if (!grp) return;
-            setActiveEdit({
-              sectionId: t.sectionId,
-              sectionType: grp.sectionType || "experience",
-              fieldType: t.fieldType,
-              group: grp,
-              textbox: t,
-            });
-          }
-        };
-
-        canvas.on("mouse:up", onMouseUp);
-
-        return () => {
-          canvas.off("mouse:up", onMouseUp);
-        };
-      }
+    const reposition = () => {
+      if (!overlayRef.current) return;
+      const rect = fabricToDomRect(canvas, textbox, containerEl);
+      overlayRef.current.style.left = `${rect.left}px`;
+      overlayRef.current.style.top = `${Math.max(0, rect.top - 48)}px`;
+      overlayRef.current.style.width = `${rect.width}px`;
     };
-
-    const cleanup = initFabric();
-
+    reposition();
+    const handler = () => reposition();
+    canvas.on("after:render", handler);
+    window.addEventListener("resize", handler);
     return () => {
-      isMounted = false;
-      const el = canvasRef.current;
-      if (el && CanvasRegistry.has(el)) {
-        CanvasRegistry.dispose(el);
-      }
-      setFabricCanvas(null);
-      setFabricNamespace(null);
-      if (typeof cleanup === "function") cleanup();
+      canvas.off("after:render", handler);
+      window.removeEventListener("resize", handler);
     };
-  }, []);
+  }, [canvas, containerEl, textbox]);
 
-  const renderSections = useCallback(async () => {
-    if (!fabricCanvas || !fabricNamespace || !sections) return;
+  const applyLocal = () => {
+    const next: Partial<fabric.Textbox> = {};
+    if (style.fontFamily) next.fontFamily = style.fontFamily as any;
+    if (Number.isFinite(style.fontSize)) next.fontSize = clamp(style.fontSize!, 6, 72) as any;
+    if (Number.isFinite(style.lineHeight)) next.lineHeight = clamp(style.lineHeight!, 0.8, 2) as any;
+    if (style.color) next.fill = style.color as any;
+    if (Number.isFinite(style.letterSpacing)) next.charSpacing = Math.round((style.letterSpacing || 0) * 1000) as any;
+    next.fontWeight = style.bold ? ("bold" as any) : ("normal" as any);
+    next.fontStyle = style.italic ? ("italic" as any) : ("" as any);
 
-    fabricCanvas.clear();
+    const padL = Number((textbox as any).data?.padL ?? 0);
+    const padR = Number((textbox as any).data?.padR ?? 0);
+    const indentPx = clamp(Number(style.indentPx ?? 0), 0, 200);
+    (textbox as any).data = { ...(textbox as any).data, indentPx };
 
-    for (const section of sections) {
-      if (!section.isVisible) continue;
-      if (!Array.isArray(section.parts) || section.parts.length === 0) continue;
+    const groupWidth = (group.width ?? 0) * (group.scaleX ?? 1);
+    const contentWidth = Math.max(1, groupWidth - padL - padR - indentPx);
+    const halfW = groupWidth / 2;
+    const tlX = -halfW + padL + indentPx;
 
-      const textboxes: any[] = [];
+    (textbox as any).set({ ...next, left: tlX, width: contentWidth, scaleX: 1, scaleY: 1 });
+    (textbox as any)._clearCache?.();
+    (textbox as any).initDimensions?.();
+    (textbox as any).setCoords();
+    group.setCoords();
+    canvas.requestRenderAll();
+  };
 
-      // Section-Padding
-      const SEC_PAD_L = Number(section.props?.paddingLeft  ?? 24);
-      const SEC_PAD_R = Number(section.props?.paddingRight ?? 24);
-      const SEC_PAD_T = Number(section.props?.paddingTop   ?? 16);
-      const SEC_PAD_B = Number(section.props?.paddingBottom?? 16);
-      const BULLET_INDENT = Number(tokens?.bulletIndent ?? 18);
+  const applyGlobal = () => {
+    setGlobalFieldStyle(sectionType as any, fieldType, {
+      fontFamily: style.fontFamily,
+      fontSize: style.fontSize,
+      color: style.color,
+      lineHeight: style.lineHeight,
+      letterSpacing: style.letterSpacing,
+      bold: !!style.bold,
+      italic: !!style.italic,
+    } as any);
+    setSelectedTypographyField({ sectionType, fieldType });
+    bump();
+    onClose();
+  };
 
-      for (const part of section.parts) {
-        if (part.type !== "text") continue;
-
-        const displayText = part.text ?? "";
-        const indentPx = part.indentPx ?? (part.fieldType === "bullet" ? BULLET_INDENT : 0);
-        const padL = SEC_PAD_L;
-        const padT = SEC_PAD_T + Math.max(0, part.offsetY || 0);
-        const padR = SEC_PAD_R;
-        const padB = SEC_PAD_B;
-
-        const initialTextWidth = Math.max(1, section.width - padL - padR - indentPx);
-
-        const globalStyle =
-          globalFieldStyles[section.sectionType]?.[part.fieldType || "content"] || {};
-        const partStyleKey = `${section.sectionType}:${part.fieldType}`;
-        const localPartStyle = partStyles[partStyleKey] || {};
-
-        const finalStyle = {
-          fontSize: part.fontSize || localPartStyle.fontSize || globalStyle.fontSize || tokens?.fontSize || 12,
-          fontFamily: part.fontFamily || localPartStyle.fontFamily || globalStyle.fontFamily || tokens?.fontFamily || "Arial, sans-serif",
-          fill: part.color || localPartStyle.color || globalStyle.textColor || tokens?.colorPrimary || "#000000",
-          fontWeight: (part.fontWeight as any) || (localPartStyle.fontWeight as any) || (globalStyle.fontWeight as any) || "normal",
-          fontStyle: (part.fontStyle as any) || (localPartStyle.italic ? "italic" : (globalStyle.fontStyle as any)) || "normal",
-          lineHeight: part.lineHeight || localPartStyle.lineHeight || (globalStyle.lineHeight as any) || tokens?.lineHeight || 1.4,
-          charSpacing: (part.letterSpacing || localPartStyle.letterSpacing || (globalStyle.letterSpacing as any) || 0) * 1000,
-          textAlign: part.textAlign || "left",
-        };
-
-        const tb = new fabricNamespace.Textbox(displayText, {
-          left: 0, top: 0, width: initialTextWidth,
-          ...finalStyle,
-          splitByGrapheme: true,
-          breakWords: true,
-          selectable: false,
-          evented: true,
-          hasControls: false,
-          hasBorders: false,
-          editable: false,
-          lockScalingX: true,
-          lockScalingY: true,
-          lockMovementX: true,
-          lockMovementY: true,
-          lockUniScaling: true,
-          opacity: 1,
-          visible: true,
-          originX: "left",
-          originY: "top",
-          scaleX: 1,
-          scaleY: 1,
-          angle: 0,
-          skewX: 0,
-          skewY: 0,
-          hoverCursor: "text",
-          moveCursor: "default",
-        }) as any;
-
-        tb.partId = part.id;
-        tb.fieldType = part.fieldType;
-        tb.sectionId = section.id;
-
-        tb.data = {
-          fieldKey: part.id ?? `${section.id}:${part.fieldType}`,
-          padL, padT, padR, padB, indentPx,
-          flow: true,
-          order: Number.isFinite(part.order) ? part.order : 0,
-          gapBefore: Number(part.gapBefore ?? 0),
-          type: "textbox",
-          lineHeight: finalStyle.lineHeight,
-        };
-
-        const halfW = section.width / 2;
-        const halfH = (section.height ?? 1) / 2;
-        const tlX = padL + (indentPx || 0);
-        const tlY = padT;
-        tb.set({ left: tlX - halfW, top: tlY - halfH });
-        tb.setCoords();
-
-        textboxes.push(tb);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "enter") {
+        e.preventDefault();
+        applyGlobal();
       }
-
-      // Gruppe ist wieder selektierbar → Move/Resize möglich
-      const sectionGroup = new fabricNamespace.Group(textboxes, {
-        left: section.x,
-        top: section.y,
-        selectable: true,
-        evented: true,
-        hasControls: true,
-        hasBorders: true,
-        backgroundColor: section.props?.backgroundColor || "transparent",
-        stroke: section.props?.borderColor || "#e5e7eb",
-        strokeWidth: parseInt(section.props?.borderWidth || "1", 10),
-        fill: "transparent",
-        lockUniScaling: false,
-        cornerStyle: "rect",
-        cornerSize: 8,
-        transparentCorners: false,
-        borderColor: "#3b82f6",
-        cornerColor: "#3b82f6",
-        subTargetCheck: true,
-        hoverCursor: "move",
-      }) as any;
-
-      sectionGroup.data = {
-        sectionId: section.id,
-        type: "section",
-        minHeight: Number(section.props?.minHeight ?? 32),
-      };
-      sectionGroup.sectionId = section.id;
-      sectionGroup.sectionType = section.sectionType;
-
-      fabricCanvas.add(sectionGroup);
-
-      try {
-        (sectionGroup as any).scaleX = 1;
-        (sectionGroup as any).scaleY = 1;
-        fabricCanvas.fire("object:scaling", { target: sectionGroup } as any);
-        fabricCanvas.fire("object:modified", { target: sectionGroup } as any);
-      } catch {}
-    }
-
-    fabricCanvas.renderAll();
-  }, [fabricCanvas, fabricNamespace, sections, tokens, margins, globalFieldStyles, partStyles]);
-
-  useEffect(() => {
-    if (fabricCanvas && sections) renderSections();
-  }, [fabricCanvas, sections, renderSections]);
-
-  useEffect(() => {
-    if (!fabricCanvas) return;
-    const safeZoom = Math.max(0.1, Math.min(5, zoom || 1));
-    fabricCanvas.setZoom(safeZoom);
-    fabricCanvas.renderAll();
-  }, [fabricCanvas, zoom]);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [applyGlobal, onClose]);
 
   return (
-    <div ref={containerRef} style={{ width: PAGE_W, height: PAGE_H, position: "relative" }}>
-      <canvas ref={canvasRef} />
+    <div
+      ref={overlayRef}
+      className="absolute z-50 pointer-events-auto flex items-center gap-2 p-2 bg-white/95 shadow-xl rounded-2xl"
+      onMouseDown={(e) => e.stopPropagation()}
+      onMouseUp={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <select
+        className="border rounded-md px-2 py-1"
+        value={style.fontFamily || ""}
+        onChange={(e) => setStyle((s) => ({ ...s, fontFamily: e.target.value }))}
+      >
+        <option value="">(inherit)</option>
+        <option>Arial</option>
+        <option>Helvetica</option>
+        <option>Times New Roman</option>
+        <option>Georgia</option>
+        <option>Verdana</option>
+        <option>Tahoma</option>
+        <option>Segoe UI</option>
+        <option>Roboto</option>
+        <option>Open Sans</option>
+      </select>
 
-      {activeEdit && fabricCanvas && containerRef.current && (
-        <TextEditorOverlay
-          canvas={fabricCanvas}
-          containerEl={containerRef.current}
-          group={activeEdit.group}
-          textbox={activeEdit.textbox}
-          sectionId={activeEdit.sectionId}
-          sectionType={activeEdit.sectionType}
-          fieldType={activeEdit.fieldType}
-          onClose={() => setActiveEdit(null)}
+      <label className="flex items-center gap-1 text-sm">
+        Sz
+        <input
+          className="w-16 border rounded-md px-2 py-1"
+          type="number" min={6} max={72} step={1}
+          value={style.fontSize ?? 12}
+          onChange={(e) => setStyle((s) => ({ ...s, fontSize: Number(e.target.value) }))}
         />
-      )}
+      </label>
+
+      <label className="flex items-center gap-1 text-sm">
+        LH
+        <input
+          className="w-16 border rounded-md px-2 py-1"
+          type="number" min={0.8} max={2} step={0.05}
+          value={style.lineHeight ?? 1.2}
+          onChange={(e) => setStyle((s) => ({ ...s, lineHeight: Number(e.target.value) }))}
+        />
+      </label>
+
+      <label className="flex items-center gap-1 text-sm">
+        Letter
+        <input
+          className="w-16 border rounded-md px-2 py-1"
+          type="number" min={-0.2} max={0.5} step={0.01}
+          value={style.letterSpacing ?? 0}
+          onChange={(e) => setStyle((s) => ({ ...s, letterSpacing: Number(e.target.value) }))}
+        />
+      </label>
+
+      <label className="flex items-center gap-1 text-sm">
+        Indent
+        <input
+          className="w-20 border rounded-md px-2 py-1"
+          type="number" min={0} max={200} step={1}
+          value={style.indentPx ?? 0}
+          onChange={(e) => setStyle((s) => ({ ...s, indentPx: Number(e.target.value) }))}
+        />
+      </label>
+
+      <label className="flex items-center gap-1 text-sm">
+        <input
+          className="border rounded"
+          type="checkbox"
+          checked={!!style.bold}
+          onChange={(e) => setStyle((s) => ({ ...s, bold: e.target.checked }))}
+        />
+        <span className="font-semibold">B</span>
+      </label>
+
+      <label className="flex items-center gap-1 text-sm">
+        <input
+          className="border rounded"
+          type="checkbox"
+          checked={!!style.italic}
+          onChange={(e) => setStyle((s) => ({ ...s, italic: e.target.checked }))}
+        />
+        <span className="italic">I</span>
+      </label>
+
+      <input
+        className="w-10 h-10 p-0 border rounded-md"
+        type="color"
+        value={typeof style.color === "string" ? style.color : "#000000"}
+        onChange={(e) => setStyle((s) => ({ ...s, color: e.target.value }))}
+      />
+
+      <button onClick={applyLocal} className="px-3 py-1 rounded-lg border bg-gray-50 hover:bg-gray-100">
+        Anwenden (lokal)
+      </button>
+      <button
+        onClick={applyGlobal}
+        className="px-3 py-1 rounded-lg border bg-blue-50 text-blue-700 hover:bg-blue-100 font-semibold"
+        title={`Auf alle ${sectionType}:${fieldType} anwenden`}
+      >
+        Global: {sectionType}:{fieldType}
+      </button>
+      <button onClick={onClose} className="px-3 py-1 rounded-lg border bg-gray-50 hover:bg-gray-100">
+        Schließen
+      </button>
     </div>
   );
 }
