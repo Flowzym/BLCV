@@ -343,7 +343,6 @@ export default function FabricCanvas() {
             
             // Force object to recalculate its dimensions
             obj._clearCache();
-            obj._setTextStyles();
             obj.initDimensions();
             obj.setCoords();
             
