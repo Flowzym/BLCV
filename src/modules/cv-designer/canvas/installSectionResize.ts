@@ -2,12 +2,10 @@
 import { fabric } from "fabric";
 
 /**
- * Ziele:
- * - Gruppenskalierung -> echtes width/height (Scale→Resize Normalization).
- * - Textboxen nie skalieren; Umbruch nur via 'width'.
- * - Anchored-Layout: Padding/Indent in px bleiben konstant.
- * - Vertikales Flow-Layout: Unterfelder rücken nach Umbruch automatisch nach.
- * - Robustheit: keine privaten Fabric-APIs, keine .split() auf undefined.
+ * Gruppenskalierung -> echtes width/height.
+ * Text wird nie skaliert; Umbruch via width.
+ * Anchored-Padding in px. Flow-Layout: Textfelder rücken nach Umbruch nach.
+ * Keine privaten Fabric-APIs.
  */
 
 type WithData = fabric.Object & {
@@ -21,14 +19,9 @@ type Ratio = { left: number; top: number; width: number; height: number };
 
 type Anchored = {
   mode: "anchored";
-  padL: number;
-  padT: number;
-  padR: number;
-  padB: number;
+  padL: number; padT: number; padR: number; padB: number;
   indentPx: number;
-  flow?: boolean;     // vertikal stapeln?
-  order?: number;     // Reihenfolge im Stack
-  gapBefore?: number; // Abstand vor diesem Feld
+  flow?: boolean; order?: number; gapBefore?: number;
 };
 
 type Proportional = { mode: "proportional"; ratio: Ratio };
@@ -66,7 +59,7 @@ function ensureChildLayouts(group: fabric.Group & WithData) {
     } else {
       const childWidth = (child.width ?? 0) * (child.scaleX ?? 1);
       const childHeight = (child.height ?? 0) * (child.scaleY ?? 1);
-      const relLeft = (child.left ?? 0) + halfW; // Center -> TL
+      const relLeft = (child.left ?? 0) + halfW;
       const relTop  = (child.top  ?? 0) + halfH;
 
       const ratio: Ratio = {
@@ -82,24 +75,20 @@ function ensureChildLayouts(group: fabric.Group & WithData) {
   (group as WithData).__ratiosComputed = true;
 }
 
-/** sicherer Reflow ohne private Fabric-APIs */
 function forceTextReflow(tb: any) {
-  // Text immer zu String casten, nie undefined lassen
   const txt = tb.text != null ? String(tb.text) : "";
-  // minimaler Reset → Fabric misst neu
   tb.set("text", txt);
   tb._clearCache?.();
   tb.initDimensions?.();
   tb.dirty = true;
 }
 
-/** Hauptlayout */
 function applyLayout(group: fabric.Group & WithData, newW: number, newH: number) {
   const halfW = newW / 2;
   const halfH = newH / 2;
   const children = (group._objects || []) as any[];
 
-  // 1) Textboxen vorbereiten: Zielbreite + Reflow
+  // 1) Breite setzen + Reflow
   children.forEach((child) => {
     const layout: ChildLayout | undefined = child.__layout;
     if (!layout) return;
@@ -114,11 +103,9 @@ function applyLayout(group: fabric.Group & WithData, newW: number, newH: number)
         angle: 0, skewX: 0, skewY: 0,
         originX: "left", originY: "top",
         objectCaching: false,
-        // robuste Defaults gegen NaN/0
         lineHeight: Number.isFinite(child.data?.lineHeight) && child.data?.lineHeight > 0 ? child.data.lineHeight : 1.2,
       });
 
-      // per-char/per-line styles testweise neutralisieren (kann später wieder aktiviert werden)
       if (child.styles && typeof child.styles === "object") {
         child.styles = {};
       }
@@ -127,7 +114,7 @@ function applyLayout(group: fabric.Group & WithData, newW: number, newH: number)
     }
   });
 
-  // 2) Flow: Textboxen stapeln
+  // 2) Flow-Stapeln
   const flowItems = children.filter((c) => {
     const l: ChildLayout | undefined = c.__layout;
     return c.type === "textbox" && l && l.mode === "anchored" && (l as Anchored).flow;
@@ -152,7 +139,7 @@ function applyLayout(group: fabric.Group & WithData, newW: number, newH: number)
     currentTopTL = tlY + h;
   });
 
-  // 3) Nicht-Flow-Elemente positionieren (anchored static + proportional)
+  // 3) übrige
   children.forEach((child) => {
     const layout: ChildLayout | undefined = child.__layout;
     if (!layout) return;
@@ -172,13 +159,12 @@ function applyLayout(group: fabric.Group & WithData, newW: number, newH: number)
       const targetW = Math.max(1, r.width  * newW);
       const targetH = Math.max(1, r.height * newH);
 
+      child.set({ left: tlX - halfW, top: tlY - halfH });
       if (child.type === "rect" || child.type === "image" || child.type === "line" || child.type === "circle" || child.type === "triangle") {
         child.set({ width: targetW, height: targetH, scaleX: 1, scaleY: 1 });
       } else {
         child.set({ scaleX: 1, scaleY: 1 });
       }
-
-      child.set({ left: tlX - halfW, top: tlY - halfH });
       child.setCoords();
     }
   });
@@ -186,7 +172,6 @@ function applyLayout(group: fabric.Group & WithData, newW: number, newH: number)
   group.setCoords();
 }
 
-/** Installer */
 export function installSectionResize(canvas: fabric.Canvas) {
   let isResizing = false;
 
@@ -204,9 +189,7 @@ export function installSectionResize(canvas: fabric.Canvas) {
 
     target.set({ width: newW, height: newH, scaleX: 1, scaleY: 1 });
     applyLayout(target as fabric.Group & WithData, newW, newH);
-
-    target.__baseW = newW;
-    target.__baseH = newH;
+    target.__baseW = newW; target.__baseH = newH;
 
     canvas.requestRenderAll();
     isResizing = false;
