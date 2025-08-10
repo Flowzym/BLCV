@@ -63,6 +63,12 @@ export default function FabricCanvas() {
     try {
       DBG('Initializing new canvas on node');
       
+      // CRITICAL: Set correct canvas dimensions BEFORE creating Fabric instance
+      node.width = PAGE_W;
+      node.height = PAGE_H;
+      node.style.width = `${PAGE_W}px`;
+      node.style.height = `${PAGE_H}px`;
+      
       // DEBUG: Canvas-Element-Dimensionen überprüfen
       const rect = node.getBoundingClientRect();
       DBG('Canvas DOM element dimensions:', {
@@ -96,7 +102,7 @@ export default function FabricCanvas() {
       const canvas = new fabric.Canvas(node, {
         preserveObjectStacking: true,
         selection: true,
-        backgroundColor: '#ffff00', // TEMP: Gelber Hintergrund für Sichtbarkeit
+        backgroundColor: '#ffffff', // Weißer Hintergrund (normal)
         width: PAGE_W,
         height: PAGE_H,
         skipTargetFind: false
