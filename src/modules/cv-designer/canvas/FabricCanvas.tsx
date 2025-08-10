@@ -174,8 +174,9 @@ export default function FabricCanvas() {
           if (!el || el.type !== 'text') return;
           
           const displayText = (el.text || '').trim() || `Element ${index}`;
-          const x = el.x ?? el.left ?? 40 + (index * 20);
-          const y = el.y ?? el.top ?? 40 + (index * 30);
+          // Sichere Positionierung im sichtbaren Bereich
+          const x = Math.max(20, Math.min(500, el.x ?? el.left ?? 40));
+          const y = Math.max(20, Math.min(700, el.y ?? el.top ?? 40 + (index * 40)));
           
           DBG(`Creating text object ${index}:`, { 
             id: el.id,
