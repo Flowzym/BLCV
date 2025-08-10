@@ -4,12 +4,6 @@ import { useDesignerStore } from "../store/designerStore";
 import CanvasRegistry from "./canvasRegistry";
 import { installSectionResize } from "./installSectionResize";
 
-const DBG = (msg: string, ...args: any[]) => {
-  if (import.meta.env.VITE_DEBUG_DESIGNER_SYNC === "true") {
-    console.log("[FABRIC_CANVAS]", msg, ...args);
-  }
-};
-
 const PAGE_W = 595;
 const PAGE_H = 842;
 
@@ -33,28 +27,24 @@ export default function FabricCanvas() {
     let isMounted = true;
 
     const initFabric = async () => {
-      try {
-        const fabric = await getFabric();
-        if (!isMounted) return;
+      const fabric = await getFabric();
+      if (!isMounted) return;
 
-        setFabricNamespace(fabric);
+      setFabricNamespace(fabric);
 
-        if (canvasRef.current) {
-          if (CanvasRegistry.has(canvasRef.current)) {
-            CanvasRegistry.dispose(canvasRef.current);
-          }
-
-          const canvas = CanvasRegistry.getOrCreate(canvasRef.current, fabric);
-          canvas.setDimensions({ width: PAGE_W, height: PAGE_H });
-          canvas.backgroundColor = "#ffffff";
-          canvas.selection = true;
-          canvas.preserveObjectStacking = true;
-
-          setFabricCanvas(canvas);
-          installSectionResize(canvas);
+      if (canvasRef.current) {
+        if (CanvasRegistry.has(canvasRef.current)) {
+          CanvasRegistry.dispose(canvasRef.current);
         }
-      } catch (err) {
-        console.error("Fabric initialization failed:", err);
+
+        const canvas = CanvasRegistry.getOrCreate(canvasRef.current, fabric);
+        canvas.setDimensions({ width: PAGE_W, height: PAGE_H });
+        canvas.backgroundColor = "#ffffff";
+        canvas.selection = true;
+        canvas.preserveObjectStacking = true;
+
+        setFabricCanvas(canvas);
+        installSectionResize(canvas);
       }
     };
 
@@ -74,11 +64,7 @@ export default function FabricCanvas() {
     if (!fabricCanvas || !fabricNamespace || !sections) return;
     if (!isCanvasAlive(fabricCanvas)) return;
 
-    try {
-      fabricCanvas.clear();
-    } catch {
-      return;
-    }
+    fabricCanvas.clear();
 
     for (const section of sections) {
       if (!section?.isVisible) continue;
@@ -86,43 +72,27 @@ export default function FabricCanvas() {
 
       const textboxes: any[] = [];
 
-      // → Zentrales Section-Padding (overridebar via section.props)
+      // zentrales Section-Padding (overridebar via section.props)
       const SEC_PAD_L = Number(section.props?.paddingLeft  ?? 24);
       const SEC_PAD_R = Number(section.props?.paddingRight ?? 24);
       const SEC_PAD_T = Number(section.props?.paddingTop   ?? 16);
       const SEC_PAD_B = Number(section.props?.paddingBottom?? 16);
 
-      // → Standard-Einzug & Abstände (können pro part überschrieben werden)
       const BULLET_INDENT = Number(tokens?.bulletIndent ?? 18);
-      const defaultGap: Record<string, number> = {
-        period: 0,
-        title: 6,
-        company: 2,
-        institution: 2,
-        content: 4,
-        bullet: 2,
-        note: 4,
-      };
 
       for (const part of section.parts) {
         if (part.type !== "text") continue;
 
         const displayText = part.text ?? "";
 
-        // Anchored-Pads: Top ist jetzt das **section padding**, offsetY wird als Feintuning addiert (default 0)
-        const indentPx =
-          part.indentPx ??
-          (part.fieldType === "bullet" ? BULLET_INDENT : 0);
-
+        const indentPx = part.indentPx ?? (part.fieldType === "bullet" ? BULLET_INDENT : 0);
         const padL = SEC_PAD_L;
-        const padT = SEC_PAD_T + Math.max(0, part.offsetY || 0);
+        const padT = SEC_PAD_T + Math.max(0, part.offsetY || 0); // offsetY nur als Feintuning
         const padR = SEC_PAD_R;
         const padB = SEC_PAD_B;
 
-        // Textbreite folgt der Sectionsbreite abzüglich Pads + indent
         const initialTextWidth = Math.max(1, section.width - padL - padR - indentPx);
 
-        // Styles zusammenführen
         const globalStyle =
           globalFieldStyles[section.sectionType]?.[part.fieldType || "content"] || {};
         const partStyleKey = `${section.sectionType}:${part.fieldType}`;
@@ -181,27 +151,19 @@ export default function FabricCanvas() {
           scaleX: 1, scaleY: 1, angle: 0, skewX: 0, skewY: 0,
         }) as any;
 
-        // Flow-Metadaten
         tb.data = {
-          fieldKey:
-            part.id ?? `${section.id}:${part.fieldType}:${Math.random().toString(36).slice(2, 8)}`,
+          fieldKey: part.id ?? `${section.id}:${part.fieldType}:${Math.random().toString(36).slice(2, 8)}`,
           padL, padT, padR, padB, indentPx,
           flow: true,
           order: Number.isFinite(part.order) ? part.order : 0,
-          gapBefore:
-            Number(part.gapBefore ??
-              (defaultGap[part.fieldType || "content"] ?? 4)),
+          gapBefore: Number(part.gapBefore ?? 0),
           type: "textbox",
           lineHeight: finalStyle.lineHeight,
         };
 
-        tb.partId = part.id;
-        tb.fieldType = part.fieldType;
-        tb.sectionId = section.id;
-
-        // anchored TL -> group center coords
+        // Pre-Position TL→Center (wird im Installer finalisiert)
         const halfW = section.width / 2;
-        const halfH = section.height / 2;
+        const halfH = (section.height ?? 1) / 2;
         const tlX = padL + (indentPx || 0);
         const tlY = padT;
         tb.set({ left: tlX - halfW, top: tlY - halfH });
@@ -227,14 +189,18 @@ export default function FabricCanvas() {
         cornerColor: "#3b82f6",
       }) as any;
 
-      // wichtig: Installer-Hint
-      sectionGroup.data = { sectionId: section.id, type: "section" };
+      // Meta für Installer
+      sectionGroup.data = {
+        sectionId: section.id,
+        type: "section",
+        minHeight: Number(section.props?.minHeight ?? 32), // optionaler Mindestwert
+      };
       sectionGroup.sectionId = section.id;
       sectionGroup.sectionType = section.sectionType;
 
       fabricCanvas.add(sectionGroup);
 
-      // Initial-Layout: verhindert Sprung beim ersten Anfassen
+      // Initial-Layout: triggert Flow + Auto-Height sofort
       try {
         (sectionGroup as any).scaleX = 1;
         (sectionGroup as any).scaleY = 1;
@@ -243,9 +209,7 @@ export default function FabricCanvas() {
       } catch {}
     }
 
-    if (isCanvasAlive(fabricCanvas)) {
-      fabricCanvas.renderAll();
-    }
+    fabricCanvas.renderAll();
   }, [fabricCanvas, fabricNamespace, sections, tokens, margins, globalFieldStyles, partStyles]);
 
   useEffect(() => {
@@ -257,30 +221,9 @@ export default function FabricCanvas() {
   useEffect(() => {
     if (!fabricCanvas) return;
     const safeZoom = Math.max(0.1, Math.min(5, zoom || 1));
-    if (isCanvasAlive(fabricCanvas)) {
-      fabricCanvas.setZoom(safeZoom);
-      fabricCanvas.requestRenderAll();
-    }
+    fabricCanvas.setZoom(safeZoom);
+    fabricCanvas.requestRenderAll();
   }, [fabricCanvas, zoom]);
-
-  // Klick-Handler (Vorbereitung Overlay)
-  useEffect(() => {
-    if (!fabricCanvas) return;
-    const onMouseDown = (e: any) => {
-      const t = e?.target;
-      if (t?.type === "textbox" && t?.data?.fieldKey) {
-        DBG("Textbox clicked:", {
-          fieldKey: t.data.fieldKey,
-          sectionId: t.sectionId,
-          text: (t.text || "").slice(0, 50),
-        });
-      }
-    };
-    fabricCanvas.on("mouse:down", onMouseDown);
-    return () => {
-      if (fabricCanvas) fabricCanvas.off("mouse:down", onMouseDown);
-    };
-  }, [fabricCanvas]);
 
   return (
     <div style={{ width: PAGE_W, height: PAGE_H, position: "relative" }}>
