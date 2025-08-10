@@ -6,12 +6,6 @@ import { useLiveSyncFromGenerator } from "@/modules/cv-designer/services/useLive
 import { useLebenslauf } from "@/components/LebenslaufContext"; // ✅ Debug-Overlay
 
 export default function DesignerPage() {
-  const [canvasKey, setCanvasKey] = useState<string>('');
-  
-  useEffect(() => {
-    setCanvasKey(`canvas-${Date.now()}`);
-  }, []);
-  
   useLiveSyncFromGenerator(150);
   const ll = useLebenslauf();
 
@@ -32,7 +26,7 @@ export default function DesignerPage() {
       </header>
 
       <section className="min-h-0 overflow-auto">
-        <FabricCanvas key={canvasKey} />
+        <FabricCanvas />
       </section>
 
       <aside className="min-h-0 overflow-auto">

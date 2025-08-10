@@ -14,6 +14,12 @@ let listener: ((parts: Parts) => void) | null = null;
 export function initDesignerBridge() {
   console.log('[BRIDGE] Initializing designer bridge...');
   
+  // Prüfe ob bereits initialisiert
+  if (window.ns_setupCallback && window.ns_dispatchPartsFromGenerator) {
+    console.log('[BRIDGE] Bridge already initialized, skipping');
+    return;
+  }
+  
   // Robuste Initialisierung: Funktionen sind IMMER definiert
   window.ns_setupCallback = (cb: (parts: Parts) => void) => {
     console.log('[BRIDGE] Callback registered');

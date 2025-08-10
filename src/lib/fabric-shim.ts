@@ -7,15 +7,32 @@ let _cached: any | null = null;
 /** Lädt das Fabric-Namespace-Objekt (einmalig, dann Cache). */
 export async function getFabric(): Promise<any> {
   if (_cached) return _cached;
+  
   // dynamischer Import, um SSR/Build-Probleme zu vermeiden
   const mod: any = await import("fabric");
-  // mögliche Varianten: { fabric }, default, oder das Modul selbst ist already das Namespace
-  const ns = mod?.fabric ?? mod?.default ?? mod;
-  if (!ns || (typeof ns !== "object" && typeof ns !== "function") || !ns.Canvas) {
-    // Minimaler Sanity-Check: Canvas-Konstruktor sollte existieren
-    throw new Error("Fabric konnte nicht korrekt geladen werden (unexpected export shape).");
+  
+  // Robuste Namespace-Erkennung für verschiedene Export-Varianten
+  let ns = null;
+  
+  // Variante 1: Named export { fabric }
+  if (mod?.fabric && typeof mod.fabric === 'object' && mod.fabric.Canvas) {
+    ns = mod.fabric;
   }
+  // Variante 2: Default export
+  else if (mod?.default && typeof mod.default === 'object' && mod.default.Canvas) {
+    ns = mod.default;
+  }
+  // Variante 3: Das Modul selbst ist das Namespace
+  else if (mod && typeof mod === 'object' && mod.Canvas) {
+    ns = mod;
+  }
+  
+  if (!ns || (typeof ns !== "object" && typeof ns !== "function") || !ns.Canvas) {
+    throw new Error(`Fabric konnte nicht korrekt geladen werden. Gefunden: ${Object.keys(mod || {}).join(', ')}`);
+  }
+  
   _cached = ns;
+  console.log('[FABRIC_SHIM] Fabric loaded successfully:', { hasCanvas: !!ns.Canvas, hasText: !!ns.Text });
   return _cached;
 }
 
