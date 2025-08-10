@@ -1,10 +1,44 @@
-// … Kopf & Helper bleiben wie in deiner Version …
+import type { CVSection, CVTextPart, CVSectionWithParts } from "../types/section";
+import type { SectionType } from "../store/designerStore";
 
+const DBG = (msg: string, ...args: any[]) => {
+  if (import.meta.env.VITE_DEBUG_DESIGNER_SYNC === 'true') {
+    console.log('[DESIGNER]', msg, ...args);
+  }
+};
+
+// ---------- Helpers ----------
+function norm(v: any): string {
+  if (v == null) return "";
+  if (Array.isArray(v)) {
+    return v.map(item => String(item ?? "").trim()).filter(Boolean).join(", ");
+  }
+  return String(v ?? "").trim().replace(/\s+/g, " ");
+}
+
+function formatPeriod(
+  startMonth: string | null,
+  startYear: string | null,
+  endMonth: string | null,
+  endYear: string | null,
+  isCurrent: boolean
+): string {
+  const fmt = (m?: string | null, y?: string | null) => {
+    if (!y || y === 'null') return '';
+    const month = m && m !== 'null' ? m.padStart(2, '0') : '';
+    return month ? `${month}.${y}` : y;
+  };
+  const start = fmt(startMonth, startYear);
+  const end = isCurrent ? 'heute' : fmt(endMonth, endYear);
+  if (!start && !end) return '';
+  if (start && end) return `${start} – ${end}`;
+  return start || end;
+}
+
+// ---------- Mapper ----------
 export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
-  // … Logging bleibt …
-
   const sections: CVSectionWithParts[] = [];
-  let currentY = 120;
+  let currentY = 120;               // Startposition auf der Seite
   const sectionWidth = 500;
   const sectionSpacing = 30;
 
@@ -33,7 +67,7 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
           type: "text",
           id: `per-${exp.id}`,
           offsetX: 0,
-          offsetY: 0,            // Flow übernimmt
+          offsetY: 0,                 // Flow übernimmt Vertikal-Position
           width: 350,
           text: periodLine,
           fontSize: 14,
@@ -57,7 +91,7 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
           color: "#000000",
           fieldType: "title",
           order: base + 1,
-          gapBefore: 6,         // etwas Abstand zum Zeitraum
+          gapBefore: 6,
         });
       }
 
@@ -83,7 +117,7 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
           expParts.push({
             type: "text",
             id: `task-${exp.id}-${taskIdx}`,
-            offsetX: 0,          // Einzug kommt als indentPx, nicht als offset
+            offsetX: 0,                // Einzug via indentPx, nicht via offset
             offsetY: 0,
             width: 460,
             text: bulletText,
@@ -92,8 +126,7 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
             lineHeight: 1.4,
             fieldType: "bullet",
             order: base + 10 + taskIdx,
-            gapBefore: taskIdx === 0 ? 6 : 2,   // größerer Abstand vor erster Bullet-Zeile
-            // optional: indentPx hier auf Feld setzen, falls du möchtest
+            gapBefore: taskIdx === 0 ? 6 : 2,
           });
         });
       }
@@ -107,7 +140,7 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
       x: 50,
       y: currentY,
       width: sectionWidth,
-      height: sectionHeight,
+      height: Math.max(sectionHeight, 160),
       sectionType: "experience",
       isVisible: true,
       parts: expParts,
@@ -117,7 +150,7 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
     };
 
     sections.push(experienceSection);
-    currentY += sectionHeight + sectionSpacing;
+    currentY += experienceSection.height + sectionSpacing;
   }
 
   // ---- Ausbildung ----
@@ -208,25 +241,20 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
       x: 50,
       y: currentY,
       width: sectionWidth,
-      height: sectionHeight,
+      height: Math.max(sectionHeight, 140),
       sectionType: "education",
       isVisible: true,
       parts: eduParts,
-      props: {
-        paddingTop: 16, paddingLeft: 24, paddingRight: 24, paddingBottom: 16,
-      } as any,
+      props: { paddingTop: 16, paddingLeft: 24, paddingRight: 24, paddingBottom: 16 } as any,
     };
 
     sections.push(educationSection);
-    currentY += sectionHeight + sectionSpacing;
+    currentY += educationSection.height + sectionSpacing;
   }
 
   // ---- Profile / Skills / Softskills / Tätigkeiten ----
   const pd = ctx?.personalData ?? {};
-
-  const pushSimple = (
-    id: string, title: string, fieldType: string, text: string, height: number
-  ) => {
+  const pushSimple = (id: string, title: string, fieldType: string, text: string, height: number) => {
     const s: CVSectionWithParts = {
       id, type: fieldType, title, content: "",
       x: 50, y: currentY, width: sectionWidth, height,
@@ -250,10 +278,10 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
     currentY += height + sectionSpacing;
   };
 
-  if (pd.summary?.trim())          pushSimple("profile",      "Profil",                 "profile",   pd.summary,          100);
-  if (pd.skillsSummary?.trim())    pushSimple("skills",       "Fachliche Kompetenzen",  "skills",    pd.skillsSummary,     80);
-  if (pd.softSkillsSummary?.trim())pushSimple("softskills",   "Persönliche Kompetenzen","softskills",pd.softSkillsSummary, 80);
-  if (pd.taetigkeitenSummary?.trim()) pushSimple("taetigkeiten","Tätigkeitsbereiche", "skills",     pd.taetigkeitenSummary,80);
+  if (pd.summary?.trim())            pushSimple("profile",     "Profil",                 "profile",    pd.summary,          100);
+  if (pd.skillsSummary?.trim())      pushSimple("skills",      "Fachliche Kompetenzen",  "skills",     pd.skillsSummary,     80);
+  if (pd.softSkillsSummary?.trim())  pushSimple("softskills",  "Persönliche Kompetenzen","softskills", pd.softSkillsSummary, 80);
+  if (pd.taetigkeitenSummary?.trim())pushSimple("taetigkeiten","Tätigkeitsbereiche",    "skills",     pd.taetigkeitenSummary,80);
 
   return sections;
 }
