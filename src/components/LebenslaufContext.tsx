@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
-import { loadCVSuggestions, CVSuggestionConfig, ProfileSourceMapping } from '../services/supabaseService';
+import { loadCVSuggestions, CVSuggestionConfig, ProfileSourceMapping, isSupabaseConfigured } from '../services/supabaseService';
 
 // Types
 interface PersonalData {
@@ -248,12 +248,28 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
   // Load CV suggestions from Supabase
   useEffect(() => {
     const loadSuggestions = async () => {
+      // Check if Supabase is configured before attempting to load
+      if (!isSupabaseConfigured()) {
+        console.warn('Supabase not configured, using empty CV suggestions');
+        setCvSuggestions({
+          companies: [],
+          positions: [],
+          aufgabenbereiche: []
+        });
+        return;
+      }
+
       try {
         const suggestions = await loadCVSuggestions(profileSourceMappings);
         setCvSuggestions(suggestions);
       } catch (error) {
         console.error('Failed to load CV suggestions:', error);
-        // Keep default empty suggestions on error
+        // Set empty suggestions on error
+        setCvSuggestions({
+          companies: [],
+          positions: [],
+          aufgabenbereiche: []
+        });
       }
     };
 

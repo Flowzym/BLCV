@@ -273,12 +273,22 @@ async function getSuggestionsFor(
   category: ProfileSourceMapping['category'],
   mappings: ProfileSourceMapping[]
 ): Promise<string[]> {
+  // Check if Supabase is properly configured
+  if (!isSupabaseConfigured()) {
+    console.warn('Supabase not configured, returning empty suggestions for category:', category);
+    return [];
+  }
+
   const suggestions: string[] = [];
   for (const m of mappings.filter(
     (m) => m.isActive && m.category === category
   )) {
     try {
-      const { data } = await supabase.from(m.tableName).select(m.columnName);
+      const { data, error } = await supabase.from(m.tableName).select(m.columnName);
+      if (error) {
+        console.error('Error loading suggestions for category:', category, error);
+        continue;
+      }
       const values = (data as Record<string, unknown>[]).map((r) =>
         String(r[m.columnName] ?? '')
       );
