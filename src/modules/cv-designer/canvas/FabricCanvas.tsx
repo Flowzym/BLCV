@@ -418,6 +418,31 @@ export default function FabricCanvas() {
             
             // Final coordinate update after all changes
             obj.setCoords();
+            // Use setOptions for comprehensive update instead of multiple set() calls
+            const currentText = obj.text;
+            
+            obj.setOptions({
+              left: obj.originalOffsetX,
+              top: obj.originalOffsetY,
+              width: newWidth,
+              scaleX: 1,
+              scaleY: 1,
+              text: '', // Clear text first
+              dirty: true
+            });
+            
+            // Force complete recalculation
+            obj._clearCache();
+            obj.initDimensions();
+            obj.setCoords();
+            
+            // Restore text after dimensions are stable
+            obj.setOptions({
+              text: currentText
+            });
+            
+            // Final coordinate update
+            obj.setCoords();
             
             // Log final state after all changes
             DBG(`Textbox AFTER update:`, {
