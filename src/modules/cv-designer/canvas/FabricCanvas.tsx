@@ -86,21 +86,43 @@ export default function FabricCanvas() {
 
       const textboxes: any[] = [];
 
-      const PAD_R_DEFAULT = Number(section.props?.paddingRight ?? 16);
+      // → Zentrales Section-Padding (overridebar via section.props)
+      const SEC_PAD_L = Number(section.props?.paddingLeft  ?? 24);
+      const SEC_PAD_R = Number(section.props?.paddingRight ?? 24);
+      const SEC_PAD_T = Number(section.props?.paddingTop   ?? 16);
+      const SEC_PAD_B = Number(section.props?.paddingBottom?? 16);
+
+      // → Standard-Einzug & Abstände (können pro part überschrieben werden)
+      const BULLET_INDENT = Number(tokens?.bulletIndent ?? 18);
+      const defaultGap: Record<string, number> = {
+        period: 0,
+        title: 6,
+        company: 2,
+        institution: 2,
+        content: 4,
+        bullet: 2,
+        note: 4,
+      };
 
       for (const part of section.parts) {
         if (part.type !== "text") continue;
 
         const displayText = part.text ?? "";
 
-        const padL = Math.max(0, part.offsetX || 0);
-        const padT = Math.max(0, part.offsetY || 0);
-        const indentPx = Number(part.indentPx ?? (part.fieldType === "bullet" ? 14 : 0));
-        const padR = Math.max(0, PAD_R_DEFAULT);
-        const padB = 12;
+        // Anchored-Pads: Top ist jetzt das **section padding**, offsetY wird als Feintuning addiert (default 0)
+        const indentPx =
+          part.indentPx ??
+          (part.fieldType === "bullet" ? BULLET_INDENT : 0);
 
+        const padL = SEC_PAD_L;
+        const padT = SEC_PAD_T + Math.max(0, part.offsetY || 0);
+        const padR = SEC_PAD_R;
+        const padB = SEC_PAD_B;
+
+        // Textbreite folgt der Sectionsbreite abzüglich Pads + indent
         const initialTextWidth = Math.max(1, section.width - padL - padR - indentPx);
 
+        // Styles zusammenführen
         const globalStyle =
           globalFieldStyles[section.sectionType]?.[part.fieldType || "content"] || {};
         const partStyleKey = `${section.sectionType}:${part.fieldType}`;
@@ -125,7 +147,8 @@ export default function FabricCanvas() {
             globalStyle.textColor ||
             tokens?.colorPrimary ||
             "#000000",
-          fontWeight: part.fontWeight || localPartStyle.fontWeight || globalStyle.fontWeight || "normal",
+          fontWeight:
+            part.fontWeight || localPartStyle.fontWeight || globalStyle.fontWeight || "normal",
           fontStyle:
             part.fontStyle ||
             (localPartStyle.italic ? "italic" : globalStyle.fontStyle) ||
@@ -145,44 +168,29 @@ export default function FabricCanvas() {
         };
 
         const tb = new fabricNamespace.Textbox(displayText, {
-          left: 0,
-          top: 0,
-          width: initialTextWidth,
+          left: 0, top: 0, width: initialTextWidth,
           ...finalStyle,
           splitByGrapheme: true,
           breakWords: true,
-          selectable: false,
-          evented: false,
-          hasControls: false,
-          hasBorders: false,
-          editable: false,
-          lockScalingX: true,
-          lockScalingY: true,
-          lockMovementX: true,
-          lockMovementY: true,
-          lockUniScaling: true,
-          opacity: 1,
-          visible: true,
-          originX: "left",
-          originY: "top",
-          scaleX: 1,
-          scaleY: 1,
-          angle: 0,
-          skewX: 0,
-          skewY: 0,
+          selectable: false, evented: false,
+          hasControls: false, hasBorders: false, editable: false,
+          lockScalingX: true, lockScalingY: true,
+          lockMovementX: true, lockMovementY: true, lockUniScaling: true,
+          opacity: 1, visible: true,
+          originX: "left", originY: "top",
+          scaleX: 1, scaleY: 1, angle: 0, skewX: 0, skewY: 0,
         }) as any;
 
+        // Flow-Metadaten
         tb.data = {
           fieldKey:
             part.id ?? `${section.id}:${part.fieldType}:${Math.random().toString(36).slice(2, 8)}`,
-          padL,
-          padT,
-          padR,
-          padB,
-          indentPx,
+          padL, padT, padR, padB, indentPx,
           flow: true,
           order: Number.isFinite(part.order) ? part.order : 0,
-          gapBefore: Number(part.gapBefore ?? 0),
+          gapBefore:
+            Number(part.gapBefore ??
+              (defaultGap[part.fieldType || "content"] ?? 4)),
           type: "textbox",
           lineHeight: finalStyle.lineHeight,
         };
@@ -191,9 +199,10 @@ export default function FabricCanvas() {
         tb.fieldType = part.fieldType;
         tb.sectionId = section.id;
 
+        // anchored TL -> group center coords
         const halfW = section.width / 2;
         const halfH = section.height / 2;
-        const tlX = padL + indentPx;
+        const tlX = padL + (indentPx || 0);
         const tlY = padT;
         tb.set({ left: tlX - halfW, top: tlY - halfH });
         tb.setCoords();
@@ -204,10 +213,8 @@ export default function FabricCanvas() {
       const sectionGroup = new fabricNamespace.Group(textboxes, {
         left: section.x,
         top: section.y,
-        selectable: true,
-        evented: true,
-        hasControls: true,
-        hasBorders: true,
+        selectable: true, evented: true,
+        hasControls: true, hasBorders: true,
         backgroundColor: section.props?.backgroundColor || "transparent",
         stroke: section.props?.borderColor || "#e5e7eb",
         strokeWidth: parseInt(section.props?.borderWidth || "1", 10),
@@ -220,14 +227,14 @@ export default function FabricCanvas() {
         cornerColor: "#3b82f6",
       }) as any;
 
-      // wichtig: damit der Resize-Installer greift
+      // wichtig: Installer-Hint
       sectionGroup.data = { sectionId: section.id, type: "section" };
       sectionGroup.sectionId = section.id;
       sectionGroup.sectionType = section.sectionType;
 
       fabricCanvas.add(sectionGroup);
 
-      // >>> Initial-Layout direkt auslösen, damit es später NICHT „springt“
+      // Initial-Layout: verhindert Sprung beim ersten Anfassen
       try {
         (sectionGroup as any).scaleX = 1;
         (sectionGroup as any).scaleY = 1;
@@ -256,7 +263,7 @@ export default function FabricCanvas() {
     }
   }, [fabricCanvas, zoom]);
 
-  // (Vorbereitung) Klick-Handler – später Overlay-Editor hier öffnen
+  // Klick-Handler (Vorbereitung Overlay)
   useEffect(() => {
     if (!fabricCanvas) return;
     const onMouseDown = (e: any) => {
