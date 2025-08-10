@@ -63,6 +63,22 @@ export default function FabricCanvas() {
     try {
       DBG('Initializing new canvas on node');
       
+      // DEBUG: Canvas-Element-Dimensionen überprüfen
+      const rect = node.getBoundingClientRect();
+      DBG('Canvas DOM element dimensions:', {
+        width: node.width,
+        height: node.height,
+        clientWidth: node.clientWidth,
+        clientHeight: node.clientHeight,
+        boundingRect: rect,
+        style: {
+          width: node.style.width,
+          height: node.style.height,
+          display: node.style.display,
+          visibility: node.style.visibility
+        }
+      });
+      
       // Prüfe und entsorge alte Fabric-Instanz auf diesem Element
       if ((node as any).__fabricCanvas) {
         DBG('Found existing fabric canvas on node, disposing');
@@ -80,10 +96,19 @@ export default function FabricCanvas() {
       const canvas = new fabric.Canvas(node, {
         preserveObjectStacking: true,
         selection: true,
-        backgroundColor: '#ffffff',
+        backgroundColor: '#ffff00', // TEMP: Gelber Hintergrund für Sichtbarkeit
         width: PAGE_W,
         height: PAGE_H,
         skipTargetFind: false
+      });
+      
+      // DEBUG: Canvas-Instanz-Eigenschaften überprüfen
+      DBG('Canvas instance created:', {
+        canvasWidth: canvas.getWidth(),
+        canvasHeight: canvas.getHeight(),
+        backgroundColor: canvas.backgroundColor,
+        zoom: canvas.getZoom(),
+        viewportTransform: canvas.viewportTransform
       });
 
       // Referenzen setzen
@@ -244,6 +269,14 @@ export default function FabricCanvas() {
     if (!canvas) return;
 
     DBG('Updating canvas zoom:', zoom);
+    
+    // DEBUG: Zoom-Werte überprüfen
+    DBG('Zoom details:', {
+      requestedZoom: zoom,
+      currentZoom: canvas.getZoom(),
+      viewportTransform: canvas.viewportTransform
+    });
+    
     canvas.setZoom(zoom);
     canvas.requestRenderAll();
   }, [zoom]);
@@ -414,6 +447,16 @@ export default function FabricCanvas() {
             
             DBG(`Calculated final style:`, finalStyle);
             
+            // DEBUG: Style-Validierung
+            if (finalStyle.fontSize <= 0) {
+              DBG('WARNING: fontSize is zero or negative!', finalStyle.fontSize);
+              finalStyle.fontSize = 12; // Fallback
+            }
+            if (!finalStyle.fill || finalStyle.fill === '#ffffff') {
+              DBG('WARNING: Text color is white or empty!', finalStyle.fill);
+              finalStyle.fill = '#ff0000'; // TEMP: Rote Schrift für Sichtbarkeit
+            }
+            
             try {
               DBG(`About to create Textbox with:`, {
                 text: displayText,
@@ -441,7 +484,25 @@ export default function FabricCanvas() {
                 hasBorders: false,
                 objectCaching: false,
                 splitByGrapheme: false,
-                editable: false
+                editable: false,
+                // TEMP: Auffällige Styles für Debugging
+                backgroundColor: 'rgba(255, 255, 0, 0.3)', // Gelber Hintergrund
+                stroke: '#ff0000', // Roter Rahmen
+                strokeWidth: 1
+              });
+              
+              // DEBUG: Textbox-Eigenschaften nach Erstellung überprüfen
+              DBG(`Textbox created with properties:`, {
+                id: part.id,
+                left: textObj.left,
+                top: textObj.top,
+                width: textObj.width,
+                height: textObj.height,
+                fontSize: textObj.fontSize,
+                fill: textObj.fill,
+                text: textObj.text,
+                visible: textObj.visible,
+                opacity: textObj.opacity
               });
             
               // Metadaten für Interaktion
@@ -501,7 +562,23 @@ export default function FabricCanvas() {
                 cornerColor: '#3b82f6',
                 cornerSize: 8,
                 transparentCorners: false,
-                objectCaching: false
+                objectCaching: false,
+                // TEMP: Auffällige Styles für Debugging
+                backgroundColor: 'rgba(0, 255, 0, 0.2)', // Grüner Hintergrund
+                stroke: '#0000ff', // Blauer Rahmen
+                strokeWidth: 2
+              });
+              
+              // DEBUG: Group-Eigenschaften nach Erstellung überprüfen
+              DBG(`Group created with properties:`, {
+                sectionId: section.id,
+                left: sectionGroup.left,
+                top: sectionGroup.top,
+                width: sectionGroup.width,
+                height: sectionGroup.height,
+                objectsInGroup: sectionGroup.getObjects().length,
+                visible: sectionGroup.visible,
+                opacity: sectionGroup.opacity
               });
             
               (sectionGroup as any).__sectionId = section.id;
@@ -516,6 +593,14 @@ export default function FabricCanvas() {
               });
               
               canvas.add(sectionGroup);
+              
+              // DEBUG: Canvas-Zustand nach Hinzufügen der Gruppe überprüfen
+              DBG(`Canvas state after adding group:`, {
+                totalObjects: canvas.getObjects().length,
+                canvasSize: { width: canvas.getWidth(), height: canvas.getHeight() },
+                zoom: canvas.getZoom(),
+                backgroundColor: canvas.backgroundColor
+              });
             
               DBG(`✅ Successfully added section group ${sectionIndex}:`, { 
                 id: section.id,
@@ -550,8 +635,14 @@ export default function FabricCanvas() {
   }, [sections, version, updateFrame, updateTypographySelection]);
 
   return (
-    <div className="w-full h-full overflow-auto bg-neutral-100 flex items-center justify-center">
-      <div className="shadow-xl bg-white" style={{ width: PAGE_W, height: PAGE_H }}>
+    <div className="w-full h-full overflow-auto bg-neutral-100 flex items-center justify-center" style={{ border: '5px solid red', minHeight: '600px' }}>
+      <div className="shadow-xl" style={{ 
+        width: PAGE_W, 
+        height: PAGE_H, 
+        backgroundColor: '#ffffff',
+        border: '3px solid blue',
+        position: 'relative'
+      }}>
         <canvas ref={canvasCallbackRef} />
       </div>
     </div>

@@ -35,6 +35,15 @@ export default function CanvasToolbar() {
     return () => window.removeEventListener("keydown", onKey);
   }, [undo, redo, handleDelete]);
 
+  // DEBUG: Zoom-Werte überwachen
+  useEffect(() => {
+    console.log('[CANVAS_TOOLBAR] Zoom changed:', {
+      zoom,
+      zoomPercent: Math.round(zoom * 100),
+      isValidZoom: zoom > 0 && zoom <= 10
+    });
+  }, [zoom]);
+
   return (
     <div className="flex items-center gap-2 px-2 py-2 border-b bg-white">
       <button
@@ -65,10 +74,16 @@ export default function CanvasToolbar() {
         Zoom
         <input
           type="range" min={25} max={400} step={5}
-          value={Math.round(zoom*100)}
-          onChange={(e)=>setZoom(Number(e.target.value)/100)}
+          value={Math.round(zoom * 100)}
+          onChange={(e) => {
+            const newZoom = Number(e.target.value) / 100;
+            console.log('[CANVAS_TOOLBAR] Zoom slider changed:', { from: zoom, to: newZoom });
+            setZoom(newZoom);
+          }}
         />
-        {Math.round(zoom*100)}%
+        <span style={{ color: zoom < 0.5 || zoom > 3 ? 'red' : 'black' }}>
+          {Math.round(zoom * 100)}%
+        </span>
       </label>
 
       <div className="mx-2 h-6 w-px bg-gray-200" />
@@ -79,7 +94,11 @@ export default function CanvasToolbar() {
           type="number"
           className="w-16 border rounded px-1 py-0.5"
           value={snap}
-          onChange={(e)=>setSnap(Number(e.target.value)||0)}
+          onChange={(e) => {
+            const newSnap = Number(e.target.value) || 0;
+            console.log('[CANVAS_TOOLBAR] Snap changed:', { from: snap, to: newSnap });
+            setSnap(newSnap);
+          }}
         />
         px
       </label>
