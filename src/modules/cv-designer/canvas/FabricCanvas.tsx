@@ -335,11 +335,13 @@ export default function FabricCanvas() {
               top: part.offsetY || 0,
               width: part.width || 280,
               ...finalStyle,
-              selectable: false, // Parts sind nicht einzeln selektierbar
+              selectable: false, // Parts sind nicht einzeln selektierbar, aber anklickbar
               evented: true, // Enable events for click detection
               hasControls: false,
               hasBorders: false,
-              objectCaching: false
+              objectCaching: false,
+              splitByGrapheme: false, // Bessere Performance bei Textumbruch
+              editable: false // Verhindert versehentliche Textbearbeitung
             });
             
             (textObj as any).__partId = part.id;
