@@ -269,6 +269,7 @@ export default function FabricCanvas() {
         // Store reference to section for dynamic width updates
         textObj.sectionRef = section;
         textObj.originalOffsetX = part.offsetX || 0;
+        textObj.originalOffsetY = part.offsetY || 0;
         
         DBG(`Created textbox for ${part.id}:`, {
           text: displayText.substring(0, 50) + '...',
@@ -391,6 +392,8 @@ export default function FabricCanvas() {
             
             obj.set({
               width: newWidth,
+              left: obj.originalOffsetX,
+              top: obj.originalOffsetY,
               scaleX: 1,
               scaleY: 1,
               dirty: true
@@ -410,6 +413,8 @@ export default function FabricCanvas() {
             DBG(`Textbox AFTER update:`, {
               id: obj.id || 'unknown',
               finalWidth: obj.width,
+              finalLeft: obj.left,
+              finalTop: obj.top,
               finalScaleX: obj.scaleX,
               finalScaleY: obj.scaleY,
               textLength: obj.text?.length || 0,
