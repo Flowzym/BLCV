@@ -1,16 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
 import type { fabric } from "fabric";
 import { fabricToDomRect } from "../utils/fabricToDomRect";
-import { useDesignerStore, SectionType } from "../store/designerStore";
+import { useDesignerStore } from "../store/designerStore";
 
 type OverlayProps = {
   canvas: fabric.Canvas;
   containerEl: HTMLElement;
-  group: fabric.Group;
-  textbox: fabric.Textbox & { data?: Record<string, any>; fieldType?: string; sectionId?: string };
-  sectionId: string;
-  sectionType: SectionType;
-  fieldType: string;
   onClose: () => void;
 };
 
@@ -19,7 +14,7 @@ type LocalStyle = {
   fontSize?: number;
   lineHeight?: number;
   color?: string;
-  letterSpacing?: number;
+  letterSpacing?: number; // UI in em, Fabric expects charSpacing in 1/1000 em
   bold?: boolean;
   italic?: boolean;
   indentPx?: number;
@@ -29,29 +24,86 @@ function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
 }
 
-export default function TextEditorOverlay(props: OverlayProps) {
-  const { canvas, containerEl, group, textbox, sectionId, sectionType, fieldType, onClose } = props;
+// Helper: resolve current textbox & its group from fabric active object (supports subtargets)
+function getActiveTextbox(canvas: fabric.Canvas) {
+  const active = canvas.getActiveObject() as any;
+  if (!active) return null;
+  // If a group is active and a subtarget is stored
+  const sub = (canvas as any)._hoveredTarget || (active._objects && active._objects.find((o: any) => o.type === "textbox"));
+  if (active.type === "textbox") {
+    return { textbox: active as fabric.Textbox, group: active.group as fabric.Group | undefined };
+  }
+  if (sub && sub.type === "textbox") {
+    return { textbox: sub as fabric.Textbox, group: sub.group as fabric.Group | undefined };
+  }
+  // Fallback: first textbox inside group
+  if (active.type === "group" && (active as fabric.Group)._objects?.length) {
+    const t = (active as any)._objects.find((o: any) => o.type === "textbox");
+    if (t) return { textbox: t as fabric.Textbox, group: active as fabric.Group };
+  }
+  return null;
+}
 
+export default function TextEditorOverlay({ canvas, containerEl, onClose }: OverlayProps) {
   const setGlobalFieldStyle = useDesignerStore((s) => s.setGlobalFieldStyle);
-  const setSelectedTypographyField = useDesignerStore((s) => s.setSelectedTypographyField);
   const bump = useDesignerStore((s) => s.bump);
 
-  const [style, setStyle] = useState<LocalStyle>(() => ({
-    fontFamily: (textbox.fontFamily as any) ?? undefined,
-    fontSize: Number(textbox.fontSize ?? 12),
-    lineHeight: Number((textbox.lineHeight as any) ?? 1.2),
-    color: (textbox.fill as any) ?? "#000000",
-    letterSpacing: Number((textbox.charSpacing as any) ?? 0) / 1000,
-    bold: (textbox.fontWeight as any) === "bold",
-    italic: (textbox.fontStyle as any) === "italic",
-    indentPx: Number((textbox as any).data?.indentPx ?? 0),
-  }));
+  const [style, setStyle] = useState<LocalStyle>({
+    fontFamily: undefined,
+    fontSize: 12,
+    lineHeight: 1.2,
+    color: "#000000",
+    letterSpacing: 0,
+    bold: false,
+    italic: false,
+    indentPx: 0,
+  });
 
+  const [sectionType, setSectionType] = useState<string>("");
+  const [fieldType, setFieldType] = useState<string>("");
   const overlayRef = useRef<HTMLDivElement>(null);
+  const currentRef = useRef<{ textbox: fabric.Textbox; group?: fabric.Group } | null>(null);
 
+  // Keep overlay bound to the currently selected textbox (live)
+  useEffect(() => {
+    const updateFromSelection = () => {
+      const ref = getActiveTextbox(canvas);
+      if (!ref) return;
+      currentRef.current = ref;
+
+      const tb: any = ref.textbox;
+      setSectionType(tb.data?.sectionType || "");
+      setFieldType(tb.data?.fieldType || "");
+
+      setStyle({
+        fontFamily: tb.fontFamily ?? undefined,
+        fontSize: Number(tb.fontSize ?? 12),
+        lineHeight: Number(tb.lineHeight ?? 1.2),
+        color: tb.fill ?? "#000000",
+        letterSpacing: Number(tb.charSpacing ?? 0) / 1000,
+        bold: (tb.fontWeight as any) === "bold",
+        italic: (tb.fontStyle as any) === "italic",
+        indentPx: Number(tb.data?.indentPx ?? 0),
+      });
+    };
+
+    updateFromSelection();
+    canvas.on("selection:created", updateFromSelection);
+    canvas.on("selection:updated", updateFromSelection);
+    canvas.on("selection:cleared", onClose);
+
+    return () => {
+      canvas.off("selection:created", updateFromSelection);
+      canvas.off("selection:updated", updateFromSelection);
+      canvas.off("selection:cleared", onClose);
+    };
+  }, [canvas, onClose]);
+
+  // Reposition overlay on render/resize
   useEffect(() => {
     const reposition = () => {
-      if (!overlayRef.current) return;
+      if (!overlayRef.current || !currentRef.current) return;
+      const { textbox } = currentRef.current;
       const rect = fabricToDomRect(canvas, textbox, containerEl);
       overlayRef.current.style.left = `${rect.left}px`;
       overlayRef.current.style.top = `${Math.max(0, rect.top - 48)}px`;
@@ -65,9 +117,12 @@ export default function TextEditorOverlay(props: OverlayProps) {
       canvas.off("after:render", handler);
       window.removeEventListener("resize", handler);
     };
-  }, [canvas, containerEl, textbox]);
+  }, [canvas, containerEl]);
 
   const applyLocal = () => {
+    const ref = currentRef.current;
+    if (!ref) return;
+    const { textbox, group } = ref;
     const next: Partial<fabric.Textbox> = {};
     if (style.fontFamily) next.fontFamily = style.fontFamily as any;
     if (Number.isFinite(style.fontSize)) next.fontSize = clamp(style.fontSize!, 6, 72) as any;
@@ -82,7 +137,8 @@ export default function TextEditorOverlay(props: OverlayProps) {
     const indentPx = clamp(Number(style.indentPx ?? 0), 0, 200);
     (textbox as any).data = { ...(textbox as any).data, indentPx };
 
-    const groupWidth = (group.width ?? 0) * (group.scaleX ?? 1);
+    const g = group || textbox.group;
+    const groupWidth = (g?.width ?? 0) * (g?.scaleX ?? 1);
     const contentWidth = Math.max(1, groupWidth - padL - padR - indentPx);
     const halfW = groupWidth / 2;
     const tlX = -halfW + padL + indentPx;
@@ -91,12 +147,13 @@ export default function TextEditorOverlay(props: OverlayProps) {
     (textbox as any)._clearCache?.();
     (textbox as any).initDimensions?.();
     (textbox as any).setCoords();
-    group.setCoords();
+    g?.setCoords();
     canvas.requestRenderAll();
   };
 
   const applyGlobal = () => {
-    setGlobalFieldStyle(sectionType as any, fieldType, {
+    if (!sectionType || !fieldType) return;
+    setGlobalFieldStyle(sectionType as any, fieldType as any, {
       fontFamily: style.fontFamily,
       fontSize: style.fontSize,
       color: style.color,
@@ -105,7 +162,6 @@ export default function TextEditorOverlay(props: OverlayProps) {
       bold: !!style.bold,
       italic: !!style.italic,
     } as any);
-    setSelectedTypographyField({ sectionType, fieldType });
     bump();
     onClose();
   };
@@ -130,6 +186,8 @@ export default function TextEditorOverlay(props: OverlayProps) {
       onMouseUp={(e) => e.stopPropagation()}
       onClick={(e) => e.stopPropagation()}
     >
+      <span className="text-xs text-gray-500 px-2">{sectionType}:{fieldType}</span>
+
       <select
         className="border rounded-md px-2 py-1"
         value={style.fontFamily || ""}
@@ -222,7 +280,7 @@ export default function TextEditorOverlay(props: OverlayProps) {
         className="px-3 py-1 rounded-lg border bg-blue-50 text-blue-700 hover:bg-blue-100 font-semibold"
         title={`Auf alle ${sectionType}:${fieldType} anwenden`}
       >
-        Global: {sectionType}:{fieldType}
+        Global anwenden
       </button>
       <button onClick={onClose} className="px-3 py-1 rounded-lg border bg-gray-50 hover:bg-gray-100">
         Schließen
