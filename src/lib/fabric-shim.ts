@@ -14,25 +14,25 @@ export async function getFabric(): Promise<any> {
   // Robuste Namespace-Erkennung für verschiedene Export-Varianten
   let ns = null;
   
-  // Variante 1: Named export { fabric }
-  if (mod?.fabric && typeof mod.fabric === 'object' && mod.fabric.Canvas) {
-    ns = mod.fabric;
-  }
-  // Variante 2: Default export
-  else if (mod?.default && typeof mod.default === 'object' && mod.default.Canvas) {
-    ns = mod.default;
-  }
-  // Variante 3: Das Modul selbst ist das Namespace
-  else if (mod && typeof mod === 'object' && mod.Canvas) {
+  // Variante 1: Das Modul selbst ist das Namespace (prioritär)
+  if (mod && typeof mod === 'object' && mod.Canvas && mod.Group) {
     ns = mod;
   }
+  // Variante 2: Named export { fabric }
+  else if (mod?.fabric && typeof mod.fabric === 'object' && mod.fabric.Canvas && mod.fabric.Group) {
+    ns = mod.fabric;
+  }
+  // Variante 3: Default export
+  else if (mod?.default && typeof mod.default === 'object' && mod.default.Canvas && mod.default.Group) {
+    ns = mod.default;
+  }
   
-  if (!ns || (typeof ns !== "object" && typeof ns !== "function") || !ns.Canvas) {
+  if (!ns || (typeof ns !== "object" && typeof ns !== "function") || !ns.Canvas || !ns.Group) {
     throw new Error(`Fabric konnte nicht korrekt geladen werden. Gefunden: ${Object.keys(mod || {}).join(', ')}`);
   }
   
   _cached = ns;
-  console.log('[FABRIC_SHIM] Fabric loaded successfully:', { hasCanvas: !!ns.Canvas, hasText: !!ns.Text });
+  console.log('[FABRIC_SHIM] Fabric loaded successfully:', { hasCanvas: !!ns.Canvas, hasGroup: !!ns.Group, hasText: !!ns.Text });
   return _cached;
 }
 
