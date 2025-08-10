@@ -57,8 +57,39 @@ export function useLiveSyncFromGenerator(debounceMs = 200) {
   // alles, was die Layout-/Text-Sync-Reaktion beeinflusst, in die Signatur
   const sig = useMemo(
     () =>
-      cvSnapshot.__dep__,
-    [cvSnapshot.__dep__]
+      JSON.stringify({
+        personalData: {
+          summary: ll.personalData?.summary,
+          skillsSummary: ll.personalData?.skillsSummary,
+          softSkillsSummary: ll.personalData?.softSkillsSummary,
+          taetigkeitenSummary: ll.personalData?.taetigkeitenSummary,
+        },
+        experiences: ll.berufserfahrung?.map(exp => ({
+          id: exp.id,
+          position: exp.position,
+          companies: exp.companies,
+          startYear: exp.startYear,
+          startMonth: exp.startMonth,
+          endYear: exp.endYear,
+          endMonth: exp.endMonth,
+          isCurrent: exp.isCurrent,
+          aufgabenbereiche: exp.aufgabenbereiche,
+          source: exp.source
+        })) || [],
+        educations: ll.ausbildung?.map(edu => ({
+          id: edu.id,
+          abschluss: edu.abschluss,
+          institution: edu.institution,
+          ausbildungsart: edu.ausbildungsart,
+          startYear: edu.startYear,
+          startMonth: edu.startMonth,
+          endYear: edu.endYear,
+          endMonth: edu.endMonth,
+          isCurrent: edu.isCurrent,
+          source: edu.source
+        })) || []
+      }),
+    [ll.personalData?.summary, ll.personalData?.skillsSummary, ll.personalData?.softSkillsSummary, ll.personalData?.taetigkeitenSummary, ll.berufserfahrung, ll.ausbildung]
   );
 
   const timer = useRef<number | null>(null);
@@ -108,7 +139,7 @@ export function useLiveSyncFromGenerator(debounceMs = 200) {
         const texts = Object.fromEntries(
           m.parts.map((p) => [p.key, p.text ?? ""])
         ) as Partial<Record<PartKey, string>>;
-        const prev = m.sourceKey ? existing.get(m.sourceKey) : undefined;
+        const prev = existing.get(m.sourceKey);
 
         if (!prev) {
           if (m.group === "kontakt" && !contactPlaced) {
@@ -167,9 +198,9 @@ export function useLiveSyncFromGenerator(debounceMs = 200) {
 
         if (import.meta.env.VITE_DEBUG_DESIGNER_SYNC === 'true') {
           console.debug("[DesignerSync] store elements", {
-            currentCount: current.length,
+            currentCount: elements.length,
             newSectionsCount: newSecs.length,
-            totalAfter: current.length + newSecs.length
+            totalAfter: elements.length + newSecs.length
           });
         }
 

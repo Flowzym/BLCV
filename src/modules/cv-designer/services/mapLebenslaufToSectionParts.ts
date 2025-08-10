@@ -63,10 +63,8 @@ function spanFallback(o: AnyObj) {
   return s || e || "";
 }
 function stableKey(prefix: string, o: AnyObj, idx: number) {
-  const id = pickString(o.id) || pickString(o.uuid) || `auto-${idx}`;
-  const sy = pickString(o.startYear);
-  const ey = pickString(o.endYear);
-  return `${prefix}:${id}:${sy}:${ey}`;
+  const id = pickString(o.id) || `auto-${idx}`;
+  return `${prefix}:${id}`;
 }
 
 export function mapLebenslaufToSectionParts(ll: AnyObj): MappedSection[] {

@@ -319,7 +319,8 @@ function reconcileCanvas(
       // Get live text from CV snapshot for dynamic content
       let displayText = String(part.text ?? "");
       if (el.group === "erfahrung" && cvSnapshot.experiences) {
-        const exp = cvSnapshot.experiences.find((e: any) => e.id === el.meta?.source?.key?.split(':')[1]);
+        const expId = el.meta?.source?.key?.replace('exp:', '');
+        const exp = cvSnapshot.experiences.find((e: any) => e.id === expId);
         if (exp) {
           switch (part.key) {
             case "position":
@@ -338,7 +339,8 @@ function reconcileCanvas(
         }
       }
       if (el.group === "ausbildung" && cvSnapshot.educations) {
-        const edu = cvSnapshot.educations.find((e: any) => e.id === el.meta?.source?.key?.split(':')[1]);
+        const eduId = el.meta?.source?.key?.replace('edu:', '');
+        const edu = cvSnapshot.educations.find((e: any) => e.id === eduId);
         if (edu) {
           switch (part.key) {
             case "titel":
