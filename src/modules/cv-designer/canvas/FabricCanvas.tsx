@@ -144,11 +144,7 @@ export default function FabricCanvas() {
 
     // Clear existing objects (except test rectangle)
     const objects = fabricCanvas.getObjects();
-    const testObjects = objects.filter((obj: any) => obj.fill === 'purple');
     fabricCanvas.clear();
-    
-    // Re-add test objects
-    testObjects.forEach((obj: any) => fabricCanvas.add(obj));
 
     // Render each section
     for (const section of sections) {
@@ -173,16 +169,16 @@ export default function FabricCanvas() {
         continue;
       }
 
-      // Create group for section with aggressive debug styling
+      // Create group for section with real section styling
       const sectionGroup = new fabricNamespace.Group([], {
         left: section.x,
         top: section.y,
         width: section.width,
         height: section.height,
-        // AGGRESSIVE DEBUG: Make groups highly visible
-        backgroundColor: 'rgba(0, 255, 0, 0.1)', // Light green background
-        stroke: 'green',
-        strokeWidth: 3,
+        // Real section styling
+        backgroundColor: section.props?.backgroundColor || 'transparent',
+        stroke: section.props?.borderColor || 'transparent',
+        strokeWidth: parseInt(section.props?.borderWidth || '0', 10),
         selectable: true,
         evented: true
       });
@@ -223,50 +219,68 @@ export default function FabricCanvas() {
           DBG(`Part ${part.id} has empty text, using placeholder`);
         }
 
-        // AGGRESSIVE DEBUG OVERRIDES - Force highly visible properties
-        const debugTextObj = new fabricNamespace.Textbox(displayText, {
+        // Apply real styling from part data
+        const textObj = new fabricNamespace.Textbox(displayText, {
           left: part.offsetX || 0,
           top: part.offsetY || 0,
           width: part.width || 300,
-          height: part.height || 50,
           
-          // AGGRESSIVE OVERRIDES - These should be VERY visible
-          fill: 'red',                    // Bright red text
-          fontSize: 24,                   // Large font size
-          fontFamily: 'Arial, sans-serif', // Basic font
-          backgroundColor: 'yellow',       // Yellow background
-          stroke: 'blue',                 // Blue outline
-          strokeWidth: 1,
+          // Real styling from part data
+          fill: part.color || tokens?.colorPrimary || '#000000',
+          fontSize: part.fontSize || tokens?.fontSize || 12,
+          fontFamily: part.fontFamily || tokens?.fontFamily || 'Arial, sans-serif',
+          fontWeight: part.fontWeight || 'normal',
+          fontStyle: part.fontStyle || 'normal',
+          lineHeight: part.lineHeight || tokens?.lineHeight || 1.4,
           
           // Text properties
           textAlign: 'left',
-          splitByGrapheme: false,
+          splitByGrapheme: true,
+          breakWords: true,
           editable: false,
           selectable: true,
           evented: true,
           
-          // Ensure visibility
+          // Prevent text distortion
+          scaleX: 1,
+          scaleY: 1,
           opacity: 1,
-          visible: true
+          visible: true,
+          
+          // Letter spacing if specified
+          ...(part.letterSpacing && { charSpacing: part.letterSpacing * 1000 }) // Fabric uses 1/1000 em units
         });
 
         DBG(`Created textbox for ${part.id}:`, {
           text: displayText.substring(0, 50) + '...',
-          left: debugTextObj.left,
-          top: debugTextObj.top,
-          width: debugTextObj.width,
-          height: debugTextObj.height,
-          fill: debugTextObj.fill,
-          fontSize: debugTextObj.fontSize,
-          fontFamily: debugTextObj.fontFamily,
-          backgroundColor: debugTextObj.backgroundColor,
-          stroke: debugTextObj.stroke,
-          opacity: debugTextObj.opacity,
-          visible: debugTextObj.visible
+          left: textObj.left,
+          top: textObj.top,
+          width: textObj.width,
+          height: textObj.height,
+          fill: textObj.fill,
+          fontSize: textObj.fontSize,
+          fontFamily: textObj.fontFamily,
+          fontWeight: textObj.fontWeight,
+          fontStyle: textObj.fontStyle,
+          scaleX: textObj.scaleX,
+          scaleY: textObj.scaleY,
+          opacity: textObj.opacity,
+          visible: textObj.visible
+        });
+
+        // Debug: Log group state before adding text object
+        DBG(`About to add textbox to section group ${section.id}:`, {
+          groupType: sectionGroup.type,
+          groupObjectsCount: sectionGroup.getObjects?.()?.length || 0,
+          availableMethods: Object.getOwnPropertyNames(sectionGroup).filter(name => typeof sectionGroup[name] === 'function'),
+          hasAdd: typeof sectionGroup.add === 'function',
+          hasAddWithUpdate: typeof sectionGroup.addWithUpdate === 'function',
+          textObjType: textObj.type,
+          textObjDimensions: { width: textObj.width, height: textObj.height }
         });
 
         // Add to section group
-        sectionGroup.add(debugTextObj);
+        sectionGroup.add(textObj);
         DBG(`Added textbox to section group ${section.id}`);
       }
 
@@ -274,43 +288,10 @@ export default function FabricCanvas() {
       sectionGroup.setCoords();
       DBG(`Updated coordinates for section group ${section.id}`);
 
-      // Debug: Log group state before adding to canvas
-      DBG(`Section group ${section.id} final state:`, {
-        type: sectionGroup.type,
-        left: sectionGroup.left,
-        top: sectionGroup.top,
-        width: sectionGroup.width,
-        height: sectionGroup.height,
-        objectsCount: sectionGroup.getObjects?.()?.length || 0,
-        methods: Object.getOwnPropertyNames(sectionGroup).filter(name => typeof sectionGroup[name] === 'function'),
-        hasAdd: typeof sectionGroup.add === 'function',
-        hasAddWithUpdate: typeof sectionGroup.addWithUpdate === 'function'
-      });
-
       // Add section group to canvas
       fabricCanvas.add(sectionGroup);
       DBG(`Added section group ${section.id} to canvas`);
     }
-
-    // Final canvas state
-    const allObjects = fabricCanvas.getObjects();
-    DBG('=== FINAL CANVAS STATE ===');
-    DBG('Canvas objects:', {
-      totalObjects: allObjects.length,
-      objects: allObjects.map((obj: any, index: number) => ({
-        index,
-        type: obj.type,
-        left: obj.left,
-        top: obj.top,
-        width: obj.width,
-        height: obj.height,
-        fill: obj.fill,
-        visible: obj.visible,
-        opacity: obj.opacity,
-        isGroup: obj.type === 'group',
-        groupObjects: obj.type === 'group' ? obj.getObjects?.()?.length || 0 : 'N/A'
-      }))
-    });
 
     fabricCanvas.renderAll();
     DBG('Canvas render completed');
