@@ -1,5 +1,15 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import type { Section } from "../canvas/types";
+import type { CanvasElement } from "../services/flatten";
+
+const DBG = (msg: string, ...args: any[]) => {
+  if (import.meta.env.VITE_DEBUG_DESIGNER_SYNC === 'true') {
+    console.log('[DESIGNER]', msg, ...args);
+  } else {
+    console.log('[DESIGNER*]', msg, ...args);
+  }
+};
 
 export type GroupKey = "profil" | "kontakt" | "erfahrung" | "ausbildung" | "kenntnisse" | "softskills";
 export type PartKey =
@@ -48,6 +58,8 @@ export interface Tokens {
 
 export interface DesignerState {
   elements: CanvasElement[];
+  sections: Section[];
+  version: number;
   selectedIds: string[];
   margins: { top:number; right:number; bottom:number; left:number };
   snapSize: number;
@@ -57,6 +69,9 @@ export interface DesignerState {
   /** true sobald persist-Rehydration durch ist */
   hydrated: boolean;
 
+  setSections(s: Section[]): void;
+  setElements(e: CanvasElement[]): void;
+  bump(): void;
   setZoom(v:number): void;
   setSnapSize(v:number): void;
   setMargins(p: Partial<DesignerState["margins"]>): void;
@@ -99,6 +114,8 @@ export const useDesignerStore = create<DesignerState>()(
   persist(
     (set,get)=>({
       elements: [],
+      sections: [],
+      version: 0,
       selectedIds: [],
       margins: { top:36, right:36, bottom:36, left:36 },
       snapSize: 20,
@@ -108,6 +125,19 @@ export const useDesignerStore = create<DesignerState>()(
 
       hydrated: false,
 
+      setSections:(s)=>{
+        DBG('Store setSections:', { sectionsCount: s.length, sections: s.map(sec => ({ id: sec.id, title: sec.title, partsCount: sec.parts.length })) });
+        set({ sections: s });
+      },
+      setElements:(e)=>{
+        DBG('Store setElements:', { elementsCount: e.length, firstText: e.find(el => el.type === 'text')?.text });
+        set({ elements: e });
+      },
+      bump:()=>set((s)=>{
+        const newVersion = Date.now();
+        DBG('Store bump version:', { from: s.version, to: newVersion });
+        return { version: newVersion };
+      }),
       setZoom:(v)=>set({ zoom: Math.max(0.25, Math.min(4, v)) }),
       setSnapSize:(v)=>set({ snapSize: Math.max(1, Math.min(200, v)) }),
       setMargins:(p)=>set((s)=>({ margins: { ...s.margins, ...p }})),
@@ -200,6 +230,8 @@ export const useDesignerStore = create<DesignerState>()(
       name: "designer:v3-parts",
       partialize: (state)=>({
         elements: state.elements,
+        sections: state.sections,
+        version: state.version,
         margins: state.margins,
         snapSize: state.snapSize,
         zoom: state.zoom,
@@ -220,6 +252,7 @@ export const useDesignerStore = create<DesignerState>()(
           if(cleaned.length!==s.elements.length) api.setState({ elements: cleaned });
           // ✅ Hydrations-Flag setzen
           api.setState({ hydrated: true });
+          DBG('Store rehydrated:', { elementsCount: api.getState().elements.length, sectionsCount: api.getState().sections.length });
         }catch{
           api?.setState?.({ hydrated: true });
         }
