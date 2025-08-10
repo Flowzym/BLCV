@@ -30,7 +30,19 @@ export default function FabricCanvas(){
       const fabric = await getFabric();
       fabricNs.current = fabric;
 
-      const el = canvasRef.current; if(!el) return;
+      const el = canvasRef.current; 
+      if(!el) return;
+      
+      // Check if canvas is already initialized and dispose it
+      if ((el as any).__fabricCanvas) {
+        try {
+          (el as any).__fabricCanvas.dispose();
+          DBG('Disposed existing canvas instance');
+        } catch (e) {
+          DBG('Error disposing existing canvas:', e);
+        }
+      }
+      
       const c = new fabric.Canvas(el, { 
         preserveObjectStacking: true, 
         selection: true, 
