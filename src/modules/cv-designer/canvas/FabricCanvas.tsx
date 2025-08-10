@@ -125,27 +125,43 @@ export default function FabricCanvas() {
         if (obj && obj.__sectionId && obj.type === 'group') {
           DBG('Section group scaled:', { 
             sectionId: obj.__sectionId, 
-            newWidth: obj.width * obj.scaleX, 
-            newHeight: obj.height * obj.scaleY 
+            originalSize: { width: obj.width, height: obj.height },
+            scale: { x: obj.scaleX, y: obj.scaleY }
           });
           
-          // Calculate new dimensions
-          const newWidth = obj.width * obj.scaleX;
-          const newHeight = obj.height * obj.scaleY;
+          // Calculate new actual dimensions
+          const newWidth = Math.round(obj.width * obj.scaleX);
+          const newHeight = Math.round(obj.height * obj.scaleY);
           
-          // Update text widths proportionally and maintain relative positions
+          DBG('Calculated new dimensions:', { newWidth, newHeight });
+          
+          // Store original width for ratio calculations
+          const originalGroupWidth = obj.width;
+          
+          // Update text objects BEFORE resetting group scale
           obj.getObjects().forEach((textObj: any) => {
             if (textObj.type === 'textbox') {
-              // Calculate proportional width (maintain relative width ratio)
-              const widthRatio = textObj.width / obj.width;
-              const newTextWidth = Math.max(50, newWidth * widthRatio);
+              // Calculate new width maintaining relative position within group
+              const relativeWidth = textObj.width / originalGroupWidth;
+              const newTextWidth = Math.max(50, Math.round(newWidth * relativeWidth));
               
-              // Update text width without changing position
+              DBG('Updating text object:', {
+                id: textObj.__partId,
+                oldWidth: textObj.width,
+                newWidth: newTextWidth,
+                relativeWidth
+              });
+              
+              // Apply new width and ensure no scaling
               textObj.set({
                 width: newTextWidth,
                 scaleX: 1,
                 scaleY: 1
               });
+              
+              // Force text reflow
+              textObj._clearCache();
+              textObj.initDimensions();
             }
           });
           
@@ -157,10 +173,13 @@ export default function FabricCanvas() {
             scaleY: 1
           });
           
+          // Update coordinates after scaling
+          obj.setCoords();
+          
           // Update store with new section dimensions
           updateFrame(obj.__sectionId, { 
-            x: obj.left, 
-            y: obj.top, 
+            x: Math.round(obj.left), 
+            y: Math.round(obj.top), 
             width: newWidth, 
             height: newHeight 
           });
@@ -281,17 +300,28 @@ export default function FabricCanvas() {
             const partStyleKey = `${section.type}:${fieldType}`;
             const partStyle = partStyles[partStyleKey] || {};
             
+            DBG(`Applying styles for ${section.id}.${part.id}:`, {
+              sectionType,
+              fieldType,
+              partStyleKey,
+              globalStyle,
+              partStyle,
+              tokens
+            });
+            
             // Merge styles: part defaults < global field styles < part styles
             const finalStyle = {
-              fontSize: partStyle.fontSize || globalStyle.fontSize || part.fontSize || tokens.fontSize || 12,
-              fontFamily: partStyle.fontFamily || globalStyle.fontFamily || part.fontFamily || tokens.fontFamily || 'Arial',
-              fontWeight: partStyle.fontWeight || (globalStyle.fontWeight === 'bold' ? 'bold' : 'normal') || (part.fontWeight === 'bold' ? 'bold' : 'normal') || 'normal',
-              fontStyle: partStyle.italic ? 'italic' : (globalStyle.fontStyle === 'italic' ? 'italic' : 'normal') || (part.fontStyle === 'italic' ? 'italic' : 'normal') || 'normal',
-              fill: partStyle.color || globalStyle.color || part.color || tokens.colorPrimary || '#111',
-              lineHeight: partStyle.lineHeight || globalStyle.lineHeight || part.lineHeight || tokens.lineHeight || 1.4,
-              charSpacing: ((partStyle.letterSpacing || globalStyle.letterSpacing || part.letterSpacing || 0) * 1000), // Fabric uses different scale
-              textAlign: part.textAlign || 'left'
+              fontSize: partStyle.fontSize ?? globalStyle.fontSize ?? part.fontSize ?? tokens.fontSize ?? 12,
+              fontFamily: partStyle.fontFamily ?? globalStyle.fontFamily ?? part.fontFamily ?? tokens.fontFamily ?? 'Arial',
+              fontWeight: partStyle.fontWeight ?? (globalStyle.fontWeight === 'bold' ? 'bold' : globalStyle.fontWeight === 'normal' ? 'normal' : undefined) ?? (part.fontWeight === 'bold' ? 'bold' : 'normal') ?? 'normal',
+              fontStyle: (partStyle.italic ? 'italic' : undefined) ?? globalStyle.fontStyle ?? (part.fontStyle === 'italic' ? 'italic' : 'normal') ?? 'normal',
+              fill: partStyle.color ?? globalStyle.color ?? part.color ?? tokens.colorPrimary ?? '#111111',
+              lineHeight: partStyle.lineHeight ?? globalStyle.lineHeight ?? part.lineHeight ?? tokens.lineHeight ?? 1.4,
+              charSpacing: ((partStyle.letterSpacing ?? globalStyle.letterSpacing ?? part.letterSpacing ?? 0) * 1000), // Fabric uses different scale
+              textAlign: part.textAlign ?? 'left'
             };
+            
+            DBG(`Final merged style for ${part.id}:`, finalStyle);
             DBG(`Creating text object ${partIndex} in section ${section.id}:`, { 
               id: part.id,
               text: displayText.substring(0, 30) + '...',
