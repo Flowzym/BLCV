@@ -490,11 +490,7 @@ export default function FabricCanvas() {
                 hasBorders: false,
                 objectCaching: false,
                 splitByGrapheme: false,
-                editable: false,
-                // TEMP: Auffällige Styles für Debugging
-                backgroundColor: 'rgba(255, 255, 0, 0.3)', // Gelber Hintergrund
-                stroke: '#ff0000', // Roter Rahmen
-                strokeWidth: 1
+                editable: false
               });
               
               // DEBUG: Textbox-Eigenschaften nach Erstellung überprüfen
@@ -569,10 +565,6 @@ export default function FabricCanvas() {
                 cornerSize: 8,
                 transparentCorners: false,
                 objectCaching: false
-              });
-              
-              // DEBUG: Group-Eigenschaften nach Erstellung überprüfen
-              DBG(`Group created with properties:`, {
                 sectionId: section.id,
                 left: sectionGroup.left,
                 top: sectionGroup.top,
