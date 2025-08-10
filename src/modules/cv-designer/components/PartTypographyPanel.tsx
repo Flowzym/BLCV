@@ -19,7 +19,7 @@ function useGroupsInCanvas(): GroupKey[] {
   return useDesignerStore(
     React.useCallback((s) => {
       const set = new Set<GroupKey>();
-      for (const e of s.elements) if (e.kind === "section") set.add(e.group);
+      for (const section of s.sections) set.add(section.sectionType as GroupKey);
       // fallback: sinnvolle Reihenfolge
       const present = Array.from(set);
       const ordered: GroupKey[] = ["kontakt", "erfahrung", "ausbildung", "kenntnisse", "softskills", "profil"];
@@ -33,7 +33,7 @@ export default function PartTypographyPanel() {
 
   const partStyles = useDesignerStore((s) => s.partStyles);
   const tokens = useDesignerStore((s) => s.tokens);
-  const elements = useDesignerStore((s) => s.elements);
+  const sections = useDesignerStore((s) => s.sections);
 
   const updateGlobal = useDesignerStore((s) => s.updateGlobalPartStyle);
   const clearGlobal = useDesignerStore((s) => s.clearGlobalPartStyle);
@@ -61,12 +61,12 @@ export default function PartTypographyPanel() {
   // Wieviele Felder werden betroffen?
   const affectedCount = useMemo(() => {
     let n = 0;
-    for (const e of elements) {
-      if (e.kind !== "section" || e.group !== group) continue;
-      n += e.parts.filter((p) => p.key === part).length;
+    for (const section of sections) {
+      if (section.sectionType !== group) continue;
+      n += section.parts.filter((p) => p.key === part).length;
     }
     return n;
-  }, [elements, group, part]);
+  }, [sections, group, part]);
 
   // Lokaler UI-State gespiegelt aus current/base
   const [fontFamily, setFontFamily] = useState<string>(current?.fontFamily ?? base.fontFamily);
