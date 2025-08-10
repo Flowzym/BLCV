@@ -1,11 +1,10 @@
-// src/modules/cv-designer/canvas/installSectionResize.ts
 import { fabric } from "fabric";
 
 /**
- * Gruppenskalierung -> echtes width/height.
- * Text wird nie skaliert; Umbruch via width.
- * Anchored-Padding in px. Flow-Layout: Textfelder rücken nach Umbruch nach.
- * Keine privaten Fabric-APIs.
+ * Scale→Resize: Gruppen-Scale wird in width/height überführt.
+ * Text wird nie skaliert; Umbruch nur via 'width'.
+ * Anchored-Padding (px) + optionales Flow-Layout (order/gapBefore).
+ * Keine privaten Fabric-APIs; lineHeight nur respektieren, wenn vorhanden.
  */
 
 type WithData = fabric.Object & {
@@ -97,19 +96,20 @@ function applyLayout(group: fabric.Group & WithData, newW: number, newH: number)
       const { padL, padR, indentPx } = layout as Anchored;
       const targetW = Math.max(1, newW - padL - padR - indentPx);
 
-      child.set({
+      const next: any = {
         width: targetW,
         scaleX: 1, scaleY: 1,
         angle: 0, skewX: 0, skewY: 0,
         originX: "left", originY: "top",
         objectCaching: false,
-        lineHeight: Number.isFinite(child.data?.lineHeight) && child.data?.lineHeight > 0 ? child.data.lineHeight : 1.2,
-      });
-
-      if (child.styles && typeof child.styles === "object") {
-        child.styles = {};
+      };
+      // lineHeight nur setzen, wenn explizit vorhanden
+      if (child.data?.lineHeight != null && isFinite(child.data.lineHeight) && child.data.lineHeight > 0) {
+        next.lineHeight = child.data.lineHeight;
       }
+      child.set(next);
 
+      // KEIN styles-Reset hier – sonst schwanken Metriken
       forceTextReflow(child);
     }
   });
@@ -139,7 +139,7 @@ function applyLayout(group: fabric.Group & WithData, newW: number, newH: number)
     currentTopTL = tlY + h;
   });
 
-  // 3) übrige
+  // 3) übrige (anchored ohne Flow / proportional)
   children.forEach((child) => {
     const layout: ChildLayout | undefined = child.__layout;
     if (!layout) return;
