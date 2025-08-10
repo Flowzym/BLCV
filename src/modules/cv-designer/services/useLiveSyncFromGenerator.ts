@@ -4,6 +4,7 @@ import { useLebenslauf } from "@/components/LebenslaufContext";
 import { useDesignerStore, PartKey, SectionElement } from "../store/designerStore";
 import { mapLebenslaufToSectionParts } from "./mapLebenslaufToSectionParts";
 import { Templates, buildSectionFromTemplate } from "../templates";
+import { useDesignerCvSnapshot } from "../selectors/cvSelectors";
 
 const PAGE_W = 595;
 const PAGE_H = 842;
@@ -31,6 +32,7 @@ const sectionKey = (e: SectionElement) => e.meta?.source?.key;
 export function useLiveSyncFromGenerator(debounceMs = 200) {
   const ll = useLebenslauf();
   const margins = useDesignerStore((s) => s.margins);
+  const cvSnapshot = useDesignerCvSnapshot();
   // Hinweis: wir blockieren NICHT mehr hart auf "hydrated",
   // sondern retriggern zusätzlich nach Persist-Hydration.
   const hydratedState = useDesignerStore((s) => (s as any).hydrated);
@@ -55,43 +57,8 @@ export function useLiveSyncFromGenerator(debounceMs = 200) {
   // alles, was die Layout-/Text-Sync-Reaktion beeinflusst, in die Signatur
   const sig = useMemo(
     () =>
-      JSON.stringify({
-        pd: {
-          vorname: ll?.personalData?.vorname ?? '',
-          nachname: ll?.personalData?.nachname ?? '',
-          summary: ll?.personalData?.summary ?? '',
-          skillsSummary: ll?.personalData?.skillsSummary ?? '',
-          softSkillsSummary: ll?.personalData?.softSkillsSummary ?? '',
-          taetigkeitenSummary: ll?.personalData?.taetigkeitenSummary ?? ''
-        },
-        wf:
-          (ll?.berufserfahrung ?? ll?.workExperience ?? ll?.experience ?? []).map(exp => ({
-            id: exp.id,
-            position: exp.position,
-            companies: exp.companies,
-            startYear: exp.startYear,
-            startMonth: exp.startMonth,
-            endYear: exp.endYear,
-            endMonth: exp.endMonth,
-            isCurrent: exp.isCurrent,
-            aufgabenbereiche: exp.aufgabenbereiche,
-            source: exp.source
-          })),
-        ed: (ll?.ausbildung ?? ll?.education ?? []).map(edu => ({
-          id: edu.id,
-          abschluss: edu.abschluss,
-          institution: edu.institution,
-          ausbildungsart: edu.ausbildungsart,
-          startYear: edu.startYear,
-          startMonth: edu.startMonth,
-          endYear: edu.endYear,
-          endMonth: edu.endMonth,
-          isCurrent: edu.isCurrent,
-          source: edu.source
-        })),
-        m: margins,
-      }),
-    [ll, margins]
+      cvSnapshot.__dep__,
+    [cvSnapshot.__dep__]
   );
 
   const timer = useRef<number | null>(null);
@@ -104,9 +71,9 @@ export function useLiveSyncFromGenerator(debounceMs = 200) {
       const mapped = mapLebenslaufToSectionParts(ll);
       if (import.meta.env.VITE_DEBUG_DESIGNER_SYNC === 'true') {
         console.debug("[DesignerSync] ctx snapshot", {
-          personalData: ll?.personalData,
-          berufserfahrung: ll?.berufserfahrung?.length || 0,
-          ausbildung: ll?.ausbildung?.length || 0
+          personalData: cvSnapshot.personalData,
+          experiences: cvSnapshot.experiences?.length || 0,
+          educations: cvSnapshot.educations?.length || 0
         });
         console.debug("[DesignerSync] mapped", mapped.map(m => ({
           group: m.group,
@@ -206,12 +173,14 @@ export function useLiveSyncFromGenerator(debounceMs = 200) {
           });
         }
 
-        const current = useDesignerStore.getState().elements;
-        if (!current.length) setInitialElements(newSecs);
-        else setInitialElements([...current, ...newSecs]);
+        if (!elements.length) {
+          setInitialElements(newSecs);
+        } else {
+          setInitialElements([...elements, ...newSecs]);
+        }
       }
     }, debounceMs) as unknown as number;
 
     return () => { if (timer.current) window.clearTimeout(timer.current); };
-  }, [sig, hydratedState]);
+  }, [sig, hydratedState, cvSnapshot.__dep__]);
 }

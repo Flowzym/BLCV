@@ -178,7 +178,7 @@ export function mapLebenslaufToSectionParts(ll: AnyObj): MappedSection[] {
 
     out.push({
       group: "erfahrung",
-      sourceKey: stableKey("exp", e, i),
+      sourceKey: `exp:${e.id || `auto-${i}`}`,
       title,
       parts,
     });
@@ -207,7 +207,7 @@ export function mapLebenslaufToSectionParts(ll: AnyObj): MappedSection[] {
 
     out.push({
       group: "ausbildung",
-      sourceKey: stableKey("edu", e, i),
+      sourceKey: `edu:${e.id || `auto-${i}`}`,
       title,
       parts,
     });

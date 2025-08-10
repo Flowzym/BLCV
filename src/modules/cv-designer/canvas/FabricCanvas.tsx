@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from "react";
 import { useDesignerStore, CanvasElement, PartStyle } from "../store/designerStore";
 import getFabric from "@/lib/fabric-shim";
+import { useDesignerCvSnapshot } from "../selectors/cvSelectors";
 
 const PAGE_W = 595, PAGE_H = 842;
 type FabricNS = any;
@@ -28,6 +29,8 @@ export default function FabricCanvas(){
   const updatePartText = useDesignerStore(s=>s.updatePartText);
   const select         = useDesignerStore(s=>s.select);
 
+  // Live CV data for rendering
+  const cvSnapshot = useDesignerCvSnapshot();
   const arrEq = (a:string[], b:string[])=>{
     if (a===b) return true; if (!a||!b||a.length!==b.length) return false;
     for(let i=0;i<a.length;i++) if(a[i]!==b[i]) return false;
@@ -121,7 +124,7 @@ export default function FabricCanvas(){
         window.addEventListener("bl:delete-active", onDeleteActive);
       }
 
-      reconcileCanvas(c, fabric, elements, tokens, partStyles, objectsByKey.current);
+      reconcileCanvas(fCanvas.current, fabricNs.current, elements, tokens, partStyles, objectsByKey.current, cvSnapshot);
     })();
 
     return ()=>{
@@ -138,8 +141,8 @@ export default function FabricCanvas(){
   /* ----------- props -> canvas ----------- */
   useEffect(()=>{
     if(!fCanvas.current || !fabricNs.current) return;
-    reconcileCanvas(fCanvas.current, fabricNs.current, elements, tokens, partStyles, objectsByKey.current);
-  },[elements, tokens, partStyles]);
+    reconcileCanvas(fCanvas.current, fabricNs.current, elements, tokens, partStyles, objectsByKey.current, cvSnapshot);
+  },[elements, tokens, partStyles, cvSnapshot.__dep__]);
 
   // margins -> overlay
   useEffect(()=>{
@@ -254,7 +257,8 @@ function reconcileCanvas(
   elements:CanvasElement[],
   tokens:any,
   partStyles:Record<string, PartStyle>,
-  map:Map<string, any>
+  map:Map<string, any>,
+  cvSnapshot: any
 ){
   purgeStrays(c);
   hydrateMapFromCanvas(c, map);
@@ -312,8 +316,48 @@ function reconcileCanvas(
       const width  = part.offset.w ?? Math.max(40, container.width - (part.offset.x ?? 0) - 8);
       const height = part.offset.h ?? 18;
 
+      // Get live text from CV snapshot for dynamic content
+      let displayText = String(part.text ?? "");
+      if (el.group === "erfahrung" && cvSnapshot.experiences) {
+        const exp = cvSnapshot.experiences.find((e: any) => e.id === el.meta?.source?.key?.split(':')[1]);
+        if (exp) {
+          switch (part.key) {
+            case "position":
+              displayText = exp.positionLine || displayText;
+              break;
+            case "unternehmen":
+              displayText = exp.companyLine || displayText;
+              break;
+            case "zeitraum":
+              displayText = exp.period || displayText;
+              break;
+            case "taetigkeiten":
+              displayText = exp.tasks.map((t: string) => `• ${t}`).join('\n') || displayText;
+              break;
+          }
+        }
+      }
+      if (el.group === "ausbildung" && cvSnapshot.educations) {
+        const edu = cvSnapshot.educations.find((e: any) => e.id === el.meta?.source?.key?.split(':')[1]);
+        if (edu) {
+          switch (part.key) {
+            case "titel":
+              displayText = edu.titleLine || displayText;
+              break;
+            case "unternehmen":
+              displayText = edu.institution || displayText;
+              break;
+            case "zeitraum":
+              displayText = edu.period || displayText;
+              break;
+            case "abschluss":
+              displayText = edu.titleLine || displayText;
+              break;
+          }
+        }
+      }
       if (!pObj){
-        pObj = new fabric.Textbox(String(part.text ?? ""), {
+        pObj = new fabric.Textbox(displayText, {
           left, top, width, height,
           selectable: true, editable: true
         });
@@ -327,7 +371,7 @@ function reconcileCanvas(
         applyTextStyle(pObj, base, part.style, global);
         c.add(pObj); map.set(pKey, pObj);
       }else{
-        pObj.set({ left, top, width, height, text: String(part.text ?? "") });
+        pObj.set({ left, top, width, height, text: displayText });
         applyTextStyle(pObj, base, part.style, global);
       }
       keep.add(pKey);
