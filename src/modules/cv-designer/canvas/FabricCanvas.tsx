@@ -5,22 +5,28 @@ import CanvasRegistry from "./canvasRegistry";
 import { installSectionResize } from "./installSectionResize";
 
 const DBG = (msg: string, ...args: any[]) => {
-  if (import.meta.env.VITE_DEBUG_DESIGNER_SYNC === 'true') {
-    console.log('[FABRIC_CANVAS]', msg, ...args);
+  if (import.meta.env.VITE_DEBUG_DESIGNER_SYNC === "true") {
+    console.log("[FABRIC_CANVAS]", msg, ...args);
   } else {
-    console.log('[FABRIC_CANVAS*]', msg, ...args);
+    // ruhig, aber sichtbar
+    // console.log("[FABRIC_CANVAS*]", msg, ...args);
   }
 };
 
 const PAGE_W = 595;
 const PAGE_H = 842;
 
+/** Guard: ist der Fabric-Canvas noch „lebendig“? (nach dispose sind Kontexte weg) */
+function isCanvasAlive(c: any): c is import("fabric").Canvas {
+  return !!c && !!(c as any).contextContainer && !!(c as any).contextTop;
+}
+
 export default function FabricCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [fabricCanvas, setFabricCanvas] = useState<any>(null);
   const [fabricNamespace, setFabricNamespace] = useState<any>(null);
 
-  // Store-Zugriff
+  // Store
   const sections = useDesignerStore((s) => s.sections);
   const tokens = useDesignerStore((s) => s.tokens);
   const margins = useDesignerStore((s) => s.margins);
@@ -28,65 +34,36 @@ export default function FabricCanvas() {
   const globalFieldStyles = useDesignerStore((s) => s.globalFieldStyles);
   const partStyles = useDesignerStore((s) => s.partStyles);
 
-  DBG('FabricCanvas render:', {
-    sectionsCount: sections?.length || 0,
-    hasTokens: !!tokens,
-    hasMargins: !!margins,
-    zoom: zoom,
-    hasGlobalFieldStyles: !!globalFieldStyles,
-    hasPartStyles: !!partStyles
-  });
-
-  // Fabric.js initialisieren
+  // Fabric init
   useEffect(() => {
     let isMounted = true;
 
     const initFabric = async () => {
       try {
-        DBG('Initializing Fabric.js...');
         const fabric = await getFabric();
-        
-        if (!isMounted) {
-          DBG('Component unmounted during Fabric initialization');
-          return;
-        }
+        if (!isMounted) return;
 
         setFabricNamespace(fabric);
-        DBG('Fabric namespace loaded successfully');
 
         if (canvasRef.current) {
-          DBG('Creating Fabric canvas...');
-          
-          // Dispose existing canvas if any
+          // evtl. bestehenden Canvas entsorgen
           if (CanvasRegistry.has(canvasRef.current)) {
             CanvasRegistry.dispose(canvasRef.current);
           }
 
           const canvas = CanvasRegistry.getOrCreate(canvasRef.current, fabric);
-          
-          canvas.setDimensions({
-            width: PAGE_W,
-            height: PAGE_H
-          });
-
-          canvas.backgroundColor = '#ffffff';
+          canvas.setDimensions({ width: PAGE_W, height: PAGE_H });
+          canvas.backgroundColor = "#ffffff";
           canvas.selection = true;
           canvas.preserveObjectStacking = true;
 
           setFabricCanvas(canvas);
-          DBG('Fabric canvas created successfully:', {
-            width: canvas.getWidth(),
-            height: canvas.getHeight(),
-            backgroundColor: canvas.backgroundColor
-          });
 
-          // Install the GPT-5 recommended section resize logic
-          await installSectionResize(canvas);
-          DBG('Section resize logic installed successfully');
+          // Resize-Installer aktivieren
+          installSectionResize(canvas);
         }
-      } catch (error) {
-        DBG('Error initializing Fabric:', error);
-        console.error('Fabric initialization failed:', error);
+      } catch (err) {
+        console.error("Fabric initialization failed:", err);
       }
     };
 
@@ -97,363 +74,187 @@ export default function FabricCanvas() {
       if (canvasRef.current && CanvasRegistry.has(canvasRef.current)) {
         CanvasRegistry.dispose(canvasRef.current);
       }
+      setFabricCanvas(null);
+      setFabricNamespace(null);
     };
   }, []);
 
-  // Zentrale Canvas-Reconciliation-Funktion
+  // zentrale Reconciliation
   const renderSections = useCallback(async () => {
-    if (!fabricCanvas || !fabricNamespace || !sections) {
-      DBG('Cannot render sections - missing dependencies:', {
-        hasFabricCanvas: !!fabricCanvas,
-        hasFabricNamespace: !!fabricNamespace,
-        hasSections: !!sections,
-        sectionsLength: sections?.length || 0
-      });
+    if (!fabricCanvas || !fabricNamespace || !sections) return;
+    if (!isCanvasAlive(fabricCanvas)) return;
+
+    // PHASE 1: Canvas säubern (nur wenn alive)
+    try {
+      fabricCanvas.clear();
+    } catch {
+      // kann passieren, wenn parallel disposed wird
       return;
     }
 
-    DBG('=== STARTING CENTRAL CANVAS RECONCILIATION ===');
-    DBG('Sections to render:', {
-      count: sections.length,
-      sections: sections.map(s => ({
-        id: s.id,
-        title: s.title,
-        type: s.type,
-        sectionType: s.sectionType,
-        frame: { x: s.x, y: s.y, width: s.width, height: s.height },
-        partsCount: s.parts?.length || 0,
-        isVisible: s.isVisible
-      }))
-    });
-
-    // PHASE 1: Komplette Canvas-Bereinigung
-    fabricCanvas.clear();
-    DBG('Canvas cleared completely');
-
     // PHASE 2: Sektionen neu erstellen
     for (const section of sections) {
-      DBG(`=== CREATING SECTION: ${section.id} ===`);
-      
-      if (!section.isVisible) {
-        DBG(`Skipping invisible section: ${section.id}`);
-        continue;
-      }
+      if (!section?.isVisible) continue;
+      if (!Array.isArray(section.parts) || section.parts.length === 0) continue;
 
-      if (!Array.isArray(section.parts) || section.parts.length === 0) {
-        DBG(`Section ${section.id} has no parts to render`);
-        continue;
-      }
-
-      // Erstelle Textboxen für alle Parts der Sektion
       const textboxes: any[] = [];
-      
-      for (const part of section.parts) {
-        DBG(`=== CREATING TEXTBOX FOR PART: ${part.id} ===`);
-        
-        if (part.type !== 'text') {
-          DBG(`Skipping non-text part: ${part.id}`);
-          continue;
-        }
 
-        const displayText = part.text || `[Empty ${part.fieldType}]`;
-        
-        // Berechne Textbox-Breite basierend auf Sektion und Offset
-        const textboxWidth = Math.max(50, section.width - (part.offsetX || 0) - 20);
-        
-        // Hole globale Styles für dieses Feld
-        const globalStyle = globalFieldStyles[section.sectionType]?.[part.fieldType || 'content'] || {};
+      for (const part of section.parts) {
+        if (part.type !== "text") continue;
+
+        const displayText = part.text || "";
+        const padL = Math.max(0, part.offsetX || 0);
+        const padT = Math.max(0, part.offsetY || 0);
+        const indentPx = 0; // wir nutzen offsets direkt; optional: für Bullets separat setzen
+        const approxWidth = Math.max(50, (part.width ?? (section.width - padL - 20)));
+        const padR = Math.max(0, section.width - padL - approxWidth - indentPx);
+        const padB = 12;
+
+        // Styles zusammenführen
+        const globalStyle = globalFieldStyles[section.sectionType]?.[part.fieldType || "content"] || {};
         const partStyleKey = `${section.sectionType}:${part.fieldType}`;
         const localPartStyle = partStyles[partStyleKey] || {};
-        
-        // Merge Styles: part > localPartStyle > globalStyle > tokens > defaults
+
         const finalStyle = {
           fontSize: part.fontSize || localPartStyle.fontSize || globalStyle.fontSize || tokens?.fontSize || 12,
-          fontFamily: part.fontFamily || localPartStyle.fontFamily || globalStyle.fontFamily || tokens?.fontFamily || 'Arial, sans-serif',
-          fill: part.color || localPartStyle.color || globalStyle.textColor || tokens?.colorPrimary || '#000000',
-          fontWeight: part.fontWeight || localPartStyle.fontWeight || globalStyle.fontWeight || 'normal',
-          fontStyle: part.fontStyle || (localPartStyle.italic ? 'italic' : globalStyle.fontStyle) || 'normal',
+          fontFamily: part.fontFamily || localPartStyle.fontFamily || globalStyle.fontFamily || tokens?.fontFamily || "Arial, sans-serif",
+          fill: part.color || localPartStyle.color || globalStyle.textColor || tokens?.colorPrimary || "#000000",
+          fontWeight: part.fontWeight || localPartStyle.fontWeight || globalStyle.fontWeight || "normal",
+          fontStyle: part.fontStyle || (localPartStyle.italic ? "italic" : globalStyle.fontStyle) || "normal",
           lineHeight: part.lineHeight || localPartStyle.lineHeight || globalStyle.lineHeight || tokens?.lineHeight || 1.4,
-          charSpacing: ((part.letterSpacing || localPartStyle.letterSpacing || globalStyle.letterSpacing || 0) * 1000) // Fabric uses 1/1000 em
+          charSpacing: ((part.letterSpacing || localPartStyle.letterSpacing || globalStyle.letterSpacing || 0) * 1000),
+          textAlign: part.textAlign || "left",
         };
 
-        DBG(`Creating textbox with final style:`, {
-          partId: part.id,
-          text: displayText.substring(0, 30) + '...',
-          position: { x: part.offsetX, y: part.offsetY },
-          width: textboxWidth,
-          style: finalStyle
-        });
-
-        // PHASE 1 KRITISCH: Textboxen sind NICHT individuell selektierbar
-        const textObj = new fabricNamespace.Textbox(displayText, {
-          // Position relativ zur Gruppe (wird später durch Gruppe transformiert)
-          left: part.offsetX || 0,
-          top: part.offsetY || 0,
-          width: textboxWidth,
-          
-          // Styling
+        const tb = new fabricNamespace.Textbox(displayText, {
+          left: 0, // initial egal; wir setzen unten anchored TL
+          top: 0,
+          width: Math.max(1, section.width - padL - padR - indentPx),
           ...finalStyle,
-          
-          // Text-Eigenschaften
-          textAlign: part.textAlign || 'left',
           splitByGrapheme: true,
           breakWords: true,
-          
-          // PHASE 1 KRITISCH: Keine direkte Interaktivität für Textboxen
+          // Nicht direkt editierbar in Phase 1
           selectable: false,
           evented: false,
           hasControls: false,
           hasBorders: false,
           editable: false,
-          
-          // PHASE 1 KRITISCH: Sperren aller Transformationen
+          // Locks
           lockScalingX: true,
           lockScalingY: true,
           lockMovementX: true,
           lockMovementY: true,
           lockUniScaling: true,
-          
-          // Sichtbarkeit
           opacity: 1,
-          visible: true
-        });
-
-        // Metadaten für spätere Referenz speichern
-        textObj.partId = part.id;
-        textObj.fieldType = part.fieldType;
-        textObj.sectionId = section.id;
-        
-        // KRITISCH: Layout-Daten für installSectionResize.ts
-        const padL = part.offsetX || 0;
-        const padT = part.offsetY || 0;
-        const padR = Math.max(0, section.width - (part.offsetX || 0) - textboxWidth);
-        const padB = Math.max(0, section.height - (part.offsetY || 0) - 30); // geschätzte Texthöhe
-        const indentPx = part.fieldType === 'bullet' ? 20 : 0; // Einzug für Bullets
-        
-        textObj.data = {
-          fieldKey: part.fieldType + '-' + part.id,
-          padL,
-          padT, 
-          padR,
-          padB,
-          indentPx,
-          type: "textbox"
-        };
-        
-        // KRITISCH: Initiale Position korrekt berechnen (nicht 0,0)
-        const groupHalfW = section.width / 2;
-        const groupHalfH = section.height / 2;
-        const tlX = padL + indentPx;
-        const tlY = padT;
-        
-        // In Gruppen-Koordinaten (center-based) umrechnen
-        textObj.set({
-          left: tlX - groupHalfW,
-          top: tlY - groupHalfH,
-          width: Math.max(1, section.width - padL - padR - indentPx)
-        });
-        
-        // Vollständige Metrik-Normalisierung
-        textObj.set({
+          visible: true,
+          originX: "left",
+          originY: "top",
           scaleX: 1,
           scaleY: 1,
           angle: 0,
           skewX: 0,
           skewY: 0,
-          originX: "left",
-          originY: "top",
-          objectCaching: false
-        });
-        
-        // Harte Reflow-Sequenz für stabiles Layout
-        const originalText = textObj.text || "";
-        textObj.set("text", ""); // Force Layout Reset
-        if (typeof textObj._clearCache === "function") textObj._clearCache();
-        if (typeof textObj.initDimensions === "function") textObj.initDimensions();
-        
-        textObj.set("text", originalText); // Neu zuweisen → frisches Measure
-        if (typeof textObj._clearCache === "function") textObj._clearCache();
-        if (typeof textObj.initDimensions === "function") textObj.initDimensions();
-        
-        textObj.dirty = true;
-        textObj.setCoords();
-        
-        textboxes.push(textObj);
-        
-        DBG(`Created textbox for ${part.id}:`, {
-          left: textObj.left,
-          top: textObj.top,
-          width: textObj.width,
-          selectable: textObj.selectable,
-          evented: textObj.evented,
-          hasControls: textObj.hasControls,
-          lockMovementX: textObj.lockMovementX,
-          lockMovementY: textObj.lockMovementY
-        });
+        }) as any;
+
+        // Subfield-Metadaten
+        tb.data = {
+          fieldKey: part.id ?? `${section.id}:${part.fieldType}:${Math.random().toString(36).slice(2, 8)}`,
+          padL, padT, padR, padB, indentPx,
+          flow: true,
+          order: Number.isFinite(part.order) ? part.order : 0,
+          gapBefore: Number(part.gapBefore ?? 0),
+          type: "textbox",
+        };
+
+        tb.partId = part.id;
+        tb.fieldType = part.fieldType;
+        tb.sectionId = section.id;
+
+        // Initial-Position im Gruppen-Koordsystem (Center-basiert) nach anchored TL
+        const halfW = section.width / 2;
+        const halfH = section.height / 2;
+        const tlX = padL + indentPx;
+        const tlY = padT;
+        tb.set({ left: tlX - halfW, top: tlY - halfH });
+        tb.setCoords();
+
+        textboxes.push(tb);
       }
 
-      // PHASE 2: Erstelle Sektionsgruppe mit allen Textboxen
+      // Sektionsgruppe
       const sectionGroup = new fabricNamespace.Group(textboxes, {
         left: section.x,
         top: section.y,
-        
-        // PHASE 1 KRITISCH: Nur die Gruppe ist interaktiv
         selectable: true,
         evented: true,
         hasControls: true,
         hasBorders: true,
-        
-        // Styling der Sektion
-        backgroundColor: section.props?.backgroundColor || 'transparent',
-        stroke: section.props?.borderColor || '#e5e7eb',
-        strokeWidth: parseInt(section.props?.borderWidth || '1', 10),
-        fill: 'transparent',
-        
-        // Skalierung vermeiden
+        backgroundColor: section.props?.backgroundColor || "transparent",
+        stroke: section.props?.borderColor || "#e5e7eb",
+        strokeWidth: parseInt(section.props?.borderWidth || "1", 10),
+        fill: "transparent",
         lockUniScaling: false,
-        
-        // Eckstil
-        cornerStyle: 'rect',
+        cornerStyle: "rect",
         cornerSize: 8,
         transparentCorners: false,
-        borderColor: '#3b82f6',
-        cornerColor: '#3b82f6'
-      });
+        borderColor: "#3b82f6",
+        cornerColor: "#3b82f6",
+      }) as any;
 
-      // Metadaten für Sektion speichern
+      // WICHTIG: data setzen, damit der Installer die Gruppe erkennt!
+      sectionGroup.data = { sectionId: section.id, type: "section" };
       sectionGroup.sectionId = section.id;
       sectionGroup.sectionType = section.sectionType;
-      
-      // CRITICAL: Mark this as a section group for the resize handler
-      sectionGroup.data = { sectionId: section.id, type: 'section' };
-      
-      // Debug: Prüfe auf doppelte Textboxen
-      const fieldKeys = textboxes.map((tb: any) => tb.data?.fieldKey).filter(Boolean);
-      const uniqueKeys = new Set(fieldKeys);
-      if (fieldKeys.length !== uniqueKeys.size) {
-        console.warn('[FABRIC_CANVAS] Doppelte fieldKeys erkannt:', fieldKeys);
-      }
-      
-      // Debug (temporär): zeige Text-Kinder
-      console.log('[section children]', 
-        textboxes.map((o: any) => ({ 
-          fieldKey: o.data?.fieldKey, 
-          text: o.text?.substring(0, 20) + '...',
-          position: { left: o.left, top: o.top },
-          size: { width: o.width, height: o.height }
-        }))
-      );
-      
-      DBG(`Created section group for ${section.id}:`, {
-        left: sectionGroup.left,
-        top: sectionGroup.top,
-        width: sectionGroup.width,
-        height: sectionGroup.height,
-        objectsCount: textboxes.length,
-        selectable: sectionGroup.selectable,
-        hasControls: sectionGroup.hasControls
-      });
 
-      // PHASE 3: Gruppe zum Canvas hinzufügen
       fabricCanvas.add(sectionGroup);
-      DBG(`Added section group ${section.id} to canvas`);
-      
-      // KRITISCH: Initial-Layout triggern (ohne Benutzer-Resize)
-      // Simuliere ein scaling-Event, damit installSectionResize die Layouts korrekt initialisiert
-      setTimeout(() => {
-        if (fabricCanvas && sectionGroup) {
-          fabricCanvas.fire('object:scaling', { target: sectionGroup });
-          fabricCanvas.fire('object:modified', { target: sectionGroup });
-        }
-      }, 10);
     }
 
-    // PHASE 4: Canvas final rendern
-    fabricCanvas.renderAll();
-    DBG('=== CENTRAL CANVAS RECONCILIATION COMPLETE ===');
-
+    // PHASE 4: rendern
+    if (isCanvasAlive(fabricCanvas)) {
+      fabricCanvas.renderAll();
+    }
   }, [fabricCanvas, fabricNamespace, sections, tokens, margins, globalFieldStyles, partStyles]);
 
-  // Re-render when sections change (zentrale Reconciliation)
+  // Re-render bei Section-Änderung
   useEffect(() => {
     if (fabricCanvas && sections) {
-      DBG('Sections changed, triggering central reconciliation:', {
-        sectionsCount: sections.length,
-        canvasReady: !!fabricCanvas
-      });
       renderSections();
     }
   }, [fabricCanvas, sections, renderSections]);
 
-  // Zoom handling
+  // Zoom
   useEffect(() => {
     if (!fabricCanvas) return;
-    
     const safeZoom = Math.max(0.1, Math.min(5, zoom || 1));
-    DBG('Applying zoom:', { zoom, safeZoom });
-    
-    fabricCanvas.setZoom(safeZoom);
-    fabricCanvas.renderAll();
+    if (isCanvasAlive(fabricCanvas)) {
+      fabricCanvas.setZoom(safeZoom);
+      fabricCanvas.requestRenderAll();
+    }
   }, [fabricCanvas, zoom]);
 
-  // PHASE 1: Click-Handler für Textbox-Auswahl (Vorbereitung für Phase 2)
+  // (Vorbereitung) Klick-Handler – später Overlay-Editor hier öffnen
   useEffect(() => {
     if (!fabricCanvas) return;
-
-    const handleCanvasClick = (e: any) => {
-      const target = e.target;
-      
-      if (target && target.partId && target.fieldType && target.sectionId) {
-        DBG('Textbox clicked:', {
-          partId: target.partId,
-          fieldType: target.fieldType,
-          sectionId: target.sectionId,
-          text: target.text?.substring(0, 30) + '...'
+    const onMouseDown = (e: any) => {
+      const t = e?.target;
+      if (t?.type === "textbox" && t?.data?.fieldKey) {
+        DBG("Textbox clicked:", {
+          fieldKey: t.data.fieldKey,
+          sectionId: t.sectionId,
+          text: (t.text || "").slice(0, 50),
         });
-        
-        // TODO Phase 2: Hier wird später das HTML-Overlay für Textbearbeitung aktiviert
-        console.log('TODO: Activate text editing overlay for:', target.fieldType);
+        // TODO: Overlay-Editor öffnen
       }
     };
-
-    fabricCanvas.on('mouse:down', handleCanvasClick);
-    
+    fabricCanvas.on("mouse:down", onMouseDown);
     return () => {
-      fabricCanvas.off('mouse:down', handleCanvasClick);
+      if (fabricCanvas) fabricCanvas.off("mouse:down", onMouseDown);
     };
   }, [fabricCanvas]);
 
   return (
-    <div className="relative bg-gray-100 p-4">
-      <div className="bg-white shadow-lg border border-gray-300">
-        {/* Canvas margins visualization */}
-        <div 
-          className="relative border-2 border-dashed border-orange-300"
-          style={{
-            width: PAGE_W,
-            height: PAGE_H,
-            margin: '20px'
-          }}
-        >
-          <canvas
-            ref={canvasRef}
-            className="absolute inset-0"
-            style={{
-              width: '100%',
-              height: '100%'
-            }}
-          />
-          
-          {/* Debug overlay */}
-          <div className="absolute top-2 left-2 bg-black bg-opacity-75 text-white text-xs p-2 rounded">
-            <div>Canvas: {PAGE_W}×{PAGE_H}</div>
-            <div>Sections: {sections?.length || 0}</div>
-            <div>Zoom: {Math.round((zoom || 1) * 100)}%</div>
-            <div>Fabric: {fabricCanvas ? '✓' : '✗'}</div>
-            <div className="text-green-400">GPT-5 Fix: Active</div>
-          </div>
-        </div>
-      </div>
+    <div style={{ width: PAGE_W, height: PAGE_H, position: "relative" }}>
+      <canvas ref={canvasRef} />
     </div>
   );
 }
