@@ -19,7 +19,9 @@ function ensureRatios(group: fabric.Group & WithData) {
   group._objects.forEach((child: any) => {
     // Calculate child's top-left corner relative to group's top-left corner
     const lx = (child.left ?? 0) + (child.originX === 'center' ? child.width!/2 : 0);
+    )
     const ty = (child.top ?? 0)  + (child.originY === 'center' ? child.height!/2 : 0);
+    )
     
     // Store ratios relative to group's original dimensions
     child.__ratio = {
