@@ -1,325 +1,289 @@
-import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { fabricToDomRect } from "../utils/fabricToDomRect";
-import { useDesignerStore, type SectionType } from "../store/designerStore";
+import React, { useRef, useEffect, useState, useCallback } from "react";
+import { getFabric } from "@/lib/fabric-shim";
+import { useDesignerStore } from "../store/designerStore";
+import CanvasRegistry from "./canvasRegistry";
+import { installSectionResize } from "./installSectionResize";
+import TextEditorOverlay from "../ui/TextEditorOverlay";
 
-type OverlayProps = {
-  canvas: any;                // fabric.Canvas
-  containerEl: HTMLElement;   // der Wrapper um das <canvas>
-  group: any;                 // fabric.Group (Section)
-  textbox: any;               // fabric.Textbox (Part)
-  // Metadaten:
-  sectionId: string;
-  sectionType: SectionType;
-  fieldType: string;          // z.B. "title" | "company" | "period" | "bullet"
-  onClose: (committed: boolean) => void;
-};
+const PAGE_W = 595;
+const PAGE_H = 842;
 
-const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
-
-export default function TextEditorOverlay(props: OverlayProps) {
-  const { canvas, containerEl, textbox, group, sectionId, sectionType, fieldType, onClose } = props;
-
-  const ref = useRef<HTMLDivElement>(null);
-  const [rect, setRect] = useState({ left: 0, top: 0, width: 80, height: 24 });
-  const [value, setValue] = useState<string>(textbox?.text ?? "");
-  const [applyGlobal, setApplyGlobal] = useState<boolean>(false);
-
-  // Store actions
-  const updatePartText = useDesignerStore(s => s.updatePartText);
-  const updatePartStyleLocal = useDesignerStore(s => s.updatePartStyleLocal);
-  const setGlobalFieldStyle = useDesignerStore(s => s.setGlobalFieldStyle);
-  const tokens = useDesignerStore(s => s.tokens);
-
-  // Paddings/Indent aus textbox.data spiegeln
-  const pads = useMemo(() => {
-    const d = textbox?.data || {};
-    return {
-      padL: Number(d.padL ?? 16),
-      padT: Number(d.padT ?? 12),
-      padR: Number(d.padR ?? 16),
-      padB: Number(d.padB ?? 12),
-      indentPx: Number(d.indentPx ?? 0),
-      lineHeight: Number(d.lineHeight ?? textbox?.lineHeight ?? tokens?.lineHeight ?? 1.4),
+type ActiveEdit =
+  | null
+  | {
+      sectionId: string;
+      sectionType: "experience" | "education" | "profile" | "skills" | "softskills";
+      fieldType: string;
+      group: any;   // fabric.Group
+      textbox: any; // fabric.Textbox
     };
-  }, [textbox, tokens]);
 
-  // Style-Parität (CSS) zum Fabric-Textbox-Stil
-  const css = useMemo<React.CSSProperties>(() => {
-    const fontSize = Number(textbox?.fontSize ?? 12);
-    const lineHeight = Number(textbox?.lineHeight ?? pads.lineHeight ?? 1.4);
+export default function FabricCanvas() {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [fabricCanvas, setFabricCanvas] = useState<any>(null);
+  const [fabricNamespace, setFabricNamespace] = useState<any>(null);
+  const [activeEdit, setActiveEdit] = useState<ActiveEdit>(null);
 
-    // Fabric charSpacing ist in 1/1000 Em. CSS letter-spacing in px.
-    const charSpacing = Number(textbox?.charSpacing ?? 0);
-    const letterSpacingPx = (charSpacing / 1000) * fontSize;
+  // Store
+  const sections = useDesignerStore((s) => s.sections);
+  const tokens = useDesignerStore((s) => s.tokens);
+  const margins = useDesignerStore((s) => s.margins);
+  const zoom = useDesignerStore((s) => s.zoom);
+  const globalFieldStyles = useDesignerStore((s) => s.globalFieldStyles);
+  const partStyles = useDesignerStore((s) => s.partStyles);
 
-    return {
-      position: "absolute",
-      left: `${rect.left}px`,
-      top: `${rect.top}px`,
-      width: `${rect.width}px`,
-      minHeight: `${Math.max(20, rect.height)}px`,
-      paddingLeft: `${pads.padL + pads.indentPx}px`,
-      paddingRight: `${pads.padR}px`,
-      paddingTop: `${pads.padT}px`,
-      paddingBottom: `${pads.padB}px`,
-      outline: "2px solid rgba(59,130,246,0.5)",
-      background: "rgba(255,255,255,0.95)",
-      borderRadius: 4,
-      boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-      color: textbox?.fill || "#000",
-      fontFamily: textbox?.fontFamily || tokens?.fontFamily || "Arial, sans-serif",
-      fontSize: `${fontSize}px`,
-      fontWeight: (textbox?.fontWeight as any) || "normal",
-      fontStyle: (textbox?.fontStyle as any) || "normal",
-      lineHeight: String(lineHeight),
-      letterSpacing: `${letterSpacingPx}px`,
-      textAlign: (textbox?.textAlign as any) || "left",
-      whiteSpace: "pre-wrap",
-      wordBreak: "break-word",
-      overflowWrap: "anywhere",
-    };
-  }, [rect, pads, textbox, tokens]);
-
-  // Overlay positionieren (und bei Zoom/Scroll aktualisieren)
-  const updateRect = () => {
-    if (!canvas || !textbox || !containerEl) return;
-    const r = fabricToDomRect(canvas, textbox, containerEl);
-    // Wir geben dem Editor ein bisschen mehr Breite, damit Padding reinpasst
-    setRect({
-      left: r.left,
-      top: r.top,
-      width: r.width,
-      height: r.height,
-    });
-  };
-
-  useLayoutEffect(() => {
-    updateRect();
-    const handler = () => updateRect();
-    const win = window;
-    canvas.on("after:render", handler);
-    win.addEventListener("resize", handler);
-    win.addEventListener("scroll", handler, true);
-    return () => {
-      canvas.off("after:render", handler);
-      win.removeEventListener("resize", handler);
-      win.removeEventListener("scroll", handler, true);
-    };
-  }, [canvas, textbox, containerEl]);
-
-  // Canvas-Locking: Interaktionen ausschalten
   useEffect(() => {
-    const prevSkip = canvas.skipTargetFind;
-    const prevSel = canvas.selection;
-    canvas.skipTargetFind = true;
-    canvas.selection = false;
+    let isMounted = true;
 
-    // Textbox leicht transparent, damit kein Doppelbild
-    const prevOpacity = textbox.opacity;
-    textbox.set({ opacity: 0.05 });
-    canvas.requestRenderAll();
+    const initFabric = async () => {
+      const fabric = await getFabric();
+      if (!isMounted) return;
+
+      setFabricNamespace(fabric);
+
+      if (canvasRef.current) {
+        if (CanvasRegistry.has(canvasRef.current)) {
+          CanvasRegistry.dispose(canvasRef.current);
+        }
+
+        const canvas = CanvasRegistry.getOrCreate(canvasRef.current, fabric);
+        canvas.setDimensions({ width: PAGE_W, height: PAGE_H });
+        canvas.backgroundColor = "#ffffff";
+
+        // Interaktion
+        canvas.selection = true;            // Lasso/Griffe erlaubt
+        canvas.subTargetCheck = true;       // Kinder in Gruppen treffbar
+        canvas.perPixelTargetFind = true;
+        canvas.targetFindTolerance = 6;
+
+        setFabricCanvas(canvas);
+        installSectionResize(canvas);
+
+        // Klick öffnet Overlay nur bei Textbox
+        const onMouseUp = (e: any) => {
+          let t: any = null;
+
+          if (Array.isArray(e.subTargets) && e.subTargets.length) {
+            t = e.subTargets.find((o: any) => o?.type === "textbox") ?? null;
+          }
+          if (!t && e.target && e.target.type === "textbox") t = e.target;
+
+          if (!t && e.target && e.target.type === "group") {
+            const grp = e.target;
+            const p = canvas.getPointer(e.e);
+            const hit = (grp._objects || []).find((child: any) => {
+              if (child.type !== "textbox") return false;
+              const r = child.getBoundingRect(true, true);
+              return p.x >= r.left && p.x <= r.left + r.width && p.y >= r.top && p.y <= r.top + r.height;
+            });
+            if (hit) t = hit;
+          }
+
+          if (!t) return;
+          if (t.type === "textbox" && t.sectionId && t.fieldType) {
+            const grp = t.group;
+            if (!grp) return;
+            setActiveEdit({
+              sectionId: t.sectionId,
+              sectionType: grp.sectionType || "experience",
+              fieldType: t.fieldType,
+              group: grp,
+              textbox: t,
+            });
+          }
+        };
+
+        canvas.on("mouse:up", onMouseUp);
+
+        return () => {
+          canvas.off("mouse:up", onMouseUp);
+        };
+      }
+    };
+
+    const cleanup = initFabric();
 
     return () => {
-      canvas.skipTargetFind = prevSkip;
-      canvas.selection = prevSel;
-      textbox.set({ opacity: prevOpacity ?? 1 });
-      canvas.requestRenderAll();
+      isMounted = false;
+      const el = canvasRef.current;
+      if (el && CanvasRegistry.has(el)) {
+        CanvasRegistry.dispose(el);
+      }
+      setFabricCanvas(null);
+      setFabricNamespace(null);
+      if (typeof cleanup === "function") cleanup();
     };
-  }, [canvas, textbox]);
-
-  // Live-Preview (debounced)
-  useEffect(() => {
-    const h = setTimeout(() => {
-      try {
-        // Text live in Store & Fabric schreiben (Achtung: Store-API ist pro fieldType – wirkt auf alle Parts gleichen Typs in der Sektion)
-        updatePartText(sectionId, fieldType as any, value);
-      } catch {}
-    }, 140);
-    return () => clearTimeout(h);
-  }, [value, sectionId, fieldType, updatePartText]);
-
-  // Keyboard steuern
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if ((e.key === "Enter" && (e.ctrlKey || e.metaKey))) {
-        e.preventDefault();
-        onCommit();
-      } else if (e.key === "Escape") {
-        e.preventDefault();
-        onClose(false);
-      } else if (e.key === "Tab") {
-        // Indent per Tab
-        e.preventDefault();
-        const delta = e.shiftKey ? -12 : +12;
-        applyStyle({ indentPx: clamp((textbox?.data?.indentPx ?? 0) + delta, 0, 200) });
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [textbox]);
-
-  const onCommit = () => {
-    // commit ist bereits über debounced Text-Update im Store; wir schließen nur
-    onClose(true);
-  };
-
-  // Toolbar-Style-Update (lokal oder global)
-  const applyStyle = (patch: Partial<{
-    fontWeight: "normal" | "bold";
-    fontStyle: "normal" | "italic";
-    fontSize: number;
-    lineHeight: number;
-    color: string;
-    letterSpacing: number; // in px
-    indentPx: number;
-  }>) => {
-    // letterSpacing in px -> em für unseren Store (PartStyle.letterSpacing ist em)
-    const pxFont = Number(textbox?.fontSize ?? 12);
-    const normalized: any = { ...patch };
-    if (patch.letterSpacing != null) {
-      normalized.letterSpacing = Number(patch.letterSpacing) / Math.max(1, pxFont);
-    }
-    if (applyGlobal) {
-      // globale Vorlage pro sectionType + fieldType
-      const tPatch: any = {};
-      if (normalized.fontFamily != null) tPatch.fontFamily = normalized.fontFamily;
-      if (normalized.fontSize != null) tPatch.fontSize = normalized.fontSize;
-      if (normalized.lineHeight != null) tPatch.lineHeight = normalized.lineHeight;
-      if (normalized.color != null) tPatch.color = normalized.color;
-      if (normalized.fontWeight != null) tPatch.fontWeight = normalized.fontWeight as any;
-      if (normalized.fontStyle != null) tPatch.fontStyle = normalized.fontStyle as any;
-      if (normalized.letterSpacing != null) tPatch.letterSpacing = normalized.letterSpacing;
-      // indentPx ist Layout-Attribut, nicht typografisch – global erlauben wir's bewusst NICHT
-      setGlobalFieldStyle(sectionType, fieldType, tPatch);
-    } else {
-      // lokal nur diesen Part-Typ in dieser Sektion (Store-API granular per fieldType)
-      const localPatch: any = {};
-      if (normalized.fontSize != null) localPatch.fontSize = normalized.fontSize;
-      if (normalized.color != null) localPatch.color = normalized.color;
-      if (normalized.fontWeight != null) localPatch.fontWeight = normalized.fontWeight as any;
-      if (normalized.fontStyle != null) {
-        if (normalized.fontStyle === "italic") localPatch.italic = true;
-        else localPatch.italic = false;
-      }
-      if (normalized.lineHeight != null) localPatch.lineHeight = normalized.lineHeight;
-      if (normalized.letterSpacing != null) localPatch.letterSpacing = normalized.letterSpacing;
-      updatePartStyleLocal(sectionId, fieldType as any, localPatch);
-
-      // indentPx ist in textbox.data; wir patchen direkt das textbox.data und reflow passiert durch Text-Update/Nach-Render
-      if (normalized.indentPx != null) {
-        const nextIndent = clamp(Number(normalized.indentPx), 0, 200);
-        textbox.data = { ...(textbox.data || {}), indentPx: nextIndent };
-        canvas.requestRenderAll();
-      }
-    }
-  };
-
-  // Fokus ins Editorfeld
-  useEffect(() => {
-    if (ref.current) {
-      ref.current.focus();
-      placeCaretAtEnd(ref.current);
-    }
   }, []);
 
+  const renderSections = useCallback(async () => {
+    if (!fabricCanvas || !fabricNamespace || !sections) return;
+
+    fabricCanvas.clear();
+
+    for (const section of sections) {
+      if (!section.isVisible) continue;
+      if (!Array.isArray(section.parts) || section.parts.length === 0) continue;
+
+      const textboxes: any[] = [];
+
+      // Section-Padding
+      const SEC_PAD_L = Number(section.props?.paddingLeft  ?? 24);
+      const SEC_PAD_R = Number(section.props?.paddingRight ?? 24);
+      const SEC_PAD_T = Number(section.props?.paddingTop   ?? 16);
+      const SEC_PAD_B = Number(section.props?.paddingBottom?? 16);
+      const BULLET_INDENT = Number(tokens?.bulletIndent ?? 18);
+
+      for (const part of section.parts) {
+        if (part.type !== "text") continue;
+
+        const displayText = part.text ?? "";
+        const indentPx = part.indentPx ?? (part.fieldType === "bullet" ? BULLET_INDENT : 0);
+        const padL = SEC_PAD_L;
+        const padT = SEC_PAD_T + Math.max(0, part.offsetY || 0);
+        const padR = SEC_PAD_R;
+        const padB = SEC_PAD_B;
+
+        const initialTextWidth = Math.max(1, section.width - padL - padR - indentPx);
+
+        const globalStyle =
+          globalFieldStyles[section.sectionType]?.[part.fieldType || "content"] || {};
+        const partStyleKey = `${section.sectionType}:${part.fieldType}`;
+        const localPartStyle = partStyles[partStyleKey] || {};
+
+        const finalStyle = {
+          fontSize: part.fontSize || localPartStyle.fontSize || globalStyle.fontSize || tokens?.fontSize || 12,
+          fontFamily: part.fontFamily || localPartStyle.fontFamily || globalStyle.fontFamily || tokens?.fontFamily || "Arial, sans-serif",
+          fill: part.color || localPartStyle.color || globalStyle.textColor || tokens?.colorPrimary || "#000000",
+          fontWeight: (part.fontWeight as any) || (localPartStyle.fontWeight as any) || (globalStyle.fontWeight as any) || "normal",
+          fontStyle: (part.fontStyle as any) || (localPartStyle.italic ? "italic" : (globalStyle.fontStyle as any)) || "normal",
+          lineHeight: part.lineHeight || localPartStyle.lineHeight || (globalStyle.lineHeight as any) || tokens?.lineHeight || 1.4,
+          charSpacing: (part.letterSpacing || localPartStyle.letterSpacing || (globalStyle.letterSpacing as any) || 0) * 1000,
+          textAlign: part.textAlign || "left",
+        };
+
+        const tb = new fabricNamespace.Textbox(displayText, {
+          left: 0, top: 0, width: initialTextWidth,
+          ...finalStyle,
+          splitByGrapheme: true,
+          breakWords: true,
+          selectable: false,
+          evented: true,
+          hasControls: false,
+          hasBorders: false,
+          editable: false,
+          lockScalingX: true,
+          lockScalingY: true,
+          lockMovementX: true,
+          lockMovementY: true,
+          lockUniScaling: true,
+          opacity: 1,
+          visible: true,
+          originX: "left",
+          originY: "top",
+          scaleX: 1,
+          scaleY: 1,
+          angle: 0,
+          skewX: 0,
+          skewY: 0,
+          hoverCursor: "text",
+          moveCursor: "default",
+        }) as any;
+
+        tb.partId = part.id;
+        tb.fieldType = part.fieldType;
+        tb.sectionId = section.id;
+
+        tb.data = {
+          fieldKey: part.id ?? `${section.id}:${part.fieldType}`,
+          padL, padT, padR, padB, indentPx,
+          flow: true,
+          order: Number.isFinite(part.order) ? part.order : 0,
+          gapBefore: Number(part.gapBefore ?? 0),
+          type: "textbox",
+          lineHeight: finalStyle.lineHeight,
+        };
+
+        const halfW = section.width / 2;
+        const halfH = (section.height ?? 1) / 2;
+        const tlX = padL + (indentPx || 0);
+        const tlY = padT;
+        tb.set({ left: tlX - halfW, top: tlY - halfH });
+        tb.setCoords();
+
+        textboxes.push(tb);
+      }
+
+      // Gruppe ist wieder selektierbar → Move/Resize möglich
+      const sectionGroup = new fabricNamespace.Group(textboxes, {
+        left: section.x,
+        top: section.y,
+        selectable: true,
+        evented: true,
+        hasControls: true,
+        hasBorders: true,
+        backgroundColor: section.props?.backgroundColor || "transparent",
+        stroke: section.props?.borderColor || "#e5e7eb",
+        strokeWidth: parseInt(section.props?.borderWidth || "1", 10),
+        fill: "transparent",
+        lockUniScaling: false,
+        cornerStyle: "rect",
+        cornerSize: 8,
+        transparentCorners: false,
+        borderColor: "#3b82f6",
+        cornerColor: "#3b82f6",
+        subTargetCheck: true,
+        hoverCursor: "move",
+      }) as any;
+
+      sectionGroup.data = {
+        sectionId: section.id,
+        type: "section",
+        minHeight: Number(section.props?.minHeight ?? 32),
+      };
+      sectionGroup.sectionId = section.id;
+      sectionGroup.sectionType = section.sectionType;
+
+      fabricCanvas.add(sectionGroup);
+
+      try {
+        (sectionGroup as any).scaleX = 1;
+        (sectionGroup as any).scaleY = 1;
+        fabricCanvas.fire("object:scaling", { target: sectionGroup } as any);
+        fabricCanvas.fire("object:modified", { target: sectionGroup } as any);
+      } catch {}
+    }
+
+    fabricCanvas.renderAll();
+  }, [fabricCanvas, fabricNamespace, sections, tokens, margins, globalFieldStyles, partStyles]);
+
+  useEffect(() => {
+    if (fabricCanvas && sections) renderSections();
+  }, [fabricCanvas, sections, renderSections]);
+
+  useEffect(() => {
+    if (!fabricCanvas) return;
+    const safeZoom = Math.max(0.1, Math.min(5, zoom || 1));
+    fabricCanvas.setZoom(safeZoom);
+    fabricCanvas.renderAll();
+  }, [fabricCanvas, zoom]);
+
   return (
-    <>
-      <div
-        style={{
-          position: "absolute",
-          left: css.left as number,
-          top: (css.top as number) - 36, // Toolbar über dem Feld
-          height: 32,
-          display: "flex",
-          gap: 8,
-          alignItems: "center",
-          padding: "4px 8px",
-          background: "rgba(28,28,30,0.95)",
-          color: "#fff",
-          borderRadius: 6,
-          boxShadow: "0 2px 8px rgba(0,0,0,0.25)",
-        }}
-      >
-        <button onClick={() => applyStyle({ fontWeight: (textbox?.fontWeight === "bold" ? "normal" : "bold") as any })} title="Fett (Ctrl+B)">
-          <b>B</b>
-        </button>
-        <button onClick={() => applyStyle({ fontStyle: (textbox?.fontStyle === "italic" ? "normal" : "italic") as any })} title="Kursiv (Ctrl+I)">
-          <i>I</i>
-        </button>
-        <button onClick={() => applyStyle({ fontSize: clamp((textbox?.fontSize ?? 12) + 1, 8, 72) })} title="Größer">
-          A+
-        </button>
-        <button onClick={() => applyStyle({ fontSize: clamp((textbox?.fontSize ?? 12) - 1, 8, 72) })} title="Kleiner">
-          A-
-        </button>
-        <button onClick={() => applyStyle({ lineHeight: clamp(Number(textbox?.lineHeight ?? 1.4) + 0.1, 1, 3) })} title="Zeilenhöhe +">
-          LH+
-        </button>
-        <button onClick={() => applyStyle({ lineHeight: clamp(Number(textbox?.lineHeight ?? 1.4) - 0.1, 1, 3) })} title="Zeilenhöhe -">
-          LH-
-        </button>
-        <label style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-          <span>Farbe</span>
-          <input
-            type="color"
-            defaultValue={toColorHex(textbox?.fill || "#000000")}
-            onChange={(e) => applyStyle({ color: e.target.value })}
-          />
-        </label>
-        <label style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-          <span>Einzug</span>
-          <button onClick={() => applyStyle({ indentPx: (textbox?.data?.indentPx ?? 0) - 12 })}>-</button>
-          <button onClick={() => applyStyle({ indentPx: (textbox?.data?.indentPx ?? 0) + 12 })}>+</button>
-        </label>
-        <label style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-          <input
-            type="checkbox"
-            checked={applyGlobal}
-            onChange={(e) => setApplyGlobal(e.target.checked)}
-          />
-          <span>Auf alle anwenden</span>
-        </label>
-        <div style={{ marginLeft: 8, opacity: 0.8 }}>ESC: Abbrechen · Ctrl+Enter: Speichern</div>
-      </div>
+    <div ref={containerRef} style={{ width: PAGE_W, height: PAGE_H, position: "relative" }}>
+      <canvas ref={canvasRef} />
 
-      <div
-        ref={ref}
-        contentEditable
-        suppressContentEditableWarning
-        style={css}
-        onInput={(e) => setValue((e.target as HTMLDivElement).innerText)}
-        onBlur={() => onCommit()}
-        onPaste={(e) => {
-          // Plain-Text only
-          e.preventDefault();
-          const text = (e.clipboardData || (window as any).clipboardData).getData("text/plain");
-          document.execCommand("insertText", false, text);
-        }}
-      >
-        {value}
-      </div>
-    </>
+      {activeEdit && fabricCanvas && containerRef.current && (
+        <TextEditorOverlay
+          canvas={fabricCanvas}
+          containerEl={containerRef.current}
+          group={activeEdit.group}
+          textbox={activeEdit.textbox}
+          sectionId={activeEdit.sectionId}
+          sectionType={activeEdit.sectionType}
+          fieldType={activeEdit.fieldType}
+          onClose={() => setActiveEdit(null)}
+        />
+      )}
+    </div>
   );
-}
-
-// Hilfsfunktionen
-function placeCaretAtEnd(el: HTMLElement) {
-  const range = document.createRange();
-  range.selectNodeContents(el);
-  range.collapse(false);
-  const sel = window.getSelection();
-  if (!sel) return;
-  sel.removeAllRanges();
-  sel.addRange(range);
-}
-
-function toColorHex(input: string): string {
-  // akzeptiert bereits hex oder rgb(a)
-  if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(input)) return input;
-  const m = input.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
-  if (!m) return "#000000";
-  const r = Number(m[1]).toString(16).padStart(2, "0");
-  const g = Number(m[2]).toString(16).padStart(2, "0");
-  const b = Number(m[3]).toString(16).padStart(2, "0");
-  return `#${r}${g}${b}`;
 }
