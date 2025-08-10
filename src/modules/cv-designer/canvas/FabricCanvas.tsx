@@ -315,33 +315,63 @@ export default function FabricCanvas() {
               return;
             }
             
-            // TEMPORÄR: Hardcodierter Text für Debugging
-            const displayText = `Test Text ${sectionIndex}-${partIndex}`;
-            const originalText = (part.text || '').trim();
+            // Verwende echten Text aus den Parts
+            const displayText = (part.text || '').trim() || `[Kein Text für ${part.fieldType}]`;
             
             DBG(`Creating text part ${partIndex}:`, {
               id: part.id,
               fieldType: part.fieldType,
-              originalText: originalText.substring(0, 30) + '...',
+              text: displayText.substring(0, 50) + '...',
               displayText: displayText,
               offset: { x: part.offsetX, y: part.offsetY },
               width: part.width,
               rawPart: part
             });
             
-            // TEMPORÄR: Einfache, hardcodierte Styles für Debugging
-            const simpleStyle = {
-              fontFamily: 'Arial',
-              fontSize: 16,
-              fontWeight: 'normal',
-              fontStyle: 'normal',
-              fill: '#000000',
-              lineHeight: 1.4,
-              charSpacing: 0,
-              textAlign: 'left'
+            // Berechne finale Styles aus verschiedenen Quellen
+            const tokens = get().tokens || {};
+            const partStyles = get().partStyles || {};
+            const globalFieldStyles = get().globalFieldStyles || {};
+            
+            // Style-Hierarchie: tokens (base) < globalFieldStyles < partStyles < part inline
+            const baseStyle = {
+              fontFamily: tokens.fontFamily || 'Inter, Arial, sans-serif',
+              fontSize: tokens.fontSize || 12,
+              lineHeight: tokens.lineHeight || 1.4,
+              fill: tokens.colorPrimary || '#111111'
             };
             
-            DBG(`Using simple style for debugging:`, simpleStyle);
+            // Globale Feld-Styles für diesen Sektionstyp und Feldtyp
+            const globalStyle = globalFieldStyles[section.sectionType]?.[part.fieldType] || {};
+            
+            // Part-spezifische Styles (aus Store)
+            const partStyleKey = `${section.type}:${part.fieldType}`;
+            const partStyle = partStyles[partStyleKey] || {};
+            
+            // Inline-Styles aus dem Part selbst
+            const inlineStyle = {
+              fontFamily: part.fontFamily,
+              fontSize: part.fontSize,
+              fontWeight: part.fontWeight,
+              fontStyle: part.fontStyle,
+              fill: part.color,
+              lineHeight: part.lineHeight,
+              charSpacing: part.letterSpacing ? part.letterSpacing * 1000 : undefined // Fabric.js verwendet Millisekunden
+            };
+            
+            // Finale Style-Kombination
+            const finalStyle = {
+              fontFamily: inlineStyle.fontFamily || partStyle.fontFamily || globalStyle.fontFamily || baseStyle.fontFamily,
+              fontSize: inlineStyle.fontSize || partStyle.fontSize || globalStyle.fontSize || baseStyle.fontSize,
+              fontWeight: inlineStyle.fontWeight || (partStyle.fontWeight === 'bold' ? 'bold' : 'normal') || (globalStyle.fontWeight === 'bold' ? 'bold' : 'normal') || 'normal',
+              fontStyle: inlineStyle.fontStyle || (partStyle.italic ? 'italic' : 'normal') || (globalStyle.fontStyle === 'italic' ? 'italic' : 'normal') || 'normal',
+              fill: inlineStyle.fill || partStyle.color || globalStyle.textColor || baseStyle.fill,
+              lineHeight: inlineStyle.lineHeight || partStyle.lineHeight || globalStyle.lineHeight || baseStyle.lineHeight,
+              charSpacing: inlineStyle.charSpacing || (partStyle.letterSpacing ? partStyle.letterSpacing * 1000 : 0) || (globalStyle.letterSpacing ? globalStyle.letterSpacing * 1000 : 0) || 0,
+              textAlign: part.textAlign || 'left'
+            };
+            
+            DBG(`Calculated final style:`, finalStyle);
             
             try {
               DBG(`About to create Textbox with:`, {
@@ -349,21 +379,21 @@ export default function FabricCanvas() {
                 left: part.offsetX || 0,
                 top: part.offsetY || 0,
                 width: part.width || 280,
-                style: simpleStyle
+                style: finalStyle
               });
               
               const textObj = new fabric.Textbox(displayText, {
                 left: part.offsetX || 0,
                 top: part.offsetY || 0,
                 width: part.width || 280,
-                fontFamily: simpleStyle.fontFamily,
-                fontSize: simpleStyle.fontSize,
-                fontWeight: simpleStyle.fontWeight,
-                fontStyle: simpleStyle.fontStyle,
-                fill: simpleStyle.fill,
-                lineHeight: simpleStyle.lineHeight,
-                charSpacing: simpleStyle.charSpacing,
-                textAlign: simpleStyle.textAlign,
+                fontFamily: finalStyle.fontFamily,
+                fontSize: finalStyle.fontSize,
+                fontWeight: finalStyle.fontWeight,
+                fontStyle: finalStyle.fontStyle,
+                fill: finalStyle.fill,
+                lineHeight: finalStyle.lineHeight,
+                charSpacing: finalStyle.charSpacing,
+                textAlign: finalStyle.textAlign,
                 selectable: false,
                 evented: true,
                 hasControls: false,
