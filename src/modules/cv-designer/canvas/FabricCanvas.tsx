@@ -568,11 +568,7 @@ export default function FabricCanvas() {
                 cornerColor: '#3b82f6',
                 cornerSize: 8,
                 transparentCorners: false,
-                objectCaching: false,
-                // TEMP: Auffällige Styles für Debugging
-                backgroundColor: 'rgba(0, 255, 0, 0.2)', // Grüner Hintergrund
-                stroke: '#0000ff', // Blauer Rahmen
-                strokeWidth: 2
+                objectCaching: false
               });
               
               // DEBUG: Group-Eigenschaften nach Erstellung überprüfen

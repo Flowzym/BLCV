@@ -13,7 +13,7 @@ export default function DesignerPage() {
   const eduCount = Array.isArray(ll?.ausbildung) ? ll.ausbildung.length : 0;
 
   return (
-    <main className="h-[calc(100vh-64px)] grid grid-cols-[1fr_320px] grid-rows-[auto_1fr] gap-4 p-4" style={{ border: '3px solid orange' }}>
+    <main className="h-[calc(100vh-64px)] grid grid-cols-[1fr_320px] grid-rows-[auto_1fr] gap-4 p-4">
       <header className="col-span-2 sticky top-0 z-10 bg-white/80 backdrop-blur border rounded-xl px-3 py-2">
         <CanvasToolbar />
         {/* 👉 kleine Debug-Anzeige, bis alles läuft */}
@@ -25,11 +25,11 @@ export default function DesignerPage() {
         </div>
       </header>
 
-      <section className="min-h-0 overflow-auto" style={{ border: '2px solid green', minHeight: '400px' }}>
+      <section className="min-h-0 overflow-auto bg-gray-50 flex items-center justify-center p-4">
         <FabricCanvas />
       </section>
 
-      <aside className="min-h-0 overflow-auto" style={{ border: '2px solid purple' }}>
+      <aside className="min-h-0 overflow-auto">
         <RightSidebar />
       </aside>
     </main>

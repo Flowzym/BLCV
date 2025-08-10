@@ -297,14 +297,14 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
       x: 50,
       y: currentY,
       width: sectionWidth,
-      height: 80,
+      height: 100,
       sectionType: 'profile',
       isVisible: true,
       parts: [{
         type: 'text',
         id: 'profile-summary',
         offsetX: 0,
-        offsetY: 20,
+        offsetY: 30,
         width: 470,
         text: norm(pd.summary),
         fontSize: 12,
@@ -316,7 +316,7 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
     };
     
     sections.push(profileSection);
-    currentY += 80 + sectionSpacing;
+    currentY += 100 + sectionSpacing;
     DBG('Created profile section:', { summaryLength: pd.summary.length });
   }
 
@@ -329,14 +329,14 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
       x: 50,
       y: currentY,
       width: sectionWidth,
-      height: 60,
+      height: 80,
       sectionType: 'skills',
       isVisible: true,
       parts: [{
         type: 'text',
         id: 'skills-summary',
         offsetX: 0,
-        offsetY: 20,
+        offsetY: 30,
         width: 470,
         text: norm(pd.skillsSummary),
         fontSize: 12,
@@ -348,7 +348,7 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
     };
     
     sections.push(skillsSection);
-    currentY += 60 + sectionSpacing;
+    currentY += 80 + sectionSpacing;
     DBG('Created skills section:', { skillsLength: pd.skillsSummary.length });
   }
 
@@ -361,14 +361,14 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
       x: 50,
       y: currentY,
       width: sectionWidth,
-      height: 60,
+      height: 80,
       sectionType: 'softskills',
       isVisible: true,
       parts: [{
         type: 'text',
         id: 'softskills-summary',
         offsetX: 0,
-        offsetY: 20,
+        offsetY: 30,
         width: 470,
         text: norm(pd.softSkillsSummary),
         fontSize: 12,
@@ -380,7 +380,7 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
     };
     
     sections.push(softSkillsSection);
-    currentY += 60 + sectionSpacing;
+    currentY += 80 + sectionSpacing;
     DBG('Created softskills section:', { softSkillsLength: pd.softSkillsSummary.length });
   }
 
