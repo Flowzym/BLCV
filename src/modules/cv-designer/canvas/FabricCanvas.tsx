@@ -8,7 +8,6 @@ const DBG = (msg: string, ...args: any[]) => {
   if (import.meta.env.VITE_DEBUG_DESIGNER_SYNC === "true") {
     console.log("[FABRIC_CANVAS]", msg, ...args);
   } else {
-    // ruhig, aber sichtbar
     // console.log("[FABRIC_CANVAS*]", msg, ...args);
   }
 };
@@ -16,7 +15,6 @@ const DBG = (msg: string, ...args: any[]) => {
 const PAGE_W = 595;
 const PAGE_H = 842;
 
-/** Guard: ist der Fabric-Canvas noch „lebendig“? (nach dispose sind Kontexte weg) */
 function isCanvasAlive(c: any): c is import("fabric").Canvas {
   return !!c && !!(c as any).contextContainer && !!(c as any).contextTop;
 }
@@ -26,7 +24,6 @@ export default function FabricCanvas() {
   const [fabricCanvas, setFabricCanvas] = useState<any>(null);
   const [fabricNamespace, setFabricNamespace] = useState<any>(null);
 
-  // Store
   const sections = useDesignerStore((s) => s.sections);
   const tokens = useDesignerStore((s) => s.tokens);
   const margins = useDesignerStore((s) => s.margins);
@@ -34,7 +31,6 @@ export default function FabricCanvas() {
   const globalFieldStyles = useDesignerStore((s) => s.globalFieldStyles);
   const partStyles = useDesignerStore((s) => s.partStyles);
 
-  // Fabric init
   useEffect(() => {
     let isMounted = true;
 
@@ -46,7 +42,6 @@ export default function FabricCanvas() {
         setFabricNamespace(fabric);
 
         if (canvasRef.current) {
-          // evtl. bestehenden Canvas entsorgen
           if (CanvasRegistry.has(canvasRef.current)) {
             CanvasRegistry.dispose(canvasRef.current);
           }
@@ -58,8 +53,6 @@ export default function FabricCanvas() {
           canvas.preserveObjectStacking = true;
 
           setFabricCanvas(canvas);
-
-          // Resize-Installer aktivieren
           installSectionResize(canvas);
         }
       } catch (err) {
@@ -79,38 +72,40 @@ export default function FabricCanvas() {
     };
   }, []);
 
-  // zentrale Reconciliation
   const renderSections = useCallback(async () => {
     if (!fabricCanvas || !fabricNamespace || !sections) return;
     if (!isCanvasAlive(fabricCanvas)) return;
 
-    // PHASE 1: Canvas säubern (nur wenn alive)
     try {
       fabricCanvas.clear();
     } catch {
-      // kann passieren, wenn parallel disposed wird
       return;
     }
 
-    // PHASE 2: Sektionen neu erstellen
     for (const section of sections) {
       if (!section?.isVisible) continue;
       if (!Array.isArray(section.parts) || section.parts.length === 0) continue;
 
       const textboxes: any[] = [];
 
+      // feste Innenränder der Sektion (kannst du gern über Tokens/Props steuern)
+      const PAD_R_DEFAULT = Number(section.props?.paddingRight ?? 16);
+      // Hinweis: padL kommt aus part.offsetX (pro Unterfeld)
+
       for (const part of section.parts) {
         if (part.type !== "text") continue;
 
-        const displayText = part.text || "";
+        const displayText = part.text ?? "";
+
         const padL = Math.max(0, part.offsetX || 0);
         const padT = Math.max(0, part.offsetY || 0);
-        const indentPx = 0; // wir nutzen offsets direkt; optional: für Bullets separat setzen
-        const approxWidth = Math.max(50, (part.width ?? (section.width - padL - 20)));
-        const padR = Math.max(0, section.width - padL - approxWidth - indentPx);
+        const indentPx = Number(part.indentPx ?? (part.fieldType === "bullet" ? 14 : 0));
+        const padR = Math.max(0, PAD_R_DEFAULT);
         const padB = 12;
 
-        // Styles zusammenführen
+        // Startbreite **immer** aus Sektion – NICHT aus einer alten approxWidth ableiten!
+        const initialTextWidth = Math.max(1, section.width - padL - padR - indentPx);
+
         const globalStyle = globalFieldStyles[section.sectionType]?.[part.fieldType || "content"] || {};
         const partStyleKey = `${section.sectionType}:${part.fieldType}`;
         const localPartStyle = partStyles[partStyleKey] || {};
@@ -127,19 +122,17 @@ export default function FabricCanvas() {
         };
 
         const tb = new fabricNamespace.Textbox(displayText, {
-          left: 0, // initial egal; wir setzen unten anchored TL
+          left: 0,
           top: 0,
-          width: Math.max(1, section.width - padL - padR - indentPx),
+          width: initialTextWidth,
           ...finalStyle,
           splitByGrapheme: true,
           breakWords: true,
-          // Nicht direkt editierbar in Phase 1
           selectable: false,
           evented: false,
           hasControls: false,
           hasBorders: false,
           editable: false,
-          // Locks
           lockScalingX: true,
           lockScalingY: true,
           lockMovementX: true,
@@ -156,7 +149,6 @@ export default function FabricCanvas() {
           skewY: 0,
         }) as any;
 
-        // Subfield-Metadaten
         tb.data = {
           fieldKey: part.id ?? `${section.id}:${part.fieldType}:${Math.random().toString(36).slice(2, 8)}`,
           padL, padT, padR, padB, indentPx,
@@ -164,13 +156,14 @@ export default function FabricCanvas() {
           order: Number.isFinite(part.order) ? part.order : 0,
           gapBefore: Number(part.gapBefore ?? 0),
           type: "textbox",
+          lineHeight: finalStyle.lineHeight,
         };
 
         tb.partId = part.id;
         tb.fieldType = part.fieldType;
         tb.sectionId = section.id;
 
-        // Initial-Position im Gruppen-Koordsystem (Center-basiert) nach anchored TL
+        // anchored TL -> center Koords der Gruppe
         const halfW = section.width / 2;
         const halfH = section.height / 2;
         const tlX = padL + indentPx;
@@ -181,7 +174,6 @@ export default function FabricCanvas() {
         textboxes.push(tb);
       }
 
-      // Sektionsgruppe
       const sectionGroup = new fabricNamespace.Group(textboxes, {
         left: section.x,
         top: section.y,
@@ -201,7 +193,7 @@ export default function FabricCanvas() {
         cornerColor: "#3b82f6",
       }) as any;
 
-      // WICHTIG: data setzen, damit der Installer die Gruppe erkennt!
+      // wichtig: Installer-Hint
       sectionGroup.data = { sectionId: section.id, type: "section" };
       sectionGroup.sectionId = section.id;
       sectionGroup.sectionType = section.sectionType;
@@ -209,20 +201,17 @@ export default function FabricCanvas() {
       fabricCanvas.add(sectionGroup);
     }
 
-    // PHASE 4: rendern
     if (isCanvasAlive(fabricCanvas)) {
       fabricCanvas.renderAll();
     }
   }, [fabricCanvas, fabricNamespace, sections, tokens, margins, globalFieldStyles, partStyles]);
 
-  // Re-render bei Section-Änderung
   useEffect(() => {
     if (fabricCanvas && sections) {
       renderSections();
     }
   }, [fabricCanvas, sections, renderSections]);
 
-  // Zoom
   useEffect(() => {
     if (!fabricCanvas) return;
     const safeZoom = Math.max(0.1, Math.min(5, zoom || 1));
@@ -232,7 +221,6 @@ export default function FabricCanvas() {
     }
   }, [fabricCanvas, zoom]);
 
-  // (Vorbereitung) Klick-Handler – später Overlay-Editor hier öffnen
   useEffect(() => {
     if (!fabricCanvas) return;
     const onMouseDown = (e: any) => {
@@ -243,7 +231,6 @@ export default function FabricCanvas() {
           sectionId: t.sectionId,
           text: (t.text || "").slice(0, 50),
         });
-        // TODO: Overlay-Editor öffnen
       }
     };
     fabricCanvas.on("mouse:down", onMouseDown);
