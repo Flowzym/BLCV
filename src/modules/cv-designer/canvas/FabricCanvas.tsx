@@ -223,7 +223,7 @@ export default function FabricCanvas() {
         const textObj = new fabricNamespace.Textbox(displayText, {
           left: part.offsetX || 0,
           top: part.offsetY || 0,
-          width: part.width || 300,
+          width: Math.max(50, (section.width || 500) - (part.offsetX || 0) - 20),
           
           // Real styling from part data
           fill: part.color || tokens?.colorPrimary || '#000000',
@@ -261,26 +261,10 @@ export default function FabricCanvas() {
           ...(part.letterSpacing && { charSpacing: part.letterSpacing * 1000 }) // Fabric uses 1/1000 em units
         });
 
-        // CRITICAL: Ensure text reflows when width changes
-        textObj.on('scaling', function() {
-          // Prevent scaling by resetting scale and adjusting width instead
-          const newWidth = textObj.width * textObj.scaleX;
-          textObj.set({
-            width: newWidth,
-            scaleX: 1,
-            scaleY: 1
-          });
-          textObj.setCoords();
-        });
-
-        textObj.on('modified', function() {
-          // Ensure scale stays at 1 after any modification
-          textObj.set({
-            scaleX: 1,
-            scaleY: 1
-          });
-          textObj.setCoords();
-        });
+        // Store reference to section for dynamic width updates
+        textObj.sectionRef = section;
+        textObj.originalOffsetX = part.offsetX || 0;
+        
         DBG(`Created textbox for ${part.id}:`, {
           text: displayText.substring(0, 50) + '...',
           left: textObj.left,
@@ -321,6 +305,23 @@ export default function FabricCanvas() {
       // Add section group to canvas
       fabricCanvas.add(sectionGroup);
       DBG(`Added section group ${section.id} to canvas`);
+      
+      // Add event listener to update textbox widths when section is resized
+      sectionGroup.on('modified', function() {
+        const groupObjects = sectionGroup.getObjects();
+        groupObjects.forEach((obj: any) => {
+          if (obj.type === 'textbox' && obj.sectionRef && obj.originalOffsetX !== undefined) {
+            const newWidth = Math.max(50, sectionGroup.width - obj.originalOffsetX - 20);
+            obj.set({
+              width: newWidth,
+              scaleX: 1,
+              scaleY: 1
+            });
+            obj.setCoords();
+          }
+        });
+        fabricCanvas.renderAll();
+      });
     }
 
     fabricCanvas.renderAll();
