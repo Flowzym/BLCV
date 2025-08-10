@@ -36,22 +36,41 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
   DBG('mapLebenslaufToSectionParts input:', {
     personalData: ctx?.personalData ? Object.keys(ctx.personalData) : 'none',
     berufserfahrung: ctx?.berufserfahrung?.length || 0,
-    ausbildung: ctx?.ausbildung?.length || 0
+    ausbildung: ctx?.ausbildung?.length || 0,
+    fullContext: ctx
   });
 
   const sections: CVSectionWithParts[] = [];
-  let currentY = 50; // Start-Y-Position für erste Sektion
+  let currentY = 100; // Start-Y-Position für erste Sektion (weiter unten, damit nicht abgeschnitten)
   const sectionWidth = 500;
   const sectionSpacing = 30;
 
   // ---- Berufserfahrung ----
   const erfArr = Array.isArray(ctx?.berufserfahrung) ? ctx.berufserfahrung : [];
+  DBG('Berufserfahrung array:', {
+    length: erfArr.length,
+    items: erfArr.map((exp: any, idx: number) => ({
+      index: idx,
+      id: exp?.id,
+      position: exp?.position,
+      companies: exp?.companies,
+      aufgabenbereiche: exp?.aufgabenbereiche,
+      hasData: !!(exp?.position || exp?.companies || exp?.aufgabenbereiche?.length)
+    }))
+  });
+  
   if (erfArr.length > 0) {
     // Berechne Höhe basierend auf Anzahl der Erfahrungen und Aufgaben
     const totalTasks = erfArr.reduce((sum: number, exp: any) => 
       sum + (Array.isArray(exp.aufgabenbereiche) ? exp.aufgabenbereiche.length : 0), 0
     );
     const sectionHeight = Math.max(120, 60 + (erfArr.length * 80) + (totalTasks * 16));
+    
+    DBG('Experience section calculation:', {
+      totalExperiences: erfArr.length,
+      totalTasks,
+      calculatedHeight: sectionHeight
+    });
 
     const expParts: CVTextPart[] = [];
     let partY = 20; // Start-Y innerhalb der Sektion
@@ -64,15 +83,28 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
       ].filter(Boolean).join(" ");
       const periodLine = formatPeriod(exp.startMonth, exp.startYear, exp.endMonth, exp.endYear, !!exp.isCurrent);
       
-      DBG(`Experience ${idx}:`, { 
-        id: exp.id, 
-        positionLine: positionLine.substring(0, 30) + '...', 
-        companyLine: companyLine.substring(0, 30) + '...', 
-        periodLine 
+      DBG(`Processing Experience ${idx}:`, { 
+        id: exp.id,
+        rawPosition: exp.position,
+        rawCompanies: exp.companies,
+        rawTasks: exp.aufgabenbereiche,
+        processedPositionLine: positionLine,
+        processedCompanyLine: companyLine,
+        processedPeriodLine: periodLine,
+        hasPositionData: !!positionLine,
+        hasCompanyData: !!companyLine,
+        hasPeriodData: !!periodLine,
+        currentPartY: partY
       });
 
       // Zeitraum (über Position)
       if (periodLine) {
+        DBG(`Creating period part for exp ${idx}:`, {
+          text: periodLine,
+          offsetX: 0,
+          offsetY: partY,
+          width: 350
+        });
         expParts.push({
           type: 'text',
           id: `per-${exp.id}`,
@@ -90,6 +122,12 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
 
       // Position (Titel)
       if (positionLine) {
+        DBG(`Creating position part for exp ${idx}:`, {
+          text: positionLine,
+          offsetX: 0,
+          offsetY: partY,
+          width: 350
+        });
         expParts.push({
           type: 'text',
           id: `pos-${exp.id}`,
@@ -108,6 +146,12 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
 
       // Unternehmen
       if (companyLine) {
+        DBG(`Creating company part for exp ${idx}:`, {
+          text: companyLine,
+          offsetX: 0,
+          offsetY: partY,
+          width: 350
+        });
         expParts.push({
           type: 'text',
           id: `cmp-${exp.id}`,
@@ -125,7 +169,14 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
 
       // Aufgaben als Bullet-Points
       if (Array.isArray(exp.aufgabenbereiche) && exp.aufgabenbereiche.length > 0) {
+        DBG(`Creating ${exp.aufgabenbereiche.length} task parts for exp ${idx}:`, exp.aufgabenbereiche);
         exp.aufgabenbereiche.forEach((task: string, taskIdx: number) => {
+          DBG(`Creating task part ${taskIdx} for exp ${idx}:`, {
+            text: `• ${norm(task)}`,
+            offsetX: 20,
+            offsetY: partY,
+            width: 450
+          });
           expParts.push({
             type: 'text',
             id: `task-${exp.id}-${taskIdx}`,
@@ -146,6 +197,17 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
       partY += 25; // Abstand zwischen Erfahrungen
     });
 
+    DBG('Final experience parts created:', {
+      totalParts: expParts.length,
+      partDetails: expParts.map(part => ({
+        id: part.id,
+        fieldType: part.fieldType,
+        text: part.text.substring(0, 50) + '...',
+        position: { x: part.offsetX, y: part.offsetY },
+        size: { width: part.width, fontSize: part.fontSize }
+      }))
+    });
+
     const experienceSection: CVSectionWithParts = {
       id: 'experience',
       type: 'erfahrung',
@@ -164,12 +226,24 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
     currentY += sectionHeight + sectionSpacing;
     DBG('Created experience section:', { 
       partsCount: expParts.length, 
-      frame: { x: experienceSection.x, y: experienceSection.y, width: experienceSection.width, height: experienceSection.height }
+      frame: { x: experienceSection.x, y: experienceSection.y, width: experienceSection.width, height: experienceSection.height },
+      sectionData: experienceSection
     });
   }
 
   // ---- Ausbildung ----
   const eduArr = Array.isArray(ctx?.ausbildung) ? ctx.ausbildung : [];
+  DBG('Ausbildung array:', {
+    length: eduArr.length,
+    items: eduArr.map((edu: any, idx: number) => ({
+      index: idx,
+      id: edu?.id,
+      abschluss: edu?.abschluss,
+      institution: edu?.institution,
+      hasData: !!(edu?.abschluss || edu?.institution)
+    }))
+  });
+  
   if (eduArr.length > 0) {
     const sectionHeight = Math.max(100, 60 + (eduArr.length * 70));
     const eduParts: CVTextPart[] = [];
@@ -183,15 +257,28 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
       const institutionLine = Array.isArray(edu.institution) ? edu.institution.join(", ") : norm(edu.institution);
       const periodLine = formatPeriod(edu.startMonth, edu.startYear, edu.endMonth, edu.endYear, !!edu.isCurrent);
 
-      DBG(`Education ${idx}:`, { 
-        id: edu.id, 
-        titleLine: titleLine.substring(0, 30) + '...', 
-        institutionLine: institutionLine.substring(0, 30) + '...', 
-        periodLine 
+      DBG(`Processing Education ${idx}:`, { 
+        id: edu.id,
+        rawAusbildungsart: edu.ausbildungsart,
+        rawAbschluss: edu.abschluss,
+        rawInstitution: edu.institution,
+        processedTitleLine: titleLine,
+        processedInstitutionLine: institutionLine,
+        processedPeriodLine: periodLine,
+        hasTitleData: !!titleLine,
+        hasInstitutionData: !!institutionLine,
+        hasPeriodData: !!periodLine,
+        currentPartY: partY
       });
 
       // Titel (Ausbildungsart + Abschluss)
       if (titleLine) {
+        DBG(`Creating education title part for edu ${idx}:`, {
+          text: titleLine,
+          offsetX: 0,
+          offsetY: partY,
+          width: 350
+        });
         eduParts.push({
           type: 'text',
           id: `edu-title-${edu.id}`,
@@ -211,6 +298,12 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
       // Institution und Zeitraum
       if (institutionLine || periodLine) {
         if (institutionLine) {
+          DBG(`Creating institution part for edu ${idx}:`, {
+            text: institutionLine,
+            offsetX: 0,
+            offsetY: partY,
+            width: 300
+          });
           eduParts.push({
             type: 'text',
             id: `edu-inst-${edu.id}`,
@@ -227,6 +320,12 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
         }
         
         if (periodLine) {
+          DBG(`Creating period part for edu ${idx}:`, {
+            text: periodLine,
+            offsetX: 320,
+            offsetY: partY,
+            width: 150
+          });
           eduParts.push({
             type: 'text',
             id: `edu-per-${edu.id}`,
@@ -245,6 +344,12 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
 
       // Zusatzangaben
       if (edu.zusatzangaben?.trim()) {
+        DBG(`Creating note part for edu ${idx}:`, {
+          text: norm(edu.zusatzangaben),
+          offsetX: 0,
+          offsetY: partY,
+          width: 470
+        });
         eduParts.push({
           type: 'text',
           id: `edu-note-${edu.id}`,
@@ -262,6 +367,17 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
       }
 
       partY += 20; // Abstand zwischen Ausbildungen
+    });
+
+    DBG('Final education parts created:', {
+      totalParts: eduParts.length,
+      partDetails: eduParts.map(part => ({
+        id: part.id,
+        fieldType: part.fieldType,
+        text: part.text.substring(0, 50) + '...',
+        position: { x: part.offsetX, y: part.offsetY },
+        size: { width: part.width, fontSize: part.fontSize }
+      }))
     });
 
     const educationSection: CVSectionWithParts = {
@@ -282,13 +398,24 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
     currentY += sectionHeight + sectionSpacing;
     DBG('Created education section:', { 
       partsCount: eduParts.length,
-      frame: { x: educationSection.x, y: educationSection.y, width: educationSection.width, height: educationSection.height }
+      frame: { x: educationSection.x, y: educationSection.y, width: educationSection.width, height: educationSection.height },
+      sectionData: educationSection
     });
   }
 
   // ---- Personal Data Sections ----
   const pd = ctx?.personalData ?? {};
+  DBG('Personal data:', {
+    summary: pd.summary?.substring(0, 50) + '...',
+    skillsSummary: pd.skillsSummary?.substring(0, 50) + '...',
+    softSkillsSummary: pd.softSkillsSummary?.substring(0, 50) + '...',
+    hasSummary: !!pd.summary?.trim(),
+    hasSkills: !!pd.skillsSummary?.trim(),
+    hasSoftSkills: !!pd.softSkillsSummary?.trim()
+  });
+  
   if (pd.summary?.trim()) {
+    DBG('Creating profile section with summary:', pd.summary);
     const profileSection: CVSectionWithParts = {
       id: 'profile',
       type: 'profil',
@@ -317,10 +444,14 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
     
     sections.push(profileSection);
     currentY += 100 + sectionSpacing;
-    DBG('Created profile section:', { summaryLength: pd.summary.length });
+    DBG('Created profile section:', { 
+      summaryLength: pd.summary.length,
+      sectionData: profileSection
+    });
   }
 
   if (pd.skillsSummary?.trim()) {
+    DBG('Creating skills section with summary:', pd.skillsSummary);
     const skillsSection: CVSectionWithParts = {
       id: 'skills',
       type: 'kenntnisse',
@@ -349,10 +480,14 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
     
     sections.push(skillsSection);
     currentY += 80 + sectionSpacing;
-    DBG('Created skills section:', { skillsLength: pd.skillsSummary.length });
+    DBG('Created skills section:', { 
+      skillsLength: pd.skillsSummary.length,
+      sectionData: skillsSection
+    });
   }
 
   if (pd.softSkillsSummary?.trim()) {
+    DBG('Creating softskills section with summary:', pd.softSkillsSummary);
     const softSkillsSection: CVSectionWithParts = {
       id: 'softskills',
       type: 'softskills',
@@ -381,7 +516,10 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
     
     sections.push(softSkillsSection);
     currentY += 80 + sectionSpacing;
-    DBG('Created softskills section:', { softSkillsLength: pd.softSkillsSummary.length });
+    DBG('Created softskills section:', { 
+      softSkillsLength: pd.softSkillsSummary.length,
+      sectionData: softSkillsSection
+    });
   }
 
   DBG('mapLebenslaufToSectionParts output:', { 
@@ -391,7 +529,8 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
       title: s.title, 
       partsCount: s.parts.length,
       frame: { x: s.x, y: s.y, width: s.width, height: s.height }
-    }))
+    })),
+    fullSections: sections
   });
 
   return sections;

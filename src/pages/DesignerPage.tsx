@@ -25,7 +25,7 @@ export default function DesignerPage() {
         </div>
       </header>
 
-      <section className="min-h-0 overflow-auto bg-gray-50 flex items-center justify-center p-4">
+      <section className="min-h-0 overflow-auto bg-gray-50 p-4">
         <FabricCanvas />
       </section>
 
