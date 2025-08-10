@@ -6,6 +6,9 @@ import getFabric from "@/lib/fabric-shim";
 const DBG = (msg: string, ...args: any[]) => {
   if (import.meta.env.VITE_DEBUG_DESIGNER_SYNC === 'true') {
     console.log('[FABRIC_CANVAS]', msg, ...args);
+  } else {
+    // Temporär: Alle Debug-Logs anzeigen für Debugging
+    console.log('[FABRIC_CANVAS]', msg, ...args);
   }
 };
 
@@ -242,16 +245,28 @@ export default function FabricCanvas() {
 
     const safeSections = Array.isArray(sections) ? sections : [];
     
-    DBG('Rendering sections:', { 
+    DBG('=== RENDERING SECTIONS START ===');
+    DBG('Input sections data:', { 
       sectionsCount: safeSections.length, 
       version,
-      sections: safeSections.slice(0, 3).map(s => ({ 
+      sectionsDetailed: safeSections.map(s => ({ 
         id: s.id,
         title: s.title,
         type: s.type,
+        sectionType: s.sectionType,
         x: s.x,
         y: s.y,
-        partsCount: s.parts?.length || 0
+        width: s.width,
+        height: s.height,
+        partsCount: s.parts?.length || 0,
+        partsPreview: s.parts?.slice(0, 2).map(p => ({
+          id: p.id,
+          fieldType: p.fieldType,
+          text: p.text?.substring(0, 30) + '...',
+          offsetX: p.offsetX,
+          offsetY: p.offsetY,
+          width: p.width
+        })) || []
       }))
     });
 
@@ -262,23 +277,12 @@ export default function FabricCanvas() {
       canvas.requestRenderAll();
       return;
     }
+
     (async () => {
       try {
         const fabric = await getFabric();
         DBG('Fabric loaded successfully, proceeding with rendering');
         
-        // Get current styles from store
-        const state = useDesignerStore.getState();
-        const globalFieldStyles = state.globalFieldStyles || {};
-        const partStyles = state.partStyles || {};
-        const tokens = state.tokens || {};
-        
-        DBG('Store state loaded:', {
-          hasGlobalFieldStyles: Object.keys(globalFieldStyles).length > 0,
-          hasPartStyles: Object.keys(partStyles).length > 0,
-          hasTokens: Object.keys(tokens).length > 0
-        });
-
         // Entferne alle bisherigen Objekte
         const objects = canvas.getObjects();
         DBG('Clearing existing objects:', objects.length);
@@ -293,17 +297,11 @@ export default function FabricCanvas() {
             return;
           }
           
-          DBG(`Processing section ${sectionIndex}:`, { 
+          DBG(`=== PROCESSING SECTION ${sectionIndex} ===`);
+          DBG(`Section details:`, { 
             id: section.id,
             title: section.title,
             sectionType: section.sectionType,
-            frame: { x: section.x, y: section.y, width: section.width, height: section.height },
-            partsCount: section.parts.length,
-            parts: section.parts.map(p => ({ id: p.id, fieldType: p.fieldType, text: p.text?.substring(0, 20) + '...' }))
-          });
-          DBG(`Creating group for section ${sectionIndex}:`, { 
-            id: section.id,
-            title: section.title,
             frame: { x: section.x, y: section.y, width: section.width, height: section.height },
             partsCount: section.parts.length
           });
@@ -317,84 +315,55 @@ export default function FabricCanvas() {
               return;
             }
             
-            const displayText = (part.text || '').trim() || `Part ${partIndex}`;
+            // TEMPORÄR: Hardcodierter Text für Debugging
+            const displayText = `Test Text ${sectionIndex}-${partIndex}`;
+            const originalText = (part.text || '').trim();
             
             DBG(`Creating text part ${partIndex}:`, {
               id: part.id,
               fieldType: part.fieldType,
-              text: displayText.substring(0, 30) + '...',
-              offset: { x: part.offsetX, y: part.offsetY },
-              width: part.width
-            });
-            
-            // Hierarchische Style-Anwendung: part > globalField > tokens
-            const sectionType = section.sectionType || 'experience';
-            const fieldType = part.fieldType || 'content';
-            
-            // 1. Basis aus tokens
-            const tokenStyle = {
-              fontFamily: tokens.fontFamily || 'Arial',
-              fontSize: tokens.fontSize || 12,
-              lineHeight: tokens.lineHeight || 1.4,
-              color: tokens.colorPrimary || '#111111'
-            };
-            
-            // 2. Globale Feld-Styles
-            const globalFieldStyle = globalFieldStyles[sectionType]?.[fieldType] || {};
-            
-            // 3. Part-spezifische Styles (höchste Priorität)
-            const partSpecificStyle = {
-              fontFamily: part.fontFamily,
-              fontSize: part.fontSize,
-              fontWeight: part.fontWeight,
-              fontStyle: part.fontStyle,
-              color: part.color,
-              lineHeight: part.lineHeight,
-              letterSpacing: part.letterSpacing,
-              textAlign: part.textAlign
-            };
-            
-            // Merge in korrekter Reihenfolge
-            const mergedStyle = {
-              fontFamily: partSpecificStyle.fontFamily ?? globalFieldStyle.fontFamily ?? tokenStyle.fontFamily,
-              fontSize: partSpecificStyle.fontSize ?? globalFieldStyle.fontSize ?? tokenStyle.fontSize,
-              fontWeight: partSpecificStyle.fontWeight ?? globalFieldStyle.fontWeight ?? 'normal',
-              fontStyle: partSpecificStyle.fontStyle ?? (globalFieldStyle.italic ? 'italic' : 'normal'),
-              fill: partSpecificStyle.color ?? globalFieldStyle.textColor ?? tokenStyle.color,
-              lineHeight: partSpecificStyle.lineHeight ?? globalFieldStyle.lineHeight ?? tokenStyle.lineHeight,
-              charSpacing: (partSpecificStyle.letterSpacing ?? globalFieldStyle.letterSpacing ?? 0) * 1000, // em to fabric units
-              textAlign: partSpecificStyle.textAlign ?? 'left'
-            };
-            
-            DBG(`Final style for ${section.id}:${fieldType}:`, mergedStyle);
-            DBG(`Style merge for ${section.id}:${fieldType}:`, {
-              tokenStyle,
-              globalFieldStyle,
-              partSpecificStyle,
-              mergedStyle
-            });
-            
-            DBG(`Creating text object ${partIndex} in section ${section.id}:`, { 
-              id: part.id,
-              text: displayText.substring(0, 30) + '...',
+              originalText: originalText.substring(0, 30) + '...',
+              displayText: displayText,
               offset: { x: part.offsetX, y: part.offsetY },
               width: part.width,
-              appliedStyle: mergedStyle
+              rawPart: part
             });
             
+            // TEMPORÄR: Einfache, hardcodierte Styles für Debugging
+            const simpleStyle = {
+              fontFamily: 'Arial',
+              fontSize: 16,
+              fontWeight: 'normal',
+              fontStyle: 'normal',
+              fill: '#000000',
+              lineHeight: 1.4,
+              charSpacing: 0,
+              textAlign: 'left'
+            };
+            
+            DBG(`Using simple style for debugging:`, simpleStyle);
+            
             try {
+              DBG(`About to create Textbox with:`, {
+                text: displayText,
+                left: part.offsetX || 0,
+                top: part.offsetY || 0,
+                width: part.width || 280,
+                style: simpleStyle
+              });
+              
               const textObj = new fabric.Textbox(displayText, {
                 left: part.offsetX || 0,
                 top: part.offsetY || 0,
                 width: part.width || 280,
-                fontFamily: mergedStyle.fontFamily,
-                fontSize: mergedStyle.fontSize,
-                fontWeight: mergedStyle.fontWeight,
-                fontStyle: mergedStyle.fontStyle,
-                fill: mergedStyle.fill,
-                lineHeight: mergedStyle.lineHeight,
-                charSpacing: mergedStyle.charSpacing,
-                textAlign: mergedStyle.textAlign,
+                fontFamily: simpleStyle.fontFamily,
+                fontSize: simpleStyle.fontSize,
+                fontWeight: simpleStyle.fontWeight,
+                fontStyle: simpleStyle.fontStyle,
+                fill: simpleStyle.fill,
+                lineHeight: simpleStyle.lineHeight,
+                charSpacing: simpleStyle.charSpacing,
+                textAlign: simpleStyle.textAlign,
                 selectable: false,
                 evented: true,
                 hasControls: false,
@@ -410,34 +379,44 @@ export default function FabricCanvas() {
               (textObj as any).__sectionType = section.sectionType;
             
               textObjects.push(textObj);
-              DBG(`Text object created successfully for part ${partIndex}`);
+              DBG(`Text object created successfully for part ${partIndex}:`, {
+                id: part.id,
+                fabricObject: {
+                  left: textObj.left,
+                  top: textObj.top,
+                  width: textObj.width,
+                  height: textObj.height,
+                  text: textObj.text
+                }
+              });
               
             } catch (error) {
               DBG(`Error creating text object for part ${partIndex}:`, error);
-              // Fallback: einfaches Text-Objekt ohne erweiterte Styles
-              const fallbackTextObj = new fabric.Textbox(displayText, {
-                left: part.offsetX || 0,
-                top: part.offsetY || 0,
-                width: part.width || 280,
-                fontSize: 12,
-                fontFamily: 'Arial',
-                fill: '#000000',
-                selectable: false,
-                evented: true
-              });
-              
-              (fallbackTextObj as any).__partId = part.id;
-              (fallbackTextObj as any).__fieldType = part.fieldType;
-              (fallbackTextObj as any).__sectionType = section.sectionType;
-              
-              textObjects.push(fallbackTextObj);
-              DBG(`Fallback text object created for part ${partIndex}`);
+              console.error(`CRITICAL: Failed to create text object for part ${partIndex}:`, error);
             }
+          });
+          
+          DBG(`Text objects created for section ${section.id}:`, {
+            count: textObjects.length,
+            objects: textObjects.map(obj => ({
+              left: obj.left,
+              top: obj.top,
+              width: obj.width,
+              height: obj.height,
+              text: obj.text?.substring(0, 20) + '...'
+            }))
           });
           
           // Erstelle Fabric Group für die Section
           if (textObjects.length > 0) {
             try {
+              DBG(`Creating group for section ${section.id} with frame:`, {
+                left: section.x || 50,
+                top: section.y || 50,
+                width: section.width || 500,
+                height: section.height || 150
+              });
+              
               const sectionGroup = new fabric.Group(textObjects, {
                 left: section.x || 50,
                 top: section.y || 50,
@@ -458,9 +437,16 @@ export default function FabricCanvas() {
               (sectionGroup as any).__sectionType = section.sectionType;
               (sectionGroup as any).__sectionTitle = section.title;
             
+              DBG(`About to add group to canvas:`, {
+                sectionId: section.id,
+                groupPosition: { left: sectionGroup.left, top: sectionGroup.top },
+                groupSize: { width: sectionGroup.width, height: sectionGroup.height },
+                textObjectsInGroup: sectionGroup.getObjects().length
+              });
+              
               canvas.add(sectionGroup);
             
-              DBG(`Added section group ${sectionIndex}:`, { 
+              DBG(`✅ Successfully added section group ${sectionIndex}:`, { 
                 id: section.id,
                 title: section.title,
                 position: { left: sectionGroup.left, top: sectionGroup.top },
@@ -469,22 +455,25 @@ export default function FabricCanvas() {
               });
               
             } catch (error) {
-              DBG(`Error creating section group ${sectionIndex}:`, error);
+              console.error(`CRITICAL: Error creating section group ${sectionIndex}:`, error);
             }
           } else {
-            DBG(`No text objects created for section ${section.id}, skipping group creation`);
+            console.warn(`WARNING: No text objects created for section ${section.id}, skipping group creation`);
           }
         });
 
+        DBG('About to request canvas render...');
         canvas.requestRenderAll();
-        DBG('Canvas render complete:', { 
+        DBG('✅ Canvas render complete:', { 
           totalGroups: canvas.getObjects().length,
-          sectionsProcessed: safeSections.length
+          sectionsProcessed: safeSections.length,
+          canvasSize: { width: canvas.getWidth(), height: canvas.getHeight() }
         });
+        DBG('=== RENDERING SECTIONS END ===');
         
       } catch (error) {
-        DBG('Critical error in section rendering:', error);
-        console.error('FabricCanvas rendering error:', error);
+        console.error('CRITICAL: FabricCanvas rendering error:', error);
+        console.error('Error stack:', error.stack);
       }
     })();
   }, [sections, version, updateFrame, updateTypographySelection]);
