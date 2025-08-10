@@ -31,5 +31,3 @@ export function initDesignerBridge() {
   
   console.log('[BRIDGE] Bridge initialized successfully');
 }
-
-}
