@@ -34,18 +34,25 @@ export default function PartTypographyPanel() {
   const partStyles = useDesignerStore((s) => s.partStyles);
   const tokens = useDesignerStore((s) => s.tokens);
   const sections = useDesignerStore((s) => s.sections);
+  const selectedTypographyField = useDesignerStore((s) => s.selectedTypographyField);
 
   const updateGlobal = useDesignerStore((s) => s.updateGlobalPartStyle);
   const clearGlobal = useDesignerStore((s) => s.clearGlobalPartStyle);
+  const setSelectedField = useDesignerStore((s) => s.setSelectedTypographyField);
 
-  const [group, setGroup] = useState<GroupKey>(groups[0] ?? "erfahrung");
-  const [part, setPart] = useState<PartKey>(PARTS_BY_GROUP[group][0]);
+  // Use selected field from store, with fallback to first available
+  const group = (selectedTypographyField?.sectionType as GroupKey) ?? groups[0] ?? "erfahrung";
+  const part = (selectedTypographyField?.fieldType as PartKey) ?? PARTS_BY_GROUP[group]?.[0] ?? "titel";
 
-  useEffect(() => {
-    if (!PARTS_BY_GROUP[group].includes(part)) {
-      setPart(PARTS_BY_GROUP[group][0]);
-    }
-  }, [group]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Update selection when dropdowns change
+  const handleGroupChange = (newGroup: GroupKey) => {
+    const newPart = PARTS_BY_GROUP[newGroup]?.[0] ?? "titel";
+    setSelectedField({ sectionType: newGroup, fieldType: newPart });
+  };
+
+  const handlePartChange = (newPart: PartKey) => {
+    setSelectedField({ sectionType: group, fieldType: newPart });
+  };
 
   const key = `${group}:${part}`;
   const current: PartStyle | undefined = partStyles[key];
@@ -111,7 +118,7 @@ export default function PartTypographyPanel() {
           <label className="block text-xs text-gray-600 mb-1">Gruppe</label>
           <select
             value={group}
-            onChange={(e) => setGroup(e.target.value as GroupKey)}
+            onChange={(e) => handleGroupChange(e.target.value as GroupKey)}
             className="w-full border rounded px-2 py-1 text-sm"
           >
             {groups.map((g) => (
@@ -123,7 +130,7 @@ export default function PartTypographyPanel() {
           <label className="block text-xs text-gray-600 mb-1">Feld</label>
           <select
             value={part}
-            onChange={(e) => setPart(e.target.value as PartKey)}
+            onChange={(e) => handlePartChange(e.target.value as PartKey)}
             className="w-full border rounded px-2 py-1 text-sm"
           >
             {PARTS_BY_GROUP[group].map((p) => (

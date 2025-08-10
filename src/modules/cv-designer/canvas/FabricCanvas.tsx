@@ -19,6 +19,7 @@ export default function FabricCanvas() {
   const version = useDesignerStore(s => s.version);
   const zoom = useDesignerStore(s => s.zoom);
   const updateFrame = useDesignerStore(s => s.updateFrame);
+  const updateTypographySelection = useDesignerStore(s => s.setSelectedTypographyField);
 
   // HMR Cleanup
   useEffect(() => {
@@ -149,6 +150,30 @@ export default function FabricCanvas() {
         }
       });
 
+      // Handle clicks on individual text parts for typography selection
+      canvas.on('mouse:down', (e: any) => {
+        const target = e.target;
+        if (!target) return;
+        
+        // Check if clicked on a textbox within a group
+        if (target.type === 'textbox' && target.__fieldType && target.__sectionType) {
+          DBG('Text part clicked:', { 
+            sectionType: target.__sectionType, 
+            fieldType: target.__fieldType,
+            partId: target.__partId 
+          });
+          
+          // Update typography field selection in store
+          updateTypographySelection(target.__sectionType, target.__fieldType);
+        }
+        // Check if clicked on a group (section)
+        else if (target.type === 'group' && target.__sectionType) {
+          DBG('Section group clicked:', { sectionType: target.__sectionType });
+          // Default to 'content' field when clicking on section
+          updateTypographySelection(target.__sectionType, 'content');
+        }
+      });
+
       // Initiales Rendering
       canvas.requestRenderAll();
       DBG('Canvas initialized successfully');
@@ -255,6 +280,7 @@ export default function FabricCanvas() {
             
             (textObj as any).__partId = part.id;
             (textObj as any).__fieldType = part.fieldType;
+            (textObj as any).__sectionType = section.sectionType;
             
             textObjects.push(textObj);
           });
