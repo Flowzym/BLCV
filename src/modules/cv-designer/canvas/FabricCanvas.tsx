@@ -280,32 +280,56 @@ export default function FabricCanvas() {
       sectionGroup.on('modified', function() {
         DBG(`Section ${section.id} modified - triggering canvas refresh`);
         
-        // Text-Reflow-Logik für alle Textboxen in der Gruppe
+        // ERWEITERTE Text-Reflow-Logik für alle Textboxen in der Gruppe
         const groupObjects = sectionGroup.getObjects();
         
         for (const obj of groupObjects) {
           if (obj.type === 'textbox') {
             try {
-              // Berechne neue effektive Dimensionen nach Gruppenskalierung
-              const scaledWidth = obj.getScaledWidth();
-              const scaledHeight = obj.getScaledHeight();
+              // Speichere ursprünglichen Text
+              const originalText = obj.text || '';
               
-              // Setze neue Dimensionen und normalisiere Skalierung
+              // Berechne neue effektive Breite nach Gruppenskalierung
+              const scaledWidth = obj.getScaledWidth();
+              
+              DBG(`Text reflow for ${obj.partId}:`, {
+                originalWidth: obj.width,
+                scaledWidth: scaledWidth,
+                originalText: originalText.substring(0, 30) + '...',
+                scaleX: obj.scaleX,
+                scaleY: obj.scaleY
+              });
+              
+              // KRITISCH: Cache leeren vor Dimensionsänderung
+              if (typeof obj._clearCache === 'function') {
+                obj._clearCache();
+              }
+              
+              // Setze neue Breite und normalisiere Skalierung (KEINE height!)
               obj.set({
                 width: scaledWidth,
-                height: scaledHeight,
                 scaleX: 1,
                 scaleY: 1
               });
               
-              // Erzwinge Text-Reflow und Koordinaten-Update
+              // KRITISCH: Erzwinge Text-Reflow durch Text-Reset
+              obj.set('text', '');
+              obj.set('text', originalText);
+              
+              // Koordinaten und Dimensionen aktualisieren
               obj.setCoords();
-              obj.initDimensions();
+              if (typeof obj.initDimensions === 'function') {
+                obj.initDimensions();
+              }
+              
+              // Objekt als "dirty" markieren für nächstes Rendering
+              obj.set('dirty', true);
               
               DBG(`Text reflow applied to ${obj.partId}:`, {
                 newWidth: scaledWidth,
-                newHeight: scaledHeight,
-                text: obj.text?.substring(0, 20) + '...'
+                 finalHeight: obj.height,
+                 text: obj.text?.substring(0, 20) + '...',
+                 dirty: obj.dirty
               });
               
             } catch (error) {
