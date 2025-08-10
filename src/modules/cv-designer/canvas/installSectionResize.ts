@@ -4,7 +4,7 @@ import { getFabric } from "@/lib/fabric-shim";
 type WithData = fabric.Object & { data?: any };
 
 function isSectionGroup(obj: any): obj is fabric.Group & WithData {
-  // Check if it's a group and has a sectionId in its data, indicating it's one of our custom section groups
+  // Check if it's a group and has a sectionId directly on the object, indicating it's one of our custom section groups
   return !!obj && obj.type === 'group' && !!(obj as any).sectionId;
 }
 
@@ -13,20 +13,20 @@ function ensureRatios(group: fabric.Group & WithData) {
   // Only compute ratios once
   if (g.__ratiosComputed) return;
   
-  const gw = group.width || 1;
-  const gh = group.height || 1;
+  const gw = group.width || 1; // Group's current width
+  const gh = group.height || 1; // Group's current height
 
   group._objects.forEach((child: any) => {
     // Calculate child's top-left corner relative to group's top-left corner
     const lx = (child.left ?? 0) + (child.originX === 'center' ? child.width!/2 : 0);
-    )
-    const ty = (child.top ?? 0)  + (child.originY === 'center' ? child.height!/2 : 0);
+    // Calculate child's top-left corner relative to group's top-left corner
+    // Assuming child.left and child.top are already relative to the group's top-left (default for Fabric.js objects in a group)
     )
     
     // Store ratios relative to group's original dimensions
     child.__ratio = {
-      left: lx / gw,
-      top:  ty / gh,
+      left: (child.left || 0) / gw,   // Ratio of child's left to group's width
+      top:  (child.top || 0) / gh,    // Ratio of child's top to group's height
       width: (child.width || 0) / gw,
       height: (child.height || 0) / gh,
     };
@@ -75,7 +75,7 @@ export async function installSectionResize(canvas: fabric.Canvas) {
       }
 
       // Update child's position based on new group dimensions and stored ratios
-      // Positions are relative to the group's center, so adjust for top-left origin
+      // Positions are relative to the group's top-left origin
       const nx = r.left * gw;
       const ny = r.top  * gh;
       child.set({ left: nx, top: ny });
