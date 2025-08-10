@@ -25,7 +25,7 @@ export default function FabricCanvas() {
   const [fabricNamespace, setFabricNamespace] = useState<any>(null);
   const [activeEdit, setActiveEdit] = useState<ActiveEdit>(null);
 
-  // Store-Zugriff
+  // Store
   const sections = useDesignerStore((s) => s.sections);
   const tokens = useDesignerStore((s) => s.tokens);
   const margins = useDesignerStore((s) => s.margins);
@@ -33,86 +33,72 @@ export default function FabricCanvas() {
   const globalFieldStyles = useDesignerStore((s) => s.globalFieldStyles);
   const partStyles = useDesignerStore((s) => s.partStyles);
 
-  // Fabric.js initialisieren
   useEffect(() => {
     let isMounted = true;
 
     const initFabric = async () => {
-      try {
-        const fabric = await getFabric();
-        if (!isMounted) return;
+      const fabric = await getFabric();
+      if (!isMounted) return;
 
-        setFabricNamespace(fabric);
+      setFabricNamespace(fabric);
 
-        if (canvasRef.current) {
-          if (CanvasRegistry.has(canvasRef.current)) {
-            CanvasRegistry.dispose(canvasRef.current);
+      if (canvasRef.current) {
+        if (CanvasRegistry.has(canvasRef.current)) {
+          CanvasRegistry.dispose(canvasRef.current);
+        }
+
+        const canvas = CanvasRegistry.getOrCreate(canvasRef.current, fabric);
+        canvas.setDimensions({ width: PAGE_W, height: PAGE_H });
+        canvas.backgroundColor = "#ffffff";
+
+        // Interaktion
+        canvas.selection = true;            // Lasso/Griffe erlaubt
+        canvas.subTargetCheck = true;       // Kinder in Gruppen treffbar
+        canvas.perPixelTargetFind = true;
+        canvas.targetFindTolerance = 6;
+
+        setFabricCanvas(canvas);
+        installSectionResize(canvas);
+
+        // Klick öffnet Overlay nur bei Textbox
+        const onMouseUp = (e: any) => {
+          let t: any = null;
+
+          if (Array.isArray(e.subTargets) && e.subTargets.length) {
+            t = e.subTargets.find((o: any) => o?.type === "textbox") ?? null;
+          }
+          if (!t && e.target && e.target.type === "textbox") t = e.target;
+
+          if (!t && e.target && e.target.type === "group") {
+            const grp = e.target;
+            const p = canvas.getPointer(e.e);
+            const hit = (grp._objects || []).find((child: any) => {
+              if (child.type !== "textbox") return false;
+              const r = child.getBoundingRect(true, true);
+              return p.x >= r.left && p.x <= r.left + r.width && p.y >= r.top && p.y <= r.top + r.height;
+            });
+            if (hit) t = hit;
           }
 
-          const canvas = CanvasRegistry.getOrCreate(canvasRef.current, fabric);
-          canvas.setDimensions({ width: PAGE_W, height: PAGE_H });
-          canvas.backgroundColor = "#ffffff";
+          if (!t) return;
+          if (t.type === "textbox" && t.sectionId && t.fieldType) {
+            const grp = t.group;
+            if (!grp) return;
+            setActiveEdit({
+              sectionId: t.sectionId,
+              sectionType: grp.sectionType || "experience",
+              fieldType: t.fieldType,
+              group: grp,
+              textbox: t,
+            });
+          }
+        };
 
-          // ✳️ Interaktionseinstellungen
-          canvas.selection = false;           // kein Auswahlrechteck
-          canvas.subTargetCheck = true;       // Kinder in Gruppen klickbar
-          canvas.perPixelTargetFind = true;   // präziser Hit-Test
-          canvas.targetFindTolerance = 6;
+        canvas.on("mouse:up", onMouseUp);
 
-          setFabricCanvas(canvas);
-          installSectionResize(canvas);
-
-          // Klick-Handler → Overlay
-          const onMouseUp = (e: any) => {
-            let t: any = null;
-
-            // a) bevorzugt: subTargets (Kinder)
-            if (Array.isArray(e.subTargets) && e.subTargets.length) {
-              t = e.subTargets.find((o: any) => o?.type === "textbox") ?? null;
-            }
-
-            // b) direktes Target ist Textbox
-            if (!t && e.target && e.target.type === "textbox") {
-              t = e.target;
-            }
-
-            // c) Gruppe getroffen? → innerhalb Gruppe am Pointer prüfen
-            if (!t && e.target && e.target.type === "group") {
-              const grp = e.target;
-              const pointer = canvas.getPointer(e.e);
-              const hit = (grp._objects || []).find((child: any) => {
-                if (child.type !== "textbox") return false;
-                const r = child.getBoundingRect(true, true);
-                return pointer.x >= r.left && pointer.x <= r.left + r.width &&
-                       pointer.y >= r.top  && pointer.y <= r.top  + r.height;
-              });
-              if (hit) t = hit;
-            }
-
-            if (!t) return;
-
-            if (t.type === "textbox" && t.sectionId && t.fieldType) {
-              const grp = t.group;
-              if (!grp) return;
-              setActiveEdit({
-                sectionId: t.sectionId,
-                sectionType: grp.sectionType || "experience",
-                fieldType: t.fieldType,
-                group: grp,
-                textbox: t,
-              });
-            }
-          };
-
-          canvas.on("mouse:up", onMouseUp);
-
-          // Cleanup
-          return () => {
-            canvas.off("mouse:up", onMouseUp);
-          };
-        }
-      } catch (error) {
-        console.error("Fabric initialization failed:", error);
+        return () => {
+          canvas.off("mouse:up", onMouseUp);
+        };
       }
     };
 
@@ -130,7 +116,6 @@ export default function FabricCanvas() {
     };
   }, []);
 
-  // Zentrale Canvas-Reconciliation-Funktion
   const renderSections = useCallback(async () => {
     if (!fabricCanvas || !fabricNamespace || !sections) return;
 
@@ -142,12 +127,11 @@ export default function FabricCanvas() {
 
       const textboxes: any[] = [];
 
-      // zentrales Section-Padding (overridebar via section.props)
+      // Section-Padding
       const SEC_PAD_L = Number(section.props?.paddingLeft  ?? 24);
       const SEC_PAD_R = Number(section.props?.paddingRight ?? 24);
       const SEC_PAD_T = Number(section.props?.paddingTop   ?? 16);
       const SEC_PAD_B = Number(section.props?.paddingBottom?? 16);
-
       const BULLET_INDENT = Number(tokens?.bulletIndent ?? 18);
 
       for (const part of section.parts) {
@@ -168,41 +152,13 @@ export default function FabricCanvas() {
         const localPartStyle = partStyles[partStyleKey] || {};
 
         const finalStyle = {
-          fontSize:
-            part.fontSize ||
-            localPartStyle.fontSize ||
-            globalStyle.fontSize ||
-            tokens?.fontSize ||
-            12,
-          fontFamily:
-            part.fontFamily ||
-            localPartStyle.fontFamily ||
-            globalStyle.fontFamily ||
-            tokens?.fontFamily ||
-            "Arial, sans-serif",
-          fill:
-            part.color ||
-            localPartStyle.color ||
-            globalStyle.textColor ||
-            tokens?.colorPrimary ||
-            "#000000",
-          fontWeight:
-            (part.fontWeight as any) || (localPartStyle.fontWeight as any) || (globalStyle.fontWeight as any) || "normal",
-          fontStyle:
-            (part.fontStyle as any) ||
-            (localPartStyle.italic ? "italic" : (globalStyle.fontStyle as any)) ||
-            "normal",
-          lineHeight:
-            part.lineHeight ||
-            localPartStyle.lineHeight ||
-            (globalStyle.lineHeight as any) ||
-            tokens?.lineHeight ||
-            1.4,
-          charSpacing:
-            (part.letterSpacing ||
-              localPartStyle.letterSpacing ||
-              (globalStyle.letterSpacing as any) ||
-              0) * 1000,
+          fontSize: part.fontSize || localPartStyle.fontSize || globalStyle.fontSize || tokens?.fontSize || 12,
+          fontFamily: part.fontFamily || localPartStyle.fontFamily || globalStyle.fontFamily || tokens?.fontFamily || "Arial, sans-serif",
+          fill: part.color || localPartStyle.color || globalStyle.textColor || tokens?.colorPrimary || "#000000",
+          fontWeight: (part.fontWeight as any) || (localPartStyle.fontWeight as any) || (globalStyle.fontWeight as any) || "normal",
+          fontStyle: (part.fontStyle as any) || (localPartStyle.italic ? "italic" : (globalStyle.fontStyle as any)) || "normal",
+          lineHeight: part.lineHeight || localPartStyle.lineHeight || (globalStyle.lineHeight as any) || tokens?.lineHeight || 1.4,
+          charSpacing: (part.letterSpacing || localPartStyle.letterSpacing || (globalStyle.letterSpacing as any) || 0) * 1000,
           textAlign: part.textAlign || "left",
         };
 
@@ -211,8 +167,8 @@ export default function FabricCanvas() {
           ...finalStyle,
           splitByGrapheme: true,
           breakWords: true,
-          selectable: false,     // keine Fabric-Auswahl
-          evented: true,         // aber klickbar
+          selectable: false,
+          evented: true,
           hasControls: false,
           hasBorders: false,
           editable: false,
@@ -230,16 +186,14 @@ export default function FabricCanvas() {
           angle: 0,
           skewX: 0,
           skewY: 0,
-          hoverCursor: "text",   // Maus zeigt Text-Cursor
+          hoverCursor: "text",
           moveCursor: "default",
         }) as any;
 
-        // Metadaten für spätere Referenz speichern
         tb.partId = part.id;
         tb.fieldType = part.fieldType;
         tb.sectionId = section.id;
 
-        // Layout-Daten für Installer
         tb.data = {
           fieldKey: part.id ?? `${section.id}:${part.fieldType}`,
           padL, padT, padR, padB, indentPx,
@@ -250,7 +204,6 @@ export default function FabricCanvas() {
           lineHeight: finalStyle.lineHeight,
         };
 
-        // Vor-Position (Installer richtet final aus)
         const halfW = section.width / 2;
         const halfH = (section.height ?? 1) / 2;
         const tlX = padL + (indentPx || 0);
@@ -261,11 +214,11 @@ export default function FabricCanvas() {
         textboxes.push(tb);
       }
 
-      // Gruppe: NICHT selektierbar, aber evented + subTargetCheck
+      // Gruppe ist wieder selektierbar → Move/Resize möglich
       const sectionGroup = new fabricNamespace.Group(textboxes, {
         left: section.x,
         top: section.y,
-        selectable: false,        // ✳️ Gruppe frisst keine Klicks
+        selectable: true,
         evented: true,
         hasControls: true,
         hasBorders: true,
@@ -279,7 +232,8 @@ export default function FabricCanvas() {
         transparentCorners: false,
         borderColor: "#3b82f6",
         cornerColor: "#3b82f6",
-        subTargetCheck: true,     // Kinder klicken
+        subTargetCheck: true,
+        hoverCursor: "move",
       }) as any;
 
       sectionGroup.data = {
@@ -292,7 +246,6 @@ export default function FabricCanvas() {
 
       fabricCanvas.add(sectionGroup);
 
-      // initialer Reflow/Auto-Height
       try {
         (sectionGroup as any).scaleX = 1;
         (sectionGroup as any).scaleY = 1;
@@ -308,7 +261,6 @@ export default function FabricCanvas() {
     if (fabricCanvas && sections) renderSections();
   }, [fabricCanvas, sections, renderSections]);
 
-  // Zoom handling
   useEffect(() => {
     if (!fabricCanvas) return;
     const safeZoom = Math.max(0.1, Math.min(5, zoom || 1));
@@ -317,10 +269,7 @@ export default function FabricCanvas() {
   }, [fabricCanvas, zoom]);
 
   return (
-    <div
-      ref={containerRef}
-      style={{ width: PAGE_W, height: PAGE_H, position: "relative" }}
-    >
+    <div ref={containerRef} style={{ width: PAGE_W, height: PAGE_H, position: "relative" }}>
       <canvas ref={canvasRef} />
 
       {activeEdit && fabricCanvas && containerRef.current && (
