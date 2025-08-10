@@ -102,7 +102,7 @@ export default function FabricCanvas() {
       const canvas = new fabric.Canvas(node, {
         preserveObjectStacking: true,
         selection: true,
-        backgroundColor: '#ffffff', // Weißer Hintergrund (normal)
+        backgroundColor: '#ffffff',
         width: PAGE_W,
         height: PAGE_H,
         skipTargetFind: false
@@ -565,6 +565,10 @@ export default function FabricCanvas() {
                 cornerSize: 8,
                 transparentCorners: false,
                 objectCaching: false
+              });
+              
+              // DEBUG: Group-Eigenschaften nach Erstellung überprüfen
+              DBG(`Group created with properties:`, {
                 sectionId: section.id,
                 left: sectionGroup.left,
                 top: sectionGroup.top,
