@@ -116,20 +116,40 @@ export default function FabricCanvas() {
         if (obj && obj.__sectionId && obj.type === 'group') {
           DBG('Section group scaling:', { sectionId: obj.__sectionId, scaleX: obj.scaleX, scaleY: obj.scaleY });
           
+          // Prevent default scaling behavior - we'll handle it in object:scaled
+        }
+      });
+
+      canvas.on('object:scaled', (e: any) => {
+        const obj = e.target;
+        if (obj && obj.__sectionId && obj.type === 'group') {
+          DBG('Section group scaled:', { 
+            sectionId: obj.__sectionId, 
+            newWidth: obj.width * obj.scaleX, 
+            newHeight: obj.height * obj.scaleY 
+          });
+          
           // Calculate new dimensions
           const newWidth = obj.width * obj.scaleX;
           const newHeight = obj.height * obj.scaleY;
           
-          // Update text widths proportionally
+          // Update text widths proportionally and maintain relative positions
           obj.getObjects().forEach((textObj: any) => {
             if (textObj.type === 'textbox') {
-              const originalWidth = textObj.width / obj.scaleX;
-              const newTextWidth = Math.max(50, originalWidth * obj.scaleX);
-              textObj.set('width', newTextWidth);
+              // Calculate proportional width (maintain relative width ratio)
+              const widthRatio = textObj.width / obj.width;
+              const newTextWidth = Math.max(50, newWidth * widthRatio);
+              
+              // Update text width without changing position
+              textObj.set({
+                width: newTextWidth,
+                scaleX: 1,
+                scaleY: 1
+              });
             }
           });
           
-          // Reset scale to 1 and apply actual size changes
+          // Reset group scale and apply actual size changes
           obj.set({
             width: newWidth,
             height: newHeight,
@@ -137,16 +157,15 @@ export default function FabricCanvas() {
             scaleY: 1
           });
           
-          canvas.requestRenderAll();
-        }
-      });
-
-      canvas.on('object:scaled', (e: any) => {
-        const obj = e.target;
-        if (obj && obj.__sectionId && obj.type === 'group') {
-          DBG('Section group scaled:', { sectionId: obj.__sectionId, width: obj.width, height: obj.height });
           // Update store with new section dimensions
-          updateFrame(obj.__sectionId, { x: obj.left, y: obj.top, width: obj.width, height: obj.height });
+          updateFrame(obj.__sectionId, { 
+            x: obj.left, 
+            y: obj.top, 
+            width: newWidth, 
+            height: newHeight 
+          });
+          
+          canvas.requestRenderAll();
         }
       });
 
@@ -203,6 +222,9 @@ export default function FabricCanvas() {
     }
 
     const safeSections = Array.isArray(sections) ? sections : [];
+    const globalFieldStyles = useDesignerStore.getState().globalFieldStyles;
+    const partStyles = useDesignerStore.getState().partStyles;
+    const tokens = useDesignerStore.getState().tokens;
     
     DBG('Rendering sections:', { 
       sectionsCount: safeSections.length, 
@@ -252,27 +274,39 @@ export default function FabricCanvas() {
             
             const displayText = (part.text || '').trim() || `Part ${partIndex}`;
             
+            // Apply global field styles and part styles
+            const sectionType = section.sectionType || 'experience';
+            const fieldType = part.fieldType || 'content';
+            const globalStyle = globalFieldStyles[sectionType]?.[fieldType] || {};
+            const partStyleKey = `${section.type}:${fieldType}`;
+            const partStyle = partStyles[partStyleKey] || {};
+            
+            // Merge styles: part defaults < global field styles < part styles
+            const finalStyle = {
+              fontSize: partStyle.fontSize || globalStyle.fontSize || part.fontSize || tokens.fontSize || 12,
+              fontFamily: partStyle.fontFamily || globalStyle.fontFamily || part.fontFamily || tokens.fontFamily || 'Arial',
+              fontWeight: partStyle.fontWeight || (globalStyle.fontWeight === 'bold' ? 'bold' : 'normal') || (part.fontWeight === 'bold' ? 'bold' : 'normal') || 'normal',
+              fontStyle: partStyle.italic ? 'italic' : (globalStyle.fontStyle === 'italic' ? 'italic' : 'normal') || (part.fontStyle === 'italic' ? 'italic' : 'normal') || 'normal',
+              fill: partStyle.color || globalStyle.color || part.color || tokens.colorPrimary || '#111',
+              lineHeight: partStyle.lineHeight || globalStyle.lineHeight || part.lineHeight || tokens.lineHeight || 1.4,
+              charSpacing: ((partStyle.letterSpacing || globalStyle.letterSpacing || part.letterSpacing || 0) * 1000), // Fabric uses different scale
+              textAlign: part.textAlign || 'left'
+            };
             DBG(`Creating text object ${partIndex} in section ${section.id}:`, { 
               id: part.id,
               text: displayText.substring(0, 30) + '...',
               offset: { x: part.offsetX, y: part.offsetY },
-              width: part.width
+              width: part.width,
+              appliedStyle: finalStyle
             });
             
             const textObj = new fabric.Textbox(displayText, {
               left: part.offsetX || 0,
               top: part.offsetY || 0,
               width: part.width || 280,
-              fontSize: part.fontSize || 12,
-              fontFamily: part.fontFamily || 'Arial',
-              fontWeight: part.fontWeight === 'bold' || part.bold ? 'bold' : 'normal',
-              fontStyle: part.fontStyle === 'italic' || part.italic ? 'italic' : 'normal',
-              fill: part.color || '#111',
-              lineHeight: part.lineHeight || 1.4,
-              charSpacing: (part.letterSpacing || 0) * 1000, // Fabric uses different scale
-              textAlign: part.textAlign || 'left',
+              ...finalStyle,
               selectable: false, // Parts sind nicht einzeln selektierbar
-              evented: false,
+              evented: true, // Enable events for click detection
               hasControls: false,
               hasBorders: false,
               objectCaching: false
@@ -331,7 +365,7 @@ export default function FabricCanvas() {
         DBG('Error rendering sections:', error);
       }
     })();
-  }, [sections, version, updateFrame]);
+  }, [sections, version, updateFrame, updateTypographySelection]);
 
   return (
     <div className="w-full h-full overflow-auto bg-neutral-100 flex items-center justify-center">
