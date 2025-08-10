@@ -329,9 +329,9 @@ export default function FabricCanvas() {
             });
             
             // Berechne finale Styles aus verschiedenen Quellen
-            const tokens = get().tokens || {};
-            const partStyles = get().partStyles || {};
-            const globalFieldStyles = get().globalFieldStyles || {};
+            const tokens = useDesignerStore.getState().tokens || {};
+            const partStyles = useDesignerStore.getState().partStyles || {};
+            const globalFieldStyles = useDesignerStore.getState().globalFieldStyles || {};
             
             // Style-Hierarchie: tokens (base) < globalFieldStyles < partStyles < part inline
             const baseStyle = {
