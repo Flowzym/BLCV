@@ -37,11 +37,14 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
     personalData: ctx?.personalData ? Object.keys(ctx.personalData) : 'none',
     berufserfahrung: ctx?.berufserfahrung?.length || 0,
     ausbildung: ctx?.ausbildung?.length || 0,
-    fullContext: ctx
+    fullContext: ctx,
+    hasPersonalDataSummary: !!ctx?.personalData?.summary,
+    hasSkillsSummary: !!ctx?.personalData?.skillsSummary,
+    hasSoftSkillsSummary: !!ctx?.personalData?.softSkillsSummary
   });
 
   const sections: CVSectionWithParts[] = [];
-  let currentY = 100; // Start-Y-Position für erste Sektion (weiter unten, damit nicht abgeschnitten)
+  let currentY = 120; // Start-Y-Position für erste Sektion (noch weiter unten, damit nicht abgeschnitten)
   const sectionWidth = 500;
   const sectionSpacing = 30;
 
@@ -49,13 +52,15 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
   const erfArr = Array.isArray(ctx?.berufserfahrung) ? ctx.berufserfahrung : [];
   DBG('Berufserfahrung array:', {
     length: erfArr.length,
+    rawArray: erfArr,
     items: erfArr.map((exp: any, idx: number) => ({
       index: idx,
       id: exp?.id,
       position: exp?.position,
       companies: exp?.companies,
       aufgabenbereiche: exp?.aufgabenbereiche,
-      hasData: !!(exp?.position || exp?.companies || exp?.aufgabenbereiche?.length)
+      hasData: !!(exp?.position || exp?.companies || exp?.aufgabenbereiche?.length),
+      rawExp: exp
     }))
   });
   
@@ -76,6 +81,9 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
     let partY = 20; // Start-Y innerhalb der Sektion
 
     erfArr.forEach((exp: any, idx: number) => {
+      DBG(`=== PROCESSING EXPERIENCE ${idx} ===`);
+      DBG(`Raw experience data:`, exp);
+      
       const positionLine = Array.isArray(exp.position) ? exp.position.join(" / ") : norm(exp.position);
       const companyLine = [
         Array.isArray(exp.companies) ? exp.companies.join(" // ") : norm(exp.companies),
@@ -112,12 +120,12 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
           offsetY: partY,
           width: 350,
           text: periodLine,
-          fontSize: 14,
+          fontSize: 16,
           color: '#000000',
           fieldType: 'period',
           order: idx * 100
         });
-        partY += 22;
+        partY += 24;
       }
 
       // Position (Titel)
@@ -135,13 +143,13 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
           offsetY: partY,
           width: 350,
           text: positionLine,
-          fontSize: 18,
+          fontSize: 20,
           fontWeight: 'bold',
           color: '#000000',
           fieldType: 'title',
           order: idx * 100 + 1
         });
-        partY += 26;
+        partY += 28;
       }
 
       // Unternehmen
@@ -159,23 +167,26 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
           offsetY: partY,
           width: 350,
           text: companyLine,
-          fontSize: 14,
+          fontSize: 16,
           color: '#000000',
           fieldType: 'company',
           order: idx * 100 + 2
         });
-        partY += 22;
+        partY += 24;
       }
 
       // Aufgaben als Bullet-Points
       if (Array.isArray(exp.aufgabenbereiche) && exp.aufgabenbereiche.length > 0) {
         DBG(`Creating ${exp.aufgabenbereiche.length} task parts for exp ${idx}:`, exp.aufgabenbereiche);
         exp.aufgabenbereiche.forEach((task: string, taskIdx: number) => {
+          const bulletText = `• ${norm(task)}`;
           DBG(`Creating task part ${taskIdx} for exp ${idx}:`, {
-            text: `• ${norm(task)}`,
+            text: bulletText,
             offsetX: 20,
             offsetY: partY,
-            width: 450
+            width: 450,
+            taskRaw: task,
+            taskNormalized: norm(task)
           });
           expParts.push({
             type: 'text',
@@ -183,18 +194,18 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
             offsetX: 20,
             offsetY: partY,
             width: 450,
-            text: `• ${norm(task)}`,
-            fontSize: 13,
+            text: bulletText,
+            fontSize: 15,
             color: '#000000',
             lineHeight: 1.4,
             fieldType: 'bullet',
             order: idx * 100 + 10 + taskIdx
           });
-          partY += 20;
+          partY += 22;
         });
       }
 
-      partY += 25; // Abstand zwischen Erfahrungen
+      partY += 30; // Abstand zwischen Erfahrungen
     });
 
     DBG('Final experience parts created:', {
@@ -235,12 +246,14 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
   const eduArr = Array.isArray(ctx?.ausbildung) ? ctx.ausbildung : [];
   DBG('Ausbildung array:', {
     length: eduArr.length,
+    rawArray: eduArr,
     items: eduArr.map((edu: any, idx: number) => ({
       index: idx,
       id: edu?.id,
       abschluss: edu?.abschluss,
       institution: edu?.institution,
-      hasData: !!(edu?.abschluss || edu?.institution)
+      hasData: !!(edu?.abschluss || edu?.institution),
+      rawEdu: edu
     }))
   });
   
@@ -250,6 +263,9 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
     let partY = 20;
 
     eduArr.forEach((edu: any, idx: number) => {
+      DBG(`=== PROCESSING EDUCATION ${idx} ===`);
+      DBG(`Raw education data:`, edu);
+      
       const titleLine = [
         Array.isArray(edu.ausbildungsart) ? edu.ausbildungsart.join(" / ") : norm(edu.ausbildungsart),
         Array.isArray(edu.abschluss) ? edu.abschluss.join(" / ") : norm(edu.abschluss)
@@ -286,13 +302,13 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
           offsetY: partY,
           width: 350,
           text: titleLine,
-          fontSize: 18,
+          fontSize: 20,
           fontWeight: 'bold',
           color: '#000000',
           fieldType: 'title',
           order: idx * 100
         });
-        partY += 26;
+        partY += 28;
       }
 
       // Institution und Zeitraum
@@ -311,7 +327,7 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
             offsetY: partY,
             width: 300,
             text: institutionLine,
-            fontSize: 14,
+            fontSize: 16,
             fontStyle: 'italic',
             color: '#000000',
             fieldType: 'institution',
@@ -333,13 +349,13 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
             offsetY: partY,
             width: 150,
             text: periodLine,
-            fontSize: 14,
+            fontSize: 16,
             color: '#000000',
             fieldType: 'period',
             order: idx * 100 + 2
           });
         }
-        partY += 22;
+        partY += 24;
       }
 
       // Zusatzangaben
@@ -357,16 +373,16 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
           offsetY: partY,
           width: 470,
           text: norm(edu.zusatzangaben),
-          fontSize: 13,
+          fontSize: 15,
           color: '#000000',
           lineHeight: 1.4,
           fieldType: 'note',
           order: idx * 100 + 3
         });
-        partY += 24;
+        partY += 26;
       }
 
-      partY += 20; // Abstand zwischen Ausbildungen
+      partY += 25; // Abstand zwischen Ausbildungen
     });
 
     DBG('Final education parts created:', {
@@ -406,12 +422,15 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
   // ---- Personal Data Sections ----
   const pd = ctx?.personalData ?? {};
   DBG('Personal data:', {
+    rawPersonalData: pd,
     summary: pd.summary?.substring(0, 50) + '...',
     skillsSummary: pd.skillsSummary?.substring(0, 50) + '...',
     softSkillsSummary: pd.softSkillsSummary?.substring(0, 50) + '...',
     hasSummary: !!pd.summary?.trim(),
     hasSkills: !!pd.skillsSummary?.trim(),
-    hasSoftSkills: !!pd.softSkillsSummary?.trim()
+    hasSoftSkills: !!pd.softSkillsSummary?.trim(),
+    taetigkeitenSummary: pd.taetigkeitenSummary?.substring(0, 50) + '...',
+    hasTaetigkeiten: !!pd.taetigkeitenSummary?.trim()
   });
   
   if (pd.summary?.trim()) {
@@ -434,7 +453,7 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
         offsetY: 30,
         width: 470,
         text: norm(pd.summary),
-        fontSize: 14,
+        fontSize: 16,
         color: '#000000',
         lineHeight: 1.5,
         fieldType: 'content',
@@ -470,7 +489,7 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
         offsetY: 30,
         width: 470,
         text: norm(pd.skillsSummary),
-        fontSize: 14,
+        fontSize: 16,
         color: '#000000',
         lineHeight: 1.4,
         fieldType: 'content',
@@ -506,7 +525,7 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
         offsetY: 30,
         width: 470,
         text: norm(pd.softSkillsSummary),
-        fontSize: 14,
+        fontSize: 16,
         color: '#000000',
         lineHeight: 1.4,
         fieldType: 'content',
@@ -519,6 +538,43 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
     DBG('Created softskills section:', { 
       softSkillsLength: pd.softSkillsSummary.length,
       sectionData: softSkillsSection
+    });
+  }
+  
+  // ---- Tätigkeiten Summary ----
+  if (pd.taetigkeitenSummary?.trim()) {
+    DBG('Creating taetigkeiten section with summary:', pd.taetigkeitenSummary);
+    const taetigkeitenSection: CVSectionWithParts = {
+      id: 'taetigkeiten',
+      type: 'taetigkeiten',
+      title: 'Tätigkeitsbereiche',
+      content: '',
+      x: 50,
+      y: currentY,
+      width: sectionWidth,
+      height: 80,
+      sectionType: 'skills',
+      isVisible: true,
+      parts: [{
+        type: 'text',
+        id: 'taetigkeiten-summary',
+        offsetX: 0,
+        offsetY: 30,
+        width: 470,
+        text: norm(pd.taetigkeitenSummary),
+        fontSize: 16,
+        color: '#000000',
+        lineHeight: 1.4,
+        fieldType: 'content',
+        order: 0
+      }]
+    };
+    
+    sections.push(taetigkeitenSection);
+    currentY += 80 + sectionSpacing;
+    DBG('Created taetigkeiten section:', { 
+      taetigkeitenLength: pd.taetigkeitenSummary.length,
+      sectionData: taetigkeitenSection
     });
   }
 

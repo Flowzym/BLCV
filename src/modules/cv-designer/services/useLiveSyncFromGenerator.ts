@@ -79,7 +79,16 @@ export function useLiveSyncFromGenerator(debounceMs = 200) {
     [ll.personalData?.summary, ll.personalData?.skillsSummary, ll.personalData?.softSkillsSummary, ll.personalData?.taetigkeitenSummary, ll.berufserfahrung, ll.ausbildung]
   );
 
-  DBG('CTX snapshot:', cvSnapshot);
+  DBG('=== LIVE SYNC TRIGGER ===');
+  DBG('Lebenslauf context data:', {
+    personalData: ll.personalData,
+    berufserfahrungCount: ll.berufserfahrung?.length || 0,
+    ausbildungCount: ll.ausbildung?.length || 0,
+    berufserfahrungData: ll.berufserfahrung,
+    ausbildungData: ll.ausbildung,
+    signature: sig
+  });
+  DBG('CVSnapshot:', cvSnapshot);
 
   const timer = useRef<number | null>(null);
 
@@ -88,9 +97,15 @@ export function useLiveSyncFromGenerator(debounceMs = 200) {
     if (timer.current) window.clearTimeout(timer.current);
 
     timer.current = window.setTimeout(() => {
-      DBG('useLiveSyncFromGenerator triggered');
+      DBG('=== LIVE SYNC EXECUTING ===');
+      DBG('About to call mapLebenslaufToSectionParts with:', ll);
       
       const sections = mapLebenslaufToSectionParts(ll);
+      
+      DBG('Sections returned from mapping:', {
+        sectionsCount: sections.length,
+        sectionsData: sections
+      });
       
       setSections(sections);
       bump();
@@ -104,6 +119,7 @@ export function useLiveSyncFromGenerator(debounceMs = 200) {
           frame: { x: sections[0].x, y: sections[0].y, width: sections[0].width, height: sections[0].height }
         } : null
       });
+      DBG('=== LIVE SYNC COMPLETE ===');
     }, debounceMs) as unknown as number;
 
     return () => { 
