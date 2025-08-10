@@ -419,7 +419,6 @@ export default function FabricCanvas() {
             // Final coordinate update after all changes
             obj.setCoords();
             // Use setOptions for comprehensive update instead of multiple set() calls
-            const currentText = obj.text;
             
             obj.setOptions({
               left: obj.originalOffsetX,
