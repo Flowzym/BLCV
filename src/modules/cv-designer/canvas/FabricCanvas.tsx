@@ -3,19 +3,29 @@ import { getFabric } from "@/lib/fabric-shim";
 import { useDesignerStore } from "../store/designerStore";
 import CanvasRegistry from "./canvasRegistry";
 import { installSectionResize } from "./installSectionResize";
+import TextEditorOverlay from "../ui/TextEditorOverlay";
 
 const PAGE_W = 595;
 const PAGE_H = 842;
 
-function isCanvasAlive(c: any): c is import("fabric").Canvas {
-  return !!c && !!(c as any).contextContainer && !!(c as any).contextTop;
-}
+type ActiveEdit =
+  | null
+  | {
+      sectionId: string;
+      sectionType: "experience" | "education" | "profile" | "skills" | "softskills";
+      fieldType: string;
+      group: any;   // fabric.Group
+      textbox: any; // fabric.Textbox
+    };
 
 export default function FabricCanvas() {
+  const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [fabricCanvas, setFabricCanvas] = useState<any>(null);
   const [fabricNamespace, setFabricNamespace] = useState<any>(null);
+  const [activeEdit, setActiveEdit] = useState<ActiveEdit>(null);
 
+  // Store-Zugriff
   const sections = useDesignerStore((s) => s.sections);
   const tokens = useDesignerStore((s) => s.tokens);
   const margins = useDesignerStore((s) => s.margins);
@@ -23,28 +33,52 @@ export default function FabricCanvas() {
   const globalFieldStyles = useDesignerStore((s) => s.globalFieldStyles);
   const partStyles = useDesignerStore((s) => s.partStyles);
 
+  // Fabric.js initialisieren
   useEffect(() => {
     let isMounted = true;
 
     const initFabric = async () => {
-      const fabric = await getFabric();
-      if (!isMounted) return;
+      try {
+        const fabric = await getFabric();
+        if (!isMounted) return;
 
-      setFabricNamespace(fabric);
+        setFabricNamespace(fabric);
 
-      if (canvasRef.current) {
-        if (CanvasRegistry.has(canvasRef.current)) {
-          CanvasRegistry.dispose(canvasRef.current);
+        if (canvasRef.current) {
+          if (CanvasRegistry.has(canvasRef.current)) {
+            CanvasRegistry.dispose(canvasRef.current);
+          }
+
+          const canvas = CanvasRegistry.getOrCreate(canvasRef.current, fabric);
+          canvas.setDimensions({ width: PAGE_W, height: PAGE_H });
+          canvas.backgroundColor = "#ffffff";
+          canvas.selection = true;
+          canvas.preserveObjectStacking = true;
+
+          setFabricCanvas(canvas);
+          installSectionResize(canvas);
+
+          // Click-Handler für Edit
+          canvas.on("mouse:down", (e: any) => {
+            const t = e.target;
+            if (!t) return;
+            // Wir erlauben Edit nur, wenn es eine Textbox in einer Section-Gruppe ist
+            if (t.type === "textbox" && t.sectionId && t.fieldType) {
+              const grp = t.group; // fabric.Group
+              if (grp) {
+                setActiveEdit({
+                  sectionId: t.sectionId,
+                  sectionType: grp.sectionType || "experience",
+                  fieldType: t.fieldType,
+                  group: grp,
+                  textbox: t,
+                });
+              }
+            }
+          });
         }
-
-        const canvas = CanvasRegistry.getOrCreate(canvasRef.current, fabric);
-        canvas.setDimensions({ width: PAGE_W, height: PAGE_H });
-        canvas.backgroundColor = "#ffffff";
-        canvas.selection = true;
-        canvas.preserveObjectStacking = true;
-
-        setFabricCanvas(canvas);
-        installSectionResize(canvas);
+      } catch (error) {
+        console.error("Fabric initialization failed:", error);
       }
     };
 
@@ -52,22 +86,23 @@ export default function FabricCanvas() {
 
     return () => {
       isMounted = false;
-      if (canvasRef.current && CanvasRegistry.has(canvasRef.current)) {
-        CanvasRegistry.dispose(canvasRef.current);
+      const el = canvasRef.current;
+      if (el && CanvasRegistry.has(el)) {
+        CanvasRegistry.dispose(el);
       }
       setFabricCanvas(null);
       setFabricNamespace(null);
     };
   }, []);
 
+  // Zentrale Canvas-Reconciliation-Funktion
   const renderSections = useCallback(async () => {
     if (!fabricCanvas || !fabricNamespace || !sections) return;
-    if (!isCanvasAlive(fabricCanvas)) return;
 
     fabricCanvas.clear();
 
     for (const section of sections) {
-      if (!section?.isVisible) continue;
+      if (!section.isVisible) continue;
       if (!Array.isArray(section.parts) || section.parts.length === 0) continue;
 
       const textboxes: any[] = [];
@@ -84,10 +119,9 @@ export default function FabricCanvas() {
         if (part.type !== "text") continue;
 
         const displayText = part.text ?? "";
-
         const indentPx = part.indentPx ?? (part.fieldType === "bullet" ? BULLET_INDENT : 0);
         const padL = SEC_PAD_L;
-        const padT = SEC_PAD_T + Math.max(0, part.offsetY || 0); // offsetY nur als Feintuning
+        const padT = SEC_PAD_T + Math.max(0, part.offsetY || 0);
         const padR = SEC_PAD_R;
         const padB = SEC_PAD_B;
 
@@ -118,10 +152,10 @@ export default function FabricCanvas() {
             tokens?.colorPrimary ||
             "#000000",
           fontWeight:
-            part.fontWeight || localPartStyle.fontWeight || globalStyle.fontWeight || "normal",
+            part.fontWeight || localPartStyle.fontWeight || (globalStyle.fontWeight as any) || "normal",
           fontStyle:
             part.fontStyle ||
-            (localPartStyle.italic ? "italic" : globalStyle.fontStyle) ||
+            (localPartStyle.italic ? "italic" : (globalStyle.fontStyle as any)) ||
             "normal",
           lineHeight:
             part.lineHeight ||
@@ -132,7 +166,7 @@ export default function FabricCanvas() {
           charSpacing:
             (part.letterSpacing ||
               localPartStyle.letterSpacing ||
-              globalStyle.letterSpacing ||
+              (globalStyle.letterSpacing as any) ||
               0) * 1000,
           textAlign: part.textAlign || "left",
         };
@@ -142,7 +176,7 @@ export default function FabricCanvas() {
           ...finalStyle,
           splitByGrapheme: true,
           breakWords: true,
-          selectable: false, evented: false,
+          selectable: false, evented: true, // evented true, damit mouse:down trifft
           hasControls: false, hasBorders: false, editable: false,
           lockScalingX: true, lockScalingY: true,
           lockMovementX: true, lockMovementY: true, lockUniScaling: true,
@@ -151,8 +185,14 @@ export default function FabricCanvas() {
           scaleX: 1, scaleY: 1, angle: 0, skewX: 0, skewY: 0,
         }) as any;
 
+        // Metadaten für spätere Referenz speichern
+        tb.partId = part.id;
+        tb.fieldType = part.fieldType;         // ← wichtig fürs Overlay / Store
+        tb.sectionId = section.id;
+
+        // Layout-Daten für Installer
         tb.data = {
-          fieldKey: part.id ?? `${section.id}:${part.fieldType}:${Math.random().toString(36).slice(2, 8)}`,
+          fieldKey: part.id ?? `${section.id}:${part.fieldType}`,
           padL, padT, padR, padB, indentPx,
           flow: true,
           order: Number.isFinite(part.order) ? part.order : 0,
@@ -161,7 +201,7 @@ export default function FabricCanvas() {
           lineHeight: finalStyle.lineHeight,
         };
 
-        // Pre-Position TL→Center (wird im Installer finalisiert)
+        // Vor-Position (Installer richtet final aus)
         const halfW = section.width / 2;
         const halfH = (section.height ?? 1) / 2;
         const tlX = padL + (indentPx || 0);
@@ -189,18 +229,17 @@ export default function FabricCanvas() {
         cornerColor: "#3b82f6",
       }) as any;
 
-      // Meta für Installer
       sectionGroup.data = {
         sectionId: section.id,
         type: "section",
-        minHeight: Number(section.props?.minHeight ?? 32), // optionaler Mindestwert
+        minHeight: Number(section.props?.minHeight ?? 32),
       };
       sectionGroup.sectionId = section.id;
       sectionGroup.sectionType = section.sectionType;
 
       fabricCanvas.add(sectionGroup);
 
-      // Initial-Layout: triggert Flow + Auto-Height sofort
+      // initialer Reflow/Auto-Height
       try {
         (sectionGroup as any).scaleX = 1;
         (sectionGroup as any).scaleY = 1;
@@ -213,21 +252,36 @@ export default function FabricCanvas() {
   }, [fabricCanvas, fabricNamespace, sections, tokens, margins, globalFieldStyles, partStyles]);
 
   useEffect(() => {
-    if (fabricCanvas && sections) {
-      renderSections();
-    }
+    if (fabricCanvas && sections) renderSections();
   }, [fabricCanvas, sections, renderSections]);
 
+  // Zoom handling
   useEffect(() => {
     if (!fabricCanvas) return;
     const safeZoom = Math.max(0.1, Math.min(5, zoom || 1));
     fabricCanvas.setZoom(safeZoom);
-    fabricCanvas.requestRenderAll();
+    fabricCanvas.renderAll();
   }, [fabricCanvas, zoom]);
 
   return (
-    <div style={{ width: PAGE_W, height: PAGE_H, position: "relative" }}>
+    <div
+      ref={containerRef}
+      style={{ width: PAGE_W, height: PAGE_H, position: "relative" }}
+    >
       <canvas ref={canvasRef} />
+
+      {activeEdit && fabricCanvas && containerRef.current && (
+        <TextEditorOverlay
+          canvas={fabricCanvas}
+          containerEl={containerRef.current}
+          group={activeEdit.group}
+          textbox={activeEdit.textbox}
+          sectionId={activeEdit.sectionId}
+          sectionType={activeEdit.sectionType}
+          fieldType={activeEdit.fieldType}
+          onClose={() => setActiveEdit(null)}
+        />
+      )}
     </div>
   );
 }
