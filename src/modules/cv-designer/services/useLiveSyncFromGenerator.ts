@@ -91,9 +91,6 @@ export function useLiveSyncFromGenerator(debounceMs = 200) {
     timer.current = window.setTimeout(() => {
       const mapped = mapLebenslaufToSectionParts(ll);
 
-      const { elements, updatePartText, setInitialElements } =
-        useDesignerStore.getState();
-
       if (import.meta.env.VITE_DEBUG_DESIGNER_SYNC === 'true') {
       }
       DBG('useLiveSyncFromGenerator triggered');
