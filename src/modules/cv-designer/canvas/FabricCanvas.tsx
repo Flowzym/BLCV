@@ -370,8 +370,8 @@ export default function FabricCanvas() {
             const inlineStyle = {
               fontFamily: part.fontFamily,
               fontSize: part.fontSize,
-              fontWeight: part.fontWeight,
-              fontStyle: part.fontStyle,
+             fontWeight: part.fontWeight || 'normal',
+             fontStyle: part.fontStyle || 'normal',
               fill: part.color,
               lineHeight: part.lineHeight,
               charSpacing: part.letterSpacing ? part.letterSpacing * (part.fontSize || baseStyle.fontSize) : undefined
