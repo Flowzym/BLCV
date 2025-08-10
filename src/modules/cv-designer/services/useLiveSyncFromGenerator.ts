@@ -95,6 +95,7 @@ export function useLiveSyncFromGenerator(debounceMs = 200) {
         useDesignerStore.getState();
 
       if (import.meta.env.VITE_DEBUG_DESIGNER_SYNC === 'true') {
+      }
       DBG('useLiveSyncFromGenerator triggered');
       
       const sections = mapLebenslaufToSectionParts(ll);
