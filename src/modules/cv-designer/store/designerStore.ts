@@ -16,6 +16,18 @@ export type PartKey =
   | "titel" | "zeitraum" | "unternehmen" | "position" | "taetigkeiten"
   | "ort" | "abschluss" | "kontakt" | "skills";
 
+export type SectionType = 'experience' | 'education' | 'profile' | 'skills' | 'softskills';
+
+export interface Typography {
+  fontFamily?: string;
+  fontSize?: number;
+  lineHeight?: number;   // als Faktor
+  color?: string;
+  fontWeight?: 'normal' | 'bold' | number;
+  fontStyle?: 'normal' | 'italic';
+  letterSpacing?: number;
+}
+
 export interface Frame { x:number; y:number; width:number; height:number; }
 
 export interface PartStyle {
@@ -49,6 +61,23 @@ export interface SectionElement {
 export interface PhotoElement { kind:"photo"; id:string; frame:Frame; src?:string; }
 export type CanvasElement = SectionElement | PhotoElement;
 
+export interface EnhancedCanvasElement {
+  id: string;
+  sectionId: string;        // z. B. "experience:<uuid>"
+  sectionType: SectionType; // z. B. "experience"
+  field: string;            // z. B. "title" | "company" | "period" | "bullet"
+  order?: number;           // Reihenfolge innerhalb der Sektion
+  text?: string;
+  // Layout-relative Offsets (werden durch Vorlagen befüllt)
+  offsetX?: number;
+  offsetY?: number;
+  width?: number;
+  // Fabric.js properties
+  left?: number;
+  top?: number;
+  type?: string;
+}
+
 export interface Tokens {
   fontFamily?: string;
   fontSize?: number;
@@ -66,6 +95,8 @@ export interface DesignerState {
   zoom: number;
   tokens: Tokens;
   partStyles: Record<string, PartStyle>; // `${group}:${partKey}`
+  globalFieldStyles: Record<SectionType, Record<string, Typography>>;
+  activeLayoutByType: Record<SectionType, string>;
   /** true sobald persist-Rehydration durch ist */
   hydrated: boolean;
 
@@ -76,6 +107,8 @@ export interface DesignerState {
   setSnapSize(v:number): void;
   setMargins(p: Partial<DesignerState["margins"]>): void;
   setTokens(p: Partial<Tokens>): void;
+  setGlobalFieldStyle: (sectionType: SectionType, field: string, t: Partial<Typography>) => void;
+  setActiveLayoutForType: (type: SectionType, layoutId: string) => void;
 
   select(ids:string[]): void;
   updateFrame(id:string, patch:Partial<Frame>): void;
@@ -122,6 +155,20 @@ export const useDesignerStore = create<DesignerState>()(
       zoom: 1,
       tokens: DEFAULT_TOKENS,
       partStyles: {},
+      globalFieldStyles: {
+        experience: {},
+        education: {},
+        profile: {},
+        skills: {},
+        softskills: {}
+      },
+      activeLayoutByType: {
+        experience: 'default',
+        education: 'default',
+        profile: 'default',
+        skills: 'default',
+        softskills: 'default'
+      },
 
       hydrated: false,
 
@@ -142,6 +189,24 @@ export const useDesignerStore = create<DesignerState>()(
       setSnapSize:(v)=>set({ snapSize: Math.max(1, Math.min(200, v)) }),
       setMargins:(p)=>set((s)=>({ margins: { ...s.margins, ...p }})),
       setTokens:(p)=>set((s)=>({ tokens: { ...s.tokens, ...p }})),
+      setGlobalFieldStyle: (sectionType, field, t) => set((s) => ({
+        globalFieldStyles: {
+          ...s.globalFieldStyles,
+          [sectionType]: {
+            ...s.globalFieldStyles[sectionType],
+            [field]: {
+              ...s.globalFieldStyles[sectionType][field],
+              ...t
+            }
+          }
+        }
+      })),
+      setActiveLayoutForType: (type, layoutId) => set((s) => ({
+        activeLayoutByType: {
+          ...s.activeLayoutByType,
+          [type]: layoutId
+        }
+      })),
 
       select:(ids)=>set({ selectedIds: Array.from(new Set(ids)) }),
 

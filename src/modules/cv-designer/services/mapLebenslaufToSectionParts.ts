@@ -1,4 +1,5 @@
 import type { Section, TextPart, RepeaterPart } from "../canvas/types";
+import type { SectionType } from "../store/designerStore";
 
 const DBG = (msg: string, ...args: any[]) => {
   if (import.meta.env.VITE_DEBUG_DESIGNER_SYNC === 'true') {
@@ -31,6 +32,17 @@ function formatPeriod(startMonth: string | null, startYear: string | null, endMo
   return start || end;
 }
 
+// Enhanced element with metadata for grouping and styling
+export interface EnhancedTextPart extends TextPart {
+  sectionId: string;
+  sectionType: SectionType;
+  field: string;
+  order?: number;
+  offsetX?: number;
+  offsetY?: number;
+  width?: number;
+}
+
 export function mapLebenslaufToSectionParts(ctx: any): Section[] {
   DBG('mapLebenslaufToSectionParts input:', {
     personalData: ctx?.personalData ? Object.keys(ctx.personalData) : 'none',
@@ -58,10 +70,54 @@ export function mapLebenslaufToSectionParts(ctx: any): Section[] {
         periodLine 
       });
 
-      const parts: TextPart[] = [
-        { type: 'text', id: `pos-${idx}`, x: 40, y: 0, text: positionLine, fontSize: 16, bold: true },
-        { type: 'text', id: `cmp-${idx}`, x: 40, y: 22, text: companyLine, fontSize: 12 },
-        { type: 'text', id: `per-${idx}`, x: 40, y: 38, text: periodLine, fontSize: 12 }
+      const sectionId = `experience:${exp.id}`;
+      const parts: EnhancedTextPart[] = [
+        { 
+          type: 'text', 
+          id: `pos-${idx}`, 
+          x: 40, 
+          y: 0, 
+          text: positionLine, 
+          fontSize: 16, 
+          bold: true,
+          sectionId,
+          sectionType: 'experience',
+          field: 'title',
+          order: 0,
+          offsetX: 0,
+          offsetY: 0,
+          width: 420
+        },
+        { 
+          type: 'text', 
+          id: `cmp-${idx}`, 
+          x: 40, 
+          y: 22, 
+          text: companyLine, 
+          fontSize: 12,
+          sectionId,
+          sectionType: 'experience',
+          field: 'company',
+          order: 1,
+          offsetX: 0,
+          offsetY: 22,
+          width: 420
+        },
+        { 
+          type: 'text', 
+          id: `per-${idx}`, 
+          x: 40, 
+          y: 38, 
+          text: periodLine, 
+          fontSize: 12,
+          sectionId,
+          sectionType: 'experience',
+          field: 'period',
+          order: 2,
+          offsetX: 440,
+          offsetY: 0,
+          width: 120
+        }
       ];
 
       // Tasks als separate TextParts
@@ -73,7 +129,14 @@ export function mapLebenslaufToSectionParts(ctx: any): Section[] {
             x: 50,
             y: 54 + (taskIdx * 16),
             text: `• ${norm(task)}`,
-            fontSize: 11
+            fontSize: 11,
+            sectionId,
+            sectionType: 'experience',
+            field: 'bullet',
+            order: 10 + taskIdx,
+            offsetX: 0,
+            offsetY: 44 + (taskIdx * 16),
+            width: 560
           });
         });
       }
@@ -116,10 +179,54 @@ export function mapLebenslaufToSectionParts(ctx: any): Section[] {
         periodLine 
       });
 
-      const parts: TextPart[] = [
-        { type: 'text', id: `edu-title-${idx}`, x: 40, y: 0, text: titleLine, fontSize: 16, bold: true },
-        { type: 'text', id: `edu-inst-${idx}`, x: 40, y: 22, text: institutionLine, fontSize: 12 },
-        { type: 'text', id: `edu-per-${idx}`, x: 40, y: 38, text: periodLine, fontSize: 12 }
+      const sectionId = `education:${edu.id}`;
+      const parts: EnhancedTextPart[] = [
+        { 
+          type: 'text', 
+          id: `edu-title-${idx}`, 
+          x: 40, 
+          y: 0, 
+          text: titleLine, 
+          fontSize: 16, 
+          bold: true,
+          sectionId,
+          sectionType: 'education',
+          field: 'title',
+          order: 0,
+          offsetX: 0,
+          offsetY: 0,
+          width: 420
+        },
+        { 
+          type: 'text', 
+          id: `edu-inst-${idx}`, 
+          x: 40, 
+          y: 22, 
+          text: institutionLine, 
+          fontSize: 12,
+          sectionId,
+          sectionType: 'education',
+          field: 'institution',
+          order: 1,
+          offsetX: 0,
+          offsetY: 22,
+          width: 420
+        },
+        { 
+          type: 'text', 
+          id: `edu-per-${idx}`, 
+          x: 40, 
+          y: 38, 
+          text: periodLine, 
+          fontSize: 12,
+          sectionId,
+          sectionType: 'education',
+          field: 'period',
+          order: 2,
+          offsetX: 440,
+          offsetY: 0,
+          width: 120
+        }
       ];
 
       if (edu.zusatzangaben?.trim()) {
@@ -129,7 +236,14 @@ export function mapLebenslaufToSectionParts(ctx: any): Section[] {
           x: 40,
           y: 54,
           text: norm(edu.zusatzangaben),
-          fontSize: 11
+          fontSize: 11,
+          sectionId,
+          sectionType: 'education',
+          field: 'note',
+          order: 3,
+          offsetX: 0,
+          offsetY: 54,
+          width: 560
         });
       }
 
@@ -165,7 +279,14 @@ export function mapLebenslaufToSectionParts(ctx: any): Section[] {
         x: 40,
         y: 0,
         text: norm(pd.summary),
-        fontSize: 12
+        fontSize: 12,
+        sectionId: 'profile:main',
+        sectionType: 'profile',
+        field: 'content',
+        order: 0,
+        offsetX: 0,
+        offsetY: 0,
+        width: 560
       } as TextPart]
     });
     DBG('Created profile section:', { summaryLength: pd.summary.length });
@@ -181,7 +302,14 @@ export function mapLebenslaufToSectionParts(ctx: any): Section[] {
         x: 40,
         y: 0,
         text: norm(pd.skillsSummary),
-        fontSize: 12
+        fontSize: 12,
+        sectionId: 'skills:main',
+        sectionType: 'skills',
+        field: 'content',
+        order: 0,
+        offsetX: 0,
+        offsetY: 0,
+        width: 560
       } as TextPart]
     });
     DBG('Created skills section:', { skillsLength: pd.skillsSummary.length });
@@ -197,7 +325,14 @@ export function mapLebenslaufToSectionParts(ctx: any): Section[] {
         x: 40,
         y: 0,
         text: norm(pd.softSkillsSummary),
-        fontSize: 12
+        fontSize: 12,
+        sectionId: 'softskills:main',
+        sectionType: 'softskills',
+        field: 'content',
+        order: 0,
+        offsetX: 0,
+        offsetY: 0,
+        width: 560
       } as TextPart]
     });
     DBG('Created softskills section:', { softSkillsLength: pd.softSkillsSummary.length });

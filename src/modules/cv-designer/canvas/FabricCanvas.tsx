@@ -1,7 +1,8 @@
 import React, { useRef, useCallback, useEffect } from "react";
 import { useDesignerStore } from "../store/designerStore";
+import type { SectionType, Typography } from "../store/designerStore";
 import getFabric from "@/lib/fabric-shim";
-import CanvasRegistry from "./canvasRegistry";
+import { getLayoutTemplate } from "../services/layoutTemplates";
 
 const DBG = (msg: string, ...args: any[]) => {
   if (import.meta.env.VITE_DEBUG_DESIGNER_SYNC === 'true') {
@@ -18,6 +19,8 @@ export default function FabricCanvas() {
   const elements = useDesignerStore(s => s.elements);
   const version = useDesignerStore(s => s.version);
   const zoom = useDesignerStore(s => s.zoom);
+  const globalFieldStyles = useDesignerStore(s => s.globalFieldStyles);
+  const activeLayoutByType = useDesignerStore(s => s.activeLayoutByType);
   const updateFrame = useDesignerStore(s => s.updateFrame);
 
   // HMR Cleanup
@@ -78,7 +81,8 @@ export default function FabricCanvas() {
         selection: true,
         backgroundColor: '#ffffff',
         width: PAGE_W,
-        height: PAGE_H
+        height: PAGE_H,
+        skipTargetFind: false
       });
 
       // Referenzen setzen
@@ -86,38 +90,25 @@ export default function FabricCanvas() {
       (node as any).__fabricCanvas = canvas;
       initSet.current.add(node);
 
-      // Event-Handler für Interaktivität
+      // Event-Handler für Group-Bewegung
       canvas.on('object:moving', (e: any) => {
         const obj = e.target;
-        if (obj && obj.elementId) {
-          DBG('Object moving:', { id: obj.elementId, left: obj.left, top: obj.top });
+        if (obj && obj.__sectionId) {
+          DBG('Section group moving:', { sectionId: obj.__sectionId, left: obj.left, top: obj.top });
+          
+          // Snap to grid
+          const snap = 20; // TODO: get from store
+          obj.left = Math.round(obj.left / snap) * snap;
+          obj.top = Math.round(obj.top / snap) * snap;
         }
       });
 
       canvas.on('object:moved', (e: any) => {
         const obj = e.target;
-        if (obj && obj.elementId) {
-          DBG('Object moved:', { id: obj.elementId, left: obj.left, top: obj.top });
-          updateFrame(obj.elementId, { x: obj.left, y: obj.top });
-        }
-      });
-
-      canvas.on('object:scaling', (e: any) => {
-        const obj = e.target;
-        if (obj && obj.elementId) {
-          const newWidth = obj.width * obj.scaleX;
-          const newHeight = obj.height * obj.scaleY;
-          DBG('Object scaling:', { id: obj.elementId, width: newWidth, height: newHeight });
-          updateFrame(obj.elementId, { 
-            width: newWidth, 
-            height: newHeight,
-            x: obj.left,
-            y: obj.top
-          });
-          
-          // Reset scale to 1 after applying dimensions
-          obj.set({ scaleX: 1, scaleY: 1, width: newWidth, height: newHeight });
-          canvas.requestRenderAll();
+        if (obj && obj.__sectionId) {
+          DBG('Section group moved:', { sectionId: obj.__sectionId, left: obj.left, top: obj.top });
+          // Update store with new position
+          updateFrame(obj.__sectionId, { x: obj.left, y: obj.top });
         }
       });
 
@@ -141,7 +132,7 @@ export default function FabricCanvas() {
     canvas.requestRenderAll();
   }, [zoom]);
 
-  // Element Rendering
+  // Element Rendering mit Section-Gruppierung
   useEffect(() => {
     const canvas = fabricCanvasRef.current;
     if (!canvas) {
@@ -159,7 +150,10 @@ export default function FabricCanvas() {
         type: e.type, 
         text: e.text?.substring(0, 30) + '...',
         left: e.left,
-        top: e.top
+        top: e.top,
+        sectionId: (e as any).sectionId,
+        sectionType: (e as any).sectionType,
+        field: (e as any).field
       }))
     });
 
@@ -175,54 +169,146 @@ export default function FabricCanvas() {
           }
         });
 
-        // Render neue Elemente
-        safeElements.forEach((el: any, index: number) => {
-          if (el.type === 'text') {
-            // Leere Strings durch Leerzeichen ersetzen für Sichtbarkeit
-            const displayText = (el.text || '').trim() || ' ';
-            
-            const textObj = new fabric.Text(displayText, {
-              left: el.left ?? 20,
-              top: el.top ?? 20,
-              fontSize: el.fontSize ?? 12,
-              fontFamily: el.fontFamily ?? 'Arial',
-              fontWeight: el.bold ? 'bold' : 'normal',
-              fontStyle: el.italic ? 'italic' : 'normal',
-              fill: '#111',
-              // Interaktivität aktivieren
-              selectable: true,
-              evented: true,
-              lockMovementX: false,
-              lockMovementY: false,
-              hasControls: true,
-              perPixelTargetFind: true,
-              // Element-ID für Event-Handling
-              elementId: el.id
-            });
-
-            canvas.add(textObj);
-            DBG(`Rendered interactive text ${index}:`, { 
-              id: el.id, 
-              left: el.left, 
-              top: el.top, 
-              text: displayText.substring(0, 50) + '...',
-              selectable: textObj.selectable,
-              evented: textObj.evented
-            });
+        // Gruppiere Elemente nach sectionId
+        const elementsBySectionId = new Map<string, any[]>();
+        safeElements.forEach((el: any) => {
+          if (el.type === 'text' && el.sectionId) {
+            if (!elementsBySectionId.has(el.sectionId)) {
+              elementsBySectionId.set(el.sectionId, []);
+            }
+            elementsBySectionId.get(el.sectionId)!.push(el);
           }
         });
+
+        DBG('Grouped elements by section:', { 
+          sectionsCount: elementsBySectionId.size,
+          sections: Array.from(elementsBySectionId.keys())
+        });
+
+        // Render jede Sektion als Group
+        for (const [sectionId, sectionElements] of elementsBySectionId) {
+          if (sectionElements.length === 0) continue;
+
+          const firstElement = sectionElements[0];
+          const sectionType = firstElement.sectionType as SectionType;
+          
+          // Hole Layout-Template
+          const layoutId = activeLayoutByType[sectionType] || 'default';
+          const layout = getLayoutTemplate(sectionType, layoutId);
+          
+          DBG(`Rendering section ${sectionId}:`, { 
+            sectionType, 
+            layoutId, 
+            elementsCount: sectionElements.length,
+            layout: layout.items.map(i => ({ field: i.field, x: i.x, y: i.y }))
+          });
+
+          // Berechne Section-Position (aus erstem Element)
+          const sectionLeft = firstElement.left ?? 40;
+          const sectionTop = firstElement.top ?? 40;
+
+          // Erstelle Kinder-Objekte für die Group
+          const children: any[] = [];
+          
+          sectionElements.forEach((el: any) => {
+            // Hole Layout-Position für dieses Feld
+            const layoutItem = layout.items.find(item => item.field === el.field);
+            const x = layoutItem?.x ?? el.offsetX ?? 0;
+            const y = layoutItem?.y ?? el.offsetY ?? 0;
+            const width = layoutItem?.w ?? el.width ?? 420;
+
+            // Spezialbehandlung für Bullets
+            if (el.field === 'bullet' && el.order !== undefined) {
+              const bulletIndex = el.order - 10; // order starts at 10 for bullets
+              const bulletY = 44 + (bulletIndex * (layout.rowGap || 16));
+              y = bulletY;
+            }
+
+            // Hole globale Typografie für dieses Feld
+            const typography = globalFieldStyles[sectionType]?.[el.field] || {};
+            
+            // Erstelle Text-Objekt (nicht selektierbar)
+            const displayText = (el.text || '').trim() || ' ';
+            const textObj = new fabric.Textbox(displayText, {
+              left: x,
+              top: y,
+              width: width,
+              fontSize: typography.fontSize ?? el.fontSize ?? 12,
+              fontFamily: typography.fontFamily ?? 'Arial',
+              fontWeight: typography.fontWeight ?? (el.bold ? 'bold' : 'normal'),
+              fontStyle: typography.fontStyle ?? (el.italic ? 'italic' : 'normal'),
+              fill: typography.color ?? '#111',
+              lineHeight: typography.lineHeight ?? 1.4,
+              charSpacing: typography.letterSpacing ? Math.round(typography.letterSpacing * 100) : 0,
+              // Kinder sind NICHT selektierbar/dragbar
+              selectable: false,
+              evented: false,
+              hasBorders: false,
+              hasControls: false,
+              lockMovementX: true,
+              lockMovementY: true,
+              hoverCursor: 'default',
+              objectCaching: false
+            });
+
+            // Metadaten für Debugging
+            (textObj as any).__field = el.field;
+            (textObj as any).__sectionType = sectionType;
+            (textObj as any).__elementId = el.id;
+
+            children.push(textObj);
+            
+            DBG(`Created child text for ${el.field}:`, { 
+              text: displayText.substring(0, 30) + '...', 
+              x, y, width,
+              typography: Object.keys(typography)
+            });
+          });
+
+          // Erstelle Group-Container (selektierbar und beweglich)
+          const group = new fabric.Group(children, {
+            left: sectionLeft,
+            top: sectionTop,
+            selectable: true,
+            evented: true,
+            hasControls: true,
+            subTargetCheck: false, // Wichtig: Klicks nicht an Kinder delegieren
+            lockMovementX: false,
+            lockMovementY: false,
+            hoverCursor: 'move',
+            moveCursor: 'move',
+            objectCaching: false
+          });
+
+          // Metadaten für Event-Handler
+          (group as any).__sectionId = sectionId;
+          (group as any).__sectionType = sectionType;
+
+          canvas.add(group);
+          
+          DBG(`Added section group:`, { 
+            sectionId, 
+            sectionType, 
+            left: sectionLeft, 
+            top: sectionTop,
+            childrenCount: children.length,
+            selectable: group.selectable,
+            evented: group.evented
+          });
+        }
 
         canvas.requestRenderAll();
         DBG('Canvas render complete:', { 
           totalObjects: canvas.getObjects().length,
-          interactiveObjects: canvas.getObjects().filter((o: any) => o.selectable).length
+          selectableObjects: canvas.getObjects().filter((o: any) => o.selectable).length,
+          groups: canvas.getObjects().filter((o: any) => o.type === 'group').length
         });
         
       } catch (error) {
         DBG('Error rendering elements:', error);
       }
     })();
-  }, [elements, version]);
+  }, [elements, version, globalFieldStyles, activeLayoutByType]);
 
   return (
     <div className="w-full h-full overflow-auto bg-neutral-100 flex items-center justify-center">
