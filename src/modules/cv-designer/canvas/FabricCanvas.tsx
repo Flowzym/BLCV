@@ -409,8 +409,8 @@ export default function FabricCanvas() {
             const inlineStyle = {
               fontFamily: part.fontFamily,
               fontSize: part.fontSize,
-             fontWeight: part.fontWeight || 'normal',
-             fontStyle: part.fontStyle || 'normal',
+              fontWeight: part.fontWeight || 'normal',
+              fontStyle: part.fontStyle || 'normal',
               fill: part.color,
               lineHeight: part.lineHeight,
               charSpacing: part.letterSpacing ? part.letterSpacing * (part.fontSize || baseStyle.fontSize) : undefined
@@ -464,6 +464,17 @@ export default function FabricCanvas() {
               finalStyle.fontSize = 12; // Fallback
             }
             
+            // CRITICAL: Ensure we have actual text content
+            if (!displayText || displayText.trim() === '' || displayText === '[Kein Text für undefined]') {
+              DBG(`WARNING: Skipping text part with empty/invalid text:`, {
+                partId: part.id,
+                fieldType: part.fieldType,
+                originalText: part.text,
+                displayText: displayText
+              });
+              return;
+            }
+            
             try {
               DBG(`About to create Textbox with:`, {
                 text: displayText,
@@ -476,22 +487,9 @@ export default function FabricCanvas() {
               const textObj = new fabric.Textbox(displayText, {
                 left: part.offsetX || 0,
                 top: part.offsetY || 0,
-            style: finalStyle,
-            hasText: !!displayText,
-            textLength: displayText.length
+                width: part.width || 280,
                 fontFamily: finalStyle.fontFamily,
                 fontSize: finalStyle.fontSize,
-          // CRITICAL: Ensure we have actual text content
-          if (!displayText || displayText.trim() === '' || displayText === '[Kein Text für undefined]') {
-            DBG(`WARNING: Skipping text part with empty/invalid text:`, {
-              partId: part.id,
-              fieldType: part.fieldType,
-              originalText: part.text,
-              displayText: displayText
-            });
-            return;
-          }
-          
                 fontWeight: finalStyle.fontWeight,
                 fontStyle: finalStyle.fontStyle,
                 fill: finalStyle.fill,
@@ -504,29 +502,29 @@ export default function FabricCanvas() {
                 hasBorders: false,
                 objectCaching: false,
                 splitByGrapheme: false,
-                editable: false
+                editable: false,
+                visible: true,
+                opacity: 1
               });
             
               DBG(`Textbox created with properties:`, {
                 id: part.id,
                 left: textObj.left,
-            editable: false,
-            visible: true,
-            opacity: 1
+                top: textObj.top,
                 width: textObj.width,
                 height: textObj.height,
                 fontSize: textObj.fontSize,
                 fill: textObj.fill,
                 text: textObj.text,
                 visible: textObj.visible,
-                opacity: textObj.opacity
+                opacity: textObj.opacity,
+                actualTextLength: textObj.text?.length || 0
               });
             
               // Metadaten für Interaktion
               (textObj as any).__partId = part.id;
               (textObj as any).__fieldType = part.fieldType;
-            opacity: textObj.opacity,
-            actualTextLength: textObj.text?.length || 0
+              (textObj as any).__sectionType = section.sectionType;
             
               textObjects.push(textObj);
               DBG(`Text object created successfully for part ${partIndex}:`, {
@@ -539,26 +537,24 @@ export default function FabricCanvas() {
                   text: textObj.text
                 }
               });
-        expectedCount: section.parts?.length || 0,
               
             } catch (error) {
               DBG(`Error creating text object for part ${partIndex}:`, error);
-              text: textObj.text,
-              actualHeight: textObj.calcTextHeight?.() || 'unknown'
-          text: obj.text?.substring(0, 20) + '...',
-          fill: obj.fill,
-          fontSize: obj.fontSize,
-          visible: obj.visible
+            }
           });
           
           DBG(`Text objects created for section ${section.id}:`, {
             count: textObjects.length,
+            expectedCount: section.parts?.length || 0,
             objects: textObjects.map(obj => ({
               left: obj.left,
               top: obj.top,
               width: obj.width,
               height: obj.height,
-              text: obj.text?.substring(0, 20) + '...'
+              text: obj.text?.substring(0, 20) + '...',
+              fill: obj.fill,
+              fontSize: obj.fontSize,
+              visible: obj.visible
             }))
           });
           
@@ -575,9 +571,7 @@ export default function FabricCanvas() {
               const sectionGroup = new fabric.Group(textObjects, {
                 left: section.x || 50,
                 top: section.y || 50,
-            objectCaching: false,
-            visible: true,
-            opacity: 1
+                width: section.width || 500,
                 height: section.height || 150,
                 selectable: true,
                 evented: true,
@@ -587,7 +581,9 @@ export default function FabricCanvas() {
                 cornerColor: '#3b82f6',
                 cornerSize: 8,
                 transparentCorners: false,
-                objectCaching: false
+                objectCaching: false,
+                visible: true,
+                opacity: 1
               });
             
               DBG(`Group created with properties:`, {
@@ -619,7 +615,15 @@ export default function FabricCanvas() {
                 totalObjects: canvas.getObjects().length,
                 canvasSize: { width: canvas.getWidth(), height: canvas.getHeight() },
                 zoom: canvas.getZoom(),
-                backgroundColor: canvas.backgroundColor
+                backgroundColor: canvas.backgroundColor,
+                lastAddedGroup: {
+                  id: section.id,
+                  position: { left: sectionGroup.left, top: sectionGroup.top },
+                  size: { width: sectionGroup.width, height: sectionGroup.height },
+                  visible: sectionGroup.visible,
+                  opacity: sectionGroup.opacity,
+                  groupBounds: sectionGroup.getBoundingRect?.() || 'unknown'
+                }
               });
             
               DBG(`✅ Successfully added section group ${sectionIndex}:`, { 
@@ -635,13 +639,18 @@ export default function FabricCanvas() {
             }
           } else {
             console.warn(`WARNING: No text objects created for section ${section.id}, skipping group creation`);
-            backgroundColor: canvas.backgroundColor,
-            lastAddedGroup: {
-              id: section.id,
-              position: { left: sectionGroup.left, top: sectionGroup.top },
-              size: { width: sectionGroup.width, height: sectionGroup.height },
-              visible: sectionGroup.visible
-            }
+            DBG(`WARNING: No text objects created for section ${section.id}, skipping group creation. Section data:`, {
+              sectionId: section.id,
+              sectionTitle: section.title,
+              partsCount: section.parts?.length || 0,
+              parts: section.parts?.map(p => ({
+                id: p.id,
+                fieldType: p.fieldType,
+                text: p.text,
+                hasText: !!p.text?.trim()
+              })) || []
+            });
+          }
         });
 
         DBG('About to request canvas render...');
@@ -649,44 +658,32 @@ export default function FabricCanvas() {
         DBG('✅ Canvas render complete:', { 
           totalGroups: canvas.getObjects().length,
           sectionsProcessed: safeSections.length,
-          canvasSize: { width: canvas.getWidth(), height: canvas.getHeight() }
-            opacity: sectionGroup.opacity,
-            groupBounds: sectionGroup.getBoundingRect?.() || 'unknown'
+          canvasSize: { width: canvas.getWidth(), height: canvas.getHeight() },
+          finalCanvasObjects: canvas.getObjects().map((obj: any) => ({
+            type: obj.type,
+            left: obj.left,
+            top: obj.top,
+            width: obj.width,
+            height: obj.height,
+            visible: obj.visible,
+            sectionId: obj.__sectionId || 'unknown'
+          }))
+        });
         DBG('=== RENDERING SECTIONS END ===');
         
       } catch (error) {
         console.error('CRITICAL: FabricCanvas rendering error:', error);
-        DBG(`WARNING: No text objects created for section ${section.id}, skipping group creation. Section data:`, {
-          sectionId: section.id,
-          sectionTitle: section.title,
-          partsCount: section.parts?.length || 0,
-      canvasSize: { width: canvas.getWidth(), height: canvas.getHeight() },
-      finalCanvasObjects: canvas.getObjects().map((obj: any) => ({
-        type: obj.type,
-        left: obj.left,
-        top: obj.top,
-        width: obj.width,
-        height: obj.height,
-        visible: obj.visible,
-        sectionId: obj.__sectionId || 'unknown'
-      }))
-            id: p.id,
-            fieldType: p.fieldType,
-            text: p.text,
-            hasText: !!p.text?.trim()
-          })) || []
-        });
       }
     })();
   }, [sections, version, updateFrame, updateTypographySelection]);
 
   return (
-    <div className="w-full h-full overflow-auto bg-neutral-100 flex items-center justify-center" style={{ border: '5px solid red', minHeight: '600px' }}>
-  <div className="w-full h-full overflow-auto bg-gray-50" style={{ minHeight: '600px' }}>
-    <div className="shadow-lg" style={{ 
+    <div className="w-full h-full overflow-auto bg-gray-50" style={{ minHeight: '600px' }}>
+      <div className="shadow-lg" style={{ 
+        width: PAGE_W, 
         height: PAGE_H, 
         backgroundColor: '#ffffff',
-        border: '3px solid blue',
+        border: '3px solid blue'
       }}>
         <canvas ref={canvasCallbackRef} />
       </div>
