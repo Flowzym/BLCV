@@ -118,76 +118,89 @@ export default function FabricCanvas() {
         const obj = e.target;
         if (obj && obj.__sectionId && obj.type === 'group') {
           DBG('Section group scaling:', { sectionId: obj.__sectionId, scaleX: obj.scaleX, scaleY: obj.scaleY });
-          
-          // Prevent default scaling behavior - we'll handle it in object:scaled
         }
       });
 
       canvas.on('object:scaled', (e: any) => {
         const obj = e.target;
         if (obj && obj.__sectionId && obj.type === 'group') {
-          DBG('Section group scaled:', { 
-            sectionId: obj.__sectionId, 
-            originalSize: { width: obj.width, height: obj.height },
-            scale: { x: obj.scaleX, y: obj.scaleY }
-          });
-          
-          // Calculate new actual dimensions
-          const newWidth = Math.round(obj.width * obj.scaleX);
-          const newHeight = Math.round(obj.height * obj.scaleY);
-          
-          DBG('Calculated new dimensions:', { newWidth, newHeight });
-          
-          // Store original width for ratio calculations
-          const originalGroupWidth = obj.width;
-          
-          // Update text objects BEFORE resetting group scale
-          obj.getObjects().forEach((textObj: any) => {
-            if (textObj.type === 'textbox') {
-              // Calculate new width maintaining relative position within group
-              const relativeWidth = textObj.width / originalGroupWidth;
-              const newTextWidth = Math.max(50, Math.round(newWidth * relativeWidth));
-              
-              DBG('Updating text object:', {
-                id: textObj.__partId,
-                oldWidth: textObj.width,
-                newWidth: newTextWidth,
-                relativeWidth
-              });
-              
-              // Apply new width and ensure no scaling
-              textObj.set({
-                width: newTextWidth,
-                scaleX: 1,
-                scaleY: 1
-              });
-              
-              // Force text reflow
-              textObj._clearCache();
-              textObj.initDimensions();
-            }
-          });
-          
-          // Reset group scale and apply actual size changes
-          obj.set({
-            width: newWidth,
-            height: newHeight,
-            scaleX: 1,
-            scaleY: 1
-          });
-          
-          // Update coordinates after scaling
-          obj.setCoords();
-          
-          // Update store with new section dimensions
-          updateFrame(obj.__sectionId, { 
-            x: Math.round(obj.left), 
-            y: Math.round(obj.top), 
-            width: newWidth, 
-            height: newHeight 
-          });
-          
-          canvas.requestRenderAll();
+          try {
+            DBG('Section group scaled:', { 
+              sectionId: obj.__sectionId, 
+              originalSize: { width: obj.width, height: obj.height },
+              scale: { x: obj.scaleX, y: obj.scaleY }
+            });
+            
+            // Store original dimensions BEFORE scaling calculations
+            const originalGroupWidth = obj.width / obj.scaleX;
+            const originalGroupHeight = obj.height / obj.scaleY;
+            
+            // Calculate new actual dimensions
+            const newWidth = Math.round(originalGroupWidth * obj.scaleX);
+            const newHeight = Math.round(originalGroupHeight * obj.scaleY);
+            
+            DBG('Calculated new dimensions:', { 
+              originalGroupWidth, 
+              originalGroupHeight, 
+              newWidth, 
+              newHeight 
+            });
+            
+            // Update text objects BEFORE resetting group scale
+            obj.getObjects().forEach((textObj: any) => {
+              if (textObj.type === 'textbox') {
+                // Get original text width (before any scaling)
+                const originalTextWidth = textObj.width / (textObj.scaleX || 1);
+                
+                // Calculate new width maintaining relative position within group
+                const relativeWidth = originalTextWidth / originalGroupWidth;
+                const newTextWidth = Math.max(50, Math.round(newWidth * relativeWidth));
+                
+                DBG('Updating text object:', {
+                  id: textObj.__partId,
+                  originalTextWidth,
+                  newTextWidth,
+                  relativeWidth,
+                  oldScale: { x: textObj.scaleX, y: textObj.scaleY }
+                });
+                
+                // Apply new width and RESET all scaling
+                textObj.set({
+                  width: newTextWidth,
+                  scaleX: 1,
+                  scaleY: 1
+                });
+                
+                // Force text reflow and dimension recalculation
+                textObj._clearCache?.();
+                textObj.initDimensions?.();
+                textObj.setCoords?.();
+              }
+            });
+            
+            // Reset group scale and apply actual size changes
+            obj.set({
+              width: newWidth,
+              height: newHeight,
+              scaleX: 1,
+              scaleY: 1
+            });
+            
+            // Update coordinates after scaling
+            obj.setCoords();
+            
+            // Update store with new section dimensions
+            updateFrame(obj.__sectionId, { 
+              x: Math.round(obj.left), 
+              y: Math.round(obj.top), 
+              width: newWidth, 
+              height: newHeight 
+            });
+            
+            canvas.requestRenderAll();
+          } catch (error) {
+            DBG('Error in object:scaled handler:', error);
+          }
         }
       });
 
@@ -333,7 +346,12 @@ export default function FabricCanvas() {
             const partStyles = useDesignerStore.getState().partStyles || {};
             const globalFieldStyles = useDesignerStore.getState().globalFieldStyles || {};
             
-            // Style-Hierarchie: tokens (base) < globalFieldStyles < partStyles < part inline
+            // Style-Hierarchie (niedrigste zu höchste Priorität):
+            // 1. tokens (base) 
+            // 2. partStyles (alte globale Styles, gekeyt nach group:partKey)
+            // 3. globalFieldStyles (neue globale Styles, gekeyt nach sectionType:fieldType) 
+            // 4. part inline (höchste Priorität)
+            
             const baseStyle = {
               fontFamily: tokens.fontFamily || 'Inter, Arial, sans-serif',
               fontSize: tokens.fontSize || 12,
@@ -341,12 +359,12 @@ export default function FabricCanvas() {
               fill: tokens.colorPrimary || '#111111'
             };
             
-            // Globale Feld-Styles für diesen Sektionstyp und Feldtyp
-            const globalStyle = globalFieldStyles[section.sectionType]?.[part.fieldType] || {};
-            
-            // Part-spezifische Styles (aus Store)
+            // Alte globale Feld-Styles (aus Store, gekeyt nach group:partKey)
             const partStyleKey = `${section.type}:${part.fieldType}`;
-            const partStyle = partStyles[partStyleKey] || {};
+            const legacyGlobalStyle = partStyles[partStyleKey] || {};
+            
+            // Neue globale Feld-Styles für diesen Sektionstyp und Feldtyp
+            const newGlobalStyle = globalFieldStyles[section.sectionType]?.[part.fieldType] || {};
             
             // Inline-Styles aus dem Part selbst
             const inlineStyle = {
@@ -356,18 +374,41 @@ export default function FabricCanvas() {
               fontStyle: part.fontStyle,
               fill: part.color,
               lineHeight: part.lineHeight,
-              charSpacing: part.letterSpacing ? part.letterSpacing * 1000 : undefined // Fabric.js verwendet Millisekunden
+              charSpacing: part.letterSpacing ? part.letterSpacing * (part.fontSize || baseStyle.fontSize) : undefined
             };
             
-            // Finale Style-Kombination
+            // Finale Style-Kombination mit korrekter Prioritätsreihenfolge
+            // Verwende Object.assign für explizite Überschreibung
             const finalStyle = {
-              fontFamily: inlineStyle.fontFamily || partStyle.fontFamily || globalStyle.fontFamily || baseStyle.fontFamily,
-              fontSize: inlineStyle.fontSize || partStyle.fontSize || globalStyle.fontSize || baseStyle.fontSize,
-              fontWeight: inlineStyle.fontWeight || (partStyle.fontWeight === 'bold' ? 'bold' : 'normal') || (globalStyle.fontWeight === 'bold' ? 'bold' : 'normal') || 'normal',
-              fontStyle: inlineStyle.fontStyle || (partStyle.italic ? 'italic' : 'normal') || (globalStyle.fontStyle === 'italic' ? 'italic' : 'normal') || 'normal',
-              fill: inlineStyle.fill || partStyle.color || globalStyle.textColor || baseStyle.fill,
-              lineHeight: inlineStyle.lineHeight || partStyle.lineHeight || globalStyle.lineHeight || baseStyle.lineHeight,
-              charSpacing: inlineStyle.charSpacing || (partStyle.letterSpacing ? partStyle.letterSpacing * 1000 : 0) || (globalStyle.letterSpacing ? globalStyle.letterSpacing * 1000 : 0) || 0,
+              ...baseStyle,
+              // Legacy global styles (niedrigere Priorität)
+              ...(legacyGlobalStyle.fontFamily && { fontFamily: legacyGlobalStyle.fontFamily }),
+              ...(legacyGlobalStyle.fontSize && { fontSize: legacyGlobalStyle.fontSize }),
+              ...(legacyGlobalStyle.fontWeight && { fontWeight: legacyGlobalStyle.fontWeight }),
+              ...(legacyGlobalStyle.italic && { fontStyle: 'italic' }),
+              ...(legacyGlobalStyle.color && { fill: legacyGlobalStyle.color }),
+              ...(legacyGlobalStyle.lineHeight && { lineHeight: legacyGlobalStyle.lineHeight }),
+              ...(legacyGlobalStyle.letterSpacing && { charSpacing: legacyGlobalStyle.letterSpacing * (legacyGlobalStyle.fontSize || baseStyle.fontSize) }),
+              
+              // New global field styles (höhere Priorität)
+              ...(newGlobalStyle.fontFamily && { fontFamily: newGlobalStyle.fontFamily }),
+              ...(newGlobalStyle.fontSize && { fontSize: newGlobalStyle.fontSize }),
+              ...(newGlobalStyle.fontWeight && { fontWeight: newGlobalStyle.fontWeight }),
+              ...(newGlobalStyle.fontStyle && { fontStyle: newGlobalStyle.fontStyle }),
+              ...(newGlobalStyle.textColor && { fill: newGlobalStyle.textColor }),
+              ...(newGlobalStyle.lineHeight && { lineHeight: newGlobalStyle.lineHeight }),
+              ...(newGlobalStyle.letterSpacing && { charSpacing: newGlobalStyle.letterSpacing * (newGlobalStyle.fontSize || baseStyle.fontSize) }),
+              
+              // Inline styles (höchste Priorität)
+              ...(inlineStyle.fontFamily && { fontFamily: inlineStyle.fontFamily }),
+              ...(inlineStyle.fontSize && { fontSize: inlineStyle.fontSize }),
+              ...(inlineStyle.fontWeight && { fontWeight: inlineStyle.fontWeight }),
+              ...(inlineStyle.fontStyle && { fontStyle: inlineStyle.fontStyle }),
+              ...(inlineStyle.fill && { fill: inlineStyle.fill }),
+              ...(inlineStyle.lineHeight && { lineHeight: inlineStyle.lineHeight }),
+              ...(inlineStyle.charSpacing !== undefined && { charSpacing: inlineStyle.charSpacing }),
+              
+              // Text alignment
               textAlign: part.textAlign || 'left'
             };
             
