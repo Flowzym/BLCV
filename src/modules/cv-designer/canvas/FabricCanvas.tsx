@@ -492,6 +492,8 @@ export default function FabricCanvas() {
                 objectCaching: false,
                 splitByGrapheme: false,
                 editable: false
+              });
+            
               DBG(`Textbox created with properties:`, {
                 id: part.id,
                 left: textObj.left,
@@ -563,6 +565,8 @@ export default function FabricCanvas() {
                 cornerSize: 8,
                 transparentCorners: false,
                 objectCaching: false
+              });
+            
               DBG(`Group created with properties:`, {
                 sectionId: section.id,
                 left: sectionGroup.left,
