@@ -1,4 +1,3 @@
-```typescript
 // src/modules/cv-designer/canvas/installSectionResize.ts
 import { getFabric } from "@/lib/fabric-shim";
 
@@ -102,4 +101,3 @@ export async function installSectionResize(canvas: fabric.Canvas) {
     canvas.requestRenderAll(); // Final re-render
   });
 }
-```

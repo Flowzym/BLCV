@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState, useCallback } from "react";
 import { getFabric } from "@/lib/fabric-shim";
 import { useDesignerStore } from "../store/designerStore";
 import CanvasRegistry from "./canvasRegistry";
+import { installSectionResize } from "./installSectionResize";
 
 const DBG = (msg: string, ...args: any[]) => {
   if (import.meta.env.VITE_DEBUG_DESIGNER_SYNC === 'true') {
@@ -78,6 +79,10 @@ export default function FabricCanvas() {
             height: canvas.getHeight(),
             backgroundColor: canvas.backgroundColor
           });
+
+          // Install the GPT-5 recommended section resize logic
+          await installSectionResize(canvas);
+          DBG('Section resize logic installed successfully');
         }
       } catch (error) {
         DBG('Error initializing Fabric:', error);
@@ -266,6 +271,9 @@ export default function FabricCanvas() {
       sectionGroup.sectionId = section.id;
       sectionGroup.sectionType = section.sectionType;
       
+      // CRITICAL: Mark this as a section group for the resize handler
+      sectionGroup.data = { sectionId: section.id, type: 'section' };
+      
       DBG(`Created section group for ${section.id}:`, {
         left: sectionGroup.left,
         top: sectionGroup.top,
@@ -276,115 +284,8 @@ export default function FabricCanvas() {
         hasControls: sectionGroup.hasControls
       });
 
-      // PHASE 1 KRITISCH: Vereinfachter modified-Handler nur für Canvas-Refresh
-      sectionGroup.on('modified', function() {
-        DBG(`Section ${section.id} modified - triggering canvas refresh`);
-        
-        // ERWEITERTE Text-Reflow-Logik für alle Textboxen in der Gruppe
-        const groupObjects = sectionGroup.getObjects();
-        
-        for (const obj of groupObjects) {
-          if (obj.type === 'textbox') {
-            try {
-              // Speichere ursprünglichen Text
-              const originalText = obj.text || '';
-              
-              // Berechne neue effektive Breite nach Gruppenskalierung
-              const scaledWidth = obj.getScaledWidth();
-              
-              DBG(`Text reflow for ${obj.partId}:`, {
-                originalWidth: obj.width,
-                scaledWidth: scaledWidth,
-                originalText: originalText.substring(0, 30) + '...',
-                scaleX: obj.scaleX,
-                scaleY: obj.scaleY
-              });
-              
-              // KRITISCH: Cache leeren vor Dimensionsänderung
-              if (typeof obj._clearCache === 'function') {
-                obj._clearCache();
-              }
-              
-              // Setze neue Breite und normalisiere Skalierung (KEINE height!)
-              obj.set({
-                width: scaledWidth,
-                scaleX: 1,
-                scaleY: 1
-              });
-              
-              // KRITISCH: Erzwinge Text-Reflow durch Text-Reset
-              obj.set('text', '');
-              obj.set('text', originalText);
-              
-              // Koordinaten und Dimensionen aktualisieren
-              obj.setCoords();
-              if (typeof obj.initDimensions === 'function') {
-                obj.initDimensions();
-              }
-              
-              // Objekt als "dirty" markieren für nächstes Rendering
-              obj.set('dirty', true);
-              
-              DBG(`Text reflow applied to ${obj.partId}:`, {
-                newWidth: scaledWidth,
-                 finalHeight: obj.height,
-                 text: obj.text?.substring(0, 20) + '...',
-                 dirty: obj.dirty
-              });
-              
-            } catch (error) {
-              DBG(`Error during text reflow for ${obj.partId}:`, error);
-            }
-          }
-        }
-        
-        fabricCanvas.renderAll();
-      });
-
-      // ZUSÄTZLICH: object:scaling Event für Echtzeit-Reflow während der Skalierung
-      sectionGroup.on('scaling', function() {
-        DBG(`Section ${section.id} scaling - applying real-time text reflow`);
-        
-        const groupObjects = sectionGroup.getObjects();
-        
-        for (const obj of groupObjects) {
-          if (obj.type === 'textbox') {
-            try {
-              const originalText = obj.text || '';
-              const scaledWidth = obj.getScaledWidth();
-              
-              // Cache leeren
-              if (typeof obj._clearCache === 'function') {
-                obj._clearCache();
-              }
-              
-              // Dimensionen anpassen ohne Skalierung
-              obj.set({
-                width: scaledWidth,
-                scaleX: 1,
-                scaleY: 1
-              });
-              
-              // Text-Reset für Reflow
-              obj.set('text', '');
-              obj.set('text', originalText);
-              
-              // Koordinaten aktualisieren
-              obj.setCoords();
-              if (typeof obj.initDimensions === 'function') {
-                obj.initDimensions();
-              }
-              
-              obj.set('dirty', true);
-              
-            } catch (error) {
-              DBG(`Error during scaling text reflow for ${obj.partId}:`, error);
-            }
-          }
-        }
-        
-        // Kein renderAll() hier - das würde die Performance beeinträchtigen
-      });
+      // NOTE: Section resize logic is now handled by installSectionResize.ts
+      // This provides proper "Scale-to-Resize Normalization" as recommended by GPT-5
 
       // PHASE 3: Gruppe zum Canvas hinzufügen
       fabricCanvas.add(sectionGroup);
@@ -473,7 +374,7 @@ export default function FabricCanvas() {
             <div>Sections: {sections?.length || 0}</div>
             <div>Zoom: {Math.round((zoom || 1) * 100)}%</div>
             <div>Fabric: {fabricCanvas ? '✓' : '✗'}</div>
-            <div className="text-green-400">Phase 1: Stabilized</div>
+            <div className="text-green-400">GPT-5 Fix: Active</div>
           </div>
         </div>
       </div>
