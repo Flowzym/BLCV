@@ -325,6 +325,41 @@ export default function FabricCanvas() {
           objectsInGroup: sectionGroup.getObjects().length
         });
         
+        // CRITICAL: "Bake" the scaling into actual dimensions to prevent text distortion
+        if (sectionGroup.scaleX !== 1 || sectionGroup.scaleY !== 1) {
+          DBG(`=== BAKING SECTION GROUP SCALING ===`);
+          
+          const scaledWidth = sectionGroup.getScaledWidth();
+          const scaledHeight = sectionGroup.getScaledHeight();
+          
+          DBG(`Baking scaling:`, {
+            originalWidth: sectionGroup.width,
+            originalHeight: sectionGroup.height,
+            originalScaleX: sectionGroup.scaleX,
+            originalScaleY: sectionGroup.scaleY,
+            scaledWidth: scaledWidth,
+            scaledHeight: scaledHeight
+          });
+          
+          // Set the group's actual dimensions to the scaled values
+          sectionGroup.set({
+            width: scaledWidth,
+            height: scaledHeight,
+            scaleX: 1,
+            scaleY: 1
+          });
+          
+          // Update coordinates after dimension changes
+          sectionGroup.setCoords();
+          
+          DBG(`Scaling baked successfully:`, {
+            newWidth: sectionGroup.width,
+            newHeight: sectionGroup.height,
+            newScaleX: sectionGroup.scaleX,
+            newScaleY: sectionGroup.scaleY
+          });
+        }
+        
         const groupObjects = sectionGroup.getObjects();
         groupObjects.forEach((obj: any) => {
           if (obj.type === 'textbox' && obj.sectionRef && obj.originalOffsetX !== undefined) {
@@ -342,10 +377,13 @@ export default function FabricCanvas() {
               scaledHeight: obj.getScaledHeight?.() || 'no method'
             });
             
+            // Use the group's actual (unbaked) width for calculations
             const newWidth = Math.max(50, sectionGroup.width - obj.originalOffsetX - 20);
             
             DBG(`Calculated new width:`, {
               sectionGroupWidth: sectionGroup.width,
+              sectionGroupScaleX: sectionGroup.scaleX,
+              sectionGroupScaleY: sectionGroup.scaleY,
               originalOffsetX: obj.originalOffsetX,
               rightPadding: 20,
               calculatedNewWidth: newWidth
