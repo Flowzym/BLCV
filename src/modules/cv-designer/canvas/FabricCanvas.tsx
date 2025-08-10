@@ -274,6 +274,23 @@ export default function FabricCanvas() {
       // CRITICAL: Mark this as a section group for the resize handler
       sectionGroup.data = { sectionId: section.id, type: 'section' };
       
+      // HÄRTEN: Initial-Normalisierung aller Textbox-Kinder (verhindert Rest-Scales/Dupes)
+      textboxes.forEach((textbox: any) => {
+        textbox.set({ 
+          scaleX: 1, 
+          scaleY: 1, 
+          angle: 0, 
+          skewX: 0, 
+          skewY: 0, 
+          originX: 'left', 
+          originY: 'top' 
+        });
+        textbox.setCoords();
+      });
+      
+      // CRITICAL: Mark this as a section group for the resize handler
+      sectionGroup.data = { sectionId: section.id, type: 'section' };
+      
       DBG(`Created section group for ${section.id}:`, {
         left: sectionGroup.left,
         top: sectionGroup.top,
@@ -283,9 +300,6 @@ export default function FabricCanvas() {
         selectable: sectionGroup.selectable,
         hasControls: sectionGroup.hasControls
       });
-
-      // NOTE: Section resize logic is now handled by installSectionResize.ts
-      // This provides proper "Scale-to-Resize Normalization" as recommended by GPT-5
 
       // PHASE 3: Gruppe zum Canvas hinzufügen
       fabricCanvas.add(sectionGroup);

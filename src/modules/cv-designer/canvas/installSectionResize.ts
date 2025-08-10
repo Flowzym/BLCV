@@ -2,11 +2,11 @@
 import { fabric } from "fabric";
 
 /**
- * Ziel:
- * - Gruppenskalierung (scaleX/scaleY) → echte width/height-Änderung.
- * - Textboxen NIE skalieren, nur über 'width' reflowen.
- * - Padding/Indent in px bleiben konstant.
- * - Reflow bei JEDER Größenänderung (auch nur Höhe).
+ * Ziele:
+ * - Gruppenskalierung (scaleX/scaleY) wird in echtes width/height-Resize überführt (Scale→Resize Normalization).
+ * - Textboxen werden niemals skaliert, sondern ausschließlich über 'width' neu umbrochen.
+ * - Padding/Indent bleiben in Pixeln konstant (anchored Text).
+ * - Harte Reflow-Sequenz stellt Cache/Dimensions sicher (verhindert "eine Zeile"/Überlagerung).
  */
 
 type WithData = fabric.Object & {
@@ -50,9 +50,10 @@ function isSectionGroup(obj: any): obj is fabric.Group & WithData {
 }
 
 /**
- * Initialisiere Layout-Metadaten pro Kind:
- * - Textbox → anchored (px-Padding/Indent)
- * - andere → proportional (Ratio)
+ * Initialisiert Layout-Metadaten pro Kind:
+ * - Textbox → anchored (px-Padding/Indent bleiben konstant)
+ * - andere → proportional (Ratio bezogen auf Gruppe)
+ * Idempotent: vorhandenes __layout wird nicht überschrieben.
  */
 function ensureChildLayouts(group: fabric.Group & WithData) {
   const gw = group.width ?? 1;
@@ -80,7 +81,7 @@ function ensureChildLayouts(group: fabric.Group & WithData) {
     } else {
       const childWidth = (child.width ?? 0) * (child.scaleX ?? 1);
       const childHeight = (child.height ?? 0) * (child.scaleY ?? 1);
-      const relLeft = (child.left ?? 0) + halfW; // Center → TL umrechnen
+      const relLeft = (child.left ?? 0) + halfW; // Center → TL
       const relTop  = (child.top  ?? 0) + halfH;
 
       const ratio: Ratio = {
@@ -98,8 +99,9 @@ function ensureChildLayouts(group: fabric.Group & WithData) {
 
 /**
  * Layout anwenden:
- * - Text (anchored): IMMER Zielbreite setzen (erzwingt Reflow) + Cache/Dims refresh.
- * - Proportional: Maße/Position aus Ratio.
+ * - Text (anchored): IMMER Zielbreite setzen (erzwingt Reflow), Cache & Dimensions refresh,
+ *   volle Normalisierung von Scale/Skew/Angle/Origin.
+ * - Proportional: Maße/Position aus Ratio; niemals skaliert rendern.
  */
 function applyLayout(
   group: fabric.Group & WithData,
@@ -123,26 +125,39 @@ function applyLayout(
       if (child.type === "textbox") {
         const targetW = Math.max(1, newW - padL - padR - indentPx);
 
-        // immer Reflow, auch bei reiner Höhenänderung
+        // 1) Vollständige Normalisierung der Metriken (keine Rest-Skalen/Skews/Angle/Origins)
         child.set({
           width: targetW,
           scaleX: 1,
           scaleY: 1,
-          objectCaching: false,
+          angle: 0,
+          skewX: 0,
+          skewY: 0,
+          originX: "left",
+          originY: "top",
+          objectCaching: false, // während Interaktion kein Bitmap-Cache
         });
 
-        if (typeof child._clearCache === "function") child._clearCache();
-        if (typeof child.initDimensions === "function") child.initDimensions();
-        child.set("dirty", true);
+        // 2) Harte Reflow-Sequenz (Fabric-Versionen-agnostisch)
+        const txt = child.text || "";
+        child.set("text", ""); // Force Layout Reset
+        if (typeof (child as any)._clearCache === "function") (child as any)._clearCache();
+        if (typeof (child as any).initDimensions === "function") (child as any).initDimensions();
+
+        child.set("text", txt); // Neu zuweisen → frisches Measure
+        if (typeof (child as any)._clearCache === "function") (child as any)._clearCache();
+        if (typeof (child as any).initDimensions === "function") (child as any).initDimensions();
+
+        (child as any).dirty = true;
       } else {
-        child.set({ scaleX: 1, scaleY: 1 });
+        child.set({
+          scaleX: 1, scaleY: 1, angle: 0, skewX: 0, skewY: 0,
+          originX: "left", originY: "top"
+        });
       }
 
       // TL → Center-Koordinaten der Gruppe
-      child.set({
-        left: tlX - halfW,
-        top:  tlY - halfH,
-      });
+      child.set({ left: tlX - halfW, top: tlY - halfH });
       child.setCoords();
 
     } else {
@@ -162,23 +177,26 @@ function applyLayout(
       ) {
         child.set({ width: targetW, height: targetH, scaleX: 1, scaleY: 1 });
       } else if (child.type === "textbox") {
+        // Safety-Fall: Text in proportionalem Modus → nur width anpassen + harter Reflow
         child.set({
           width: targetW,
           scaleX: 1,
           scaleY: 1,
+          angle: 0,
+          skewX: 0,
+          skewY: 0,
+          originX: "left",
+          originY: "top",
           objectCaching: false,
         });
-        if (typeof child._clearCache === "function") child._clearCache();
-        if (typeof child.initDimensions === "function") child.initDimensions();
-        child.set("dirty", true);
+        if (typeof (child as any)._clearCache === "function") (child as any)._clearCache();
+        if (typeof (child as any).initDimensions === "function") (child as any).initDimensions();
+        (child as any).dirty = true;
       } else {
         child.set({ scaleX: 1, scaleY: 1 });
       }
 
-      child.set({
-        left: tlX - halfW,
-        top:  tlY - halfH,
-      });
+      child.set({ left: tlX - halfW, top: tlY - halfH });
       child.setCoords();
     }
   });
@@ -219,6 +237,11 @@ export function installSectionResize(canvas: fabric.Canvas) {
     target.__baseW = newW;
     target.__baseH = newH;
 
+    // Debug (temporär): mögliche Dupes sichtbar machen
+    console.log('[section children]',
+      (target as any)._objects?.filter((o:any)=>o.type==='textbox').map((o:any)=>o.text)
+    );
+
     canvas.requestRenderAll();
     isResizing = false;
   });
@@ -230,9 +253,9 @@ export function installSectionResize(canvas: fabric.Canvas) {
     (target._objects || []).forEach((child: any) => {
       if (child.type === "textbox") {
         child.set({ objectCaching: true });
-        if (typeof child._clearCache === "function") child._clearCache();
-        if (typeof child.initDimensions === "function") child.initDimensions();
-        child.set("dirty", true);
+        if (typeof (child as any)._clearCache === "function") (child as any)._clearCache();
+        if (typeof (child as any).initDimensions === "function") (child as any).initDimensions();
+        (child as any).dirty = true;
       }
       child.setCoords();
     });
