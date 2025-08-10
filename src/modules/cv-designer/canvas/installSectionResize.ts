@@ -3,10 +3,10 @@ import { fabric } from "fabric";
 
 /**
  * Ziel:
- * - Gruppenskalierung (scaleX/scaleY) → echte width/height-Änderung (Normalization).
- * - Textboxen werden NIE skaliert, nur über 'width' reflowed.
+ * - Gruppenskalierung (scaleX/scaleY) → echte width/height-Änderung.
+ * - Textboxen NIE skalieren, nur über 'width' reflowen.
  * - Padding/Indent in px bleiben konstant.
- * - Reflow wird bei JEDER Größenänderung getriggert (auch nur Höhe).
+ * - Reflow bei JEDER Größenänderung (auch nur Höhe).
  */
 
 type WithData = fabric.Object & {
@@ -114,7 +114,7 @@ function applyLayout(
     if (!layout) return;
 
     if (layout.mode === "anchored") {
-      const { padL, padT, padR, /* padB intentionally unused */, indentPx } = layout as Anchored;
+      const { padL, padT, padR, indentPx } = layout as Anchored;
 
       // TL-Position bleibt in px konstant
       const tlX = padL + indentPx;
