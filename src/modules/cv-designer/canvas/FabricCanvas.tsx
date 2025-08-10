@@ -7,8 +7,6 @@ import { installSectionResize } from "./installSectionResize";
 const DBG = (msg: string, ...args: any[]) => {
   if (import.meta.env.VITE_DEBUG_DESIGNER_SYNC === "true") {
     console.log("[FABRIC_CANVAS]", msg, ...args);
-  } else {
-    // console.log("[FABRIC_CANVAS*]", msg, ...args);
   }
 };
 
@@ -88,9 +86,7 @@ export default function FabricCanvas() {
 
       const textboxes: any[] = [];
 
-      // feste Innenränder der Sektion (kannst du gern über Tokens/Props steuern)
       const PAD_R_DEFAULT = Number(section.props?.paddingRight ?? 16);
-      // Hinweis: padL kommt aus part.offsetX (pro Unterfeld)
 
       for (const part of section.parts) {
         if (part.type !== "text") continue;
@@ -103,21 +99,48 @@ export default function FabricCanvas() {
         const padR = Math.max(0, PAD_R_DEFAULT);
         const padB = 12;
 
-        // Startbreite **immer** aus Sektion – NICHT aus einer alten approxWidth ableiten!
         const initialTextWidth = Math.max(1, section.width - padL - padR - indentPx);
 
-        const globalStyle = globalFieldStyles[section.sectionType]?.[part.fieldType || "content"] || {};
+        const globalStyle =
+          globalFieldStyles[section.sectionType]?.[part.fieldType || "content"] || {};
         const partStyleKey = `${section.sectionType}:${part.fieldType}`;
         const localPartStyle = partStyles[partStyleKey] || {};
 
         const finalStyle = {
-          fontSize: part.fontSize || localPartStyle.fontSize || globalStyle.fontSize || tokens?.fontSize || 12,
-          fontFamily: part.fontFamily || localPartStyle.fontFamily || globalStyle.fontFamily || tokens?.fontFamily || "Arial, sans-serif",
-          fill: part.color || localPartStyle.color || globalStyle.textColor || tokens?.colorPrimary || "#000000",
+          fontSize:
+            part.fontSize ||
+            localPartStyle.fontSize ||
+            globalStyle.fontSize ||
+            tokens?.fontSize ||
+            12,
+          fontFamily:
+            part.fontFamily ||
+            localPartStyle.fontFamily ||
+            globalStyle.fontFamily ||
+            tokens?.fontFamily ||
+            "Arial, sans-serif",
+          fill:
+            part.color ||
+            localPartStyle.color ||
+            globalStyle.textColor ||
+            tokens?.colorPrimary ||
+            "#000000",
           fontWeight: part.fontWeight || localPartStyle.fontWeight || globalStyle.fontWeight || "normal",
-          fontStyle: part.fontStyle || (localPartStyle.italic ? "italic" : globalStyle.fontStyle) || "normal",
-          lineHeight: part.lineHeight || localPartStyle.lineHeight || globalStyle.lineHeight || tokens?.lineHeight || 1.4,
-          charSpacing: ((part.letterSpacing || localPartStyle.letterSpacing || globalStyle.letterSpacing || 0) * 1000),
+          fontStyle:
+            part.fontStyle ||
+            (localPartStyle.italic ? "italic" : globalStyle.fontStyle) ||
+            "normal",
+          lineHeight:
+            part.lineHeight ||
+            localPartStyle.lineHeight ||
+            globalStyle.lineHeight ||
+            tokens?.lineHeight ||
+            1.4,
+          charSpacing:
+            (part.letterSpacing ||
+              localPartStyle.letterSpacing ||
+              globalStyle.letterSpacing ||
+              0) * 1000,
           textAlign: part.textAlign || "left",
         };
 
@@ -150,8 +173,13 @@ export default function FabricCanvas() {
         }) as any;
 
         tb.data = {
-          fieldKey: part.id ?? `${section.id}:${part.fieldType}:${Math.random().toString(36).slice(2, 8)}`,
-          padL, padT, padR, padB, indentPx,
+          fieldKey:
+            part.id ?? `${section.id}:${part.fieldType}:${Math.random().toString(36).slice(2, 8)}`,
+          padL,
+          padT,
+          padR,
+          padB,
+          indentPx,
           flow: true,
           order: Number.isFinite(part.order) ? part.order : 0,
           gapBefore: Number(part.gapBefore ?? 0),
@@ -163,7 +191,6 @@ export default function FabricCanvas() {
         tb.fieldType = part.fieldType;
         tb.sectionId = section.id;
 
-        // anchored TL -> center Koords der Gruppe
         const halfW = section.width / 2;
         const halfH = section.height / 2;
         const tlX = padL + indentPx;
@@ -193,12 +220,20 @@ export default function FabricCanvas() {
         cornerColor: "#3b82f6",
       }) as any;
 
-      // wichtig: Installer-Hint
+      // wichtig: damit der Resize-Installer greift
       sectionGroup.data = { sectionId: section.id, type: "section" };
       sectionGroup.sectionId = section.id;
       sectionGroup.sectionType = section.sectionType;
 
       fabricCanvas.add(sectionGroup);
+
+      // >>> Initial-Layout direkt auslösen, damit es später NICHT „springt“
+      try {
+        (sectionGroup as any).scaleX = 1;
+        (sectionGroup as any).scaleY = 1;
+        fabricCanvas.fire("object:scaling", { target: sectionGroup } as any);
+        fabricCanvas.fire("object:modified", { target: sectionGroup } as any);
+      } catch {}
     }
 
     if (isCanvasAlive(fabricCanvas)) {
@@ -221,6 +256,7 @@ export default function FabricCanvas() {
     }
   }, [fabricCanvas, zoom]);
 
+  // (Vorbereitung) Klick-Handler – später Overlay-Editor hier öffnen
   useEffect(() => {
     if (!fabricCanvas) return;
     const onMouseDown = (e: any) => {
