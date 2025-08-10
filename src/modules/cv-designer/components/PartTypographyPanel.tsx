@@ -4,6 +4,7 @@ import {
   GroupKey,
   PartKey,
   PartStyle,
+  SectionType,
 } from "../store/designerStore";
 
 const PARTS_BY_GROUP: Record<GroupKey, PartKey[]> = {
@@ -36,8 +37,8 @@ export default function PartTypographyPanel() {
   const sections = useDesignerStore((s) => s.sections);
   const selectedTypographyField = useDesignerStore((s) => s.selectedTypographyField);
 
-  const updateGlobal = useDesignerStore((s) => s.updateGlobalPartStyle);
-  const clearGlobal = useDesignerStore((s) => s.clearGlobalPartStyle);
+  const setGlobalFieldStyle = useDesignerStore((s) => s.setGlobalFieldStyle);
+  const clearGlobalFieldStyle = useDesignerStore((s) => s.clearGlobalFieldStyle);
   const setSelectedField = useDesignerStore((s) => s.setSelectedTypographyField);
 
   // Use selected field from store, with fallback to first available
@@ -97,12 +98,23 @@ export default function PartTypographyPanel() {
   }, [key, current?.fontFamily, current?.fontSize, current?.lineHeight, current?.color, current?.letterSpacing, current?.fontWeight, current?.italic]);
 
   // Sofort anwenden, wenn ein Control verändert wird
-  const apply = (patch: Partial<PartStyle>) => {
-    updateGlobal(group, part, patch);
+  const apply = (patch: any) => {
+    // Convert PartStyle properties to Typography properties
+    const typographyPatch: any = {};
+    
+    if (patch.fontFamily !== undefined) typographyPatch.fontFamily = patch.fontFamily;
+    if (patch.fontSize !== undefined) typographyPatch.fontSize = patch.fontSize;
+    if (patch.fontWeight !== undefined) typographyPatch.fontWeight = patch.fontWeight;
+    if (patch.italic !== undefined) typographyPatch.fontStyle = patch.italic ? 'italic' : 'normal';
+    if (patch.color !== undefined) typographyPatch.textColor = patch.color;
+    if (patch.lineHeight !== undefined) typographyPatch.lineHeight = patch.lineHeight;
+    if (patch.letterSpacing !== undefined) typographyPatch.letterSpacing = patch.letterSpacing;
+    
+    setGlobalFieldStyle(group as SectionType, part, typographyPatch);
   };
 
   const handleReset = () => {
-    clearGlobal(group, part);
+    clearGlobalFieldStyle(group as SectionType, part);
   };
 
   return (

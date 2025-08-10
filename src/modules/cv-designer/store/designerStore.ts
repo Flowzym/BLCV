@@ -108,6 +108,7 @@ export interface DesignerState {
   setGlobalFieldStyle: (sectionType: SectionType, field: string, t: Partial<Typography>) => void;
   setActiveLayoutForType: (type: SectionType, layoutId: string) => void;
   setSelectedTypographyField: (selection: { sectionType: SectionType; fieldType: string } | null) => void;
+  clearGlobalFieldStyle: (sectionType: SectionType, field: string) => void;
 
   select(ids:string[]): void;
   updateFrame(id:string, patch:Partial<Frame>): void;
@@ -202,6 +203,15 @@ export const useDesignerStore = create<DesignerState>()(
         }
       })),
       setSelectedTypographyField: (selection) => set({ selectedTypographyField: selection }),
+      clearGlobalFieldStyle: (sectionType, field) => set((s) => ({
+        globalFieldStyles: {
+          ...s.globalFieldStyles,
+          [sectionType]: {
+            ...s.globalFieldStyles[sectionType],
+            [field]: {}
+          }
+        }
+      })),
 
       select:(ids)=>set({ selectedIds: Array.from(new Set(ids)) }),
 
