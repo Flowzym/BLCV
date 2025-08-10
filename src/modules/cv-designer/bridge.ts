@@ -12,9 +12,8 @@ declare global {
 let listener: ((parts: Parts) => void) | null = null;
 
 export function initDesignerBridge() {
-  // Designer registriert seinen Callback:
+  // Sicherstellen, dass die globalen Funktionen immer definiert sind
+  // Designer registriert seinen Callback
   window.ns_setupCallback = (cb) => { listener = cb; };
-
-  // Generator ruft diese Funktion auf, um Parts zu senden:
+  // Generator ruft diese Funktion auf, um Parts zu senden
   window.ns_dispatchPartsFromGenerator = (parts) => { listener?.(parts); };
-}
