@@ -222,8 +222,61 @@ export default function FabricCanvas() {
         textObj.partId = part.id;
         textObj.fieldType = part.fieldType;
         textObj.sectionId = section.id;
-        textObj.originalOffsetX = part.offsetX || 0;
-        textObj.originalOffsetY = part.offsetY || 0;
+        
+        // KRITISCH: Layout-Daten für installSectionResize.ts
+        const padL = part.offsetX || 0;
+        const padT = part.offsetY || 0;
+        const padR = Math.max(0, section.width - (part.offsetX || 0) - textboxWidth);
+        const padB = Math.max(0, section.height - (part.offsetY || 0) - 30); // geschätzte Texthöhe
+        const indentPx = part.fieldType === 'bullet' ? 20 : 0; // Einzug für Bullets
+        
+        textObj.data = {
+          fieldKey: part.fieldType + '-' + part.id,
+          padL,
+          padT, 
+          padR,
+          padB,
+          indentPx,
+          type: "textbox"
+        };
+        
+        // KRITISCH: Initiale Position korrekt berechnen (nicht 0,0)
+        const groupHalfW = section.width / 2;
+        const groupHalfH = section.height / 2;
+        const tlX = padL + indentPx;
+        const tlY = padT;
+        
+        // In Gruppen-Koordinaten (center-based) umrechnen
+        textObj.set({
+          left: tlX - groupHalfW,
+          top: tlY - groupHalfH,
+          width: Math.max(1, section.width - padL - padR - indentPx)
+        });
+        
+        // Vollständige Metrik-Normalisierung
+        textObj.set({
+          scaleX: 1,
+          scaleY: 1,
+          angle: 0,
+          skewX: 0,
+          skewY: 0,
+          originX: "left",
+          originY: "top",
+          objectCaching: false
+        });
+        
+        // Harte Reflow-Sequenz für stabiles Layout
+        const originalText = textObj.text || "";
+        textObj.set("text", ""); // Force Layout Reset
+        if (typeof textObj._clearCache === "function") textObj._clearCache();
+        if (typeof textObj.initDimensions === "function") textObj.initDimensions();
+        
+        textObj.set("text", originalText); // Neu zuweisen → frisches Measure
+        if (typeof textObj._clearCache === "function") textObj._clearCache();
+        if (typeof textObj.initDimensions === "function") textObj.initDimensions();
+        
+        textObj.dirty = true;
+        textObj.setCoords();
         
         textboxes.push(textObj);
         
@@ -274,22 +327,22 @@ export default function FabricCanvas() {
       // CRITICAL: Mark this as a section group for the resize handler
       sectionGroup.data = { sectionId: section.id, type: 'section' };
       
-      // HÄRTEN: Initial-Normalisierung aller Textbox-Kinder (verhindert Rest-Scales/Dupes)
-      textboxes.forEach((textbox: any) => {
-        textbox.set({ 
-          scaleX: 1, 
-          scaleY: 1, 
-          angle: 0, 
-          skewX: 0, 
-          skewY: 0, 
-          originX: 'left', 
-          originY: 'top' 
-        });
-        textbox.setCoords();
-      });
+      // Debug: Prüfe auf doppelte Textboxen
+      const fieldKeys = textboxes.map((tb: any) => tb.data?.fieldKey).filter(Boolean);
+      const uniqueKeys = new Set(fieldKeys);
+      if (fieldKeys.length !== uniqueKeys.size) {
+        console.warn('[FABRIC_CANVAS] Doppelte fieldKeys erkannt:', fieldKeys);
+      }
       
-      // CRITICAL: Mark this as a section group for the resize handler
-      sectionGroup.data = { sectionId: section.id, type: 'section' };
+      // Debug (temporär): zeige Text-Kinder
+      console.log('[section children]', 
+        textboxes.map((o: any) => ({ 
+          fieldKey: o.data?.fieldKey, 
+          text: o.text?.substring(0, 20) + '...',
+          position: { left: o.left, top: o.top },
+          size: { width: o.width, height: o.height }
+        }))
+      );
       
       DBG(`Created section group for ${section.id}:`, {
         left: sectionGroup.left,
@@ -304,6 +357,15 @@ export default function FabricCanvas() {
       // PHASE 3: Gruppe zum Canvas hinzufügen
       fabricCanvas.add(sectionGroup);
       DBG(`Added section group ${section.id} to canvas`);
+      
+      // KRITISCH: Initial-Layout triggern (ohne Benutzer-Resize)
+      // Simuliere ein scaling-Event, damit installSectionResize die Layouts korrekt initialisiert
+      setTimeout(() => {
+        if (fabricCanvas && sectionGroup) {
+          fabricCanvas.fire('object:scaling', { target: sectionGroup });
+          fabricCanvas.fire('object:modified', { target: sectionGroup });
+        }
+      }, 10);
     }
 
     // PHASE 4: Canvas final rendern
