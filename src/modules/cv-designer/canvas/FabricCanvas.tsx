@@ -266,13 +266,26 @@ export default function FabricCanvas() {
         });
 
         // Add to section group
-        sectionGroup.addWithUpdate(debugTextObj);
+        sectionGroup.add(debugTextObj);
         DBG(`Added textbox to section group ${section.id}`);
       }
 
       // Update group coordinates after adding all objects
       sectionGroup.setCoords();
       DBG(`Updated coordinates for section group ${section.id}`);
+
+      // Debug: Log group state before adding to canvas
+      DBG(`Section group ${section.id} final state:`, {
+        type: sectionGroup.type,
+        left: sectionGroup.left,
+        top: sectionGroup.top,
+        width: sectionGroup.width,
+        height: sectionGroup.height,
+        objectsCount: sectionGroup.getObjects?.()?.length || 0,
+        methods: Object.getOwnPropertyNames(sectionGroup).filter(name => typeof sectionGroup[name] === 'function'),
+        hasAdd: typeof sectionGroup.add === 'function',
+        hasAddWithUpdate: typeof sectionGroup.addWithUpdate === 'function'
+      });
 
       // Add section group to canvas
       fabricCanvas.add(sectionGroup);
