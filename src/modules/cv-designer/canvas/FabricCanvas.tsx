@@ -279,6 +279,41 @@ export default function FabricCanvas() {
       // PHASE 1 KRITISCH: Vereinfachter modified-Handler nur für Canvas-Refresh
       sectionGroup.on('modified', function() {
         DBG(`Section ${section.id} modified - triggering canvas refresh`);
+        
+        // Text-Reflow-Logik für alle Textboxen in der Gruppe
+        const groupObjects = sectionGroup.getObjects();
+        
+        for (const obj of groupObjects) {
+          if (obj.type === 'textbox') {
+            try {
+              // Berechne neue effektive Dimensionen nach Gruppenskalierung
+              const scaledWidth = obj.getScaledWidth();
+              const scaledHeight = obj.getScaledHeight();
+              
+              // Setze neue Dimensionen und normalisiere Skalierung
+              obj.set({
+                width: scaledWidth,
+                height: scaledHeight,
+                scaleX: 1,
+                scaleY: 1
+              });
+              
+              // Erzwinge Text-Reflow und Koordinaten-Update
+              obj.setCoords();
+              obj.initDimensions();
+              
+              DBG(`Text reflow applied to ${obj.partId}:`, {
+                newWidth: scaledWidth,
+                newHeight: scaledHeight,
+                text: obj.text?.substring(0, 20) + '...'
+              });
+              
+            } catch (error) {
+              DBG(`Error during text reflow for ${obj.partId}:`, error);
+            }
+          }
+        }
+        
         fabricCanvas.renderAll();
       });
 
