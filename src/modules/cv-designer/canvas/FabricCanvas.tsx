@@ -52,71 +52,71 @@ export default function FabricCanvas() {
           const canvas = CanvasRegistry.getOrCreate(canvasRef.current, fabric);
           canvas.setDimensions({ width: PAGE_W, height: PAGE_H });
           canvas.backgroundColor = "#ffffff";
-          canvas.selection = true;
-          canvas.preserveObjectStacking = true;
 
-          // 🔧 Wichtig für Klicks auf Kinder in Gruppen:
-          canvas.subTargetCheck = true;
-          canvas.perPixelTargetFind = true;
-          canvas.targetFindTolerance = 4;
+          // ✳️ Interaktionseinstellungen
+          canvas.selection = false;           // kein Auswahlrechteck
+          canvas.subTargetCheck = true;       // Kinder in Gruppen klickbar
+          canvas.perPixelTargetFind = true;   // präziser Hit-Test
+          canvas.targetFindTolerance = 6;
 
           setFabricCanvas(canvas);
           installSectionResize(canvas);
 
-          // Click-Handler für Edit (nutzt subTargets)
-          canvas.on("mouse:down", (e: any) => {
+          // Klick-Handler → Overlay
+          const onMouseUp = (e: any) => {
             let t: any = null;
 
-            // a) Bevorzugt: ein Kind in der Trefferliste (subTargets)
+            // a) bevorzugt: subTargets (Kinder)
             if (Array.isArray(e.subTargets) && e.subTargets.length) {
               t = e.subTargets.find((o: any) => o?.type === "textbox") ?? null;
             }
 
-            // b) Fallback: direkter Target ist eine Textbox
+            // b) direktes Target ist Textbox
             if (!t && e.target && e.target.type === "textbox") {
               t = e.target;
             }
 
-            // c) Zweiter Fallback: Gruppe getroffen → nächstliegende Textbox unter Pointer suchen
+            // c) Gruppe getroffen? → innerhalb Gruppe am Pointer prüfen
             if (!t && e.target && e.target.type === "group") {
               const grp = e.target;
               const pointer = canvas.getPointer(e.e);
               const hit = (grp._objects || []).find((child: any) => {
                 if (child.type !== "textbox") return false;
                 const r = child.getBoundingRect(true, true);
-                return (
-                  pointer.x >= r.left &&
-                  pointer.x <= r.left + r.width &&
-                  pointer.y >= r.top &&
-                  pointer.y <= r.top + r.height
-                );
+                return pointer.x >= r.left && pointer.x <= r.left + r.width &&
+                       pointer.y >= r.top  && pointer.y <= r.top  + r.height;
               });
               if (hit) t = hit;
             }
 
             if (!t) return;
 
-            // nur Textboxen mit unseren Metadaten sind editierbar
             if (t.type === "textbox" && t.sectionId && t.fieldType) {
-              const grp = t.group; // fabric.Group
-              if (grp) {
-                setActiveEdit({
-                  sectionId: t.sectionId,
-                  sectionType: grp.sectionType || "experience",
-                  fieldType: t.fieldType,
-                  group: grp,
-                  textbox: t,
-                });
-              }
+              const grp = t.group;
+              if (!grp) return;
+              setActiveEdit({
+                sectionId: t.sectionId,
+                sectionType: grp.sectionType || "experience",
+                fieldType: t.fieldType,
+                group: grp,
+                textbox: t,
+              });
             }
-          });
+          };
+
+          canvas.on("mouse:up", onMouseUp);
+
+          // Cleanup
+          return () => {
+            canvas.off("mouse:up", onMouseUp);
+          };
         }
       } catch (error) {
         console.error("Fabric initialization failed:", error);
       }
     };
 
-    initFabric();
+    const cleanup = initFabric();
 
     return () => {
       isMounted = false;
@@ -126,6 +126,7 @@ export default function FabricCanvas() {
       }
       setFabricCanvas(null);
       setFabricNamespace(null);
+      if (typeof cleanup === "function") cleanup();
     };
   }, []);
 
@@ -210,19 +211,32 @@ export default function FabricCanvas() {
           ...finalStyle,
           splitByGrapheme: true,
           breakWords: true,
-          // ⬇️ wichtig: evented true, selectable kann false bleiben
-          selectable: false, evented: true,
-          hasControls: false, hasBorders: false, editable: false,
-          lockScalingX: true, lockScalingY: true,
-          lockMovementX: true, lockMovementY: true, lockUniScaling: true,
-          opacity: 1, visible: true,
-          originX: "left", originY: "top",
-          scaleX: 1, scaleY: 1, angle: 0, skewX: 0, skewY: 0,
+          selectable: false,     // keine Fabric-Auswahl
+          evented: true,         // aber klickbar
+          hasControls: false,
+          hasBorders: false,
+          editable: false,
+          lockScalingX: true,
+          lockScalingY: true,
+          lockMovementX: true,
+          lockMovementY: true,
+          lockUniScaling: true,
+          opacity: 1,
+          visible: true,
+          originX: "left",
+          originY: "top",
+          scaleX: 1,
+          scaleY: 1,
+          angle: 0,
+          skewX: 0,
+          skewY: 0,
+          hoverCursor: "text",   // Maus zeigt Text-Cursor
+          moveCursor: "default",
         }) as any;
 
         // Metadaten für spätere Referenz speichern
         tb.partId = part.id;
-        tb.fieldType = part.fieldType;         // ← wichtig fürs Overlay / Store
+        tb.fieldType = part.fieldType;
         tb.sectionId = section.id;
 
         // Layout-Daten für Installer
@@ -247,11 +261,14 @@ export default function FabricCanvas() {
         textboxes.push(tb);
       }
 
+      // Gruppe: NICHT selektierbar, aber evented + subTargetCheck
       const sectionGroup = new fabricNamespace.Group(textboxes, {
         left: section.x,
         top: section.y,
-        selectable: true, evented: true,
-        hasControls: true, hasBorders: true,
+        selectable: false,        // ✳️ Gruppe frisst keine Klicks
+        evented: true,
+        hasControls: true,
+        hasBorders: true,
         backgroundColor: section.props?.backgroundColor || "transparent",
         stroke: section.props?.borderColor || "#e5e7eb",
         strokeWidth: parseInt(section.props?.borderWidth || "1", 10),
@@ -262,8 +279,7 @@ export default function FabricCanvas() {
         transparentCorners: false,
         borderColor: "#3b82f6",
         cornerColor: "#3b82f6",
-        // ⬇️ wichtig: Kinder in der Gruppe klickbar machen
-        subTargetCheck: true,
+        subTargetCheck: true,     // Kinder klicken
       }) as any;
 
       sectionGroup.data = {
