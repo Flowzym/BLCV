@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import FabricCanvas from "@/modules/cv-designer/canvas/FabricCanvas";
 import CanvasToolbar from "@/modules/cv-designer/components/CanvasToolbar";
 import RightSidebar from "@/modules/cv-designer/components/RightSidebar";
@@ -6,6 +6,12 @@ import { useLiveSyncFromGenerator } from "@/modules/cv-designer/services/useLive
 import { useLebenslauf } from "@/components/LebenslaufContext"; // ✅ Debug-Overlay
 
 export default function DesignerPage() {
+  const [canvasKey, setCanvasKey] = useState<string>('');
+  
+  useEffect(() => {
+    setCanvasKey(`canvas-${Date.now()}`);
+  }, []);
+  
   useLiveSyncFromGenerator(150);
   const ll = useLebenslauf();
 
@@ -26,7 +32,7 @@ export default function DesignerPage() {
       </header>
 
       <section className="min-h-0 overflow-auto">
-        <FabricCanvas />
+        <FabricCanvas key={canvasKey} />
       </section>
 
       <aside className="min-h-0 overflow-auto">
