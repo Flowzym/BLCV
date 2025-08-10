@@ -102,7 +102,7 @@ export default function FabricCanvas() {
       const canvas = new fabric.Canvas(node, {
         preserveObjectStacking: true,
         selection: true,
-        backgroundColor: '#ffffff', // Weißer Hintergrund (normal)
+        backgroundColor: '#ffffff',
         width: PAGE_W,
         height: PAGE_H,
         skipTargetFind: false
@@ -451,16 +451,17 @@ export default function FabricCanvas() {
               textAlign: part.textAlign || 'left'
             };
             
+            // CRITICAL: Ensure text is always visible with black color fallback
+            if (!finalStyle.fill || finalStyle.fill === '#ffffff' || finalStyle.fill === 'white') {
+              finalStyle.fill = '#000000';
+            }
+            
             DBG(`Calculated final style:`, finalStyle);
             
             // DEBUG: Style-Validierung
             if (finalStyle.fontSize <= 0) {
               DBG('WARNING: fontSize is zero or negative!', finalStyle.fontSize);
               finalStyle.fontSize = 12; // Fallback
-            }
-            if (!finalStyle.fill) {
-              DBG('WARNING: Text color is empty, using fallback!', finalStyle.fill);
-              finalStyle.fill = '#000000'; // Schwarze Schrift als Fallback
             }
             
             try {
@@ -491,9 +492,6 @@ export default function FabricCanvas() {
                 objectCaching: false,
                 splitByGrapheme: false,
                 editable: false
-              });
-              
-              // DEBUG: Textbox-Eigenschaften nach Erstellung überprüfen
               DBG(`Textbox created with properties:`, {
                 id: part.id,
                 left: textObj.left,
@@ -565,9 +563,6 @@ export default function FabricCanvas() {
                 cornerSize: 8,
                 transparentCorners: false,
                 objectCaching: false
-              });
-              
-              // DEBUG: Group-Eigenschaften nach Erstellung überprüfen
               DBG(`Group created with properties:`, {
                 sectionId: section.id,
                 left: sectionGroup.left,

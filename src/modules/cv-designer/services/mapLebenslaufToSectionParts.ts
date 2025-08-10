@@ -80,12 +80,12 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
           offsetY: partY,
           width: 350,
           text: periodLine,
-          fontSize: 12,
-          color: '#6b7280',
+          fontSize: 14,
+          color: '#000000',
           fieldType: 'period',
           order: idx * 100
         });
-        partY += 18;
+        partY += 22;
       }
 
       // Position (Titel)
@@ -97,13 +97,13 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
           offsetY: partY,
           width: 350,
           text: positionLine,
-          fontSize: 16,
+          fontSize: 18,
           fontWeight: 'bold',
-          color: '#1f2937',
+          color: '#000000',
           fieldType: 'title',
           order: idx * 100 + 1
         });
-        partY += 22;
+        partY += 26;
       }
 
       // Unternehmen
@@ -115,12 +115,12 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
           offsetY: partY,
           width: 350,
           text: companyLine,
-          fontSize: 12,
-          color: '#374151',
+          fontSize: 14,
+          color: '#000000',
           fieldType: 'company',
           order: idx * 100 + 2
         });
-        partY += 18;
+        partY += 22;
       }
 
       // Aufgaben als Bullet-Points
@@ -133,17 +133,17 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
             offsetY: partY,
             width: 450,
             text: `• ${norm(task)}`,
-            fontSize: 11,
-            color: '#374151',
+            fontSize: 13,
+            color: '#000000',
             lineHeight: 1.4,
             fieldType: 'bullet',
             order: idx * 100 + 10 + taskIdx
           });
-          partY += 16;
+          partY += 20;
         });
       }
 
-      partY += 20; // Abstand zwischen Erfahrungen
+      partY += 25; // Abstand zwischen Erfahrungen
     });
 
     const experienceSection: CVSectionWithParts = {
@@ -199,13 +199,13 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
           offsetY: partY,
           width: 350,
           text: titleLine,
-          fontSize: 16,
+          fontSize: 18,
           fontWeight: 'bold',
-          color: '#1f2937',
+          color: '#000000',
           fieldType: 'title',
           order: idx * 100
         });
-        partY += 22;
+        partY += 26;
       }
 
       // Institution und Zeitraum
@@ -218,9 +218,9 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
             offsetY: partY,
             width: 300,
             text: institutionLine,
-            fontSize: 12,
+            fontSize: 14,
             fontStyle: 'italic',
-            color: '#374151',
+            color: '#000000',
             fieldType: 'institution',
             order: idx * 100 + 1
           });
@@ -234,13 +234,13 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
             offsetY: partY,
             width: 150,
             text: periodLine,
-            fontSize: 12,
-            color: '#6b7280',
+            fontSize: 14,
+            color: '#000000',
             fieldType: 'period',
             order: idx * 100 + 2
           });
         }
-        partY += 18;
+        partY += 22;
       }
 
       // Zusatzangaben
@@ -252,16 +252,16 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
           offsetY: partY,
           width: 470,
           text: norm(edu.zusatzangaben),
-          fontSize: 11,
-          color: '#6b7280',
+          fontSize: 13,
+          color: '#000000',
           lineHeight: 1.4,
           fieldType: 'note',
           order: idx * 100 + 3
         });
-        partY += 20;
+        partY += 24;
       }
 
-      partY += 15; // Abstand zwischen Ausbildungen
+      partY += 20; // Abstand zwischen Ausbildungen
     });
 
     const educationSection: CVSectionWithParts = {
@@ -307,8 +307,8 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
         offsetY: 30,
         width: 470,
         text: norm(pd.summary),
-        fontSize: 12,
-        color: '#374151',
+        fontSize: 14,
+        color: '#000000',
         lineHeight: 1.5,
         fieldType: 'content',
         order: 0
@@ -339,8 +339,8 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
         offsetY: 30,
         width: 470,
         text: norm(pd.skillsSummary),
-        fontSize: 12,
-        color: '#374151',
+        fontSize: 14,
+        color: '#000000',
         lineHeight: 1.4,
         fieldType: 'content',
         order: 0
@@ -371,8 +371,8 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
         offsetY: 30,
         width: 470,
         text: norm(pd.softSkillsSummary),
-        fontSize: 12,
-        color: '#374151',
+        fontSize: 14,
+        color: '#000000',
         lineHeight: 1.4,
         fieldType: 'content',
         order: 0
