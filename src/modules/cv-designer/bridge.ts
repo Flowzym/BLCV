@@ -17,3 +17,5 @@ export function initDesignerBridge() {
   window.ns_setupCallback = (cb) => { listener = cb; };
   // Generator ruft diese Funktion auf, um Parts zu senden
   window.ns_dispatchPartsFromGenerator = (parts) => { listener?.(parts); };
+
+}
