@@ -93,8 +93,7 @@ export default function PartTypographyPanel() {
     setLetterSpacing(current?.letterSpacing ?? 0);
     setBold((current?.fontWeight ?? "normal") === "bold");
     setItalic(current?.fontStyle === "italic");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [group, part, current?.fontFamily, current?.fontSize, current?.lineHeight, current?.textColor, current?.letterSpacing, current?.fontWeight, current?.fontStyle]);
+  }, [group, part, current, base]);
 
   // Sofort anwenden, wenn ein Control verändert wird
   const apply = (patch: any) => {
