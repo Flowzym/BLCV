@@ -32,7 +32,7 @@ function useGroupsInCanvas(): GroupKey[] {
 export default function PartTypographyPanel() {
   const groups = useGroupsInCanvas();
 
-  const partStyles = useDesignerStore((s) => s.partStyles);
+  const globalFieldStyles = useDesignerStore((s) => s.globalFieldStyles);
   const tokens = useDesignerStore((s) => s.tokens);
   const sections = useDesignerStore((s) => s.sections);
   const selectedTypographyField = useDesignerStore((s) => s.selectedTypographyField);
@@ -55,15 +55,14 @@ export default function PartTypographyPanel() {
     setSelectedField({ sectionType: group, fieldType: newPart });
   };
 
-  const key = `${group}:${part}`;
-  const current: PartStyle | undefined = partStyles[key];
+  const current: Typography | undefined = globalFieldStyles[group]?.[part];
 
   // Fallbacks aus tokens, nur für Preview/Initialwerte
-  const base: Required<Pick<PartStyle, "fontFamily" | "fontSize" | "lineHeight" | "color">> = {
+  const base: Required<Pick<Typography, "fontFamily" | "fontSize" | "lineHeight" | "color">> = {
     fontFamily: tokens.fontFamily ?? "Inter, Arial, sans-serif",
     fontSize: (tokens.fontSize as number) ?? 12,
     lineHeight: (tokens.lineHeight as number) ?? 1.4,
-    color: tokens.colorPrimary ?? "#111111",
+    color: tokens.colorPrimary ?? "#111111", // Note: base uses 'color' for simplicity
   };
 
   // Wieviele Felder werden betroffen?
@@ -80,33 +79,33 @@ export default function PartTypographyPanel() {
   const [fontFamily, setFontFamily] = useState<string>(current?.fontFamily ?? base.fontFamily);
   const [fontSize, setFontSize] = useState<number>(current?.fontSize ?? base.fontSize);
   const [lineHeight, setLineHeight] = useState<number>(current?.lineHeight ?? base.lineHeight);
-  const [color, setColor] = useState<string>(current?.color ?? base.color);
+  const [color, setColor] = useState<string>(current?.textColor ?? base.color);
   const [letterSpacing, setLetterSpacing] = useState<number>(current?.letterSpacing ?? 0);
   const [bold, setBold] = useState<boolean>(current?.fontWeight === "bold");
-  const [italic, setItalic] = useState<boolean>(!!current?.italic);
+  const [italic, setItalic] = useState<boolean>(current?.fontStyle === "italic");
 
   // Wenn current sich extern ändert, UI nachziehen
   useEffect(() => {
     setFontFamily(current?.fontFamily ?? base.fontFamily);
     setFontSize(current?.fontSize ?? base.fontSize);
     setLineHeight(current?.lineHeight ?? base.lineHeight);
-    setColor(current?.color ?? base.color);
+    setColor(current?.textColor ?? base.color);
     setLetterSpacing(current?.letterSpacing ?? 0);
     setBold((current?.fontWeight ?? "normal") === "bold");
-    setItalic(!!current?.italic);
+    setItalic(current?.fontStyle === "italic");
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key, current?.fontFamily, current?.fontSize, current?.lineHeight, current?.color, current?.letterSpacing, current?.fontWeight, current?.italic]);
+  }, [group, part, current?.fontFamily, current?.fontSize, current?.lineHeight, current?.textColor, current?.letterSpacing, current?.fontWeight, current?.fontStyle]);
 
   // Sofort anwenden, wenn ein Control verändert wird
   const apply = (patch: any) => {
-    // Convert PartStyle properties to Typography properties
+    // Convert UI properties to Typography properties for store
     const typographyPatch: any = {};
     
     if (patch.fontFamily !== undefined) typographyPatch.fontFamily = patch.fontFamily;
     if (patch.fontSize !== undefined) typographyPatch.fontSize = patch.fontSize;
     if (patch.fontWeight !== undefined) typographyPatch.fontWeight = patch.fontWeight;
-    if (patch.italic !== undefined) typographyPatch.fontStyle = patch.italic ? 'italic' : 'normal';
-    if (patch.color !== undefined) typographyPatch.textColor = patch.color;
+    if (patch.fontStyle !== undefined) typographyPatch.fontStyle = patch.fontStyle;
+    if (patch.textColor !== undefined) typographyPatch.textColor = patch.textColor;
     if (patch.lineHeight !== undefined) typographyPatch.lineHeight = patch.lineHeight;
     if (patch.letterSpacing !== undefined) typographyPatch.letterSpacing = patch.letterSpacing;
     
@@ -158,7 +157,11 @@ export default function PartTypographyPanel() {
           <label className="block text-xs text-gray-600 mb-1">Schriftfamilie</label>
           <input
             value={fontFamily}
-            onChange={(e) => { setFontFamily(e.target.value); apply({ fontFamily: e.target.value }); }}
+            onChange={(e) => { 
+              const value = e.target.value;
+              setFontFamily(value); 
+              apply({ fontFamily: value }); 
+            }}
             className="w-full border rounded px-2 py-1 text-sm"
             placeholder="Inter, Arial, sans-serif"
           />
@@ -171,7 +174,11 @@ export default function PartTypographyPanel() {
             min={8}
             max={48}
             value={fontSize}
-            onChange={(e) => { const v = Number(e.target.value || 0); setFontSize(v); apply({ fontSize: v }); }}
+            onChange={(e) => { 
+              const v = Number(e.target.value || 0); 
+              setFontSize(v); 
+              apply({ fontSize: v }); 
+            }}
             className="w-full border rounded px-2 py-1 text-sm"
           />
         </div>
@@ -184,7 +191,11 @@ export default function PartTypographyPanel() {
             min={1}
             max={3}
             value={lineHeight}
-            onChange={(e) => { const v = Number(e.target.value || 0); setLineHeight(v); apply({ lineHeight: v }); }}
+            onChange={(e) => { 
+              const v = Number(e.target.value || 0); 
+              setLineHeight(v); 
+              apply({ lineHeight: v }); 
+            }}
             className="w-full border rounded px-2 py-1 text-sm"
           />
         </div>
@@ -197,7 +208,11 @@ export default function PartTypographyPanel() {
             min={-0.1}
             max={1}
             value={letterSpacing}
-            onChange={(e) => { const v = Number(e.target.value || 0); setLetterSpacing(v); apply({ letterSpacing: v }); }}
+            onChange={(e) => { 
+              const v = Number(e.target.value || 0); 
+              setLetterSpacing(v); 
+              apply({ letterSpacing: v }); 
+            }}
             className="w-full border rounded px-2 py-1 text-sm"
           />
         </div>
@@ -208,12 +223,20 @@ export default function PartTypographyPanel() {
             <input
               type="color"
               value={/^#([0-9a-f]{6}|[0-9a-f]{3})$/i.test(color) ? color : "#111111"}
-              onChange={(e) => { setColor(e.target.value); apply({ color: e.target.value }); }}
+              onChange={(e) => { 
+                const value = e.target.value;
+                setColor(value); 
+                apply({ textColor: value }); 
+              }}
               className="h-8 w-10 border rounded"
             />
             <input
               value={color}
-              onChange={(e) => { setColor(e.target.value); apply({ color: e.target.value }); }}
+              onChange={(e) => { 
+                const value = e.target.value;
+                setColor(value); 
+                apply({ textColor: value }); 
+              }}
               className="flex-1 border rounded px-2 py-1 text-sm"
               placeholder="#111111"
             />
@@ -222,14 +245,22 @@ export default function PartTypographyPanel() {
 
         <div className="col-span-2 flex gap-2">
           <button
-            onClick={() => { const v = !bold; setBold(v); apply({ fontWeight: v ? "bold" : "normal" }); }}
+            onClick={() => { 
+              const v = !bold; 
+              setBold(v); 
+              apply({ fontWeight: v ? "bold" : "normal" }); 
+            }}
             className={"px-2 py-1 border rounded text-sm " + (bold ? "bg-gray-900 text-white" : "")}
             title="Fett"
           >
             B
           </button>
           <button
-            onClick={() => { const v = !italic; setItalic(v); apply({ italic: v }); }}
+            onClick={() => { 
+              const v = !italic; 
+              setItalic(v); 
+              apply({ fontStyle: v ? "italic" : "normal" }); 
+            }}
             className={"px-2 py-1 border rounded text-sm " + (italic ? "bg-gray-900 text-white" : "")}
             title="Kursiv"
           >
