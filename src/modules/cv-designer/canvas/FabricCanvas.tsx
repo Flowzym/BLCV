@@ -175,6 +175,9 @@ export default function FabricCanvas() {
         top: section.y,
         width: section.width,
         height: section.height,
+        // Ensure no scaling on the section group itself
+        scaleX: 1,
+        scaleY: 1,
         // Real section styling
         backgroundColor: section.props?.backgroundColor || 'transparent',
         stroke: section.props?.borderColor || 'transparent',
@@ -187,7 +190,9 @@ export default function FabricCanvas() {
         left: sectionGroup.left,
         top: sectionGroup.top,
         width: sectionGroup.width,
-        height: sectionGroup.height
+        height: sectionGroup.height,
+        scaleX: sectionGroup.scaleX,
+        scaleY: sectionGroup.scaleY
       });
 
       // Render parts within section
@@ -308,25 +313,42 @@ export default function FabricCanvas() {
       
       // Add aggressive event listener to update textbox widths when section is resized
       sectionGroup.on('modified', function() {
-        DBG(`Section ${section.id} modified - updating textbox widths:`, {
+        DBG(`=== SECTION ${section.id} MODIFIED EVENT ===`);
+        DBG(`Section group dimensions after modification:`, {
+          sectionId: section.id,
           sectionGroupWidth: sectionGroup.width,
           sectionGroupHeight: sectionGroup.height,
           sectionGroupScaleX: sectionGroup.scaleX,
-          sectionGroupScaleY: sectionGroup.scaleY
+          sectionGroupScaleY: sectionGroup.scaleY,
+          sectionGroupLeft: sectionGroup.left,
+          sectionGroupTop: sectionGroup.top,
+          objectsInGroup: sectionGroup.getObjects().length
         });
         
         const groupObjects = sectionGroup.getObjects();
         groupObjects.forEach((obj: any) => {
           if (obj.type === 'textbox' && obj.sectionRef && obj.originalOffsetX !== undefined) {
+            DBG(`=== UPDATING TEXTBOX ${obj.id || 'unknown'} ===`);
+            
+            // Log current state before changes
+            DBG(`Textbox BEFORE update:`, {
+              id: obj.id || 'unknown',
+              currentWidth: obj.width,
+              currentScaleX: obj.scaleX,
+              currentScaleY: obj.scaleY,
+              originalOffsetX: obj.originalOffsetX,
+              textLength: obj.text?.length || 0,
+              scaledWidth: obj.getScaledWidth?.() || 'no method',
+              scaledHeight: obj.getScaledHeight?.() || 'no method'
+            });
+            
             const newWidth = Math.max(50, sectionGroup.width - obj.originalOffsetX - 20);
             
-            DBG(`Updating textbox ${obj.id || 'unknown'}:`, {
-              oldWidth: obj.width,
-              newWidth: newWidth,
-              oldScaleX: obj.scaleX,
-              oldScaleY: obj.scaleY,
+            DBG(`Calculated new width:`, {
+              sectionGroupWidth: sectionGroup.width,
               originalOffsetX: obj.originalOffsetX,
-              sectionGroupWidth: sectionGroup.width
+              rightPadding: 20,
+              calculatedNewWidth: newWidth
             });
             
             obj.set({
@@ -346,18 +368,26 @@ export default function FabricCanvas() {
             obj.initDimensions();
             obj.setCoords();
             
-            DBG(`Textbox ${obj.id || 'unknown'} updated:`, {
+            // Log final state after all changes
+            DBG(`Textbox AFTER update:`, {
+              id: obj.id || 'unknown',
               finalWidth: obj.width,
               finalScaleX: obj.scaleX,
               finalScaleY: obj.scaleY,
-              textLength: obj.text?.length || 0
+              textLength: obj.text?.length || 0,
+              finalScaledWidth: obj.getScaledWidth?.() || 'no method',
+              finalScaledHeight: obj.getScaledHeight?.() || 'no method',
+              hasCache: !!obj.__lineWidths,
+              textLines: obj._textLines?.length || 'no lines'
             });
+            
+            DBG(`=== TEXTBOX UPDATE COMPLETE ===`);
           }
         });
         
         // Force canvas re-render
         fabricCanvas.renderAll();
-        DBG(`Section ${section.id} modification complete - canvas re-rendered`);
+        DBG(`=== SECTION ${section.id} MODIFICATION COMPLETE ===`);
       });
     }
 
