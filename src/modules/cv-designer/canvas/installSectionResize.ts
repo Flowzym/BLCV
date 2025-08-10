@@ -3,10 +3,11 @@ import { fabric } from "fabric";
 
 /**
  * Ziele:
- * - Gruppenskalierung (scaleX/scaleY) wird in echtes width/height-Resize überführt (Scale→Resize Normalization).
- * - Textboxen werden niemals skaliert, sondern ausschließlich über 'width' neu umbrochen.
- * - Padding/Indent bleiben in Pixeln konstant (anchored Text).
- * - Harte Reflow-Sequenz stellt Cache/Dimensions sicher (verhindert "eine Zeile"/Überlagerung).
+ * - Gruppenskalierung (scaleX/scaleY) -> echtes width/height (Scale→Resize Normalization).
+ * - Textboxen NIE skalieren, nur über 'width' reflowen.
+ * - Anchored-Layout: Padding/Indent in px bleiben konstant.
+ * - NEU: Vertikales Flow-Layout für Text-Unterfelder (order + gap).
+ *   Breite ändern -> Umbruch -> neue Höhen -> darunterliegende Felder werden nachgesetzt.
  */
 
 type WithData = fabric.Object & {
@@ -17,10 +18,10 @@ type WithData = fabric.Object & {
 };
 
 type Ratio = {
-  left: number;   // 0..1 relativ zur Gruppenbreite (Top-Left-Referenz)
-  top: number;    // 0..1 relativ zur Gruppenhöhe (Top-Left-Referenz)
-  width: number;  // 0..1 relativ zur Gruppenbreite
-  height: number; // 0..1 relativ zur Gruppenhöhe
+  left: number;  // 0..1 relativ zur Gruppenbreite (Top-Left-Referenz)
+  top: number;   // 0..1 relativ zur Gruppenhöhe (Top-Left-Referenz)
+  width: number; // 0..1 relativ zur Gruppenbreite
+  height: number;// 0..1 relativ zur Gruppenhöhe
 };
 
 type Anchored = {
@@ -30,6 +31,9 @@ type Anchored = {
   padR: number;
   padB: number;
   indentPx: number; // fester Einzug (px)
+  flow?: boolean;   // vertikaler Stack?
+  order?: number;   // Sortierreihenfolge im Stack
+  gapBefore?: number; // zusätzlicher Abstand VOR diesem Feld (px)
 };
 
 type Proportional = {
@@ -51,8 +55,8 @@ function isSectionGroup(obj: any): obj is fabric.Group & WithData {
 
 /**
  * Initialisiert Layout-Metadaten pro Kind:
- * - Textbox → anchored (px-Padding/Indent bleiben konstant)
- * - andere → proportional (Ratio bezogen auf Gruppe)
+ * - Textbox -> anchored (px-Padding & Einzug); optionale Flow-Flags aus child.data
+ * - andere -> proportional (Ratio zur Gruppe)
  * Idempotent: vorhandenes __layout wird nicht überschrieben.
  */
 function ensureChildLayouts(group: fabric.Group & WithData) {
@@ -73,15 +77,19 @@ function ensureChildLayouts(group: fabric.Group & WithData) {
       const padR = Number(child.data?.padR ?? 16);
       const padB = Number(child.data?.padB ?? 12);
       const indentPx = Number(child.data?.indentPx ?? 0);
+      const flow = Boolean(child.data?.flow ?? true);   // default: Flow AN
+      const order = Number(child.data?.order ?? 0);
+      const gapBefore = Number(child.data?.gapBefore ?? 0);
 
       child.__layout = {
         mode: "anchored",
         padL, padT, padR, padB, indentPx,
+        flow, order, gapBefore,
       } as Anchored;
     } else {
       const childWidth = (child.width ?? 0) * (child.scaleX ?? 1);
       const childHeight = (child.height ?? 0) * (child.scaleY ?? 1);
-      const relLeft = (child.left ?? 0) + halfW; // Center → TL
+      const relLeft = (child.left ?? 0) + halfW; // Center -> TL
       const relTop  = (child.top  ?? 0) + halfH;
 
       const ratio: Ratio = {
@@ -97,11 +105,26 @@ function ensureChildLayouts(group: fabric.Group & WithData) {
   (group as WithData).__ratiosComputed = true;
 }
 
+/** Hilfen für Text-Reflow */
+function forceTextReflow(tb: any) {
+  const txt = tb.text || "";
+  tb.set("text", "");
+  tb._clearCache?.();
+  tb.initDimensions?.();
+  tb._splitTextIntoLines?.();
+
+  tb.set("text", txt);
+  tb._clearCache?.();
+  tb.initDimensions?.();
+  tb._splitTextIntoLines?.();
+  tb.dirty = true;
+}
+
 /**
  * Layout anwenden:
- * - Text (anchored): IMMER Zielbreite setzen (erzwingt Reflow), Cache & Dimensions refresh,
- *   volle Normalisierung von Scale/Skew/Angle/Origin.
- * - Proportional: Maße/Position aus Ratio; niemals skaliert rendern.
+ * - 1) Alle Textboxen: Zielbreite setzen & harten Reflow auslösen (damit aktuelle Höhe vorliegt)
+ * - 2) Flow-Textboxen nach 'order' vertikal stapeln (padT + gapBefore + kumulierte Höhen)
+ * - 3) Positionen setzen (TL -> center coords); Shapes proportional wie gehabt
  */
 function applyLayout(
   group: fabric.Group & WithData,
@@ -111,57 +134,98 @@ function applyLayout(
   const halfW = newW / 2;
   const halfH = newH / 2;
 
-  (group._objects || []).forEach((child: any) => {
+  const children = (group._objects || []) as any[];
+
+  // --- Schritt 1: alle Textboxen Breite setzen + Reflow, Maße normalisieren
+  children.forEach((child) => {
     const layout: ChildLayout | undefined = child.__layout;
     if (!layout) return;
 
-    if (layout.mode === "anchored") {
-      const { padL, padT, padR, indentPx } = layout as Anchored;
+    if (layout.mode === "anchored" && child.type === "textbox") {
+      const { padL, padR, indentPx } = layout as Anchored;
+      const targetW = Math.max(1, newW - padL - padR - indentPx);
 
-      // TL-Position bleibt in px konstant
-      const tlX = padL + indentPx;
-      const tlY = padT;
+      child.set({
+        width: targetW,
+        scaleX: 1,
+        scaleY: 1,
+        angle: 0,
+        skewX: 0,
+        skewY: 0,
+        originX: "left",
+        originY: "top",
+        objectCaching: false,
+      });
 
-      if (child.type === "textbox") {
-        const targetW = Math.max(1, newW - padL - padR - indentPx);
+      // optionale Stabilisierung der Textmetriken
+      const safeLH = Number(child.data?.lineHeight ?? 1.2);
+      child.set({
+        lineHeight: isFinite(safeLH) && safeLH > 0 ? safeLH : 1.2,
+        styles: {}, // per-char/per-line styles deaktivieren (kann später wieder aktiviert werden)
+      });
 
-        // 1) Vollständige Normalisierung der Metriken (keine Rest-Skalen/Skews/Angle/Origins)
-        child.set({
-          width: targetW,
-          scaleX: 1,
-          scaleY: 1,
-          angle: 0,
-          skewX: 0,
-          skewY: 0,
-          originX: "left",
-          originY: "top",
-          objectCaching: false, // während Interaktion kein Bitmap-Cache
-        });
+      forceTextReflow(child);
+    }
+  });
 
-        // 2) Harte Reflow-Sequenz (Fabric-Versionen-agnostisch)
-        const txt = child.text || "";
-        child.set("text", ""); // Force Layout Reset
-        if (typeof (child as any)._clearCache === "function") (child as any)._clearCache();
-        if (typeof (child as any).initDimensions === "function") (child as any).initDimensions();
+  // --- Schritt 2: Vertikal-Flow anwenden (nur anchored Textboxen mit flow=true)
+  const flowItems = children.filter((c) => {
+    const l: ChildLayout | undefined = c.__layout;
+    return c.type === "textbox" && l && l.mode === "anchored" && (l as Anchored).flow;
+  }) as (fabric.Textbox & any)[];
 
-        child.set("text", txt); // Neu zuweisen → frisches Measure
-        if (typeof (child as any)._clearCache === "function") (child as any)._clearCache();
-        if (typeof (child as any).initDimensions === "function") (child as any).initDimensions();
+  flowItems.sort((a, b) => {
+    const la = (a.__layout as Anchored).order ?? 0;
+    const lb = (b.__layout as Anchored).order ?? 0;
+    return la - lb;
+  });
 
-        (child as any).dirty = true;
-      } else {
-        child.set({
-          scaleX: 1, scaleY: 1, angle: 0, skewX: 0, skewY: 0,
-          originX: "left", originY: "top"
-        });
-      }
+  // Baseline: minimaler padT der Flow-Items (damit Header mit größerem padT nicht nach oben gezogen wird)
+  let currentTopTL = Math.min(
+    ...flowItems.map((c) => (c.__layout as Anchored).padT)
+  );
+  if (!isFinite(currentTopTL)) currentTopTL = 0;
 
-      // TL → Center-Koordinaten der Gruppe
-      child.set({ left: tlX - halfW, top: tlY - halfH });
-      child.setCoords();
-
+  flowItems.forEach((tb, idx) => {
+    const L = tb.__layout as Anchored;
+    if (idx === 0) {
+      // ersten Eintrag exakt auf seinen eigenen padT setzen
+      currentTopTL = L.padT;
     } else {
-      // proportional
+      // vor diesem Feld einen optionalen Gap berücksichtigen
+      currentTopTL += L.gapBefore ?? 0;
+    }
+
+    // Position TL für diesen Text
+    const tlX = L.padL + L.indentPx;
+    const tlY = currentTopTL;
+
+    tb.set({
+      left: tlX - halfW,
+      top:  tlY - halfH,
+    });
+    tb.setCoords();
+
+    // Nachpositionierung fürs nächste Feld: addiere echte Text-Höhe + padB (unterer Innenabstand)
+    const h = Math.max(0, tb.height ?? (tb.getScaledHeight?.() ?? 0));
+    currentTopTL = tlY + h;
+  });
+
+  // --- Schritt 3: Nicht-Flow-Elemente positionieren (anchored static + proportional)
+  children.forEach((child) => {
+    const layout: ChildLayout | undefined = child.__layout;
+    if (!layout) return;
+
+    if (child.type === "textbox") {
+      // Flow-Textboxen wurden bereits oben gesetzt.
+      const L = layout as Anchored;
+      if (L.mode === "anchored" && !L.flow) {
+        const tlX = L.padL + L.indentPx;
+        const tlY = L.padT;
+        child.set({ left: tlX - halfW, top: tlY - halfH });
+        child.setCoords();
+      }
+    } else if (layout.mode === "proportional") {
       const r = (layout as Proportional).ratio;
       const tlX = r.left * newW;
       const tlY = r.top  * newH;
@@ -176,22 +240,6 @@ function applyLayout(
         child.type === "triangle"
       ) {
         child.set({ width: targetW, height: targetH, scaleX: 1, scaleY: 1 });
-      } else if (child.type === "textbox") {
-        // Safety-Fall: Text in proportionalem Modus → nur width anpassen + harter Reflow
-        child.set({
-          width: targetW,
-          scaleX: 1,
-          scaleY: 1,
-          angle: 0,
-          skewX: 0,
-          skewY: 0,
-          originX: "left",
-          originY: "top",
-          objectCaching: false,
-        });
-        if (typeof (child as any)._clearCache === "function") (child as any)._clearCache();
-        if (typeof (child as any).initDimensions === "function") (child as any).initDimensions();
-        (child as any).dirty = true;
       } else {
         child.set({ scaleX: 1, scaleY: 1 });
       }
@@ -204,9 +252,7 @@ function applyLayout(
   group.setCoords();
 }
 
-/**
- * Installer: konvertiert Scale → echtes Resize und triggert stabilen Reflow.
- */
+/** Installer */
 export function installSectionResize(canvas: fabric.Canvas) {
   let isResizing = false;
 
@@ -226,21 +272,14 @@ export function installSectionResize(canvas: fabric.Canvas) {
     const scaledW = baseW * (target.scaleX ?? 1);
     const scaledH = baseH * (target.scaleY ?? 1);
 
-    // Normalize: echtes Resize statt Scale
     const newW = Math.max(1, scaledW);
     const newH = Math.max(1, scaledH);
 
     target.set({ width: newW, height: newH, scaleX: 1, scaleY: 1 });
     applyLayout(target as fabric.Group & WithData, newW, newH);
 
-    // Baselines aktualisieren
     target.__baseW = newW;
     target.__baseH = newH;
-
-    // Debug (temporär): mögliche Dupes sichtbar machen
-    console.log('[section children]',
-      (target as any)._objects?.filter((o:any)=>o.type==='textbox').map((o:any)=>o.text)
-    );
 
     canvas.requestRenderAll();
     isResizing = false;
@@ -253,9 +292,9 @@ export function installSectionResize(canvas: fabric.Canvas) {
     (target._objects || []).forEach((child: any) => {
       if (child.type === "textbox") {
         child.set({ objectCaching: true });
-        if (typeof (child as any)._clearCache === "function") (child as any)._clearCache();
-        if (typeof (child as any).initDimensions === "function") (child as any).initDimensions();
-        (child as any).dirty = true;
+        child._clearCache?.();
+        child.initDimensions?.();
+        child.dirty = true;
       }
       child.setCoords();
     });
