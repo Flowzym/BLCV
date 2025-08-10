@@ -4,7 +4,7 @@ import { fabric } from "fabric";
  * Scale→Resize: Gruppen-Scale wird in width/height überführt.
  * Text wird nie skaliert; Umbruch nur via 'width'.
  * Anchored-Padding (px) + optionales Flow-Layout (order/gapBefore).
- * Keine privaten Fabric-APIs; lineHeight nur respektieren, wenn vorhanden.
+ * Auto-Height: Gruppenhöhe passt sich nach Layout dem Inhalt an.
  */
 
 type WithData = fabric.Object & {
@@ -82,12 +82,18 @@ function forceTextReflow(tb: any) {
   tb.dirty = true;
 }
 
+/**
+ * Layout anwenden + Auto-Height:
+ * - Breite setzen → Reflow
+ * - Flow stapeln (order + gapBefore)
+ * - Gruppenhöhe so setzen, dass Inhalt + unteres Padding (max padB) sauber Platz haben
+ */
 function applyLayout(group: fabric.Group & WithData, newW: number, newH: number) {
   const halfW = newW / 2;
   const halfH = newH / 2;
   const children = (group._objects || []) as any[];
 
-  // 1) Breite setzen + Reflow
+  // 1) Textbreiten setzen + Reflow
   children.forEach((child) => {
     const layout: ChildLayout | undefined = child.__layout;
     if (!layout) return;
@@ -103,18 +109,15 @@ function applyLayout(group: fabric.Group & WithData, newW: number, newH: number)
         originX: "left", originY: "top",
         objectCaching: false,
       };
-      // lineHeight nur setzen, wenn explizit vorhanden
       if (child.data?.lineHeight != null && isFinite(child.data.lineHeight) && child.data.lineHeight > 0) {
         next.lineHeight = child.data.lineHeight;
       }
       child.set(next);
-
-      // KEIN styles-Reset hier – sonst schwanken Metriken
       forceTextReflow(child);
     }
   });
 
-  // 2) Flow-Stapeln
+  // 2) Flow stapeln
   const flowItems = children.filter((c) => {
     const l: ChildLayout | undefined = c.__layout;
     return c.type === "textbox" && l && l.mode === "anchored" && (l as Anchored).flow;
@@ -124,6 +127,11 @@ function applyLayout(group: fabric.Group & WithData, newW: number, newH: number)
 
   let currentTopTL = Math.min(...flowItems.map((c) => (c.__layout as Anchored).padT));
   if (!Number.isFinite(currentTopTL)) currentTopTL = 0;
+
+  // zur Auto-Height-Berechnung
+  let contentTopTL = Number.isFinite(currentTopTL) ? currentTopTL : 0;
+  let contentBottomTL = contentTopTL;
+  let maxPadB = 0;
 
   flowItems.forEach((tb, idx) => {
     const L = tb.__layout as Anchored;
@@ -136,7 +144,13 @@ function applyLayout(group: fabric.Group & WithData, newW: number, newH: number)
     tb.setCoords();
 
     const h = Math.max(0, tb.height ?? tb.getScaledHeight?.() ?? 0);
-    currentTopTL = tlY + h;
+    const bottom = tlY + h;
+
+    if (idx === 0) contentTopTL = tlY;
+    contentBottomTL = Math.max(contentBottomTL, bottom);
+    maxPadB = Math.max(maxPadB, L.padB ?? 0);
+
+    currentTopTL = bottom; // nächstes Element direkt darunter (plus evtl. gapBefore beim nächsten Loop-Anfang)
   });
 
   // 3) übrige (anchored ohne Flow / proportional)
@@ -151,6 +165,12 @@ function applyLayout(group: fabric.Group & WithData, newW: number, newH: number)
         const tlY = L.padT;
         child.set({ left: tlX - halfW, top: tlY - halfH });
         child.setCoords();
+
+        const h = Math.max(0, child.height ?? child.getScaledHeight?.() ?? 0);
+        const bottom = tlY + h;
+        contentTopTL = Math.min(contentTopTL, tlY);
+        contentBottomTL = Math.max(contentBottomTL, bottom);
+        maxPadB = Math.max(maxPadB, L.padB ?? 0);
       }
     } else if (layout.mode === "proportional") {
       const r = (layout as Proportional).ratio;
@@ -169,6 +189,13 @@ function applyLayout(group: fabric.Group & WithData, newW: number, newH: number)
     }
   });
 
+  // 4) Auto-Height: Gruppenhöhe auf Inhalt begrenzen/ausweiten
+  //    minHeight = 32 verhindert „Einklappen“ auf 0, kann via group.data.minHeight überschrieben werden.
+  const minHeight = Math.max(32, Number((group as any).data?.minHeight ?? 0));
+  const targetHeight = Math.max(minHeight, (contentBottomTL + maxPadB) - 0 /* contentTopTL ist TL-referenziert */);
+
+  // newW ist bereits korrekt; newH kann durch Auto-Height ersetzt werden
+  group.set({ width: newW, height: targetHeight });
   group.setCoords();
 }
 
@@ -187,9 +214,10 @@ export function installSectionResize(canvas: fabric.Canvas) {
     const newW = Math.max(1, baseW * (target.scaleX ?? 1));
     const newH = Math.max(1, baseH * (target.scaleY ?? 1));
 
+    // Höhe wird in applyLayout ggf. per Auto-Height überschrieben
     target.set({ width: newW, height: newH, scaleX: 1, scaleY: 1 });
     applyLayout(target as fabric.Group & WithData, newW, newH);
-    target.__baseW = newW; target.__baseH = newH;
+    target.__baseW = newW; target.__baseH = target.height ?? newH;
 
     canvas.requestRenderAll();
     isResizing = false;
