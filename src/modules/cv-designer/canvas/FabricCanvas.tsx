@@ -1,260 +1,223 @@
-
-import React, { useEffect, useRef } from "react";
-
-/**
- * Defensive import for fabric.js that works with both ESM v5 (`{ fabric }`)
- * and UMD/CommonJS builds (default export).
- */
-// @ts-ignore - typings differ across builds
+import React, { useEffect, useMemo, useRef } from "react";
+// Defensive import that works with both ESM and UMD builds of fabric under Vite/HMR
+// Some builds expose `fabric` as a named export, others as default, and others as the module itself.
+// We normalize it to a single `fabric` object.
 import * as FabricNS from "fabric";
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const fabric: any =
-  // ESM build: { fabric }
-  // @ts-ignore
-  (FabricNS as any).fabric ??
-  // Some bundlers expose default
-  // @ts-ignore
-  (FabricNS as any).default ??
-  // Fallback: namespace itself
-  (FabricNS as any);
 
-const DEBUG =
-  // @ts-ignore - Vite provides import.meta.env
-  (typeof import.meta !== "undefined" &&
-    import.meta?.env?.VITE_DEBUG_DESIGNER_SYNC === "true");
+type AnyFabric = any;
+const fabric: AnyFabric = (FabricNS as any).fabric ?? (FabricNS as any).default ?? (FabricNS as any);
 
-/** Basic element model the designer feeds into the canvas. Extend as needed. */
-export type TextElement = {
+// ---- Types the canvas expects (keep minimal + tolerant) --------------------
+export type CanvasTextElement = {
   id: string;
   type: "text";
   x: number;
   y: number;
   w?: number;
-  text: string;
+  h?: number;
+  text?: string | null;
   fontSize?: number;
   fontFamily?: string;
-  fill?: string;
-  align?: "left" | "center" | "right" | "justify";
+  align?: "left" | "center" | "right";
   bold?: boolean;
   italic?: boolean;
   underline?: boolean;
   lineHeight?: number;
   opacity?: number;
+  fill?: string;
   visible?: boolean;
 };
 
-export type CanvasElement = TextElement; // extend with other element types when needed
-
-export interface FabricCanvasProps {
+export type FabricCanvasProps = {
   width: number;
   height: number;
-  zoom: number; // percent, e.g., 100 = 1.0
+  zoom?: number; // in %
   background?: string;
-  elements: CanvasElement[];
-  /**
-   * Optional callback to expose the underlying fabric.Canvas instance.
-   */
+  elements?: CanvasTextElement[]; // may be undefined → handled defensively
   onReady?: (canvas: any) => void;
-}
+};
 
-/**
- * FabricCanvas
- * - Initializes fabric.Canvas exactly once per mount
- * - Uses a dedicated wrapper DIV and creates/removes a <canvas> node manually to avoid
- *   "already initialized" errors (esp. with React 18 StrictMode double-invoke & HMR)
- * - Applies zoom via a separate effect
- * - Renders text elements with safe fallbacks (space for empty strings)
- */
-const FabricCanvas: React.FC<FabricCanvasProps> = ({
-  width,
-  height,
-  zoom,
-  background = "#ffffff",
-  elements,
-  onReady
-}) => {
-  const hostRef = useRef<HTMLDivElement | null>(null);
-  const nodeRef = useRef<HTMLCanvasElement | null>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const canvasRef = useRef<any | null>(null);
+const DEBUG = String(import.meta.env?.VITE_DEBUG_DESIGNER_SYNC ?? "").toLowerCase() === "true";
+const log = (...args: any[]) => { if (DEBUG) console.log("[FabricCanvas]", ...args); };
+const warn = (...args: any[]) => { if (DEBUG) console.warn("[FabricCanvas]", ...args); };
 
-  // Mount / Unmount (create & dispose real <canvas> and fabric.Canvas)
+// ---- Component -------------------------------------------------------------
+const FabricCanvas: React.FC<FabricCanvasProps> = (props) => {
+  const { width, height, zoom = 100, background = "#ffffff", elements = [], onReady } = props;
+
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const canvasElRef = useRef<HTMLCanvasElement | null>(null);
+  const fabricRef = useRef<any | null>(null);
+
+  // Ensure width/height are positive to avoid fabric internal assertions
+  const [safeW, safeH, safeZoom] = useMemo(() => {
+    const w = Number.isFinite(width) && width > 0 ? Math.round(width) : 794;  // A4 width @ ~96dpi
+    const h = Number.isFinite(height) && height > 0 ? Math.round(height) : 1123;
+    const z = Number.isFinite(zoom) && zoom > 0 ? zoom : 100;
+    return [w, h, z];
+  }, [width, height, zoom]);
+
+  // --- Mount: create a fresh <canvas> and Fabric instance, cleanup on unmount
   useEffect(() => {
-    const host = hostRef.current;
+    const host = wrapperRef.current;
     if (!host) return;
 
-    // Ensure host is empty (important for HMR/StrictMode remounts)
-    while (host.firstChild) {
-      host.removeChild(host.firstChild);
+    // guard: don't double-init within same mount
+    if (fabricRef.current) {
+      warn("init skipped: instance already present");
+      return;
     }
 
-    // Create a fresh <canvas> element every time we mount
-    const cnv = document.createElement("canvas");
-    cnv.setAttribute("data-fabric-root", "1");
-    cnv.width = Math.max(1, Math.floor(width));
-    cnv.height = Math.max(1, Math.floor(height));
+    // create a fresh canvas element so Fabric never sees a previously-initialized node
+    const el = document.createElement("canvas");
+    el.width = safeW;
+    el.height = safeH;
+    el.style.width = safeW + "px";
+    el.style.height = safeH + "px";
+    el.setAttribute("data-fabric", "cv-designer");
+    host.appendChild(el);
+    canvasElRef.current = el;
 
-    host.appendChild(cnv);
-    nodeRef.current = cnv;
-
-    // Initialize fabric.Canvas on this brand-new node
-    const canvas = new fabric.Canvas(cnv, {
-      backgroundColor: background,
-      selection: false,
-      preserveObjectStacking: true
-    });
-
-    canvas.setHeight(height);
-    canvas.setWidth(width);
-    canvasRef.current = canvas;
-
-    if (DEBUG) {
-      // eslint-disable-next-line no-console
-      console.log("[FabricCanvas] init", { width, height, background });
+    // instantiate fabric on *this* fresh element
+    let instance: any;
+    try {
+      instance = new fabric.Canvas(el, {
+        selection: false,
+        preserveObjectStacking: true,
+        renderOnAddRemove: true,
+      });
+    } catch (e) {
+      console.error("Failed to initialize fabric.Canvas:", e);
+      // cleanup the DOM node to avoid leaving a zombie element
+      try { host.removeChild(el); } catch {}
+      canvasElRef.current = null;
+      return;
     }
 
-    onReady?.(canvas);
+    fabricRef.current = instance;
+
+    // set base background
+    try {
+      instance.setBackgroundColor(background, () => instance.requestRenderAll());
+    } catch { /* no-op */ }
+
+    // apply initial zoom
+    try {
+      instance.setZoom(safeZoom / 100);
+    } catch { /* no-op */ }
+
+    log("initialized", { size: { w: safeW, h: safeH }, zoom: safeZoom });
+    onReady?.(instance);
 
     return () => {
+      // dispose fabric and remove element
       try {
-        if (DEBUG) {
-          // eslint-disable-next-line no-console
-          console.log("[FabricCanvas] dispose");
-        }
-        // Dispose fabric instance
-        canvasRef.current?.dispose();
-      } catch (_) {
-        // ignore
-      } finally {
-        canvasRef.current = null;
+        instance.dispose();
+      } catch (e) {
+        warn("dispose error (ignored)", e);
       }
+      try {
+        if (host.contains(el)) host.removeChild(el);
+      } catch { /* no-op */ }
 
-      // Remove the <canvas> node entirely so fabric never sees a reused node
-      if (nodeRef.current && nodeRef.current.parentNode) {
-        try {
-          nodeRef.current.parentNode.removeChild(nodeRef.current);
-        } catch {
-          /* ignore */
-        }
-      }
-      nodeRef.current = null;
+      // clear refs
+      fabricRef.current = null;
+      canvasElRef.current = null;
 
-      // As an extra guard, empty the host
-      if (hostRef.current) {
-        while (hostRef.current.firstChild) {
-          hostRef.current.removeChild(hostRef.current.firstChild);
-        }
-      }
+      log("disposed");
     };
-    // Only run on mount/unmount. Width/height updates handled below.
+    // we intentionally *don't* include safeW/safeH/safeZoom in deps to avoid re-init.
+    // Those are handled in dedicated effects below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Keep canvas size in sync
+  // --- Keep size in sync (without re-instantiating)
   useEffect(() => {
-    const canvas = canvasRef.current;
-    const node = nodeRef.current;
-    if (!canvas || !node) return;
-
-    if (DEBUG) {
-      // eslint-disable-next-line no-console
-      console.log("[FabricCanvas] resize", { width, height });
+    const el = canvasElRef.current;
+    const inst = fabricRef.current;
+    if (!el || !inst) return;
+    if (el.width !== safeW || el.height !== safeH) {
+      el.width = safeW;
+      el.height = safeH;
+      el.style.width = safeW + "px";
+      el.style.height = safeH + "px";
+      try { inst.setWidth(safeW); inst.setHeight(safeH); } catch {}
+      inst.requestRenderAll();
+      log("resized", { w: safeW, h: safeH });
     }
+  }, [safeW, safeH]);
 
-    node.width = Math.max(1, Math.floor(width));
-    node.height = Math.max(1, Math.floor(height));
-    canvas.setWidth(width);
-    canvas.setHeight(height);
-    canvas.calcOffset();
-    canvas.requestRenderAll();
-  }, [width, height]);
-
-  // Apply zoom
+  // --- Keep zoom in sync
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    // convert percent to factor
-    const factor = Math.max(0.1, (isFinite(zoom) ? zoom : 100) / 100);
-    canvas.setZoom(factor);
-    canvas.requestRenderAll();
+    const inst = fabricRef.current;
+    if (!inst) return;
+    try {
+      inst.setZoom(safeZoom / 100);
+      inst.requestRenderAll();
+      log("zoom", safeZoom);
+    } catch { /* no-op */ }
+  }, [safeZoom]);
 
-    if (DEBUG) {
-      // eslint-disable-next-line no-console
-      console.log("[FabricCanvas] zoom", { zoom, factor });
-    }
-  }, [zoom]);
-
-  // Render elements (simple re-create strategy for robustness)
+  // --- Render elements
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+    const inst = fabricRef.current;
+    if (!inst) return;
+    const list = Array.isArray(elements) ? elements : [];
 
-    if (DEBUG) {
-      // eslint-disable-next-line no-console
-      console.log("[FabricCanvas] render elements", elements);
-    }
+    // wipe previous objects (simple but safe; optimize later with diffing)
+    try {
+      const toRemove = inst.getObjects();
+      if (toRemove && toRemove.length) inst.remove(...toRemove);
+    } catch { /* no-op */ }
 
-    // Clear everything and re-add (safe & simple; can be optimized later)
-    canvas.getObjects().forEach((o: any) => canvas.remove(o));
+    // add all elements
+    list.forEach((el) => {
+      if (!el) return;
+      if (el.type !== "text") return; // extend for shapes/images later
 
-    elements.forEach((el) => {
-      if (el.type === "text") {
-        const text = (el.text ?? "").toString();
-        // Fabric renders nothing for truly empty string, so add a space as fallback
-        const safeText = text.trim().length > 0 ? text : " ";
+      const txt = (el.text ?? "").toString();
+      const isEmpty = txt.trim().length === 0;
+      const content = isEmpty ? " " : txt; // fabric refuses empty strings → render space
 
-        const textbox = new fabric.Textbox(safeText, {
-          left: Math.round(el.x),
-          top: Math.round(el.y),
-          width: el.w ? Math.max(1, Math.round(el.w)) : undefined,
-          fontSize: el.fontSize ?? 14,
-          fontFamily: el.fontFamily ?? "Inter, Arial, sans-serif",
-          fill: el.fill ?? "#111111",
-          textAlign: el.align ?? "left",
-          fontWeight: el.bold ? "bold" : "normal",
-          fontStyle: el.italic ? "italic" : "normal",
-          underline: !!el.underline,
-          lineHeight: el.lineHeight ?? 1.2,
-          opacity: el.opacity ?? 1,
-          visible: el.visible ?? true,
-          selectable: false,
-          evented: false,
-          hoverCursor: "default",
-          // Ensure minimum height so tiny/empty boxes still show a baseline
-          // @ts-ignore - property exists on fabric.Textbox options
-          minHeight: 20
-        });
+      const obj = new fabric.Textbox(content, {
+        left: Math.round(el.x ?? 0),
+        top: Math.round(el.y ?? 0),
+        width: Math.max(10, Math.round(el.w ?? 0)),
+        // height is auto-calculated by fabric; set minimum lineHeight for visibility
+        fill: el.fill ?? "#111111",
+        fontSize: Math.round(el.fontSize ?? 14),
+        fontFamily: el.fontFamily ?? "Inter, Arial, sans-serif",
+        fontStyle: el.italic ? "italic" : "normal",
+        fontWeight: el.bold ? 700 : 400,
+        underline: !!el.underline,
+        textAlign: el.align ?? "left",
+        lineHeight: el.lineHeight ?? 1.2,
+        opacity: el.opacity ?? 1,
+        visible: el.visible !== false,
+        selectable: false,
+        evented: false,
+        hasControls: false,
+        hasBorders: false,
+      } as any);
 
-        // lock movement/transform in designer preview
-        textbox.lockScalingFlip = true;
-        textbox.lockRotation = true;
-        textbox.lockScalingX = true;
-        textbox.lockScalingY = true;
-        textbox.lockMovementX = true;
-        textbox.lockMovementY = true;
-
-        canvas.add(textbox);
-      } else {
-        if (DEBUG) {
-          // eslint-disable-next-line no-console
-          console.warn("[FabricCanvas] unknown element type", el);
-        }
-      }
+      try { inst.add(obj); } catch (e) { warn("add error", e); }
     });
 
-    canvas.requestRenderAll();
+    try { inst.requestRenderAll(); } catch {}
+    log("rendered elements", list.length);
   }, [elements]);
 
   return (
     <div
-      ref={hostRef}
+      ref={wrapperRef}
       style={{
+        width: safeW,
+        height: safeH,
+        background,
         position: "relative",
-        width: `${width}px`,
-        height: `${height}px`,
-        background
+        overflow: "hidden",
+        boxShadow: "0 0 0 1px rgba(0,0,0,0.05) inset",
       }}
-      data-testid="fabric-canvas-host"
     />
   );
 };
