@@ -114,7 +114,7 @@ function applyLayout(
     if (!layout) return;
 
     if (layout.mode === "anchored") {
-      const { padL, padT, padR, /* padB */ , indentPx } = layout;
+      const { padL, padT, padR, /* padB intentionally unused */, indentPx } = layout as Anchored;
 
       // TL-Position bleibt in px konstant
       const tlX = padL + indentPx;
@@ -123,15 +123,14 @@ function applyLayout(
       if (child.type === "textbox") {
         const targetW = Math.max(1, newW - padL - padR - indentPx);
 
-        // ⚠️ immer Reflow, auch bei reiner Höhenänderung
+        // immer Reflow, auch bei reiner Höhenänderung
         child.set({
           width: targetW,
           scaleX: 1,
           scaleY: 1,
-          objectCaching: false, // während Interaktion kein Bitmap-Cache
+          objectCaching: false,
         });
 
-        // Fabric intern sanft „wecken“
         if (typeof child._clearCache === "function") child._clearCache();
         if (typeof child.initDimensions === "function") child.initDimensions();
         child.set("dirty", true);
@@ -163,7 +162,6 @@ function applyLayout(
       ) {
         child.set({ width: targetW, height: targetH, scaleX: 1, scaleY: 1 });
       } else if (child.type === "textbox") {
-        // Safety: falls Text fälschlich proportional markiert wurde
         child.set({
           width: targetW,
           scaleX: 1,
@@ -231,7 +229,6 @@ export function installSectionResize(canvas: fabric.Canvas) {
 
     (target._objects || []).forEach((child: any) => {
       if (child.type === "textbox") {
-        // Cache wieder aktivieren & final refresh
         child.set({ objectCaching: true });
         if (typeof child._clearCache === "function") child._clearCache();
         if (typeof child.initDimensions === "function") child.initDimensions();
