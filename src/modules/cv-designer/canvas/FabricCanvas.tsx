@@ -418,7 +418,7 @@ export default function FabricCanvas() {
             
             // Finale Style-Kombination mit korrekter Prioritätsreihenfolge
             // Verwende Object.assign für explizite Überschreibung
-            const finalStyle = {
+            const calculatedStyle = {
               ...baseStyle,
               // Legacy global styles (niedrigere Priorität)
               ...(legacyGlobalStyle.fontFamily && { fontFamily: legacyGlobalStyle.fontFamily }),
@@ -451,12 +451,89 @@ export default function FabricCanvas() {
               textAlign: part.textAlign || 'left'
             };
             
-            // CRITICAL: Ensure text is always visible with black color fallback
-            if (!finalStyle.fill || finalStyle.fill === '#ffffff' || finalStyle.fill === 'white') {
-              finalStyle.fill = '#000000';
+            // 🔥 AGGRESSIVE DEBUG OVERRIDES - FORCE VISIBLE STYLES 🔥
+            const finalStyle = {
+              // Start with calculated style
+              ...calculatedStyle,
+              
+              // FORCE visible properties for debugging
+              fill: 'red',                    // 🔥 Force red text to make it visible
+              fontSize: 24,                   // 🔥 Force large font size
+              fontFamily: 'Arial, sans-serif', // 🔥 Force basic font
+              fontWeight: 'bold',             // 🔥 Force bold for visibility
+              backgroundColor: 'yellow',       // 🔥 Force yellow background
+              stroke: 'blue',                 // 🔥 Force blue outline
+              strokeWidth: 2,                 // 🔥 Force thick outline
+              opacity: 1,                     // 🔥 Force full opacity
+              visible: true,                  // 🔥 Force visible
+              textAlign: 'left'               // 🔥 Force left alignment
+            };
+            
+            // 🔥 EXTENDED DEBUG LOGGING 🔥
+            DBG(`🔥 AGGRESSIVE DEBUG - Style calculation for part ${partIndex}:`, {
+              partId: part.id,
+              fieldType: part.fieldType,
+              originalText: part.text,
+              displayText: displayText,
+              
+              // Style sources
+              baseStyle: baseStyle,
+              legacyGlobalStyle: legacyGlobalStyle,
+              newGlobalStyle: newGlobalStyle,
+              inlineStyle: inlineStyle,
+              
+              // Calculated vs Final
+              calculatedStyle: calculatedStyle,
+              finalStyle: finalStyle,
+              
+              // Critical properties
+              finalFill: finalStyle.fill,
+              finalFontSize: finalStyle.fontSize,
+              finalFontFamily: finalStyle.fontFamily,
+              finalWidth: part.width || 280,
+              finalOpacity: finalStyle.opacity,
+              finalVisible: finalStyle.visible,
+              
+              // Position
+              offsetX: part.offsetX || 0,
+              offsetY: part.offsetY || 0,
+              
+              // Validation checks
+              hasValidText: !!(displayText && displayText.trim()),
+              hasValidFill: !!(finalStyle.fill && finalStyle.fill !== 'transparent'),
+              hasValidSize: finalStyle.fontSize > 0,
+              hasValidWidth: (part.width || 280) > 0
+            }
+            );
+            
+            // 🔥 VALIDATE CRITICAL PROPERTIES 🔥
+            if (!displayText || displayText.trim() === '') {
+              DBG(`🚨 CRITICAL: Empty text detected for part ${partIndex}!`, {
+                partId: part.id,
+                originalText: part.text,
+                displayText: displayText,
+                textLength: displayText?.length || 0
+              });
+              return; // Skip this part
             }
             
-            DBG(`Calculated final style:`, finalStyle);
+            if (finalStyle.fontSize <= 0) {
+              DBG(`🚨 CRITICAL: Invalid fontSize detected for part ${partIndex}!`, {
+                partId: part.id,
+                fontSize: finalStyle.fontSize,
+                calculatedFontSize: calculatedStyle.fontSize,
+                baseFontSize: baseStyle.fontSize
+              });
+              finalStyle.fontSize = 24; // Force fallback
+            }
+            
+            if ((part.width || 280) <= 0) {
+              DBG(`🚨 CRITICAL: Invalid width detected for part ${partIndex}!`, {
+                partId: part.id,
+                width: part.width,
+                fallbackWidth: 280
+              });
+              part.width = 280; // Force fallback
             
             // DEBUG: Style-Validierung
             if (finalStyle.fontSize <= 0) {
@@ -476,14 +553,24 @@ export default function FabricCanvas() {
             }
             
             try {
-              DBG(`About to create Textbox with:`, {
+              DBG(`🔥 About to create Textbox with AGGRESSIVE OVERRIDES:`, {
                 text: displayText,
                 left: part.offsetX || 0,
                 top: part.offsetY || 0,
                 width: part.width || 280,
                 style: finalStyle,
                 actualTextLength: displayText.length,
-                isValidText: displayText.trim().length > 0
+                isValidText: displayText.trim().length > 0,
+                
+                // 🔥 AGGRESSIVE DEBUG PROPERTIES 🔥
+                forcedFill: finalStyle.fill,
+                forcedFontSize: finalStyle.fontSize,
+                forcedFontFamily: finalStyle.fontFamily,
+                forcedBackgroundColor: finalStyle.backgroundColor,
+                forcedStroke: finalStyle.stroke,
+                forcedStrokeWidth: finalStyle.strokeWidth,
+                forcedOpacity: finalStyle.opacity,
+                forcedVisible: finalStyle.visible
               });
               
               const textObj = new fabric.Textbox(displayText, {
@@ -498,6 +585,15 @@ export default function FabricCanvas() {
                 lineHeight: finalStyle.lineHeight,
                 charSpacing: finalStyle.charSpacing,
                 textAlign: finalStyle.textAlign,
+                
+                // 🔥 AGGRESSIVE VISIBILITY OVERRIDES 🔥
+                backgroundColor: finalStyle.backgroundColor,
+                stroke: finalStyle.stroke,
+                strokeWidth: finalStyle.strokeWidth,
+                opacity: finalStyle.opacity,
+                visible: finalStyle.visible,
+                
+                // 🔥 FORCE FABRIC.JS PROPERTIES FOR DEBUGGING 🔥
                 selectable: false,
                 evented: true,
                 hasControls: false,
@@ -505,28 +601,60 @@ export default function FabricCanvas() {
                 objectCaching: false,
                 splitByGrapheme: false,
                 editable: false,
-                visible: true,
-                opacity: 1,
-                // CRITICAL: Force text to be visible
-                backgroundColor: 'transparent',
-                stroke: null,
-                strokeWidth: 0
+                lockMovementX: true,
+                lockMovementY: true,
+                lockRotation: true,
+                lockScalingX: true,
+                lockScalingY: true,
+                hoverCursor: 'pointer',
+                moveCursor: 'pointer'
               });
             
-              DBG(`Textbox created with properties:`, {
+              // 🔥 COMPREHENSIVE POST-CREATION VALIDATION 🔥
+              DBG(`🔥 Textbox created - COMPREHENSIVE VALIDATION:`, {
                 id: part.id,
+                fieldType: part.fieldType,
+                
+                // Position and size
                 left: textObj.left,
                 top: textObj.top,
                 width: textObj.width,
                 height: textObj.height,
+                
+                // Typography
                 fontSize: textObj.fontSize,
+                fontFamily: textObj.fontFamily,
+                fontWeight: textObj.fontWeight,
+                fontStyle: textObj.fontStyle,
+                
+                // Colors and visibility
                 fill: textObj.fill,
-                text: textObj.text,
-                visible: textObj.visible,
+                backgroundColor: textObj.backgroundColor,
+                stroke: textObj.stroke,
+                strokeWidth: textObj.strokeWidth,
                 opacity: textObj.opacity,
+                visible: textObj.visible,
+                
+                // Text content
+                text: textObj.text,
                 actualTextLength: textObj.text?.length || 0,
                 fabricTextLength: textObj.text?.length || 0,
-                isTextEmpty: !textObj.text || textObj.text.trim() === ''
+                isTextEmpty: !textObj.text || textObj.text.trim() === '',
+                
+                // Fabric.js internal properties
+                type: textObj.type,
+                canvas: !!textObj.canvas,
+                group: !!textObj.group,
+                
+                // Bounding box
+                boundingRect: textObj.getBoundingRect ? textObj.getBoundingRect() : 'not available',
+                
+                // 🔥 CRITICAL VALIDATION FLAGS 🔥
+                isTextValid: !!(textObj.text && textObj.text.trim()),
+                isSizeValid: textObj.fontSize > 0 && textObj.width > 0,
+                isColorValid: !!(textObj.fill && textObj.fill !== 'transparent'),
+                isPositionValid: textObj.left >= 0 && textObj.top >= 0,
+                isVisibilityValid: textObj.visible === true && textObj.opacity > 0
               });
               
               // CRITICAL: Additional validation after creation
@@ -538,6 +666,47 @@ export default function FabricCanvas() {
                 });
                 return;
               }
+              
+              // 🔥 ADDITIONAL FABRIC.JS VALIDATION 🔥
+              if (textObj.fontSize <= 0) {
+                DBG(`🚨 CRITICAL: Textbox has invalid fontSize after creation!`, {
+                  partId: part.id,
+                  fontSize: textObj.fontSize,
+                  requestedFontSize: finalStyle.fontSize
+                });
+              }
+              
+              if (!textObj.fill || textObj.fill === 'transparent') {
+                DBG(`🚨 CRITICAL: Textbox has invalid fill after creation!`, {
+                  partId: part.id,
+                  fill: textObj.fill,
+                  requestedFill: finalStyle.fill
+                });
+              }
+              
+              if (textObj.width <= 0) {
+                DBG(`🚨 CRITICAL: Textbox has invalid width after creation!`, {
+                  partId: part.id,
+                  width: textObj.width,
+                  requestedWidth: part.width || 280
+                });
+              }
+              
+              // 🔥 FORCE RENDER PROPERTIES IF NEEDED 🔥
+              if (textObj.fontSize <= 0) {
+                textObj.set('fontSize', 24);
+                DBG(`🔧 FIXED: Forced fontSize to 24 for part ${part.id}`);
+              }
+              
+              if (!textObj.fill || textObj.fill === 'transparent') {
+                textObj.set('fill', 'red');
+                DBG(`🔧 FIXED: Forced fill to red for part ${part.id}`);
+              }
+              
+              if (textObj.width <= 0) {
+                textObj.set('width', 300);
+                DBG(`🔧 FIXED: Forced width to 300 for part ${part.id}`);
+              }
             
               // Metadaten für Interaktion
               (textObj as any).__partId = part.id;
@@ -545,8 +714,11 @@ export default function FabricCanvas() {
               (textObj as any).__sectionType = section.sectionType;
             
               textObjects.push(textObj);
-              DBG(`Text object created successfully for part ${partIndex}:`, {
+              DBG(`🔥 Text object FINAL VALIDATION for part ${partIndex}:`, {
                 id: part.id,
+                fieldType: part.fieldType,
+                
+                // Final Fabric.js object properties
                 fabricObject: {
                   left: textObj.left,
                   top: textObj.top,
@@ -554,45 +726,170 @@ export default function FabricCanvas() {
                   height: textObj.height,
                   text: textObj.text,
                   textPreview: textObj.text?.substring(0, 30) + '...',
-                  hasValidText: !!(textObj.text && textObj.text.trim())
+                  hasValidText: !!(textObj.text && textObj.text.trim()),
+                  
+                  // 🔥 CRITICAL RENDERING PROPERTIES 🔥
+                  fill: textObj.fill,
+                  fontSize: textObj.fontSize,
+                  fontFamily: textObj.fontFamily,
+                  backgroundColor: textObj.backgroundColor,
+                  stroke: textObj.stroke,
+                  strokeWidth: textObj.strokeWidth,
+                  opacity: textObj.opacity,
+                  visible: textObj.visible,
+                  
+                  // 🔥 VALIDATION RESULTS 🔥
+                  isTextValid: !!(textObj.text && textObj.text.trim()),
+                  isSizeValid: textObj.fontSize > 0 && textObj.width > 0,
+                  isColorValid: !!(textObj.fill && textObj.fill !== 'transparent'),
+                  isPositionValid: textObj.left >= 0 && textObj.top >= 0,
+                  isVisibilityValid: textObj.visible === true && textObj.opacity > 0,
+                  
+                  // 🔥 FABRIC.JS INTERNAL STATE 🔥
+                  fabricType: textObj.type,
+                  fabricCanvas: !!textObj.canvas,
+                  fabricGroup: !!textObj.group,
+                  fabricBounds: textObj.getBoundingRect ? textObj.getBoundingRect() : 'not available'
                 }
               });
               
             } catch (error) {
-              DBG(`CRITICAL ERROR creating text object for part ${partIndex}:`, {
+              DBG(`🚨 CRITICAL ERROR creating text object for part ${partIndex}:`, {
                 error: error,
+                errorMessage: error instanceof Error ? error.message : String(error),
+                errorStack: error instanceof Error ? error.stack : 'no stack',
                 partData: part,
                 displayText: displayText,
-                finalStyle: finalStyle
+                calculatedStyle: calculatedStyle,
+                finalStyle: finalStyle,
+                
+                // Context for debugging
+                sectionId: section.id,
+                sectionType: section.sectionType,
+                partIndex: partIndex,
+                totalPartsInSection: section.parts?.length || 0
               });
+              
+              // 🔥 TRY TO CREATE A MINIMAL FALLBACK TEXTBOX 🔥
+              try {
+                DBG(`🔧 Attempting to create fallback textbox for part ${partIndex}...`);
+                const fallbackTextObj = new fabric.Textbox(`FALLBACK: ${displayText}`, {
+                  left: part.offsetX || 0,
+                  top: part.offsetY || 0,
+                  width: 300,
+                  fontSize: 20,
+                  fill: 'red',
+                  fontFamily: 'Arial',
+                  backgroundColor: 'yellow',
+                  selectable: false,
+                  evented: false
+                });
+                
+                (fallbackTextObj as any).__partId = part.id + '-fallback';
+                (fallbackTextObj as any).__fieldType = part.fieldType;
+                (fallbackTextObj as any).__sectionType = section.sectionType;
+                
+                textObjects.push(fallbackTextObj);
+                DBG(`🔧 Fallback textbox created successfully for part ${partIndex}`);
+              } catch (fallbackError) {
+                DBG(`🚨 FALLBACK CREATION ALSO FAILED for part ${partIndex}:`, fallbackError);
+              }
             }
           });
           
-          DBG(`Text objects created for section ${section.id}:`, {
+          DBG(`🔥 COMPREHENSIVE TEXT OBJECTS SUMMARY for section ${section.id}:`, {
             count: textObjects.length,
             expectedCount: section.parts?.length || 0,
-            objects: textObjects.map(obj => ({
+            successRate: `${textObjects.length}/${section.parts?.length || 0}`,
+            
+            // 🔥 DETAILED OBJECT ANALYSIS 🔥
+            objects: textObjects.map((obj, idx) => ({
+              index: idx,
+              id: obj.__partId || 'unknown',
+              fieldType: obj.__fieldType || 'unknown',
+              
+              // Position and size
               left: obj.left,
               top: obj.top,
               width: obj.width,
               height: obj.height,
+              
+              // Text content
               text: obj.text?.substring(0, 20) + '...',
+              fullText: obj.text,
+              textLength: obj.text?.length || 0,
+              
+              // Visual properties
               fill: obj.fill,
               fontSize: obj.fontSize,
+              fontFamily: obj.fontFamily,
+              backgroundColor: obj.backgroundColor,
+              stroke: obj.stroke,
+              strokeWidth: obj.strokeWidth,
+              opacity: obj.opacity,
               visible: obj.visible,
-              hasText: !!(obj.text && obj.text.trim()),
-              textLength: obj.text?.length || 0
+              
+              // 🔥 VALIDATION FLAGS 🔥
+              hasValidText: !!(obj.text && obj.text.trim()),
+              hasValidFill: !!(obj.fill && obj.fill !== 'transparent'),
+              hasValidSize: obj.fontSize > 0 && obj.width > 0,
+              hasValidPosition: obj.left >= 0 && obj.top >= 0,
+              isFullyValid: !!(obj.text && obj.text.trim()) && 
+                           !!(obj.fill && obj.fill !== 'transparent') && 
+                           obj.fontSize > 0 && obj.width > 0 && 
+                           obj.left >= 0 && obj.top >= 0 && 
+                           obj.visible === true && obj.opacity > 0,
+              
+              // 🔥 FABRIC.JS INTERNAL STATE 🔥
+              fabricType: obj.type,
+              fabricCanvas: !!obj.canvas,
+              fabricGroup: !!obj.group
             }))
           });
           
           // Erstelle Fabric Group für die Section
           if (textObjects.length > 0) {
             try {
-              DBG(`Creating group for section ${section.id} with frame:`, {
+              DBG(`🔥 Creating group for section ${section.id} - COMPREHENSIVE ANALYSIS:`, {
+                sectionId: section.id,
+                sectionTitle: section.title,
+                sectionType: section.sectionType,
+                
+                // Group frame
                 left: section.x || 50,
                 top: section.y || 50,
                 width: section.width || 500,
-                height: section.height || 150
+                height: section.height || 150,
+                
+                // Text objects to be grouped
+                textObjectsCount: textObjects.length,
+                validTextObjects: textObjects.filter(obj => 
+                  !!(obj.text && obj.text.trim()) && 
+                  !!(obj.fill && obj.fill !== 'transparent') && 
+                  obj.fontSize > 0 && obj.width > 0
+                ).length,
+                
+                // 🔥 TEXT OBJECTS DETAILED ANALYSIS 🔥
+                textObjectsAnalysis: textObjects.map((obj, idx) => ({
+                  index: idx,
+                  id: obj.__partId,
+                  text: obj.text?.substring(0, 15) + '...',
+                  position: { left: obj.left, top: obj.top },
+                  size: { width: obj.width, height: obj.height },
+                  style: { 
+                    fill: obj.fill, 
+                    fontSize: obj.fontSize, 
+                    fontFamily: obj.fontFamily,
+                    backgroundColor: obj.backgroundColor,
+                    stroke: obj.stroke,
+                    opacity: obj.opacity,
+                    visible: obj.visible
+                  },
+                  isValid: !!(obj.text && obj.text.trim()) && 
+                          !!(obj.fill && obj.fill !== 'transparent') && 
+                          obj.fontSize > 0 && obj.width > 0 && 
+                          obj.visible === true && obj.opacity > 0
+                }))
               });
               
               const sectionGroup = new fabric.Group(textObjects, {
@@ -611,119 +908,442 @@ export default function FabricCanvas() {
                 objectCaching: false,
                 visible: true,
                 opacity: 1,
-                // CRITICAL: Ensure group background doesn't hide text
-                backgroundColor: 'transparent'
+                // 🔥 FORCE GROUP VISIBILITY 🔥
+                backgroundColor: 'rgba(0, 255, 0, 0.1)', // Light green background for debugging
+                stroke: 'green',
+                strokeWidth: 3
               });
             
-              DBG(`Group created with properties:`, {
+              // 🔥 COMPREHENSIVE GROUP VALIDATION 🔥
+              DBG(`🔥 Group created - COMPREHENSIVE VALIDATION:`, {
                 sectionId: section.id,
+                sectionTitle: section.title,
+                
+                // Group properties
                 left: sectionGroup.left,
                 top: sectionGroup.top,
                 width: sectionGroup.width,
                 height: sectionGroup.height,
-                objectsInGroup: sectionGroup.getObjects().length,
+                
+                // Group visibility
                 visible: sectionGroup.visible,
                 opacity: sectionGroup.opacity,
-                textObjectsWithContent: sectionGroup.getObjects().filter((obj: any) => obj.text && obj.text.trim()).length
+                backgroundColor: sectionGroup.backgroundColor,
+                stroke: sectionGroup.stroke,
+                strokeWidth: sectionGroup.strokeWidth,
+                
+                // Objects in group
+                objectsInGroup: sectionGroup.getObjects().length,
+                textObjectsWithContent: sectionGroup.getObjects().filter((obj: any) => obj.text && obj.text.trim()).length,
+                
+                // 🔥 GROUP OBJECTS DETAILED ANALYSIS 🔥
+                groupObjectsAnalysis: sectionGroup.getObjects().map((obj: any, idx: number) => ({
+                  index: idx,
+                  type: obj.type,
+                  id: obj.__partId || 'unknown',
+                  text: obj.text?.substring(0, 15) + '...',
+                  position: { left: obj.left, top: obj.top },
+                  size: { width: obj.width, height: obj.height },
+                  fill: obj.fill,
+                  fontSize: obj.fontSize,
+                  visible: obj.visible,
+                  opacity: obj.opacity,
+                  hasValidText: !!(obj.text && obj.text.trim()),
+                  isVisible: obj.visible === true && obj.opacity > 0
+                })),
+                
+                // 🔥 GROUP VALIDATION FLAGS 🔥
+                hasValidObjects: sectionGroup.getObjects().length > 0,
+                hasVisibleObjects: sectionGroup.getObjects().filter((obj: any) => 
+                  obj.visible === true && obj.opacity > 0
+                ).length,
+                hasTextObjects: sectionGroup.getObjects().filter((obj: any) => 
+                  obj.text && obj.text.trim()
+                ).length,
+                groupBoundingRect: sectionGroup.getBoundingRect ? sectionGroup.getBoundingRect() : 'not available'
               });
             
               (sectionGroup as any).__sectionId = section.id;
               (sectionGroup as any).__sectionType = section.sectionType;
               (sectionGroup as any).__sectionTitle = section.title;
             
-              DBG(`About to add group to canvas:`, {
+              DBG(`🔥 About to add group to canvas - FINAL CHECK:`, {
                 sectionId: section.id,
+                sectionTitle: section.title,
                 groupPosition: { left: sectionGroup.left, top: sectionGroup.top },
                 groupSize: { width: sectionGroup.width, height: sectionGroup.height },
                 textObjectsInGroup: sectionGroup.getObjects().length,
-                validTextObjects: sectionGroup.getObjects().filter((obj: any) => obj.text && obj.text.trim()).length
+                validTextObjects: sectionGroup.getObjects().filter((obj: any) => obj.text && obj.text.trim()).length,
+                
+                // 🔥 CANVAS STATE BEFORE ADDING 🔥
+                canvasObjectsBeforeAdd: canvas.getObjects().length,
+                canvasSize: { width: canvas.getWidth(), height: canvas.getHeight() },
+                canvasZoom: canvas.getZoom(),
+                canvasBackgroundColor: canvas.backgroundColor
               });
               
               canvas.add(sectionGroup);
               
-              // DEBUG: Canvas-Zustand nach Hinzufügen der Gruppe überprüfen
-              DBG(`Canvas state after adding group:`, {
+              // 🔥 COMPREHENSIVE CANVAS STATE AFTER ADDING GROUP 🔥
+              DBG(`🔥 Canvas state after adding group - COMPREHENSIVE ANALYSIS:`, {
+                sectionId: section.id,
+                
+                // Canvas state
                 totalObjects: canvas.getObjects().length,
                 canvasSize: { width: canvas.getWidth(), height: canvas.getHeight() },
                 zoom: canvas.getZoom(),
                 backgroundColor: canvas.backgroundColor,
-                lastAddedGroup: {
+                
+                // Added group analysis
+                addedGroup: {
                   id: section.id,
+                  title: section.title,
                   position: { left: sectionGroup.left, top: sectionGroup.top },
                   size: { width: sectionGroup.width, height: sectionGroup.height },
                   visible: sectionGroup.visible,
                   opacity: sectionGroup.opacity,
+                  backgroundColor: sectionGroup.backgroundColor,
+                  stroke: sectionGroup.stroke,
                   groupBounds: sectionGroup.getBoundingRect?.() || 'unknown',
-                  textObjectsInGroup: sectionGroup.getObjects().map((obj: any) => ({
+                  
+                  // 🔥 DETAILED TEXT OBJECTS IN GROUP 🔥
+                  textObjectsInGroup: sectionGroup.getObjects().map((obj: any, idx: number) => ({
+                    index: idx,
                     type: obj.type,
+                    id: obj.__partId || 'unknown',
+                    fieldType: obj.__fieldType || 'unknown',
                     text: obj.text?.substring(0, 30) + '...',
+                    fullText: obj.text,
+                    
+                    // Position within group
                     left: obj.left,
                     top: obj.top,
                     width: obj.width,
                     height: obj.height,
+                    
+                    // Visual properties
                     fill: obj.fill,
                     fontSize: obj.fontSize,
-                    visible: obj.visible
+                    fontFamily: obj.fontFamily,
+                    backgroundColor: obj.backgroundColor,
+                    stroke: obj.stroke,
+                    strokeWidth: obj.strokeWidth,
+                    opacity: obj.opacity,
+                    visible: obj.visible,
+                    
+                    // 🔥 VALIDATION FOR EACH OBJECT 🔥
+                    isTextValid: !!(obj.text && obj.text.trim()),
+                    isSizeValid: obj.fontSize > 0 && obj.width > 0,
+                    isColorValid: !!(obj.fill && obj.fill !== 'transparent'),
+                    isPositionValid: obj.left >= 0 && obj.top >= 0,
+                    isVisibilityValid: obj.visible === true && obj.opacity > 0,
+                    isFullyValid: !!(obj.text && obj.text.trim()) && 
+                                 !!(obj.fill && obj.fill !== 'transparent') && 
+                                 obj.fontSize > 0 && obj.width > 0 && 
+                                 obj.left >= 0 && obj.top >= 0 && 
+                                 obj.visible === true && obj.opacity > 0
                   }))
-                }
+                },
+                
+                // 🔥 CANVAS OBJECTS OVERVIEW 🔥
+                allCanvasObjects: canvas.getObjects().map((obj: any, idx: number) => ({
+                  index: idx,
+                  type: obj.type,
+                  id: obj.__sectionId || 'unknown',
+                  position: { left: obj.left, top: obj.top },
+                  size: { width: obj.width, height: obj.height },
+                  visible: obj.visible,
+                  opacity: obj.opacity,
+                  hasObjects: obj.type === 'group' ? obj.getObjects().length : 'not-group'
+                }))
               });
             
-              DBG(`✅ Successfully added section group ${sectionIndex}:`, { 
+              DBG(`🔥 ✅ Successfully added section group ${sectionIndex} - FINAL SUMMARY:`, { 
                 id: section.id,
                 title: section.title,
+                sectionType: section.sectionType,
                 position: { left: sectionGroup.left, top: sectionGroup.top },
                 size: { width: sectionGroup.width, height: sectionGroup.height },
-                textObjectsCount: textObjects.length
+                textObjectsCount: textObjects.length,
+                validTextObjectsCount: textObjects.filter(obj => 
+                  !!(obj.text && obj.text.trim()) && 
+                  !!(obj.fill && obj.fill !== 'transparent') && 
+                  obj.fontSize > 0 && obj.width > 0 && 
+                  obj.visible === true && obj.opacity > 0
+                ).length,
+                
+                // 🔥 SUCCESS INDICATORS 🔥
+                groupAddedToCanvas: canvas.getObjects().includes(sectionGroup),
+                groupHasTextObjects: sectionGroup.getObjects().length > 0,
+                groupIsVisible: sectionGroup.visible === true && sectionGroup.opacity > 0
               });
               
             } catch (error) {
-              DBG(`CRITICAL: Error creating section group ${sectionIndex}:`, {
+              DBG(`🚨 CRITICAL: Error creating section group ${sectionIndex}:`, {
                 error: error,
+                errorMessage: error instanceof Error ? error.message : String(error),
+                errorStack: error instanceof Error ? error.stack : 'no stack',
                 sectionData: section,
+                sectionId: section.id,
+                sectionTitle: section.title,
+                sectionType: section.sectionType,
+                
+                // Text objects that failed to group
                 textObjectsData: textObjects.map(obj => ({
+                  id: obj.__partId,
+                  fieldType: obj.__fieldType,
                   text: obj.text,
+                  textLength: obj.text?.length || 0,
                   left: obj.left,
                   top: obj.top,
                   width: obj.width,
-                  fontSize: obj.fontSize
-                }))
+                  height: obj.height,
+                  fontSize: obj.fontSize,
+                  fill: obj.fill,
+                  visible: obj.visible,
+                  opacity: obj.opacity
+                })),
+                
+                // Context
+                totalTextObjectsCreated: textObjects.length,
+                expectedPartsCount: section.parts?.length || 0
               });
             }
           } else {
-            DBG(`WARNING: No text objects created for section ${section.id}, skipping group creation. Section data:`, {
+            DBG(`🚨 WARNING: No text objects created for section ${section.id}, skipping group creation. DETAILED ANALYSIS:`, {
               sectionId: section.id,
               sectionTitle: section.title,
+              sectionType: section.sectionType,
+              
+              // Section frame
+              sectionFrame: {
+                x: section.x,
+                y: section.y,
+                width: section.width,
+                height: section.height
+              },
+              
+              // Parts analysis
               partsCount: section.parts?.length || 0,
-              parts: section.parts?.map(p => ({
+              parts: section.parts?.map((p, idx) => ({
+                index: idx,
                 id: p.id,
                 fieldType: p.fieldType,
+                type: p.type,
                 text: p.text,
-                hasText: !!p.text?.trim(),
                 textLength: p.text?.length || 0,
+                hasText: !!p.text?.trim(),
+                
+                // Position and size
                 offsetX: p.offsetX,
                 offsetY: p.offsetY,
-                width: p.width
-              })) || []
+                width: p.width,
+                
+                // Style properties
+                fontSize: p.fontSize,
+                fontFamily: p.fontFamily,
+                color: p.color,
+                fontWeight: p.fontWeight,
+                fontStyle: p.fontStyle,
+                
+                // 🔥 VALIDATION FOR EACH PART 🔥
+                isTextValid: !!(p.text && p.text.trim()),
+                isPositionValid: (p.offsetX || 0) >= 0 && (p.offsetY || 0) >= 0,
+                isSizeValid: (p.width || 280) > 0,
+                isTypeValid: p.type === 'text'
+              })) || [],
+              
+              // 🔥 SECTION VALIDATION SUMMARY 🔥
+              hasValidParts: (section.parts || []).length > 0,
+              hasTextParts: (section.parts || []).filter(p => p.type === 'text').length,
+              hasPartsWithText: (section.parts || []).filter(p => p.text && p.text.trim()).length,
+              hasPartsWithValidPosition: (section.parts || []).filter(p => 
+                (p.offsetX || 0) >= 0 && (p.offsetY || 0) >= 0
+              ).length,
+              hasPartsWithValidSize: (section.parts || []).filter(p => (p.width || 280) > 0).length
             });
           }
         });
 
-        DBG('About to request canvas render...');
+        DBG('🔥 About to request canvas render - FINAL CANVAS STATE:');
+        
+        // 🔥 FINAL CANVAS ANALYSIS BEFORE RENDER 🔥
+        const finalCanvasObjects = canvas.getObjects();
+        DBG(`🔥 FINAL CANVAS ANALYSIS:`, {
+          totalCanvasObjects: finalCanvasObjects.length,
+          canvasSize: { width: canvas.getWidth(), height: canvas.getHeight() },
+          canvasZoom: canvas.getZoom(),
+          canvasBackgroundColor: canvas.backgroundColor,
+          
+          // 🔥 DETAILED ANALYSIS OF ALL CANVAS OBJECTS 🔥
+          canvasObjectsDetailed: finalCanvasObjects.map((obj: any, idx: number) => ({
+            index: idx,
+            type: obj.type,
+            id: obj.__sectionId || 'unknown',
+            title: obj.__sectionTitle || 'unknown',
+            
+            // Position and size
+            position: { left: obj.left, top: obj.top },
+            size: { width: obj.width, height: obj.height },
+            
+            // Visibility
+            visible: obj.visible,
+            opacity: obj.opacity,
+            backgroundColor: obj.backgroundColor,
+            stroke: obj.stroke,
+            
+            // Group analysis
+            isGroup: obj.type === 'group',
+            objectsInGroup: obj.type === 'group' ? obj.getObjects().length : 'not-group',
+            
+            // Text objects in group (if it's a group)
+            textObjectsInGroup: obj.type === 'group' ? obj.getObjects().map((textObj: any, textIdx: number) => ({
+              index: textIdx,
+              type: textObj.type,
+              id: textObj.__partId || 'unknown',
+              fieldType: textObj.__fieldType || 'unknown',
+              text: textObj.text?.substring(0, 20) + '...',
+              position: { left: textObj.left, top: textObj.top },
+              size: { width: textObj.width, height: textObj.height },
+              fill: textObj.fill,
+              fontSize: textObj.fontSize,
+              visible: textObj.visible,
+              opacity: textObj.opacity,
+              hasText: !!(textObj.text && textObj.text.trim()),
+              isFullyValid: !!(textObj.text && textObj.text.trim()) && 
+                           !!(textObj.fill && textObj.fill !== 'transparent') && 
+                           textObj.fontSize > 0 && textObj.width > 0 && 
+                           textObj.visible === true && textObj.opacity > 0
+            })) : 'not-group',
+            
+            // 🔥 VALIDATION FLAGS FOR EACH CANVAS OBJECT 🔥
+            isPositionValid: obj.left >= 0 && obj.top >= 0,
+            isSizeValid: obj.width > 0 && obj.height > 0,
+            isVisibilityValid: obj.visible === true && obj.opacity > 0,
+            isWithinCanvasBounds: obj.left < canvas.getWidth() && obj.top < canvas.getHeight()
+          })),
+          
+          // 🔥 OVERALL VALIDATION SUMMARY 🔥
+          totalValidObjects: finalCanvasObjects.filter((obj: any) => 
+            obj.visible === true && obj.opacity > 0 && 
+            obj.left >= 0 && obj.top >= 0 && 
+            obj.width > 0 && obj.height > 0
+          ).length,
+          totalGroupsWithTextObjects: finalCanvasObjects.filter((obj: any) => 
+            obj.type === 'group' && obj.getObjects().length > 0
+          ).length,
+          totalTextObjectsAcrossAllGroups: finalCanvasObjects.reduce((sum: number, obj: any) => 
+            sum + (obj.type === 'group' ? obj.getObjects().length : 0), 0
+          )
+        });
+        
         canvas.requestRenderAll();
-        DBG('✅ Canvas render complete:', { 
+        
+        // 🔥 POST-RENDER VALIDATION 🔥
+        setTimeout(() => {
+          DBG(`🔥 POST-RENDER VALIDATION (after requestRenderAll):`, {
+            canvasObjectsCount: canvas.getObjects().length,
+            canvasIsRendered: true,
+            
+            // Check if objects are actually rendered
+            renderedObjects: canvas.getObjects().map((obj: any) => ({
+              type: obj.type,
+              id: obj.__sectionId || 'unknown',
+              visible: obj.visible,
+              opacity: obj.opacity,
+              isOnCanvas: !!obj.canvas,
+              boundingRect: obj.getBoundingRect ? obj.getBoundingRect() : 'not available'
+            }))
+          });
+        }, 100);
+        
+        DBG('🔥 ✅ Canvas render complete - SUMMARY:', { 
           totalGroups: canvas.getObjects().length,
           sectionsProcessed: safeSections.length,
           canvasSize: { width: canvas.getWidth(), height: canvas.getHeight() },
-          finalCanvasObjects: canvas.getObjects().map((obj: any) => ({
+          
+          // 🔥 FINAL SUMMARY OF CANVAS OBJECTS 🔥
+          finalCanvasObjectsSummary: canvas.getObjects().map((obj: any, idx: number) => ({
+            index: idx,
             type: obj.type,
+            id: obj.__sectionId || 'unknown',
+            title: obj.__sectionTitle || 'unknown',
             left: obj.left,
             top: obj.top,
             width: obj.width,
             height: obj.height,
             visible: obj.visible,
-            sectionId: obj.__sectionId || 'unknown',
+            opacity: obj.opacity,
+            backgroundColor: obj.backgroundColor,
+            stroke: obj.stroke,
             hasTextObjects: obj.type === 'group' ? obj.getObjects().length : 'not-group',
-            textObjectsPreview: obj.type === 'group' ? obj.getObjects().map((textObj: any) => ({
+            validTextObjects: obj.type === 'group' ? obj.getObjects().filter((textObj: any) => 
+              !!(textObj.text && textObj.text.trim()) && 
+              !!(textObj.fill && textObj.fill !== 'transparent') && 
+              textObj.fontSize > 0 && textObj.width > 0 && 
+              textObj.visible === true && textObj.opacity > 0
+            ).length : 'not-group',
+            
+            // 🔥 VALIDATION FLAGS 🔥
+            isPositionValid: obj.left >= 0 && obj.top >= 0,
+            isSizeValid: obj.width > 0 && obj.height > 0,
+            isVisibilityValid: obj.visible === true && obj.opacity > 0,
+            isWithinCanvas: obj.left < canvas.getWidth() && obj.top < canvas.getHeight(),
+            isFullyValid: obj.visible === true && obj.opacity > 0 && 
+                         obj.left >= 0 && obj.top >= 0 && 
+                         obj.width > 0 && obj.height > 0 && 
+                         obj.left < canvas.getWidth() && obj.top < canvas.getHeight()
+          })),
+          
+          // 🔥 OVERALL SUCCESS METRICS 🔥
+          successMetrics: {
+            sectionsProcessed: safeSections.length,
+            groupsCreated: canvas.getObjects().length,
+            totalTextObjectsCreated: canvas.getObjects().reduce((sum: number, obj: any) => 
+              sum + (obj.type === 'group' ? obj.getObjects().length : 0), 0
+            ),
+            fullyValidGroups: canvas.getObjects().filter((obj: any) => 
+              obj.type === 'group' && obj.visible === true && obj.opacity > 0 && 
+              obj.getObjects().length > 0
+            ).length,
+            renderingSuccessful: canvas.getObjects().length > 0
+          }
+        });
+        
+        // 🔥 ADD A SIMPLE TEST RECTANGLE FOR COMPARISON 🔥
+        try {
+          const testRect = new fabric.Rect({
+            left: 10,
+            top: 10,
+            width: 100,
+            height: 50,
+            fill: 'purple',
+            stroke: 'orange',
+            strokeWidth: 3,
+            selectable: false,
+            evented: false
+          });
+          
+          canvas.add(testRect);
+          DBG(`🔥 TEST RECTANGLE ADDED:`, {
+            position: { left: testRect.left, top: testRect.top },
+            size: { width: testRect.width, height: testRect.height },
+            fill: testRect.fill,
+            stroke: testRect.stroke,
+            visible: testRect.visible,
+            opacity: testObj.opacity
+          });
+        } catch (testError) {
+          DBG(`🚨 FAILED TO CREATE TEST RECTANGLE:`, testError);
+        }
+        
+        DBG('🔥 === RENDERING SECTIONS END ===');
+        
+      } catch (error) {
+        DBG('🚨 CRITICAL: FabricCanvas rendering error:', {
+          error: error,
+          errorMessage: error instanceof Error ? error.message : String(error),
+          errorStack: error instanceof Error ? error.stack : 'no stack',
               text: textObj.text?.substring(0, 20) + '...',
               hasText: !!(textObj.text && textObj.text.trim())
             })) : 'not-group'
@@ -735,10 +1355,13 @@ export default function FabricCanvas() {
         DBG('CRITICAL: FabricCanvas rendering error:', {
           error: error,
           sectionsData: safeSections,
+          sectionsCount: safeSections.length,
           canvasState: {
             width: canvas.getWidth(),
             height: canvas.getHeight(),
-            objectCount: canvas.getObjects().length
+            objectCount: canvas.getObjects().length,
+            zoom: canvas.getZoom(),
+            backgroundColor: canvas.backgroundColor
           }
         });
       }
