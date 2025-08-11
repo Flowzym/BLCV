@@ -14,8 +14,7 @@ const SELECT_STROKE = 2;       // px
 const HOVER_STROKE = 1.5;      // px
 const HOVER_HIDE_MS = 120;     // weiches Ausblenden
 
-// Asymmetrischer Outset nur für die SELECTED-Outline (Option 2)
-// Links etwas mehr Luft als oben/rechts/unten
+// Asymmetrischer Outset nur für die SELECTED-Outline (links mehr Luft)
 const SELECT_OUTSET = { l: 4, t: 2, r: 2, b: 2 } as const;
 
 type SectionKind = "experience" | "education" | "profile" | "skills" | "softskills" | "contact";
@@ -153,7 +152,7 @@ export default function FabricCanvas() {
       (canvas as any).__hoverOutline = hoverOutline;
       canvas.add(hoverOutline);
 
-      // Selected-Outline (solide, Root-Objekt) – bleibt bis zur Abwahl sichtbar
+      // Selected-Outline (solide, Root-Objekt)
       const selectedOutline = new fabric.Rect({
         left: 0,
         top: 0,
@@ -176,12 +175,11 @@ export default function FabricCanvas() {
       (canvas as any).__selectedOutline = selectedOutline;
       canvas.add(selectedOutline);
 
-      // ganz nach oben
       bringObjectToFront(canvas, hoverOutline);
       bringObjectToFront(canvas, selectedOutline);
       canvas.requestRenderAll();
 
-      // Textbox unter Maus (auch wenn die Gruppe getroffen wurde)
+      // Textbox unter Maus (auch wenn Gruppe getroffen)
       const getTextboxUnderPointer = (t: any, ev: MouseEvent) => {
         if (!t) return null;
         if (t.type === "textbox") return t;
@@ -209,7 +207,7 @@ export default function FabricCanvas() {
 
       const APPLY_BG = (tb: any) => {
         if (!tb) return;
-        tb.set({ backgroundColor: "rgba(96,165,250,0.12)" }); // zarter Blauton
+        tb.set({ backgroundColor: "rgba(96,165,250,0.12)" });
         tb.dirty = true;
         lastSelectedTextboxRef.current = tb;
       };
@@ -223,7 +221,6 @@ export default function FabricCanvas() {
       };
 
       const SET_SELECTION = (tb: any) => {
-        // vorherige Markierung entfernen
         if (lastSelectedTextboxRef.current && lastSelectedTextboxRef.current !== tb) {
           CLEAR_BG();
         }
@@ -235,7 +232,6 @@ export default function FabricCanvas() {
           group: tb.group,
           textbox: tb,
         });
-        // Outline setzen
         UPDATE_SELECTED_MARKER();
         canvas.requestRenderAll();
       };
@@ -247,7 +243,7 @@ export default function FabricCanvas() {
         canvas.requestRenderAll();
       };
 
-      // Hover: jetzt AUCH bei aktiver Selektion anzeigen – außer über dem aktuell selektierten Feld
+      // Hover: auch bei aktiver Selektion zeigen – außer über dem selektierten Feld
       const onMouseMove = (e: any) => {
         const t = canvas.findTarget(e.e, true) as any;
         const tb = getTextboxUnderPointer(t, e.e);
@@ -265,19 +261,18 @@ export default function FabricCanvas() {
             const rect = withOutsetSym(canvas, getTextboxCanvasRect(tb), 0);
             hoverOutline.set({ ...rect, visible: true, opacity: 1 });
             bringObjectToFront(canvas, hoverOutline);
+            // WICHTIG: Cursor NUR hier explizit setzen
             canvas.setCursor("text");
             canvas.requestRenderAll();
             return;
           }
         }
 
-        // kein Ziel: Hover sanft ausblenden
+        // Kein Text-Hover: NICHT cursor setzen -> Fabric zeigt Resize-/Move-Cursor selbst
         hoverHideTimer.current = setTimeout(() => {
           hoverOutline.set({ visible: false });
           canvas.requestRenderAll();
         }, HOVER_HIDE_MS);
-
-        canvas.setCursor("default");
       };
 
       // Klick: Text → Selection + Overlay; sonst Gruppe selektieren/Abwahl
@@ -293,6 +288,9 @@ export default function FabricCanvas() {
         const grp = t?.type === "group" ? t : t?.group;
         if (grp) {
           canvas.setActiveObject(grp);
+          // besseres Feedback beim Greifen/Verschieben der Sektion
+          grp.hoverCursor = "move";
+          grp.moveCursor = "move";
           grp.selectable = true;
           grp.lockMovementX = false;
           grp.lockMovementY = false;
@@ -487,6 +485,9 @@ export default function FabricCanvas() {
         padding: 8,
         borderScaleFactor: 2,
         subTargetCheck: true,
+        // neu: klares Move-Feedback
+        hoverCursor: "move",
+        moveCursor: "move",
       }) as any;
 
       sectionGroup.data = {
@@ -511,7 +512,7 @@ export default function FabricCanvas() {
         fabricCanvas.fire("object:modified", { target: sectionGroup } as any);
       } catch {}
 
-      // Rebind: falls ein Mapping selektiert ist, binde auf neue Instanz + markiere es
+      // Rebind: selektiertes Mapping an neue Instanz koppeln
       const ae = activeEditRef.current;
       if (ae && ae.sectionId === section.id) {
         const newTb = (sectionGroup._objects || []).find(
