@@ -1,118 +1,101 @@
-/**
- * Canvas Registry - Singleton für Fabric.js Canvas-Instanzen
- * Verhindert Mehrfach-Initialisierung und verwaltet Canvas-Lifecycle
- */
+// Robust Canvas-Registry, kompatibel mit Lazy-Fabric (fabric-shim)
+// - Erzeugt *nur dann* eine Canvas, wenn sowohl ein Canvas-Element (el)
+//   als auch ein Fabric-Namespace (fabricNS) übergeben wird.
+// - Andernfalls legt sie lediglich/verwaltet einen Eintrag.
+// - Bietet zusätzliche Helper (set / setCanvas), um extern erstellte Canvas
+//   einzutragen (z. B. nach getFabric()).
 
-const canvasMap = new Map<HTMLCanvasElement, any>();
-
-const DBG = (msg: string, ...args: any[]) => {
-  if (import.meta.env.VITE_DEBUG_DESIGNER_SYNC === 'true') {
-    console.log('[CANVAS_REGISTRY]', msg, ...args);
-  }
+export type RegistryEntry = {
+  id: string;
+  canvas?: any; // fabric.Canvas | undefined
 };
 
-export const CanvasRegistry = {
-  /**
-   * Holt oder erstellt eine Canvas-Instanz für das gegebene Element
-   */
-  getOrCreate(el: HTMLCanvasElement, fabricNs: any): any {
-    // Prüfe ob bereits eine Canvas für dieses Element existiert
-    if (canvasMap.has(el)) {
-      const existing = canvasMap.get(el);
-      DBG('Returning existing canvas for element:', el);
-      return existing;
-    }
+type FabricNS = {
+  Canvas?: new (el: HTMLCanvasElement, opts?: any) => any;
+};
 
-    // Prüfe ob Fabric.js das Element bereits als initialisiert betrachtet
-    if ((el as any).__fabricCanvas) {
-      DBG('Element has __fabricCanvas marker, disposing first');
-      try {
-        (el as any).__fabricCanvas.dispose();
-      } catch (e) {
-        DBG('Error disposing existing fabric canvas:', e);
-      }
-      delete (el as any).__fabricCanvas;
-    }
-
-    // Neue Canvas erstellen
-    DBG('Creating new canvas for element:', el);
-    const canvas = new fabricNs.Canvas(el, {
-      preserveObjectStacking: true,
-      selection: true,
-      backgroundColor: '#ffffff'
-    });
-
-    // In Registry speichern
-    canvasMap.set(el, canvas);
-    DBG('Canvas registered in map, total canvases:', canvasMap.size);
-
-    return canvas;
-  },
+class _CanvasRegistry {
+  private map = new Map<string, RegistryEntry>();
 
   /**
-   * Entsorgt eine Canvas und ersetzt das DOM-Element
+   * Liefert den Eintrag zur ID, legt ihn ggf. an.
+   * Erzeugt eine Canvas nur, wenn *sowohl* el als auch fabricNS.Canvas vorhanden sind.
    */
-  dispose(el: HTMLCanvasElement): void {
-    DBG('Disposing canvas for element:', el);
-    
-    const canvas = canvasMap.get(el);
-    if (canvas) {
-      try {
-        canvas.dispose();
-        DBG('Canvas disposed successfully');
-      } catch (e) {
-        DBG('Error disposing canvas:', e);
-      }
-      canvasMap.delete(el);
+  getOrCreate(
+    id: string,
+    el?: HTMLCanvasElement | null,
+    opts?: any,
+    fabricNS?: FabricNS | any
+  ): RegistryEntry {
+    let entry = this.map.get(id);
+    if (!entry) {
+      entry = { id, canvas: undefined };
+      this.map.set(id, entry);
     }
 
-    // DOM-Element ersetzen, damit Fabric keine internen Marker mehr findet
+    // Nur erzeugen, wenn explizit möglich und noch keine Canvas existiert
+    if (!entry.canvas && el && fabricNS && fabricNS.Canvas) {
+      try {
+        entry.canvas = new fabricNS.Canvas(el, opts);
+      } catch (err) {
+        // Failsafe: nicht crashen – Eintrag bleibt bestehen, Canvas undefined
+        // (wird ggf. später via set()/setCanvas() gesetzt)
+        console.warn("[CanvasRegistry] Canvas creation failed:", err);
+      }
+    }
+
+    return entry;
+  }
+
+  /** Alias: existiert ein Eintrag für die ID? */
+  has(id: string): boolean {
+    return this.map.has(id);
+  }
+
+  /** Liefert den Eintrag (oder undefined) */
+  get(id: string): RegistryEntry | undefined {
+    return this.map.get(id);
+  }
+
+  /**
+   * Setzt/überschreibt die Canvas für eine ID (z. B. nachdem extern via getFabric() erstellt wurde).
+   * Kompatibler Alias: set() (für ältere Aufrufer).
+   */
+  setCanvas(id: string, canvas: any): RegistryEntry {
+    let entry = this.map.get(id);
+    if (!entry) {
+      entry = { id, canvas: undefined };
+      this.map.set(id, entry);
+    }
+    entry.canvas = canvas;
+    return entry;
+  }
+
+  /** Kompatibilitäts-Alias zu setCanvas */
+  set(id: string, canvas: any): RegistryEntry {
+    return this.setCanvas(id, canvas);
+  }
+
+  /** Entfernt und disposed eine einzelne Canvas, falls vorhanden. */
+  dispose(id: string): void {
+    const entry = this.map.get(id);
+    if (!entry) return;
     try {
-      const parent = el.parentNode;
-      if (parent) {
-        const fresh = el.cloneNode(false) as HTMLCanvasElement;
-        parent.replaceChild(fresh, el);
-        DBG('DOM element replaced with fresh clone');
-      }
-    } catch (e) {
-      DBG('Error replacing DOM element:', e);
-    }
-
-    // Fabric-Marker explizit löschen
-    delete (el as any).__fabricCanvas;
-    DBG('Fabric markers cleared');
-  },
-
-  /**
-   * Prüft ob eine Canvas für das Element existiert
-   */
-  has(el: HTMLCanvasElement): boolean {
-    return canvasMap.has(el);
-  },
-
-  /**
-   * Holt eine existierende Canvas (ohne zu erstellen)
-   */
-  get(el: HTMLCanvasElement): any | null {
-    return canvasMap.get(el) || null;
-  },
-
-  /**
-   * Entsorgt alle Canvases (für Cleanup)
-   */
-  disposeAll(): void {
-    DBG('Disposing all canvases, count:', canvasMap.size);
-    for (const [el, canvas] of canvasMap.entries()) {
-      try {
-        canvas.dispose();
-        delete (el as any).__fabricCanvas;
-      } catch (e) {
-        DBG('Error disposing canvas in disposeAll:', e);
-      }
-    }
-    canvasMap.clear();
-    DBG('All canvases disposed');
+      entry.canvas?.dispose?.();
+    } catch {}
+    this.map.delete(id);
   }
-};
 
+  /** Disposed alle registrierten Canvas und leert die Registry. */
+  disposeAll(): void {
+    for (const [id, entry] of this.map.entries()) {
+      try {
+        entry.canvas?.dispose?.();
+      } catch {}
+      this.map.delete(id);
+    }
+  }
+}
+
+const CanvasRegistry = new _CanvasRegistry();
 export default CanvasRegistry;
