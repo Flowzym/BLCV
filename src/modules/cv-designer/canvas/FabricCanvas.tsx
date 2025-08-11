@@ -742,7 +742,7 @@ export default function FabricCanvas() {
         panRef.current = { isPanning: true, startX: ev.clientX, startY: ev.clientY, startTx: vt[4] || 0, startTy: vt[5] || 0 };
         (canvas as any).defaultCursor = "grabbing";
       };
-      const onMouseMove = (ev: MouseEvent) => {
+      const onPanMouseMove = (ev: MouseEvent) => {
         if (!panRef.current.isPanning) return;
         const dx = ev.clientX - panRef.current.startX;
         const dy = ev.clientY - panRef.current.startY;
@@ -815,7 +815,7 @@ export default function FabricCanvas() {
       const upper = canvas.upperCanvasEl as HTMLCanvasElement | undefined;
       upper?.addEventListener("wheel", wheelHandler, { passive: false });
       upper?.addEventListener("mousedown", onMouseDown);
-      window.addEventListener("mousemove", onMouseMove);
+      window.addEventListener("mousemove", onPanMouseMove);
       window.addEventListener("mouseup", onMouseUp);
       window.addEventListener("keydown", onKeyDown);
       window.addEventListener("keyup", onKeyUp);
@@ -836,7 +836,7 @@ installSectionResize(canvas);
           const upper = (canvas as any).upperCanvasEl as HTMLCanvasElement | undefined;
           upper?.removeEventListener("wheel", wheelHandler as any);
           upper?.removeEventListener("mousedown", onMouseDown as any);
-          window.removeEventListener("mousemove", onMouseMove as any);
+          window.removeEventListener("mousemove", onPanMouseMove as any);
           window.removeEventListener("mouseup", onMouseUp as any);
           window.removeEventListener("keydown", onKeyDown as any);
           window.removeEventListener("keyup", onKeyUp as any);
