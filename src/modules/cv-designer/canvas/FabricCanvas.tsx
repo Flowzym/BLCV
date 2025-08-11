@@ -135,8 +135,8 @@ export default function FabricCanvas() {
       rotateControlRef.current = new fabric.Control({
         x: 0,
         y: -0.5,
-        offsetY: -30,           // Abstand oberhalb der Top-Kante
-        withConnection: true,   // Verbindungslinie beibehalten
+        offsetY: -30,
+        withConnection: true,
         actionName: "rotate",
         cursorStyleHandler: fabric.controlsUtils.rotationStyleHandler,
         actionHandler: fabric.controlsUtils.rotationWithSnapping,
@@ -144,7 +144,6 @@ export default function FabricCanvas() {
         render: (ctx: CanvasRenderingContext2D, left: number, top: number, _style: any, o: any) => {
           const z = o?.canvas?.getZoom?.() || 1;
 
-          // Größen & Strichstärken zoom-sicher
           const size = 28 / z;
           const rOuter = size / 2;
           const ringW = Math.max(2 / z, 1 / z);
@@ -154,28 +153,24 @@ export default function FabricCanvas() {
           ctx.save();
           ctx.translate(left, top);
 
-          // subtile Schattenkante
           ctx.shadowColor = "rgba(0,0,0,0.08)";
           ctx.shadowBlur = shadowBlur;
           ctx.shadowOffsetX = 0;
           ctx.shadowOffsetY = 0;
 
-          // runder Button
           ctx.beginPath();
           ctx.arc(0, 0, rOuter, 0, Math.PI * 2);
           ctx.fillStyle = "#ffffff";
           ctx.fill();
 
-          // orangener Ring
           ctx.lineWidth = ringW;
           ctx.strokeStyle = SELECT_COLOR;
           ctx.stroke();
 
-          // innerer Refresh-Bogen
           ctx.shadowColor = "transparent";
           const r = rOuter - 6 / z;
-          const start = -Math.PI * 0.35;     // ~ -63°
-          const end = start + Math.PI * 1.6; // ~ 288°
+          const start = -Math.PI * 0.35;
+          const end = start + Math.PI * 1.6;
           ctx.beginPath();
           ctx.arc(0, 0, r, start, end);
           ctx.lineWidth = arrowW;
@@ -183,11 +178,10 @@ export default function FabricCanvas() {
           ctx.strokeStyle = SELECT_COLOR;
           ctx.stroke();
 
-          // Pfeilspitze am Ende (kleine Keilform)
           const ax = r * Math.cos(end);
           const ay = r * Math.sin(end);
-          const ah = 6 / z; // länge
-          const aw = 4 / z; // breite
+          const ah = 6 / z;
+          const aw = 4 / z;
           ctx.beginPath();
           ctx.moveTo(ax, ay);
           ctx.lineTo(ax - ah, ay - aw);
@@ -259,7 +253,7 @@ export default function FabricCanvas() {
         const grp = t.type === "group" ? t : t.group;
         if (!grp) return null;
 
-        const p = canvas.getPointer(ev); // Canvas space
+        const p = canvas.getPointer(ev);
         const hit = (grp._objects || []).find((child: any) => {
           if (child.type !== "textbox") return false;
           const r = child.getBoundingRect(false, true);
@@ -322,7 +316,7 @@ export default function FabricCanvas() {
         canvas.requestRenderAll();
       };
 
-      // Hover: auch bei aktiver Selektion zeigen – außer über dem selektierten Feld
+      // Hover
       const onMouseMove = (e: any) => {
         const t = canvas.findTarget(e.e, true) as any;
         const tb = getTextboxUnderPointer(t, e.e);
@@ -335,17 +329,16 @@ export default function FabricCanvas() {
             const rect = withOutsetSym(canvas, getTextboxCanvasRect(tb), 0);
             (canvas as any).__hoverOutline.set({ ...rect, visible: true, opacity: 1 });
             bringObjectToFront(canvas, (canvas as any).__hoverOutline);
-            canvas.setCursor("text"); // Cursor NUR bei Text
+            canvas.setCursor("text");
             canvas.requestRenderAll();
             return;
           }
         }
 
-        // kein Text unter dem Zeiger → sofort ausblenden (ohne Delay)
         hideHoverNow();
       };
 
-      // Klick: Text → Selection + Overlay; sonst Gruppe selektieren/Abwahl
+      // Klick: Text → Selection; Gruppe → aktivieren + Controls
       const onMouseUp = (e: any) => {
         const t = canvas.findTarget(e.e, true) as any;
         const tb = getTextboxUnderPointer(t, e.e);
@@ -366,13 +359,16 @@ export default function FabricCanvas() {
           grp.hasControls = true;
           grp.borderColor = SELECT_COLOR;
           grp.cornerColor = SELECT_COLOR;
-          // >>> custom rotate-control pro Gruppe
+
+          // >>> custom rotate-control pro Gruppe (benutze LOKALES fabric!)
           const rc = rotateControlRef.current;
           if (rc) {
-            const baseControls = (fabricNamespace.Object as any)?.prototype?.controls;
-            if (!(grp as any).controls) (grp as any).controls = baseControls ? { ...baseControls } : {};
+            const baseControls =
+              (fabric.Object as any)?.prototype?.controls || {};
+            if (!(grp as any).controls) (grp as any).controls = { ...baseControls };
             (grp as any).controls.mtr = rc;
           }
+
           canvas.requestRenderAll();
           return;
         }
@@ -388,11 +384,11 @@ export default function FabricCanvas() {
         }
       };
 
-      // Auch beim Verlassen der Canvas sofort verstecken
+      // DOM/Canvas verlassen → Hover sofort weg
       const upperEl = canvas.upperCanvasEl as HTMLCanvasElement | undefined;
       const onDomLeave = () => hideHoverNow();
 
-      // Zusätzlich: wenn der Pointer ein Textfeld verlässt → sofort verstecken
+      // Pointer verlässt Textbox → Hover weg
       const onMouseOut = (e: any) => {
         const t = e?.target as any;
         if (t && t.type === "textbox") hideHoverNow();
@@ -571,8 +567,8 @@ export default function FabricCanvas() {
         cornerStyle: "circle",
         cornerSize: 14,
         transparentCorners: false,
-        borderColor: SELECT_COLOR, // Akzentfarbe
-        cornerColor: SELECT_COLOR, // Akzentfarbe
+        borderColor: SELECT_COLOR,
+        cornerColor: SELECT_COLOR,
         padding: 8,
         borderScaleFactor: 2,
         subTargetCheck: true,
@@ -580,11 +576,13 @@ export default function FabricCanvas() {
         moveCursor: "move",
       }) as any;
 
-      // custom rotate control pro Gruppe setzen
+      // custom rotate control pro Gruppe setzen (mit fabricNamespace hier OK)
       const rc = rotateControlRef.current;
       if (rc) {
-        const baseControls = (fabricNamespace.Object as any)?.prototype?.controls;
-        if (!(sectionGroup as any).controls) (sectionGroup as any).controls = baseControls ? { ...baseControls } : {};
+        const baseControls =
+          (fabricNamespace.Object as any)?.prototype?.controls || {};
+        if (!(sectionGroup as any).controls)
+          (sectionGroup as any).controls = { ...baseControls };
         (sectionGroup as any).controls.mtr = rc;
       }
 
