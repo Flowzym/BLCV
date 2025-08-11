@@ -73,7 +73,9 @@ export default function FabricCanvas() {
       });
       (canvas as any).__hoverOutline = hoverOutline;
       canvas.add(hoverOutline);
-      canvas.bringToFront(hoverOutline);
+      // WICHTIG: Objekt-Methode, nicht canvas-API
+      hoverOutline.bringToFront();
+      canvas.requestRenderAll();
 
       // Hover-Highlight + Cursor
       let lastHover: any = null;
@@ -83,7 +85,7 @@ export default function FabricCanvas() {
         // Standard: Outline verstecken
         hoverOutline.set({ visible: false });
 
-        // Drag-Handle dezenter anzeigen, wenn Gruppe/Kind gehovered
+        // Drag-Handle dezent anzeigen, wenn Gruppe/Kind gehovered
         if (t) {
           const grp = t.type === "group" ? t : t.group;
           if (grp && grp.__dragHandle && grp.__hitArea) {
@@ -100,7 +102,7 @@ export default function FabricCanvas() {
 
         if (t && (t.type === "textbox" || t.data?.isMappingField)) {
           // Outline um die Textbox legen (Box-Highlight statt Glyphen)
-          const c = t.aCoords || t.calcACoords && t.calcACoords();
+          const c = t.aCoords || (t.calcACoords && t.calcACoords());
           if (c) {
             const left = Math.min(c.tl.x, c.bl.x);
             const top = Math.min(c.tl.y, c.tr.y);
@@ -108,7 +110,7 @@ export default function FabricCanvas() {
             const height = Math.max(c.bl.y, c.br.y) - top;
             hoverOutline.set({ left, top, width, height, visible: true });
             canvas.setCursor("text");
-            canvas.bringToFront(hoverOutline);
+            hoverOutline.bringToFront();
             canvas.requestRenderAll();
             return;
           }
@@ -200,7 +202,7 @@ export default function FabricCanvas() {
 
     if (hoverOutline) {
       fabricCanvas.add(hoverOutline);
-      fabricCanvas.bringToFront(hoverOutline);
+      hoverOutline.bringToFront();          // <— Objekt-Methode
     }
 
     let nextActive: ActiveEdit = activeEdit;
@@ -225,7 +227,7 @@ export default function FabricCanvas() {
         width: section.width,
         height: section.height,
         fill: "#000000",
-        opacity: 0.01,          // sehr zart
+        opacity: 0.01,
         selectable: false,
         evented: true,
         hoverCursor: "move",
@@ -247,7 +249,7 @@ export default function FabricCanvas() {
         evented: true,
         hoverCursor: "move",
         objectCaching: false,
-        opacity: 0, // <— per Hover sichtbar
+        opacity: 0,
       }) as any;
       dragHandle.data = { type: "dragHandle", isDragHandle: true };
       children.push(dragHandle);
@@ -418,8 +420,8 @@ export default function FabricCanvas() {
     }
 
     // Hover-Outline wieder ganz nach vorn
-    if (hoverOutline) fabricCanvas.bringToFront(hoverOutline);
-    fabricCanvas.renderAll();
+    if (hoverOutline) hoverOutline.bringToFront();
+    fabricCanvas.requestRenderAll();
   }, [fabricCanvas, fabricNamespace, sections, tokens, margins, globalFieldStyles, partStyles, activeEdit]);
 
   useEffect(() => {
