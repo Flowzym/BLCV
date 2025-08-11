@@ -13,6 +13,11 @@ const OUTSET_PX = 2;           // Basis-Außenrand für Hover
 const SELECT_STROKE = 2;       // px
 const HOVER_STROKE = 1.5;      // px
 
+// Farb-Tokens (Primärakzent: Orange)
+const SELECT_COLOR = "#F29400";               // ausgewählt (solide Outline, Group-Rahmen)
+const HOVER_COLOR = "#FFC372";                // Hover (gestrichelt, heller als Select)
+const SELECT_BG_RGBA = "rgba(242,148,0,0.12)";// zarter Hintergrund fürs selektierte Textfeld
+
 // Asymmetrischer Outset nur für die SELECTED-Outline (links mehr Luft)
 const SELECT_OUTSET = { l: 4, t: 2, r: 2, b: 2 } as const;
 
@@ -132,7 +137,7 @@ export default function FabricCanvas() {
         width: 10,
         height: 10,
         fill: "rgba(0,0,0,0)",
-        stroke: "#60a5fa",
+        stroke: HOVER_COLOR,
         strokeWidth: HOVER_STROKE,
         strokeDashArray: [4, 3],
         selectable: false,
@@ -157,7 +162,7 @@ export default function FabricCanvas() {
         width: 10,
         height: 10,
         fill: "rgba(0,0,0,0)",
-        stroke: "#2563eb",
+        stroke: SELECT_COLOR,
         strokeWidth: SELECT_STROKE,
         selectable: false,
         evented: false,
@@ -205,7 +210,7 @@ export default function FabricCanvas() {
 
       const APPLY_BG = (tb: any) => {
         if (!tb) return;
-        tb.set({ backgroundColor: "rgba(96,165,250,0.12)" });
+        tb.set({ backgroundColor: SELECT_BG_RGBA });
         tb.dirty = true;
         lastSelectedTextboxRef.current = tb;
       };
@@ -241,7 +246,7 @@ export default function FabricCanvas() {
         canvas.requestRenderAll();
       };
 
-      // Sofortiges Verstecken der Hover-Outline
+      // Sofortiges Verstecken der Hover-Outline (ohne Delay)
       const hideHoverNow = () => {
         hoverOutline.set({ visible: false });
         canvas.requestRenderAll();
@@ -256,7 +261,7 @@ export default function FabricCanvas() {
           const isSameAsSelected =
             !!activeEditRef.current && activeEditRef.current.textbox === tb;
 
-          if (!isSameAsSelected) {
+        if (!isSameAsSelected) {
             const rect = withOutsetSym(canvas, getTextboxCanvasRect(tb), 0);
             hoverOutline.set({ ...rect, visible: true, opacity: 1 });
             bringObjectToFront(canvas, hoverOutline);
@@ -292,6 +297,9 @@ export default function FabricCanvas() {
           grp.lockMovementX = false;
           grp.lockMovementY = false;
           grp.hasControls = true;
+          // Orange Akzente für den Gruppenrahmen
+          grp.borderColor = SELECT_COLOR;
+          grp.cornerColor = SELECT_COLOR;
           canvas.requestRenderAll();
           return;
         }
@@ -490,8 +498,8 @@ export default function FabricCanvas() {
         cornerStyle: "circle",
         cornerSize: 14,
         transparentCorners: false,
-        borderColor: "#3b82f6",
-        cornerColor: "#3b82f6",
+        borderColor: SELECT_COLOR, // Akzentfarbe
+        cornerColor: SELECT_COLOR, // Akzentfarbe
         padding: 8,
         borderScaleFactor: 2,
         subTargetCheck: true,
@@ -531,7 +539,7 @@ export default function FabricCanvas() {
           if (lastSelectedTextboxRef.current && lastSelectedTextboxRef.current !== newTb) {
             lastSelectedTextboxRef.current.set({ backgroundColor: "" });
           }
-          newTb.set({ backgroundColor: "rgba(96,165,250,0.12)" });
+          newTb.set({ backgroundColor: SELECT_BG_RGBA });
           lastSelectedTextboxRef.current = newTb;
 
           setActiveEdit({
