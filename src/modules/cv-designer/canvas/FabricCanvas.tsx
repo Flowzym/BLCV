@@ -28,25 +28,6 @@ function bringObjectToFront(canvas: any, obj: any) {
   canvas.add(obj);
 }
 
-// Screen → Canvas (inverse viewportTransform)
-function screenToCanvas(canvas: any, x: number, y: number) {
-  const vpt = canvas.viewportTransform || [1, 0, 0, 1, 0, 0];
-  const a = vpt[0] || 1;
-  const d = vpt[3] || 1;
-  const e = vpt[4] || 0;
-  const f = vpt[5] || 0;
-  return { x: (x - e) / a, y: (y - f) / d };
-}
-
-// BoundingRect der Textbox in **Canvas-Koordinaten** (robust für Zoom)
-function getTextboxCanvasRect(canvas: any, tb: any) {
-  // absolute=true → berücksichtigt viewportTransform (Screen-Space)
-  const br = tb.getBoundingRect(true, true); // { left, top, width, height } in Screen
-  const p1 = screenToCanvas(canvas, br.left, br.top);
-  const p2 = screenToCanvas(canvas, br.left + br.width, br.top + br.height);
-  return { left: p1.x, top: p1.y, width: Math.max(1, p2.x - p1.x), height: Math.max(1, p2.y - p1.y) };
-}
-
 export default function FabricCanvas() {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -85,7 +66,7 @@ export default function FabricCanvas() {
       canvas.perPixelTargetFind = false;
       canvas.targetFindTolerance = 14;
 
-      // Hover-Outline (Root-Objekt)
+      // Hover-Outline (Root-Objekt, immer oben)
       const hoverOutline = new fabric.Rect({
         left: 0, top: 0, width: 10, height: 10,
         fill: "rgba(0,0,0,0)",
@@ -96,7 +77,7 @@ export default function FabricCanvas() {
         evented: false,
         visible: false,
         objectCaching: false,
-        strokeUniform: true,          // Strichbreite bleibt bei Zoom konstant
+        strokeUniform: true,
         excludeFromExport: true,
         originX: "left",
         originY: "top",
@@ -106,7 +87,7 @@ export default function FabricCanvas() {
       bringObjectToFront(canvas, hoverOutline);
       canvas.requestRenderAll();
 
-      // Textbox unter Maus (auch wenn Gruppe getroffen wurde)
+      // Hilfsfunktion: Textbox unter Maus (auch wenn die Gruppe getroffen wurde)
       const getTextboxUnderPointer = (t: any, ev: MouseEvent) => {
         if (!t) return null;
         if (t.type === "textbox") return t;
@@ -121,7 +102,28 @@ export default function FabricCanvas() {
         return hit || null;
       };
 
-      // Hover: nur Text bekommt Cursor + Outline
+      // >>> Robuste Rect-Berechnung in CANVAS-Koordinaten via Transform-Matrix
+      const getTextboxCanvasRect = (tb: any) => {
+        // Sicherstellen, dass Maße aktuell sind
+        (tb as any)._clearCache?.();
+        (tb as any).initDimensions?.();
+
+        const f = fabric; // Namespace aus getFabric()
+        const m = tb.calcTransformMatrix(); // Objekt->Canvas (ohne viewport)
+        const tl = f.util.transformPoint(new f.Point(-tb.width * (tb.originX || 0), -tb.height * (tb.originY || 0)), m);
+        const br = f.util.transformPoint(
+          new f.Point(tb.width - tb.width * (tb.originX || 0), tb.height - tb.height * (tb.originY || 0)),
+          m
+        );
+
+        const left = Math.min(tl.x, br.x);
+        const top = Math.min(tl.y, br.y);
+        const width = Math.max(1, Math.abs(br.x - tl.x));
+        const height = Math.max(1, Math.abs(br.y - tl.y));
+        return { left, top, width, height };
+      };
+
+      // Hover: nur Text setzt Cursor + Outline
       const onMouseMove = (e: any) => {
         const t = canvas.findTarget(e.e, true) as any;
         const tb = getTextboxUnderPointer(t, e.e);
@@ -129,7 +131,7 @@ export default function FabricCanvas() {
         hoverOutline.set({ visible: false });
 
         if (tb) {
-          const rect = getTextboxCanvasRect(canvas, tb);
+          const rect = getTextboxCanvasRect(tb);
           hoverOutline.set(rect);
           hoverOutline.set({ visible: true });
           bringObjectToFront(canvas, hoverOutline);
