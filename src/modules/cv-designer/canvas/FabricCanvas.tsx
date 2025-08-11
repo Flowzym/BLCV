@@ -662,6 +662,34 @@ export default function FabricCanvas() {
     bringObjectToFront(fabricCanvas, selectedOutline);
     bringObjectToFront(fabricCanvas, (fabricCanvas as any).__rotationBadge);
 
+    // Content-area guide (A4 minus margins)
+    {
+      const leftM = Number((margins as any)?.left ?? 0);
+      const topM = Number((margins as any)?.top ?? 0);
+      const rightM = Number((margins as any)?.right ?? 0);
+      const bottomM = Number((margins as any)?.bottom ?? 0);
+      const w = Math.max(0, PAGE_W - leftM - rightM);
+      const h = Math.max(0, PAGE_H - topM - bottomM);
+      const contentRect = new fabricNamespace.Rect({
+        left: leftM,
+        top: topM,
+        width: w,
+        height: h,
+        fill: "rgba(0,0,0,0)",
+        stroke: "rgba(0,0,0,0.2)",
+        strokeWidth: 1,
+        strokeDashArray: [6, 4],
+        originX: "left",
+        originY: "top",
+        selectable: false,
+        evented: false,
+        objectCaching: false,
+        strokeUniform: true,
+      }) as any;
+      (contentRect as any).data = { __system: true, __systemContentRect: true };
+      fabricCanvas.add(contentRect);
+    }
+
     for (const section of sections) {
       if (!section.isVisible) continue;
       if (!Array.isArray(section.parts) || section.parts.length === 0) continue;
