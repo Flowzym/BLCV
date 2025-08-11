@@ -14,9 +14,9 @@ const SELECT_STROKE = 2;       // px
 const HOVER_STROKE = 1.5;      // px
 
 // Farb-Tokens (Primärakzent: Orange)
-const SELECT_COLOR = "#F29400";               // ausgewählt (solide Outline, Group-Rahmen)
-const HOVER_COLOR = "#FFC372";                // Hover (gestrichelt, heller als Select)
-const SELECT_BG_RGBA = "rgba(242,148,0,0.12)";// zarter Hintergrund fürs selektierte Textfeld
+const SELECT_COLOR = "#F29400";                // ausgewählt (solide Outline, Group-Rahmen)
+const HOVER_COLOR = "#FFC372";                 // Hover (gestrichelt, heller als Select)
+const SELECT_BG_RGBA = "rgba(242,148,0,0.12)"; // zarter Hintergrund fürs selektierte Textfeld
 
 // Asymmetrischer Outset nur für die SELECTED-Outline (links mehr Luft)
 const SELECT_OUTSET = { l: 4, t: 2, r: 2, b: 2 } as const;
@@ -129,6 +129,63 @@ export default function FabricCanvas() {
       canvas.subTargetCheck = true;
       canvas.perPixelTargetFind = false;
       canvas.targetFindTolerance = 14;
+
+      // === Custom ROTATE Control: kreisförmiger Pfeil ===
+      const rotateControl = new fabric.Control({
+        x: 0,
+        y: -0.5,
+        offsetY: -30, // Abstand oberhalb
+        withConnection: true,
+        actionName: "rotate",
+        cursorStyleHandler: fabric.controlsUtils.rotationStyleHandler,
+        actionHandler: fabric.controlsUtils.rotationWithSnapping,
+        cornerSize: 26,
+        render: (ctx: CanvasRenderingContext2D, left: number, top: number, _style: any, o: any) => {
+          const z = o?.canvas?.getZoom?.() || 1;
+          const size = 26 / z;
+          const rOuter = size / 2;
+          const line = Math.max(2 / z, 1 / z);
+
+          ctx.save();
+          ctx.translate(left, top);
+
+          // runder Button (weiß gefüllt, oranger Rand)
+          ctx.beginPath();
+          ctx.arc(0, 0, rOuter, 0, Math.PI * 2);
+          ctx.fillStyle = "#ffffff";
+          ctx.fill();
+          ctx.lineWidth = line;
+          ctx.strokeStyle = SELECT_COLOR;
+          ctx.stroke();
+
+          // kreisförmiger Pfeil
+          const r = rOuter - 4 / z;
+          const start = -Math.PI * 0.25;
+          const end = start + Math.PI * 1.3;
+          ctx.beginPath();
+          ctx.arc(0, 0, r, start, end);
+          ctx.lineWidth = line;
+          ctx.strokeStyle = SELECT_COLOR;
+          ctx.stroke();
+
+          // Pfeilspitze
+          const ax = r * Math.cos(end);
+          const ay = r * Math.sin(end);
+          const ah = 6 / z;
+          const aw = 4 / z;
+          ctx.beginPath();
+          ctx.moveTo(ax, ay);
+          ctx.lineTo(ax - ah, ay - aw);
+          ctx.lineTo(ax - aw, ay + ah);
+          ctx.closePath();
+          ctx.fillStyle = SELECT_COLOR;
+          ctx.fill();
+
+          ctx.restore();
+        },
+      });
+      // global setzen
+      (fabric.Object as any).prototype.controls.mtr = rotateControl;
 
       // Hover-Outline (gestrichelt, Root-Objekt)
       const hoverOutline = new fabric.Rect({
@@ -261,7 +318,7 @@ export default function FabricCanvas() {
           const isSameAsSelected =
             !!activeEditRef.current && activeEditRef.current.textbox === tb;
 
-        if (!isSameAsSelected) {
+          if (!isSameAsSelected) {
             const rect = withOutsetSym(canvas, getTextboxCanvasRect(tb), 0);
             hoverOutline.set({ ...rect, visible: true, opacity: 1 });
             bringObjectToFront(canvas, hoverOutline);
