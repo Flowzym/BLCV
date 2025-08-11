@@ -8,6 +8,12 @@ import TextEditorOverlay from "../ui/TextEditorOverlay";
 const PAGE_W = 595;
 const PAGE_H = 842;
 
+// optische Abstände der Outlines – bleiben visuell konstant über Zoom
+const OUTSET_PX = 2;         // zusätzlicher Außenrand um die Outline
+const SELECT_STROKE = 2;     // px
+const HOVER_STROKE = 1.5;    // px
+const HOVER_HIDE_MS = 120;   // weiches Ausblenden
+
 type SectionKind = "experience" | "education" | "profile" | "skills" | "softskills" | "contact";
 
 type ActiveEdit =
@@ -41,6 +47,18 @@ function getTextboxCanvasRect(tb: any) {
   };
 }
 
+// Outset für Outlines – m skaliert gegen den Zoom, damit der optische Abstand konstant bleibt
+function withOutset(canvas: any, rect: { left: number; top: number; width: number; height: number }, extra = 0) {
+  const z = typeof canvas?.getZoom === "function" ? canvas.getZoom() : 1;
+  const m = (OUTSET_PX + extra) / Math.max(z, 0.0001);
+  return {
+    left: rect.left - m,
+    top: rect.top - m,
+    width: rect.width + 2 * m,
+    height: rect.height + 2 * m,
+  };
+}
+
 export default function FabricCanvas() {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -49,6 +67,7 @@ export default function FabricCanvas() {
   const [activeEdit, setActiveEdit] = useState<ActiveEdit>(null);
   const activeEditRef = useRef<ActiveEdit>(null);
   const lastSelectedTextboxRef = useRef<any>(null);
+  const hoverHideTimer = useRef<any>(null);
 
   useEffect(() => {
     activeEditRef.current = activeEdit;
@@ -90,16 +109,19 @@ export default function FabricCanvas() {
         height: 10,
         fill: "rgba(0,0,0,0)",
         stroke: "#60a5fa",
-        strokeWidth: 1.5,
+        strokeWidth: HOVER_STROKE,
         strokeDashArray: [4, 3],
         selectable: false,
         evented: false,
         visible: false,
+        opacity: 1,
         objectCaching: false,
         strokeUniform: true,
         excludeFromExport: true,
         originX: "left",
         originY: "top",
+        rx: 2,
+        ry: 2,
       });
       (canvas as any).__hoverOutline = hoverOutline;
       canvas.add(hoverOutline);
@@ -112,7 +134,7 @@ export default function FabricCanvas() {
         height: 10,
         fill: "rgba(0,0,0,0)",
         stroke: "#2563eb",
-        strokeWidth: 2,
+        strokeWidth: SELECT_STROKE,
         selectable: false,
         evented: false,
         visible: false,
@@ -168,7 +190,7 @@ export default function FabricCanvas() {
       const UPDATE_SELECTED_MARKER = () => {
         if (!activeEditRef.current || !activeEditRef.current.textbox) return;
         const tb = activeEditRef.current.textbox;
-        const rect = getTextboxCanvasRect(tb);
+        const rect = withOutset(canvas, getTextboxCanvasRect(tb), 0);
         selectedOutline.set({ ...rect, visible: true });
         bringObjectToFront(canvas, selectedOutline);
       };
@@ -198,31 +220,37 @@ export default function FabricCanvas() {
         canvas.requestRenderAll();
       };
 
-      // Hover: nur zeigen, wenn KEINE Selektion aktiv ist
+      // Hover: jetzt AUCH bei aktiver Selektion anzeigen – außer über dem aktuell selektierten Feld
       const onMouseMove = (e: any) => {
-        const hoverAllowed = !activeEditRef.current; // bei aktiver Selektion: keine Hover-Outline
-        if (!hoverAllowed) {
-          hoverOutline.set({ visible: false });
-          canvas.setCursor("default");
-          return;
-        }
-
         const t = canvas.findTarget(e.e, true) as any;
         const tb = getTextboxUnderPointer(t, e.e);
 
-        hoverOutline.set({ visible: false });
-
-        if (tb) {
-          const rect = getTextboxCanvasRect(tb);
-          hoverOutline.set({ ...rect, visible: true });
-          bringObjectToFront(canvas, hoverOutline);
-          canvas.setCursor("text");
-          canvas.requestRenderAll();
-          return;
+        if (hoverHideTimer.current) {
+          clearTimeout(hoverHideTimer.current);
+          hoverHideTimer.current = null;
         }
 
+        if (tb) {
+          const isSameAsSelected =
+            !!activeEditRef.current && activeEditRef.current.textbox === tb;
+
+          if (!isSameAsSelected) {
+            const rect = withOutset(canvas, getTextboxCanvasRect(tb), 0);
+            hoverOutline.set({ ...rect, visible: true, opacity: 1 });
+            bringObjectToFront(canvas, hoverOutline);
+            canvas.setCursor("text");
+            canvas.requestRenderAll();
+            return;
+          }
+        }
+
+        // kein Ziel: Hover sanft ausblenden
+        hoverHideTimer.current = setTimeout(() => {
+          hoverOutline.set({ visible: false });
+          canvas.requestRenderAll();
+        }, HOVER_HIDE_MS);
+
         canvas.setCursor("default");
-        canvas.requestRenderAll();
       };
 
       // Klick: Text → Selection + Overlay; sonst Gruppe selektieren/Abwahl
@@ -242,7 +270,6 @@ export default function FabricCanvas() {
           grp.lockMovementX = false;
           grp.lockMovementY = false;
           grp.hasControls = true;
-          // Selektion bleibt bestehen, wenn man nur die Gruppe greift
           canvas.requestRenderAll();
           return;
         }
@@ -269,6 +296,7 @@ export default function FabricCanvas() {
         canvas.off("mouse:move", onMouseMove);
         canvas.off("mouse:up", onMouseUp);
         canvas.off("after:render", onAfterRender);
+        if (hoverHideTimer.current) clearTimeout(hoverHideTimer.current);
         CanvasRegistry.dispose(canvasRef.current!);
         setFabricCanvas(null);
       };
@@ -463,14 +491,12 @@ export default function FabricCanvas() {
           (o: any) => o?.type === "textbox" && o.fieldType === ae.fieldType
         );
         if (newTb && (ae.textbox !== newTb || ae.group !== sectionGroup)) {
-          // Hintergrund neu setzen (alte Instanz ent-färben)
           if (lastSelectedTextboxRef.current && lastSelectedTextboxRef.current !== newTb) {
             lastSelectedTextboxRef.current.set({ backgroundColor: "" });
           }
           newTb.set({ backgroundColor: "rgba(96,165,250,0.12)" });
           lastSelectedTextboxRef.current = newTb;
 
-          // State und Marker aktualisieren
           setActiveEdit({
             sectionId: ae.sectionId,
             sectionType: sectionGroup.sectionType,
@@ -479,14 +505,16 @@ export default function FabricCanvas() {
             textbox: newTb,
           });
 
-          const rect = getTextboxCanvasRect(newTb);
-          selectedOutline.set({ ...rect, visible: true });
+          const rect = withOutset(fabricCanvas, getTextboxCanvasRect(newTb), 0);
+          const selectedOutline = (fabricCanvas as any).__selectedOutline;
+          if (selectedOutline) selectedOutline.set({ ...rect, visible: true });
         }
       }
     }
 
-    bringObjectToFront(fabricCanvas, hoverOutline);
-    bringObjectToFront(fabricCanvas, selectedOutline);
+    // Outlines ganz nach oben
+    bringObjectToFront(fabricCanvas, (fabricCanvas as any).__hoverOutline);
+    bringObjectToFront(fabricCanvas, (fabricCanvas as any).__selectedOutline);
     fabricCanvas.requestRenderAll();
   }, [fabricCanvas, fabricNamespace, sections, tokens, margins, globalFieldStyles, partStyles]);
 
@@ -502,11 +530,10 @@ export default function FabricCanvas() {
     fabricCanvas.requestRenderAll();
   }, [fabricCanvas, zoom]);
 
-  // ESC → Overlay schließen (inkl. Sichtbarkeit Selected)
+  // ESC → Overlay schließen (inkl. Selected reset)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        // vollständige Demarkierung
         const selectedOutline = (fabricCanvas as any)?.__selectedOutline;
         if (selectedOutline) selectedOutline.set({ visible: false });
         if (lastSelectedTextboxRef.current) {
@@ -533,7 +560,6 @@ export default function FabricCanvas() {
           sectionId={activeEdit.sectionId}
           sectionType={activeEdit.sectionType}
           fieldType={activeEdit.fieldType}
-          // Overlay-Schließen demarkiert auch visuell
           onClose={() => {
             const selectedOutline = (fabricCanvas as any)?.__selectedOutline;
             if (selectedOutline) selectedOutline.set({ visible: false });
