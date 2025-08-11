@@ -22,8 +22,13 @@ const SELECT_BG_RGBA = "rgba(242,148,0,0.12)"; // zarter Hintergrund fürs selek
 const SELECT_OUTSET = { l: 4, t: 2, r: 2, b: 2 } as const;
 
 // Snap-Konfiguration (nur auf MouseUp angewandt)
-const SNAP_ANGLE = 90;
-const SNAP_THRESHOLD = 4; // Grad
+const SNAP_STEP = 45;          // Grad-Raster (0/45/90/...)
+const SNAP_THRESHOLD = 6;      // Toleranz in Grad (etwas großzügiger)
+
+// Griff-Design (muss mit Render-Logik synchron sein)
+const ROTATE_CORNER_SIZE = 28; // px (vor Zoom), rOuter = size/2
+const ROTATE_OFFSET_Y = 30;    // px oberhalb Top-Kante (vor Zoom)
+const BADGE_MARGIN = 10;       // zusätzlicher Abstand zum Griff (vor Zoom)
 
 type SectionKind =
   | "experience"
@@ -106,6 +111,14 @@ function normAngle(a: number) {
   return n;
 }
 
+// Nearest multiple with wrap-safe diff
+function snapAngleToStep(a: number, step: number) {
+  const nearest = Math.round(a / step) * step; // kann 360 usw. ergeben
+  let snapped = nearest % 360;
+  if (snapped < 0) snapped += 360;
+  return snapped;
+}
+
 export default function FabricCanvas() {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -158,17 +171,16 @@ export default function FabricCanvas() {
       rotateControlRef.current = new fabric.Control({
         x: 0,
         y: -0.5,
-        offsetY: -30,
+        offsetY: -ROTATE_OFFSET_Y,
         withConnection: true,
         actionName: "rotate",
         cursorStyleHandler: fabric.controlsUtils.rotationStyleHandler,
-        // wichtig: Handler mit Snapping-Funktion beibehalten; SnapAngle setzen wir auf 0
         actionHandler: fabric.controlsUtils.rotationWithSnapping,
-        cornerSize: 28,
+        cornerSize: ROTATE_CORNER_SIZE,
         render: (ctx: CanvasRenderingContext2D, left: number, top: number, _style: any, o: any) => {
           const z = o?.canvas?.getZoom?.() || 1;
 
-          const size = 28 / z;
+          const size = ROTATE_CORNER_SIZE / z;
           const rOuter = size / 2;
           const ringW = Math.max(2 / z, 1 / z);
           const arrowW = Math.max(2 / z, 1.5 / z);
@@ -383,7 +395,20 @@ export default function FabricCanvas() {
         canvas.requestRenderAll();
       };
 
-      // Badge Helper
+      // Badge Helper — jetzt über dem Griff positionieren
+      const positionBadgeAboveHandle = (target: any) => {
+        const z = canvas.getZoom() || 1;
+        const br = target.getBoundingRect(false, true); // canvas-space
+        const x = br.left + br.width / 2;
+
+        // y: Topkante - (Griff-Offset + Griff-Radius + Margin), alles zoom-sicher
+        const y =
+          br.top -
+          (ROTATE_OFFSET_Y / z + (ROTATE_CORNER_SIZE / z) / 2 + BADGE_MARGIN / z);
+
+        return { x, y };
+      };
+
       const showRotationBadge = (target: any, altFree: boolean) => {
         const ref = rotationBadgeRef.current;
         if (!ref) return;
@@ -407,14 +432,11 @@ export default function FabricCanvas() {
           ry: 8 / z,
         });
 
-        // oberhalb der Top-Mitte der Gruppe
-        const br = target.getBoundingRect(false, true); // canvas space
-        const x = br.left + br.width / 2;
-        const y = br.top - (28 / z); // Abstand oberhalb
-
+        const { x, y } = positionBadgeAboveHandle(target);
         badge.set({ left: x, top: y, visible: true });
         bringObjectToFront(canvas, badge);
       };
+
       const hideRotationBadge = () => {
         rotationBadgeRef.current?.badge?.set({ visible: false });
         canvas.requestRenderAll();
@@ -429,9 +451,7 @@ export default function FabricCanvas() {
           const isSameAsSelected =
             !!activeEditRef.current && activeEditRef.current.textbox === tb;
 
-        if (isSameAsSelected) {
-          // nichts
-        } else {
+          if (!isSameAsSelected) {
             const rect = withOutsetSym(canvas, getTextboxCanvasRect(tb), 0);
             (canvas as any).__hoverOutline.set({ ...rect, visible: true, opacity: 1 });
             bringObjectToFront(canvas, (canvas as any).__hoverOutline);
@@ -474,7 +494,7 @@ export default function FabricCanvas() {
             if (!(grp as any).controls) (grp as any).controls = { ...baseControls };
             (grp as any).controls.mtr = rc;
           }
-          (grp as any).snapAngle = 0; // wichtig: freies Drehen beim Drag
+          (grp as any).snapAngle = 0; // freies Drehen beim Drag
           (grp as any).snapThreshold = 0;
 
           canvas.requestRenderAll();
@@ -505,7 +525,7 @@ export default function FabricCanvas() {
         showRotationBadge(target, altNow);
       };
 
-      // Am Ende der Rotation ggf. snappen (wenn Alt NICHT genutzt)
+      // Am Ende der Rotation ggf. snappen (wenn Alt NICHT genutzt) – jetzt 45°-Raster + 0° robust
       const onObjectModified = (e: any) => {
         const target = e?.target as any;
         if (rotationDragRef.current.isRotating && target && target.type === "group") {
@@ -516,12 +536,13 @@ export default function FabricCanvas() {
 
           if (!usedAlt) {
             const a = normAngle(target.angle || 0);
-            const nearest = Math.round(a / SNAP_ANGLE) * SNAP_ANGLE;
-            const diff = Math.abs(nearest - a);
-            if (diff <= SNAP_THRESHOLD || Math.abs(diff - 360) <= SNAP_THRESHOLD) {
-              // auf nächstes 90° snappen
-              const newAngle = nearest % 360;
-              target.angle = newAngle;
+            const nearest = snapAngleToStep(a, SNAP_STEP);
+            // wrap-sicheres Delta (z.B. 359° zu 0° -> 1°)
+            const rawDiff = Math.abs(nearest - a);
+            const diff = Math.min(rawDiff, 360 - rawDiff);
+
+            if (diff <= SNAP_THRESHOLD) {
+              target.angle = nearest === 360 ? 0 : nearest;
               target.setCoords();
               canvas.requestRenderAll();
             }
@@ -839,15 +860,11 @@ export default function FabricCanvas() {
       obj.setCoords();
       fabricCanvas.requestRenderAll();
 
-      // Badge kurz einblenden/aktualisieren
-      const show = (target: any) => {
+      // Badge kurz einblenden/aktualisieren – über dem Griff
+      const ref = rotationBadgeRef.current;
+      if (ref) {
         const z = fabricCanvas.getZoom() || 1;
-        const br = target.getBoundingRect(false, true);
-        const x = br.left + br.width / 2;
-        const y = br.top - (28 / z);
-        const ref = rotationBadgeRef.current;
-        if (!ref) return;
-        const a = normAngle(target.angle || 0);
+        const a = normAngle(obj.angle || 0);
         const text = `${Math.round(a * 10) / 10}°`;
         ref.badgeText.set({ text, fontSize: 12 / z });
         (ref.badgeText as any).initDimensions?.();
@@ -857,11 +874,17 @@ export default function FabricCanvas() {
           rx: 8 / z,
           ry: 8 / z,
         });
+        const { x, y } = (() => {
+          const br = obj.getBoundingRect(false, true);
+          return {
+            x: br.left + br.width / 2,
+            y: br.top - (ROTATE_OFFSET_Y / z + (ROTATE_CORNER_SIZE / z) / 2 + BADGE_MARGIN / z),
+          };
+        })();
         ref.badge.set({ left: x, top: y, visible: true });
         bringObjectToFront(fabricCanvas, ref.badge);
         fabricCanvas.requestRenderAll();
-      };
-      show(obj);
+      }
 
       clearTimeout(nudgeTimerRef.current);
       nudgeTimerRef.current = setTimeout(() => {
