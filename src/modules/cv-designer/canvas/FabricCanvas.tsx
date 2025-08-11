@@ -14,9 +14,23 @@ type ActiveEdit =
       sectionId: string;
       sectionType: "experience" | "education" | "profile" | "skills" | "softskills" | "contact";
       fieldType: string;
-      group: any;   // fabric.Group
-      textbox: any; // fabric.Textbox
+      group: any;
+      textbox: any;
     };
+
+// Helper: put an object visually on top without relying on bringToFront APIs
+function bringObjectToFront(canvas: any, obj: any) {
+  if (!canvas || !obj) return;
+  try {
+    const arr = canvas.getObjects?.() ?? canvas._objects;
+    if (arr?.includes?.(obj)) {
+      canvas.remove(obj);
+    }
+    canvas.add(obj);
+  } catch {
+    // noop – safest fallback
+  }
+}
 
 export default function FabricCanvas() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -73,8 +87,7 @@ export default function FabricCanvas() {
       });
       (canvas as any).__hoverOutline = hoverOutline;
       canvas.add(hoverOutline);
-      // WICHTIG: Objekt-Methode, nicht canvas-API
-      hoverOutline.bringToFront();
+      bringObjectToFront(canvas, hoverOutline);
       canvas.requestRenderAll();
 
       // Hover-Highlight + Cursor
@@ -110,7 +123,7 @@ export default function FabricCanvas() {
             const height = Math.max(c.bl.y, c.br.y) - top;
             hoverOutline.set({ left, top, width, height, visible: true });
             canvas.setCursor("text");
-            hoverOutline.bringToFront();
+            bringObjectToFront(canvas, hoverOutline);
             canvas.requestRenderAll();
             return;
           }
@@ -202,7 +215,7 @@ export default function FabricCanvas() {
 
     if (hoverOutline) {
       fabricCanvas.add(hoverOutline);
-      hoverOutline.bringToFront();          // <— Objekt-Methode
+      bringObjectToFront(fabricCanvas, hoverOutline);
     }
 
     let nextActive: ActiveEdit = activeEdit;
@@ -368,7 +381,6 @@ export default function FabricCanvas() {
         hoverCursor: "move",
       }) as any;
 
-      // Gruppendaten – garantieren stabilen Top/Bottom-Abstand
       sectionGroup.data = {
         sectionId: section.id,
         type: "section",
@@ -381,7 +393,6 @@ export default function FabricCanvas() {
       sectionGroup.sectionId = section.id;
       sectionGroup.sectionType = section.sectionType;
 
-      // Referenzen für Hover-Effekte
       (sectionGroup as any).__hitArea = hitArea;
       (sectionGroup as any).__dragHandle = dragHandle;
       (hitArea as any).group = sectionGroup;
@@ -419,8 +430,7 @@ export default function FabricCanvas() {
       setActiveEdit(nextActive);
     }
 
-    // Hover-Outline wieder ganz nach vorn
-    if (hoverOutline) hoverOutline.bringToFront();
+    if (hoverOutline) bringObjectToFront(fabricCanvas, hoverOutline);
     fabricCanvas.requestRenderAll();
   }, [fabricCanvas, fabricNamespace, sections, tokens, margins, globalFieldStyles, partStyles, activeEdit]);
 
