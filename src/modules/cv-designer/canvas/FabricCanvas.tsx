@@ -626,7 +626,30 @@ export default function FabricCanvas() {
       canvas.on("selection:cleared", hideRotationBadge);
       upperEl?.addEventListener("mouseleave", onDomLeave);
 
-      installSectionResize(canvas);
+      
+      // Make canvas match container size and center page via viewport transform
+      const applyViewport = () => {
+        const el = containerRef.current;
+        if (!el) return;
+        const cw = el.clientWidth || PAGE_W;
+        const ch = el.clientHeight || PAGE_H;
+        canvas.setDimensions({ width: cw, height: ch });
+        const stZoom = Number((useDesignerStore as any).getState?.().zoom ?? 1);
+        const zoom = Math.max(0.1, Math.min(4, stZoom));
+        // center A4 page in available canvas
+        const tx = (cw - PAGE_W * zoom) / 2;
+        const ty = (ch - PAGE_H * zoom) / 2;
+        const vt = canvas.viewportTransform || [1,0,0,1,0,0];
+        vt[0] = zoom; vt[3] = zoom; vt[4] = tx; vt[5] = ty;
+        canvas.setViewportTransform(vt as any);
+        canvas.requestRenderAll();
+      };
+      applyViewport();
+
+      // ResizeObserver to keep canvas fitted
+      const ro = new ResizeObserver(() => applyViewport());
+      if (containerRef.current) ro.observe(containerRef.current);
+installSectionResize(canvas);
       setFabricCanvas(canvas);
 
       return () => {
@@ -638,7 +661,8 @@ export default function FabricCanvas() {
         canvas.off("object:modified", onObjectModified);
         canvas.off("selection:cleared", hideRotationBadge);
         upperEl?.removeEventListener("mouseleave", onDomLeave);
-        CanvasRegistry.dispose(canvasRef.current!);
+                try { ro.disconnect(); } catch {}
+CanvasRegistry.dispose(canvasRef.current!);
         setFabricCanvas(null);
       };
     })();
@@ -919,8 +943,15 @@ export default function FabricCanvas() {
   // Zoom
   useEffect(() => {
     if (!fabricCanvas) return;
+    const el = (containerRef.current as HTMLDivElement | null);
+    const cw = el?.clientWidth || PAGE_W;
+    const ch = el?.clientHeight || PAGE_H;
     const safeZoom = Math.max(0.1, Math.min(4, Number(zoom || 1)));
-    fabricCanvas.setZoom(safeZoom);
+    const vt = (fabricCanvas as any).viewportTransform || [1,0,0,1,0,0];
+    vt[0] = safeZoom; vt[3] = safeZoom;
+    vt[4] = (cw - PAGE_W * safeZoom) / 2;
+    vt[5] = (ch - PAGE_H * safeZoom) / 2;
+    (fabricCanvas as any).setViewportTransform(vt);
     fabricCanvas.requestRenderAll();
   }, [fabricCanvas, zoom]);
 
@@ -999,7 +1030,7 @@ export default function FabricCanvas() {
   }, [fabricCanvas]);
 
   return (
-    <div ref={containerRef} style={{ width: PAGE_W, height: PAGE_H, position: "relative" }}>
+    <div ref={containerRef} className="relative w-full h-full">
       <canvas ref={canvasRef} />
       {fabricCanvas && activeEdit && containerRef.current && (
         <TextEditorOverlay
