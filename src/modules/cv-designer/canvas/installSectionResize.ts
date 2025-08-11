@@ -10,6 +10,11 @@ const FUDGE_Y = 2;
 function persistSectionRect(sectionId: string, rect: { x: number; y: number; width: number; height: number }) {
   const st: any = (useDesignerStore as any)?.getState?.() || null;
   if (!st) return;
+  const m = st.margins || {};
+  const leftM = Number(m.left || 0);
+  const topM = Number(m.top || 0);
+  rect = { ...rect, x: rect.x, y: rect.y };
+
   // prefer a single updater if present
   if (typeof st.updateSectionRect === "function") {
     st.updateSectionRect(sectionId, rect);
@@ -92,8 +97,11 @@ export function installSectionResize(canvas: fabric.Canvas) {
     // Persist as TOP-LEFT (store format) even though group is centered
     const sid = (g as any).sectionId || g.data?.sectionId;
     if (sid) {
-      const tlx = num(g.left, 0) - newW / 2;
-      const tly = num(g.top, 0) - finalH / 2;
+      const m = (useDesignerStore as any)?.getState?.()?.margins || {} as any;
+      const leftM = Number((m as any)?.left || 0);
+      const topM = Number((m as any)?.top || 0);
+      const tlx = num(g.left, 0) - newW / 2 - leftM;
+      const tly = num(g.top, 0) - finalH / 2 - topM;
       persistSectionRect(String(sid), { x: tlx, y: tly, width: newW, height: finalH });
     }
   };
@@ -119,8 +127,11 @@ export function installSectionResize(canvas: fabric.Canvas) {
     if (sid) {
       const w = num(g.width, 0);
       const h = num(g.height, 0);
-      const tlx = num(g.left, 0) - w / 2;
-      const tly = num(g.top, 0) - h / 2;
+      const m = (useDesignerStore as any)?.getState?.()?.margins || {} as any;
+      const leftM = Number((m as any)?.left || 0);
+      const topM = Number((m as any)?.top || 0);
+      const tlx = num(g.left, 0) - w / 2 - leftM;
+      const tly = num(g.top, 0) - h / 2 - topM;
       persistSectionRect(String(sid), { x: tlx, y: tly, width: w, height: h });
     }
   };
