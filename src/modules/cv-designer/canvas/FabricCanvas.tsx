@@ -12,7 +12,6 @@ const PAGE_H = 842;
 const OUTSET_PX = 2;           // Basis-Außenrand für Hover
 const SELECT_STROKE = 2;       // px
 const HOVER_STROKE = 1.5;      // px
-const HOVER_HIDE_MS = 60;      // weiches Ausblenden (reduziert von 120)
 
 // Asymmetrischer Outset nur für die SELECTED-Outline (links mehr Luft)
 const SELECT_OUTSET = { l: 4, t: 2, r: 2, b: 2 } as const;
@@ -93,7 +92,6 @@ export default function FabricCanvas() {
   const [activeEdit, setActiveEdit] = useState<ActiveEdit>(null);
   const activeEditRef = useRef<ActiveEdit>(null);
   const lastSelectedTextboxRef = useRef<any>(null);
-  const hoverHideTimer = useRef<any>(null);
 
   useEffect(() => {
     activeEditRef.current = activeEdit;
@@ -243,12 +241,8 @@ export default function FabricCanvas() {
         canvas.requestRenderAll();
       };
 
-      // Hover sofort verstecken (Timer abbrechen)
+      // Sofortiges Verstecken der Hover-Outline
       const hideHoverNow = () => {
-        if (hoverHideTimer.current) {
-          clearTimeout(hoverHideTimer.current);
-          hoverHideTimer.current = null;
-        }
         hoverOutline.set({ visible: false });
         canvas.requestRenderAll();
       };
@@ -258,11 +252,6 @@ export default function FabricCanvas() {
         const t = canvas.findTarget(e.e, true) as any;
         const tb = getTextboxUnderPointer(t, e.e);
 
-        if (hoverHideTimer.current) {
-          clearTimeout(hoverHideTimer.current);
-          hoverHideTimer.current = null;
-        }
-
         if (tb) {
           const isSameAsSelected =
             !!activeEditRef.current && activeEditRef.current.textbox === tb;
@@ -271,15 +260,16 @@ export default function FabricCanvas() {
             const rect = withOutsetSym(canvas, getTextboxCanvasRect(tb), 0);
             hoverOutline.set({ ...rect, visible: true, opacity: 1 });
             bringObjectToFront(canvas, hoverOutline);
-            // WICHTIG: Cursor NUR hier explizit setzen
+            // Cursor NUR bei Text setzen
             canvas.setCursor("text");
             canvas.requestRenderAll();
             return;
           }
         }
 
-        // Kein Text-Hover: NICHT cursor setzen -> Fabric zeigt Resize-/Move-Cursor selbst
-        hoverHideTimer.current = setTimeout(hideHoverNow, HOVER_HIDE_MS);
+        // kein Text unter dem Zeiger → sofort ausblenden (ohne Delay)
+        hideHoverNow();
+        // Cursor nicht erzwingen → Fabric zeigt Resize-/Move-Cursor selbst
       };
 
       // Klick: Text → Selection + Overlay; sonst Gruppe selektieren/Abwahl
@@ -317,13 +307,20 @@ export default function FabricCanvas() {
         }
       };
 
-      // *** NEU: sofortiges Ausblenden beim Verlassen der Canvas (DOM) ***
+      // Auch beim Verlassen der Canvas sofort verstecken
       const upperEl = canvas.upperCanvasEl as HTMLCanvasElement | undefined;
       const onDomLeave = () => hideHoverNow();
+
+      // Zusätzlich: wenn der Pointer ein Textfeld verlässt → sofort verstecken
+      const onMouseOut = (e: any) => {
+        const t = e?.target as any;
+        if (t && t.type === "textbox") hideHoverNow();
+      };
 
       canvas.on("mouse:move", onMouseMove);
       canvas.on("mouse:up", onMouseUp);
       canvas.on("after:render", onAfterRender);
+      canvas.on("mouse:out", onMouseOut);
       upperEl?.addEventListener("mouseleave", onDomLeave);
 
       installSectionResize(canvas);
@@ -333,8 +330,8 @@ export default function FabricCanvas() {
         canvas.off("mouse:move", onMouseMove);
         canvas.off("mouse:up", onMouseUp);
         canvas.off("after:render", onAfterRender);
+        canvas.off("mouse:out", onMouseOut);
         upperEl?.removeEventListener("mouseleave", onDomLeave);
-        if (hoverHideTimer.current) clearTimeout(hoverHideTimer.current);
         CanvasRegistry.dispose(canvasRef.current!);
         setFabricCanvas(null);
       };
@@ -498,7 +495,6 @@ export default function FabricCanvas() {
         padding: 8,
         borderScaleFactor: 2,
         subTargetCheck: true,
-        // neu: klares Move-Feedback
         hoverCursor: "move",
         moveCursor: "move",
       }) as any;
