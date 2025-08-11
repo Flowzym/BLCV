@@ -1,3 +1,4 @@
+// src/modules/cv-designer/canvas/FabricCanvas.tsx
 import React, { useRef, useEffect, useState, useCallback } from "react";
 import { getFabric } from "@/lib/fabric-shim";
 import { useDesignerStore } from "../store/designerStore";
@@ -33,7 +34,6 @@ export default function FabricCanvas() {
   const globalFieldStyles = useDesignerStore((s) => s.globalFieldStyles);
   const partStyles = useDesignerStore((s) => s.partStyles);
 
-  // Mount Canvas
   useEffect(() => {
     let disposed = false;
     (async () => {
@@ -51,19 +51,18 @@ export default function FabricCanvas() {
       canvas.setDimensions({ width: PAGE_W, height: PAGE_H });
       canvas.backgroundColor = "#ffffff";
 
-      // Interaktion
+      // Interaktion (toleranteres Hit-Testing)
       canvas.selection = true;
       canvas.subTargetCheck = true;
-      canvas.perPixelTargetFind = true;
-      canvas.targetFindTolerance = 6;
+      canvas.perPixelTargetFind = false;     // <— breiter Hit
+      canvas.targetFindTolerance = 12;
 
-      // Hover-Highlight für Mapping-Felder
+      // Hover-Highlight
       let lastHover: any = null;
       const onMouseMove = (e: any) => {
         const t = canvas.findTarget(e.e, true) as any;
         if (t === lastHover) return;
 
-        // altes Highlight zurücksetzen
         if (lastHover && lastHover.__hoverStroke) {
           lastHover.set({ stroke: lastHover.__origStroke, strokeWidth: lastHover.__origStrokeWidth });
           lastHover.__hoverStroke = false;
@@ -74,47 +73,50 @@ export default function FabricCanvas() {
         if (t && (t.type === "textbox" || t.data?.isMappingField)) {
           t.__origStroke = t.stroke;
           t.__origStrokeWidth = t.strokeWidth;
-          t.set({ stroke: "#60a5fa", strokeWidth: 1.25 }); // blue-400
+          t.set({ stroke: "#60a5fa", strokeWidth: 1.25 });
           t.__hoverStroke = true;
           canvas.setCursor("text");
           lastHover = t;
           canvas.requestRenderAll();
-        } else if (t && t.type === "group") {
+        } else if (t && (t.type === "group" || t.data?.isHitArea || t.data?.isDragHandle)) {
           canvas.setCursor("move");
         } else {
           canvas.setCursor("default");
         }
       };
 
-      // Klick-Handling: Text → Overlay, leer/Frame → Gruppe greifbar
+      // Klicklogik: Text → Overlay, sonst Gruppe selektieren
       const onMouseUp = (e: any) => {
         let t: any = null;
 
         if (Array.isArray(e.subTargets) && e.subTargets.length) {
           t = e.subTargets.find((o: any) => o?.type === "textbox") ?? null;
+          if (!t) {
+            const ht = e.subTargets.find((o: any) => o?.data?.isHitArea || o?.data?.isDragHandle);
+            if (ht && e.target && e.target.type === "group") {
+              const grp = e.target;
+              canvas.setActiveObject(grp);
+              grp.selectable = true;
+              grp.lockMovementX = false;
+              grp.lockMovementY = false;
+              grp.hasControls = true;
+              grp.hoverCursor = "move";
+              return;
+            }
+          }
         }
         if (!t && e.target && e.target.type === "textbox") t = e.target;
 
         if (!t && e.target && e.target.type === "group") {
-          // Prüfe, ob Klick tatsächlich auf eine Textbox war
+          // Freier Gruppenbereich
           const grp = e.target;
-          const p = canvas.getPointer(e.e);
-          const hit = (grp._objects || []).find((child: any) => {
-            if (child.type !== "textbox") return false;
-            const r = child.getBoundingRect(true, true);
-            return p.x >= r.left && p.x <= r.left + r.width && p.y >= r.top && p.y <= r.top + r.height;
-          });
-          if (hit) t = hit;
-          else {
-            // Freier Bereich der Gruppe: Gruppe selektieren → dragbar
-            canvas.setActiveObject(grp);
-            grp.selectable = true;
-            grp.lockMovementX = false;
-            grp.lockMovementY = false;
-            grp.hasControls = true;
-            grp.hoverCursor = "move";
-            return; // kein Overlay öffnen
-          }
+          canvas.setActiveObject(grp);
+          grp.selectable = true;
+          grp.lockMovementX = false;
+          grp.lockMovementY = false;
+          grp.hasControls = true;
+          grp.hoverCursor = "move";
+          return;
         }
 
         if (!t) {
@@ -152,7 +154,7 @@ export default function FabricCanvas() {
     return () => { disposed = true; };
   }, []);
 
-  // Renderer: zeichnet Sektionen + Mapping-Textboxen
+  // Renderer: zeichnet Sektionen + Mapping-Textboxen + sichere Hit-Areas
   const renderSections = useCallback(() => {
     if (!fabricCanvas || !fabricNamespace || !sections) return;
 
@@ -173,7 +175,40 @@ export default function FabricCanvas() {
       const SEC_PAD_B = Number(section.props?.paddingBottom?? 16);
       const BULLET_INDENT = Number(tokens?.bulletIndent ?? 18);
 
-      // Hintergrund-Frame (unsichtbar, aber klick-/dragbar)
+      // 1) Unsichtbare Hit-Area (macht die ganze Sektion gut greifbar)
+      const hitArea = new fabricNamespace.Rect({
+        left: -section.width / 2,
+        top: -section.height / 2,
+        width: section.width,
+        height: section.height,
+        fill: "#000000",
+        opacity: 0.01,            // minimal sichtbar für Hit-Test
+        selectable: false,        // drag via Group
+        evented: true,
+        hoverCursor: "move",
+        objectCaching: false,
+      }) as any;
+      hitArea.data = { type: "hitArea", isHitArea: true };
+      children.push(hitArea);
+
+      // 2) Sichtbarer Drag-Handle links (12px)
+      const dragHandle = new fabricNamespace.Rect({
+        left: -section.width / 2,
+        top: -section.height / 2,
+        width: 12,
+        height: section.height,
+        fill: "rgba(59,130,246,0.06)", // dezent
+        stroke: "rgba(59,130,246,0.15)",
+        strokeWidth: 1,
+        selectable: false,
+        evented: true,
+        hoverCursor: "move",
+        objectCaching: false,
+      }) as any;
+      dragHandle.data = { type: "dragHandle", isDragHandle: true };
+      children.push(dragHandle);
+
+      // 3) Optionaler sichtbarer Frame
       const frame = new fabricNamespace.Rect({
         left: -section.width / 2,
         top: -section.height / 2,
@@ -182,15 +217,14 @@ export default function FabricCanvas() {
         fill: "rgba(0,0,0,0)",
         stroke: section.props?.borderColor || "#e5e7eb",
         strokeWidth: parseInt(section.props?.borderWidth || "1", 10),
-        selectable: false, // drag via Group
-        evented: true,
-        hoverCursor: "move",
+        selectable: false,
+        evented: false,
         objectCaching: false,
       }) as any;
       frame.data = { type: "frame", isFrame: true };
       children.push(frame);
 
-      // Alle Parts → Textboxen
+      // 4) Mapping-Textboxen
       for (const part of section.parts) {
         const padL = SEC_PAD_L;
         const padR = SEC_PAD_R;
@@ -198,7 +232,6 @@ export default function FabricCanvas() {
         const padB = SEC_PAD_B;
         const indentPx = Number(part.indentPx ?? (part.fieldType === "bullet" ? BULLET_INDENT : 0));
 
-        // Stil: global <— lokal
         const g = (globalFieldStyles as any)?.[section.sectionType || "experience"]?.[part.fieldType] || {};
         const loc = (partStyles as any)?.[section.id]?.[part.fieldType] || {};
         const finalStyle = {
@@ -227,26 +260,23 @@ export default function FabricCanvas() {
           evented: true,
           hasControls: false,
           hasBorders: false,
-          lockMovementX: true, // Text selbst nicht ziehen
+          lockMovementX: true,
           lockMovementY: true,
           lockUniScaling: true,
-          opacity: 1,
-          visible: true,
           originX: "left",
           originY: "top",
           scaleX: 1,
           scaleY: 1,
-          angle: 0,
-          skewX: 0,
-          skewY: 0,
           hoverCursor: "text",
           moveCursor: "default",
+          perPixelTargetFind: false,    // <— leichter zu treffen
+          objectCaching: false,         // vermeidet Clip-Artefakte
+          noScaleCache: true,
         }) as any;
 
         tb.partId = part.id;
         tb.fieldType = part.fieldType;
         tb.sectionId = section.id;
-
         tb.data = {
           fieldKey: part.id ?? `${section.id}:${part.fieldType}`,
           padL, padT, padR, padB, indentPx,
@@ -259,16 +289,15 @@ export default function FabricCanvas() {
         };
 
         const halfW = section.width / 2;
-        const halfH = (section.height ?? 1) / 2;
         const tlX = padL + (indentPx || 0);
         const tlY = padT;
-        tb.set({ left: tlX - halfW, top: tlY - halfH });
+        tb.set({ left: tlX - halfW, top: tlY - section.height / 2 });
         tb.setCoords();
 
         children.push(tb);
       }
 
-      // Gruppe inkl. Frame + Textboxen
+      // Gruppe zusammenbauen
       const sectionGroup = new fabricNamespace.Group(children, {
         left: section.x,
         top: section.y,
@@ -300,7 +329,7 @@ export default function FabricCanvas() {
 
       fabricCanvas.add(sectionGroup);
 
-      // Initialen Reflow triggern
+      // Initialer Reflow
       try {
         (sectionGroup as any).scaleX = 1;
         (sectionGroup as any).scaleY = 1;
@@ -308,7 +337,7 @@ export default function FabricCanvas() {
         fabricCanvas.fire("object:modified", { target: sectionGroup } as any);
       } catch {}
 
-      // Aktiven Edit auf neue Instanzen rebinden
+      // aktiven Edit auf neue Instanzen rebinden
       if (activeEdit && activeEdit.sectionId === section.id) {
         const hit = (sectionGroup._objects || []).find(
           (o: any) => o?.type === "textbox" && o.fieldType === activeEdit.fieldType
