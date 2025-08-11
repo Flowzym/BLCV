@@ -1,98 +1,95 @@
-// Robust Canvas-Registry, kompatibel mit Lazy-Fabric (fabric-shim)
-// - Erzeugt *nur dann* eine Canvas, wenn sowohl ein Canvas-Element (el)
-//   als auch ein Fabric-Namespace (fabricNS) übergeben wird.
-// - Andernfalls legt sie lediglich/verwaltet einen Eintrag.
-// - Bietet zusätzliche Helper (set / setCanvas), um extern erstellte Canvas
-//   einzutragen (z. B. nach getFabric()).
-
-export type RegistryEntry = {
-  id: string;
-  canvas?: any; // fabric.Canvas | undefined
-};
+// CanvasRegistry compatible with two calling styles:
+// - getOrCreate(canvasEl, fabricNS, opts?) → returns fabric.Canvas
+// - getOrCreate(id, el?, opts?, fabricNS?) → returns { id, canvas }
+// Also provides has(), set(), setCanvas(), dispose(), disposeAll().
 
 type FabricNS = {
   Canvas?: new (el: HTMLCanvasElement, opts?: any) => any;
 };
 
-class _CanvasRegistry {
-  private map = new Map<string, RegistryEntry>();
+type Entry = { key: any; canvas?: any };
 
-  /**
-   * Liefert den Eintrag zur ID, legt ihn ggf. an.
-   * Erzeugt eine Canvas nur, wenn *sowohl* el als auch fabricNS.Canvas vorhanden sind.
-   */
-  getOrCreate(
-    id: string,
-    el?: HTMLCanvasElement | null,
-    opts?: any,
-    fabricNS?: FabricNS | any
-  ): RegistryEntry {
+class _CanvasRegistry {
+  private map = new Map<any, Entry>();
+
+  getOrCreate(...args: any): any {
+    // Style A: (canvasEl, fabricNS, opts?)
+    if (args[0] instanceof HTMLCanvasElement) {
+      const el: HTMLCanvasElement = args[0];
+      const fabricNS: FabricNS | any = args[1];
+      const opts = args[2] || {};
+
+      let entry = this.map.get(el);
+      if (!entry) {
+        entry = { key: el, canvas: undefined };
+        this.map.set(el, entry);
+      }
+      if (!entry.canvas && fabricNS?.Canvas) {
+        try {
+          entry.canvas = new fabricNS.Canvas(el, opts);
+        } catch (e) {
+          console.warn("[CanvasRegistry] failed to create canvas:", e);
+        }
+      }
+      return entry.canvas;
+    }
+
+    // Style B: (id, el?, opts?, fabricNS?)
+    const id = args[0];
+    const el: HTMLCanvasElement | null | undefined = args[1];
+    const opts = args[2] || {};
+    const fabricNS: FabricNS | any = args[3];
+
     let entry = this.map.get(id);
     if (!entry) {
-      entry = { id, canvas: undefined };
+      entry = { key: id, canvas: undefined };
       this.map.set(id, entry);
     }
 
-    // Nur erzeugen, wenn explizit möglich und noch keine Canvas existiert
-    if (!entry.canvas && el && fabricNS && fabricNS.Canvas) {
+    if (!entry.canvas && el && fabricNS?.Canvas) {
       try {
         entry.canvas = new fabricNS.Canvas(el, opts);
-      } catch (err) {
-        // Failsafe: nicht crashen – Eintrag bleibt bestehen, Canvas undefined
-        // (wird ggf. später via set()/setCanvas() gesetzt)
-        console.warn("[CanvasRegistry] Canvas creation failed:", err);
+      } catch (e) {
+        console.warn("[CanvasRegistry] failed to create canvas:", e);
       }
     }
 
-    return entry;
+    return entry; // style B returns entry to be compatible with earlier variant
   }
 
-  /** Alias: existiert ein Eintrag für die ID? */
-  has(id: string): boolean {
-    return this.map.has(id);
+  has(key: any): boolean {
+    return this.map.has(key);
   }
 
-  /** Liefert den Eintrag (oder undefined) */
-  get(id: string): RegistryEntry | undefined {
-    return this.map.get(id);
+  get(key: any): any {
+    const e = this.map.get(key);
+    return e?.canvas;
   }
 
-  /**
-   * Setzt/überschreibt die Canvas für eine ID (z. B. nachdem extern via getFabric() erstellt wurde).
-   * Kompatibler Alias: set() (für ältere Aufrufer).
-   */
-  setCanvas(id: string, canvas: any): RegistryEntry {
-    let entry = this.map.get(id);
+  setCanvas(key: any, canvas: any) {
+    let entry = this.map.get(key);
     if (!entry) {
-      entry = { id, canvas: undefined };
-      this.map.set(id, entry);
+      entry = { key, canvas: undefined };
+      this.map.set(key, entry);
     }
     entry.canvas = canvas;
-    return entry;
   }
 
-  /** Kompatibilitäts-Alias zu setCanvas */
-  set(id: string, canvas: any): RegistryEntry {
-    return this.setCanvas(id, canvas);
+  set(key: any, canvas: any) {
+    this.setCanvas(key, canvas);
   }
 
-  /** Entfernt und disposed eine einzelne Canvas, falls vorhanden. */
-  dispose(id: string): void {
-    const entry = this.map.get(id);
+  dispose(key: any) {
+    const entry = this.map.get(key);
     if (!entry) return;
-    try {
-      entry.canvas?.dispose?.();
-    } catch {}
-    this.map.delete(id);
+    try { entry.canvas?.dispose?.(); } catch {}
+    this.map.delete(key);
   }
 
-  /** Disposed alle registrierten Canvas und leert die Registry. */
-  disposeAll(): void {
-    for (const [id, entry] of this.map.entries()) {
-      try {
-        entry.canvas?.dispose?.();
-      } catch {}
-      this.map.delete(id);
+  disposeAll() {
+    for (const [key, entry] of this.map.entries()) {
+      try { entry.canvas?.dispose?.(); } catch {}
+      this.map.delete(key);
     }
   }
 }
