@@ -750,7 +750,7 @@ export default function FabricCanvas() {
       }
 
       // Gruppe
-      const sectionGroup = new fabricNamespace.Group(children, {
+      const sectionGroup = new fabricNamespace.Group(children, { originX: "center", originY: "center", centeredRotation: true,
         left: section.x,
         top: section.y,
         selectable: true,
