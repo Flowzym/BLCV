@@ -52,8 +52,9 @@ export function installSectionResize(canvas: fabric.Canvas) {
         (tb as any)._clearCache?.();
         (tb as any).initDimensions?.();
 
-        const br = (tb as any).getBoundingRect(true, true);
-        measuredHeights[idx] = br.height;
+        // Wichtig: Höhe in lokalen Koordinaten messen – unabhängig von Gruppenrotation/Zoom
+        const localH = (tb as any).height ?? (tb as any).getScaledHeight?.() ?? 0;
+        measuredHeights[idx] = localH;
         gaps[idx] = num(tb.data?.gapBefore, 0);
       });
 
@@ -61,11 +62,12 @@ export function installSectionResize(canvas: fabric.Canvas) {
     const contentHeight =
       secPadT + gaps.reduce((a, g) => a + g, 0) + measuredHeights.reduce((a, h) => a + h, 0) + secPadB + FUDGE_Y;
     const minH = num(g.data?.minHeight, 32);
-    const finalH = Math.max(minH, contentHeight);
+    const finalH = Math.max(contentHeight, minH);
 
-    // Pass 2: Positionen setzen
+    // Pass 2: vertikal stapeln
     const halfW = newW / 2;
     const halfH = finalH / 2;
+
     let cursorY = -halfH + secPadT;
 
     textChildren.forEach((tb, idx) => {
@@ -100,18 +102,25 @@ export function installSectionResize(canvas: fabric.Canvas) {
     const g = e.target as G;
     if (!g || g.type !== "group") return;
     const prevCache = g.objectCaching;
-    g.objectCaching = false;
-
-    layoutPass(g);
-
-    g.objectCaching = prevCache;
+    try {
+      g.objectCaching = false;
+      layoutPass(g);
+    } finally {
+      g.objectCaching = prevCache;
+    }
   };
 
   const onModified = (e: fabric.IEvent<Event>) => {
     const g = e.target as G;
     if (!g || g.type !== "group") return;
 
-    // Persistieren (Position) + Koordinaten
+    // normalize scale → width/height anwenden
+    const newW = num(g.width) * num(g.scaleX, 1);
+    const newH = num(g.height) * num(g.scaleY, 1);
+    g.set({ width: newW, height: newH, scaleX: 1, scaleY: 1 });
+
+    layoutPass(g);
+
     const sid = (g as any).sectionId || g.data?.sectionId;
     if (sid) {
       // width/height stammen bereits aus letztem layoutPass()
