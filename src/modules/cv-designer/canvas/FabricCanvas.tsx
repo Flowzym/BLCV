@@ -97,6 +97,7 @@ export default function FabricCanvas() {
   const [activeEdit, setActiveEdit] = useState<ActiveEdit>(null);
   const activeEditRef = useRef<ActiveEdit>(null);
   const lastSelectedTextboxRef = useRef<any>(null);
+  const rotateControlRef = useRef<any>(null); // <<< custom rotate control
 
   useEffect(() => {
     activeEditRef.current = activeEdit;
@@ -130,8 +131,8 @@ export default function FabricCanvas() {
       canvas.perPixelTargetFind = false;
       canvas.targetFindTolerance = 14;
 
-      // === Custom ROTATE Control: kreisförmiger Pfeil ===
-      const rotateControl = new fabric.Control({
+      // === Custom ROTATE Control: kreisförmiger Pfeil (NUR erzeugen, NICHT global setzen) ===
+      rotateControlRef.current = new fabric.Control({
         x: 0,
         y: -0.5,
         offsetY: -30, // Abstand oberhalb
@@ -184,8 +185,6 @@ export default function FabricCanvas() {
           ctx.restore();
         },
       });
-      // global setzen
-      (fabric.Object as any).prototype.controls.mtr = rotateControl;
 
       // Hover-Outline (gestrichelt, Root-Objekt)
       const hoverOutline = new fabric.Rect({
@@ -331,7 +330,6 @@ export default function FabricCanvas() {
 
         // kein Text unter dem Zeiger → sofort ausblenden (ohne Delay)
         hideHoverNow();
-        // Cursor nicht erzwingen → Fabric zeigt Resize-/Move-Cursor selbst
       };
 
       // Klick: Text → Selection + Overlay; sonst Gruppe selektieren/Abwahl
@@ -347,7 +345,6 @@ export default function FabricCanvas() {
         const grp = t?.type === "group" ? t : t?.group;
         if (grp) {
           canvas.setActiveObject(grp);
-          // besseres Feedback beim Greifen/Verschieben der Sektion
           grp.hoverCursor = "move";
           grp.moveCursor = "move";
           grp.selectable = true;
@@ -563,6 +560,17 @@ export default function FabricCanvas() {
         hoverCursor: "move",
         moveCursor: "move",
       }) as any;
+
+      // <<< Custom rotate control pro Gruppe zuweisen (keine globale Mutation)
+      const rc = rotateControlRef.current;
+      if (rc) {
+        // Controls-Objekt sicherstellen
+        const baseControls = (fabricNamespace.Object as any)?.prototype?.controls;
+        if (!(sectionGroup as any).controls) {
+          (sectionGroup as any).controls = baseControls ? { ...baseControls } : {};
+        }
+        (sectionGroup as any).controls.mtr = rc;
+      }
 
       sectionGroup.data = {
         sectionId: section.id,
