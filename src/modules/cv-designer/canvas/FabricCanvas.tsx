@@ -1,4 +1,3 @@
-// src/modules/cv-designer/canvas/FabricCanvas.tsx
 import React, { useRef, useEffect, useState, useCallback } from "react";
 import { getFabric } from "@/lib/fabric-shim";
 import { useDesignerStore } from "../store/designerStore";
@@ -58,12 +57,13 @@ export default function FabricCanvas() {
       canvas.perPixelTargetFind = true;
       canvas.targetFindTolerance = 6;
 
-      // Hover-Highlight
+      // Hover-Highlight für Mapping-Felder
       let lastHover: any = null;
       const onMouseMove = (e: any) => {
         const t = canvas.findTarget(e.e, true) as any;
         if (t === lastHover) return;
 
+        // altes Highlight zurücksetzen
         if (lastHover && lastHover.__hoverStroke) {
           lastHover.set({ stroke: lastHover.__origStroke, strokeWidth: lastHover.__origStrokeWidth });
           lastHover.__hoverStroke = false;
@@ -79,12 +79,14 @@ export default function FabricCanvas() {
           canvas.setCursor("text");
           lastHover = t;
           canvas.requestRenderAll();
+        } else if (t && t.type === "group") {
+          canvas.setCursor("move");
         } else {
           canvas.setCursor("default");
         }
       };
 
-      // Textklick → Overlay öffnen; Leerklick → Overlay zu
+      // Klick-Handling: Text → Overlay, leer/Frame → Gruppe greifbar
       const onMouseUp = (e: any) => {
         let t: any = null;
 
@@ -93,8 +95,8 @@ export default function FabricCanvas() {
         }
         if (!t && e.target && e.target.type === "textbox") t = e.target;
 
-        // Klick in die Gruppe → ggf. Textbox via Point-Hit finden
         if (!t && e.target && e.target.type === "group") {
+          // Prüfe, ob Klick tatsächlich auf eine Textbox war
           const grp = e.target;
           const p = canvas.getPointer(e.e);
           const hit = (grp._objects || []).find((child: any) => {
@@ -103,6 +105,16 @@ export default function FabricCanvas() {
             return p.x >= r.left && p.x <= r.left + r.width && p.y >= r.top && p.y <= r.top + r.height;
           });
           if (hit) t = hit;
+          else {
+            // Freier Bereich der Gruppe: Gruppe selektieren → dragbar
+            canvas.setActiveObject(grp);
+            grp.selectable = true;
+            grp.lockMovementX = false;
+            grp.lockMovementY = false;
+            grp.hasControls = true;
+            grp.hoverCursor = "move";
+            return; // kein Overlay öffnen
+          }
         }
 
         if (!t) {
@@ -127,7 +139,6 @@ export default function FabricCanvas() {
       canvas.on("mouse:up", onMouseUp);
 
       installSectionResize(canvas);
-
       setFabricCanvas(canvas);
 
       return () => {
@@ -138,12 +149,10 @@ export default function FabricCanvas() {
       };
     })();
 
-    return () => {
-      disposed = true;
-    };
+    return () => { disposed = true; };
   }, []);
 
-  // Renderer: zeichnet alle Sektionen + Mapping-Textboxen
+  // Renderer: zeichnet Sektionen + Mapping-Textboxen
   const renderSections = useCallback(() => {
     if (!fabricCanvas || !fabricNamespace || !sections) return;
 
@@ -155,7 +164,7 @@ export default function FabricCanvas() {
       if (!section.isVisible) continue;
       if (!Array.isArray(section.parts) || section.parts.length === 0) continue;
 
-      const textboxes: any[] = [];
+      const children: any[] = [];
 
       // Section-Padding
       const SEC_PAD_L = Number(section.props?.paddingLeft  ?? 24);
@@ -173,12 +182,13 @@ export default function FabricCanvas() {
         fill: "rgba(0,0,0,0)",
         stroke: section.props?.borderColor || "#e5e7eb",
         strokeWidth: parseInt(section.props?.borderWidth || "1", 10),
-        selectable: false, // wird als Group-Kind dragbar
+        selectable: false, // drag via Group
         evented: true,
         hoverCursor: "move",
         objectCaching: false,
       }) as any;
       frame.data = { type: "frame", isFrame: true };
+      children.push(frame);
 
       // Alle Parts → Textboxen
       for (const part of section.parts) {
@@ -188,7 +198,7 @@ export default function FabricCanvas() {
         const padB = SEC_PAD_B;
         const indentPx = Number(part.indentPx ?? (part.fieldType === "bullet" ? BULLET_INDENT : 0));
 
-        // Stil auflösen: global <— lokal
+        // Stil: global <— lokal
         const g = (globalFieldStyles as any)?.[section.sectionType || "experience"]?.[part.fieldType] || {};
         const loc = (partStyles as any)?.[section.id]?.[part.fieldType] || {};
         const finalStyle = {
@@ -217,7 +227,7 @@ export default function FabricCanvas() {
           evented: true,
           hasControls: false,
           hasBorders: false,
-          lockMovementX: true,
+          lockMovementX: true, // Text selbst nicht ziehen
           lockMovementY: true,
           lockUniScaling: true,
           opacity: 1,
@@ -255,11 +265,11 @@ export default function FabricCanvas() {
         tb.set({ left: tlX - halfW, top: tlY - halfH });
         tb.setCoords();
 
-        textboxes.push(tb);
+        children.push(tb);
       }
 
-      // Gruppe inkl. Frame
-      const sectionGroup = new fabricNamespace.Group([frame, ...textboxes], {
+      // Gruppe inkl. Frame + Textboxen
+      const sectionGroup = new fabricNamespace.Group(children, {
         left: section.x,
         top: section.y,
         selectable: true,
@@ -290,7 +300,7 @@ export default function FabricCanvas() {
 
       fabricCanvas.add(sectionGroup);
 
-      // Reflow initial triggern
+      // Initialen Reflow triggern
       try {
         (sectionGroup as any).scaleX = 1;
         (sectionGroup as any).scaleY = 1;
@@ -298,7 +308,7 @@ export default function FabricCanvas() {
         fabricCanvas.fire("object:modified", { target: sectionGroup } as any);
       } catch {}
 
-      // Aktiven Edit auf neue Instanzen rebinden (nach Neu-Render)
+      // Aktiven Edit auf neue Instanzen rebinden
       if (activeEdit && activeEdit.sectionId === section.id) {
         const hit = (sectionGroup._objects || []).find(
           (o: any) => o?.type === "textbox" && o.fieldType === activeEdit.fieldType
@@ -330,7 +340,7 @@ export default function FabricCanvas() {
     if (fabricCanvas && sections) renderSections();
   }, [fabricCanvas, sections, renderSections]);
 
-  // Zoom (falls genutzt)
+  // Zoom
   useEffect(() => {
     if (!fabricCanvas) return;
     const safeZoom = Math.max(0.1, Math.min(4, Number(zoom || 1)));
@@ -338,12 +348,10 @@ export default function FabricCanvas() {
     fabricCanvas.requestRenderAll();
   }, [fabricCanvas, zoom]);
 
-  // ESC schließt Overlay
+  // ESC → Overlay schließen
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setActiveEdit(null);
-      }
+      if (e.key === "Escape") setActiveEdit(null);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
