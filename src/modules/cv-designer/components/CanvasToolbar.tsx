@@ -8,6 +8,8 @@ export default function CanvasToolbar() {
   const undo = useDesignerStore((s) => s.undo);
   const redo = useDesignerStore((s) => s.redo);
   const zoom = useDesignerStore((s) => s.zoom);
+  const rememberView = useDesignerStore((s)=>s.rememberView);
+  const setRememberView = useDesignerStore((s)=>s.setRememberView);
   const setZoom = useDesignerStore((s) => s.setZoom);
   const snap = useDesignerStore((s) => s.snapSize);
   const setSnap = useDesignerStore((s) => s.setSnapSize);
@@ -68,7 +70,25 @@ export default function CanvasToolbar() {
       <button className="px-2 py-1.5 border rounded" onClick={undo} title="Undo ⌘/Ctrl+Z">Undo ⌘/Ctrl+Z</button>
       <button className="px-2 py-1.5 border rounded" onClick={redo} title="Redo ⇧+⌘/Ctrl+Z">Redo ⇧+⌘/Ctrl+Z</button>
 
+
       <div className="mx-2 h-6 w-px bg-gray-200" />
+
+      <div className="flex items-center gap-2 text-sm">
+        <button className="px-2 py-1.5 border rounded" title="Fit Page (Ctrl+0)"
+          onClick={()=>window.dispatchEvent(new Event('bl:fit-page'))}>Fit Page</button>
+        <button className="px-2 py-1.5 border rounded" title="Fit Width (Ctrl+2)"
+          onClick={()=>window.dispatchEvent(new Event('bl:fit-width'))}>Fit Width</button>
+        <button className="px-2 py-1.5 border rounded" title="100% (Ctrl+1)"
+          onClick={()=>window.dispatchEvent(new Event('bl:zoom-100'))}>100%</button>
+        <button className="px-2 py-1.5 border rounded" title="Reset View"
+          onClick={()=>window.dispatchEvent(new Event('bl:reset-view'))}>Reset</button>
+
+        <label className="ml-2 inline-flex items-center gap-2">
+          <input type="checkbox" checked={!!rememberView} onChange={e=>setRememberView(e.target.checked)} />
+          <span>Remember view</span>
+        </label>
+      </div>
+
 
       <label className="flex items-center gap-2 text-sm">
         Zoom
@@ -86,7 +106,25 @@ export default function CanvasToolbar() {
         </span>
       </label>
 
+
       <div className="mx-2 h-6 w-px bg-gray-200" />
+
+      <div className="flex items-center gap-2 text-sm">
+        <button className="px-2 py-1.5 border rounded" title="Fit Page (Ctrl+0)"
+          onClick={()=>window.dispatchEvent(new Event('bl:fit-page'))}>Fit Page</button>
+        <button className="px-2 py-1.5 border rounded" title="Fit Width (Ctrl+2)"
+          onClick={()=>window.dispatchEvent(new Event('bl:fit-width'))}>Fit Width</button>
+        <button className="px-2 py-1.5 border rounded" title="100% (Ctrl+1)"
+          onClick={()=>window.dispatchEvent(new Event('bl:zoom-100'))}>100%</button>
+        <button className="px-2 py-1.5 border rounded" title="Reset View"
+          onClick={()=>window.dispatchEvent(new Event('bl:reset-view'))}>Reset</button>
+
+        <label className="ml-2 inline-flex items-center gap-2">
+          <input type="checkbox" checked={!!rememberView} onChange={e=>setRememberView(e.target.checked)} />
+          <span>Remember view</span>
+        </label>
+      </div>
+
 
       <label className="flex items-center gap-2 text-sm">
         Snap
