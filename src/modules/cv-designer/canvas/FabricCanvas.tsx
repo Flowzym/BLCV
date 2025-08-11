@@ -131,6 +131,10 @@ export default function FabricCanvas() {
     vt[0] = zoom; vt[3] = zoom; vt[4] = tx; vt[5] = ty;
     canvas.setViewportTransform(vt);
     viewRef.current = { zoom, tx, ty };
+    try {
+      const st = (useDesignerStore as any).getState?.();
+      if (st?.rememberView) st.setLastView({ zoom, tx, ty });
+    } catch {}
   };
 
   const clampViewport = (canvas: any, zoom: number, tx: number, ty: number) => {
@@ -701,15 +705,21 @@ export default function FabricCanvas() {
         const cw = el.clientWidth || PAGE_W;
         const ch = el.clientHeight || PAGE_H;
         canvas.setDimensions({ width: cw, height: ch });
-        const stZoom = Number((useDesignerStore as any).getState?.().zoom ?? 1);
+        const st = (useDesignerStore as any).getState?.();
+        const stZoom = Number(st?.zoom ?? 1);
         const zoom = Math.max(0.1, Math.min(4, stZoom));
-        // center A4 page in available canvas
-        const tx = (cw - PAGE_W * zoom) / 2;
-        const ty = (ch - PAGE_H * zoom) / 2;
-        const vt = canvas.viewportTransform || [1,0,0,1,0,0];
-        vt[0] = zoom; vt[3] = zoom; vt[4] = tx; vt[5] = ty;
-        const c = clampViewport(canvas, zoom, vt[4], vt[5]);
-        setViewport(canvas, zoom, c.clampedTx, c.clampedTy);
+        let tx = (cw - PAGE_W * zoom) / 2;
+        let ty = (ch - PAGE_H * zoom) / 2;
+        if (st?.rememberView && st?.lastView && typeof st.lastView.zoom === 'number') {
+          const lv = st.lastView;
+          const c0 = clampViewport(canvas, lv.zoom, lv.tx, lv.ty);
+          setViewport(canvas, lv.zoom, c0.clampedTx, c0.clampedTy);
+        } else {
+          const vt = canvas.viewportTransform || [1,0,0,1,0,0];
+          vt[0] = zoom; vt[3] = zoom; vt[4] = tx; vt[5] = ty;
+          const c = clampViewport(canvas, zoom, vt[4], vt[5]);
+          setViewport(canvas, zoom, c.clampedTx, c.clampedTy);
+        }
         canvas.requestRenderAll();
       };
       applyViewport();
@@ -719,6 +729,23 @@ export default function FabricCanvas() {
       if (containerRef.current) ro.observe(containerRef.current);
 
       // --- Zoom & Pan handlers ---
+      // --- External commands from toolbar ---
+      const onFitPage = () => { fitPage(canvas); };
+      const onFitWidth = () => { fitWidth(canvas); };
+      const onZoom100 = () => {
+        const { cw, ch } = getContainerSize();
+        const z = 1;
+        const tx = (cw - PAGE_W * z) / 2;
+        const ty = (ch - PAGE_H * z) / 2;
+        setViewport(canvas, z, tx, ty); canvas.requestRenderAll();
+      };
+      const onResetView = () => { fitPage(canvas); };
+
+      window.addEventListener('bl:fit-page' as any, onFitPage as any);
+      window.addEventListener('bl:fit-width' as any, onFitWidth as any);
+      window.addEventListener('bl:zoom-100' as any, onZoom100 as any);
+      window.addEventListener('bl:reset-view' as any, onResetView as any);
+
       const wheelHandler = (e: WheelEvent) => {
         if (!(e.ctrlKey || e.metaKey)) return; // zoom only with ctrl/cmd
         e.preventDefault();
@@ -851,6 +878,10 @@ installSectionResize(canvas);
           window.removeEventListener("mouseup", onPanMouseUp as any);
           window.removeEventListener("keydown", onKeyDown as any);
           window.removeEventListener("keyup", onKeyUp as any);
+          window.removeEventListener('bl:fit-page' as any, onFitPage as any);
+          window.removeEventListener('bl:fit-width' as any, onFitWidth as any);
+          window.removeEventListener('bl:zoom-100' as any, onZoom100 as any);
+          window.removeEventListener('bl:reset-view' as any, onResetView as any);
         } catch {}
                 try { ro.disconnect(); } catch {}
 CanvasRegistry.dispose(canvasRef.current!);
