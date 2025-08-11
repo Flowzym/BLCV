@@ -1,4 +1,3 @@
-// src/modules/cv-designer/canvas/FabricCanvas.tsx
 import React, { useRef, useEffect, useState, useCallback } from "react";
 import { getFabric } from "@/lib/fabric-shim";
 import { useDesignerStore } from "../store/designerStore";
@@ -51,38 +50,76 @@ export default function FabricCanvas() {
       canvas.setDimensions({ width: PAGE_W, height: PAGE_H });
       canvas.backgroundColor = "#ffffff";
 
-      // Interaktion (toleranteres Hit-Testing)
+      // Interaktion – toleranteres Hit-Testing
       canvas.selection = true;
       canvas.subTargetCheck = true;
-      canvas.perPixelTargetFind = false;     // <— breiter Hit
-      canvas.targetFindTolerance = 12;
+      canvas.perPixelTargetFind = false;
+      canvas.targetFindTolerance = 14;
 
-      // Hover-Highlight
+      // 1) Einmalige Hover-Outline (wird bei mouse:move passend positioniert)
+      const hoverOutline = new fabric.Rect({
+        left: 0,
+        top: 0,
+        width: 10,
+        height: 10,
+        fill: "rgba(0,0,0,0)",
+        stroke: "#60a5fa",
+        strokeWidth: 1.5,
+        selectable: false,
+        evented: false,
+        visible: false,
+        objectCaching: false,
+        strokeDashArray: [4, 3],
+      });
+      (canvas as any).__hoverOutline = hoverOutline;
+      canvas.add(hoverOutline);
+      canvas.bringToFront(hoverOutline);
+
+      // Hover-Highlight + Cursor
       let lastHover: any = null;
       const onMouseMove = (e: any) => {
         const t = canvas.findTarget(e.e, true) as any;
-        if (t === lastHover) return;
 
-        if (lastHover && lastHover.__hoverStroke) {
-          lastHover.set({ stroke: lastHover.__origStroke, strokeWidth: lastHover.__origStrokeWidth });
-          lastHover.__hoverStroke = false;
-          canvas.requestRenderAll();
+        // Standard: Outline verstecken
+        hoverOutline.set({ visible: false });
+
+        // Drag-Handle dezenter anzeigen, wenn Gruppe/Kind gehovered
+        if (t) {
+          const grp = t.type === "group" ? t : t.group;
+          if (grp && grp.__dragHandle && grp.__hitArea) {
+            grp.__dragHandle.set({ opacity: 0.06 });
+            grp.__hitArea.set({ opacity: 0.02 });
+          }
         }
-        lastHover = null;
+        // Vorherige Gruppe ggf. zurücksetzen
+        if (lastHover && lastHover.type === "group") {
+          if (lastHover.__dragHandle) lastHover.__dragHandle.set({ opacity: 0 });
+          if (lastHover.__hitArea) lastHover.__hitArea.set({ opacity: 0.01 });
+        }
+        lastHover = t?.type === "group" ? t : t?.group ?? null;
 
         if (t && (t.type === "textbox" || t.data?.isMappingField)) {
-          t.__origStroke = t.stroke;
-          t.__origStrokeWidth = t.strokeWidth;
-          t.set({ stroke: "#60a5fa", strokeWidth: 1.25 });
-          t.__hoverStroke = true;
-          canvas.setCursor("text");
-          lastHover = t;
-          canvas.requestRenderAll();
-        } else if (t && (t.type === "group" || t.data?.isHitArea || t.data?.isDragHandle)) {
+          // Outline um die Textbox legen (Box-Highlight statt Glyphen)
+          const c = t.aCoords || t.calcACoords && t.calcACoords();
+          if (c) {
+            const left = Math.min(c.tl.x, c.bl.x);
+            const top = Math.min(c.tl.y, c.tr.y);
+            const width = Math.max(c.tr.x, c.br.x) - left;
+            const height = Math.max(c.bl.y, c.br.y) - top;
+            hoverOutline.set({ left, top, width, height, visible: true });
+            canvas.setCursor("text");
+            canvas.bringToFront(hoverOutline);
+            canvas.requestRenderAll();
+            return;
+          }
+        }
+
+        if (t && (t.type === "group" || t.data?.isHitArea || t.data?.isDragHandle)) {
           canvas.setCursor("move");
         } else {
           canvas.setCursor("default");
         }
+        canvas.requestRenderAll();
       };
 
       // Klicklogik: Text → Overlay, sonst Gruppe selektieren
@@ -108,7 +145,6 @@ export default function FabricCanvas() {
         if (!t && e.target && e.target.type === "textbox") t = e.target;
 
         if (!t && e.target && e.target.type === "group") {
-          // Freier Gruppenbereich
           const grp = e.target;
           canvas.setActiveObject(grp);
           grp.selectable = true;
@@ -154,11 +190,18 @@ export default function FabricCanvas() {
     return () => { disposed = true; };
   }, []);
 
-  // Renderer: zeichnet Sektionen + Mapping-Textboxen + sichere Hit-Areas
+  // Renderer: Sektionen + sichere Hit-Areas
   const renderSections = useCallback(() => {
     if (!fabricCanvas || !fabricNamespace || !sections) return;
 
+    // Hover-Outline sichern, bevor wir clear() rufen
+    const hoverOutline = (fabricCanvas as any).__hoverOutline;
     fabricCanvas.clear();
+
+    if (hoverOutline) {
+      fabricCanvas.add(hoverOutline);
+      fabricCanvas.bringToFront(hoverOutline);
+    }
 
     let nextActive: ActiveEdit = activeEdit;
 
@@ -168,22 +211,22 @@ export default function FabricCanvas() {
 
       const children: any[] = [];
 
-      // Section-Padding
+      // Section-Padding (fix – in group.data gespeichert)
       const SEC_PAD_L = Number(section.props?.paddingLeft  ?? 24);
       const SEC_PAD_R = Number(section.props?.paddingRight ?? 24);
       const SEC_PAD_T = Number(section.props?.paddingTop   ?? 16);
       const SEC_PAD_B = Number(section.props?.paddingBottom?? 16);
       const BULLET_INDENT = Number(tokens?.bulletIndent ?? 18);
 
-      // 1) Unsichtbare Hit-Area (macht die ganze Sektion gut greifbar)
+      // 1) Unsichtbare Hit-Area (macht die Sektion überall greifbar)
       const hitArea = new fabricNamespace.Rect({
         left: -section.width / 2,
         top: -section.height / 2,
         width: section.width,
         height: section.height,
         fill: "#000000",
-        opacity: 0.01,            // minimal sichtbar für Hit-Test
-        selectable: false,        // drag via Group
+        opacity: 0.01,          // sehr zart
+        selectable: false,
         evented: true,
         hoverCursor: "move",
         objectCaching: false,
@@ -191,30 +234,31 @@ export default function FabricCanvas() {
       hitArea.data = { type: "hitArea", isHitArea: true };
       children.push(hitArea);
 
-      // 2) Sichtbarer Drag-Handle links (12px)
+      // 2) (Optional) Drag-Handle links – standardmäßig unsichtbar
       const dragHandle = new fabricNamespace.Rect({
         left: -section.width / 2,
         top: -section.height / 2,
         width: 12,
         height: section.height,
-        fill: "rgba(59,130,246,0.06)", // dezent
+        fill: "rgba(59,130,246,0.06)",
         stroke: "rgba(59,130,246,0.15)",
         strokeWidth: 1,
         selectable: false,
         evented: true,
         hoverCursor: "move",
         objectCaching: false,
+        opacity: 0, // <— per Hover sichtbar
       }) as any;
       dragHandle.data = { type: "dragHandle", isDragHandle: true };
       children.push(dragHandle);
 
-      // 3) Optionaler sichtbarer Frame
+      // 3) Sichtbarer Rahmen (dezent)
       const frame = new fabricNamespace.Rect({
         left: -section.width / 2,
         top: -section.height / 2,
         width: section.width,
         height: section.height,
-        fill: "rgba(0,0,0,0)",
+        fill: "rgba(0,0,0,0.02)",
         stroke: section.props?.borderColor || "#e5e7eb",
         strokeWidth: parseInt(section.props?.borderWidth || "1", 10),
         selectable: false,
@@ -269,8 +313,8 @@ export default function FabricCanvas() {
           scaleY: 1,
           hoverCursor: "text",
           moveCursor: "default",
-          perPixelTargetFind: false,    // <— leichter zu treffen
-          objectCaching: false,         // vermeidet Clip-Artefakte
+          perPixelTargetFind: false,
+          objectCaching: false,
           noScaleCache: true,
         }) as any;
 
@@ -305,27 +349,42 @@ export default function FabricCanvas() {
         evented: true,
         hasControls: true,
         hasBorders: true,
-        backgroundColor: section.props?.backgroundColor || "transparent",
-        stroke: section.props?.borderColor || "#e5e7eb",
-        strokeWidth: parseInt(section.props?.borderWidth || "1", 10),
+        backgroundColor: "transparent",
+        stroke: section.props?.borderColor || "#3b82f6",
+        strokeWidth: 1,
         fill: "transparent",
         lockUniScaling: false,
+        lockScalingFlip: true,
         cornerStyle: "rect",
-        cornerSize: 8,
+        cornerSize: 12,
         transparentCorners: false,
         borderColor: "#3b82f6",
         cornerColor: "#3b82f6",
+        padding: 6,
+        borderScaleFactor: 2,
         subTargetCheck: true,
         hoverCursor: "move",
       }) as any;
 
+      // Gruppendaten – garantieren stabilen Top/Bottom-Abstand
       sectionGroup.data = {
         sectionId: section.id,
         type: "section",
         minHeight: Number(section.props?.minHeight ?? 32),
+        padL: SEC_PAD_L,
+        padR: SEC_PAD_R,
+        secPadT: SEC_PAD_T,
+        secPadB: SEC_PAD_B,
       };
       sectionGroup.sectionId = section.id;
       sectionGroup.sectionType = section.sectionType;
+
+      // Referenzen für Hover-Effekte
+      (sectionGroup as any).__hitArea = hitArea;
+      (sectionGroup as any).__dragHandle = dragHandle;
+      (hitArea as any).group = sectionGroup;
+      (dragHandle as any).group = sectionGroup;
+      (frame as any).group = sectionGroup;
 
       fabricCanvas.add(sectionGroup);
 
@@ -354,14 +413,12 @@ export default function FabricCanvas() {
       }
     }
 
-    if (
-      nextActive &&
-      activeEdit &&
-      (nextActive.textbox !== activeEdit.textbox || nextActive.group !== activeEdit.group)
-    ) {
+    if (nextActive && activeEdit && (nextActive.textbox !== activeEdit.textbox || nextActive.group !== activeEdit.group)) {
       setActiveEdit(nextActive);
     }
 
+    // Hover-Outline wieder ganz nach vorn
+    if (hoverOutline) fabricCanvas.bringToFront(hoverOutline);
     fabricCanvas.renderAll();
   }, [fabricCanvas, fabricNamespace, sections, tokens, margins, globalFieldStyles, partStyles, activeEdit]);
 
