@@ -12,7 +12,7 @@ const PAGE_H = 842;
 const OUTSET_PX = 2;           // Basis-Außenrand für Hover
 const SELECT_STROKE = 2;       // px
 const HOVER_STROKE = 1.5;      // px
-const HOVER_HIDE_MS = 120;     // weiches Ausblenden
+const HOVER_HIDE_MS = 60;      // weiches Ausblenden (reduziert)
 
 // Asymmetrischer Outset nur für die SELECTED-Outline (links mehr Luft)
 const SELECT_OUTSET = { l: 4, t: 2, r: 2, b: 2 } as const;
@@ -29,7 +29,6 @@ type ActiveEdit =
       textbox: any;
     };
 
-// bringToFront-Ersatz für Fabric v6 (ohne bringToFront-API)
 function bringObjectToFront(canvas: any, obj: any) {
   if (!canvas || !obj) return;
   const arr = canvas.getObjects?.() ?? canvas._objects;
@@ -37,33 +36,19 @@ function bringObjectToFront(canvas: any, obj: any) {
   canvas.add(obj);
 }
 
-// Canvas-Rect des Textfeldes (zoomsicher, ohne viewport-Umrechnung)
+// Canvas-Rect des Textfeldes (zoomsicher)
 function getTextboxCanvasRect(tb: any) {
   (tb as any)._clearCache?.();
   (tb as any).initDimensions?.();
   const br = tb.getBoundingRect(false, true); // Canvas space
-  return {
-    left: br.left,
-    top: br.top,
-    width: Math.max(1, br.width),
-    height: Math.max(1, br.height),
-  };
+  return { left: br.left, top: br.top, width: Math.max(1, br.width), height: Math.max(1, br.height) };
 }
 
 // Symmetrischer Outset (für Hover)
-function withOutsetSym(
-  canvas: any,
-  rect: { left: number; top: number; width: number; height: number },
-  extra = 0
-) {
+function withOutsetSym(canvas: any, rect: { left: number; top: number; width: number; height: number }, extra = 0) {
   const z = typeof canvas?.getZoom === "function" ? canvas.getZoom() : 1;
   const m = (OUTSET_PX + extra) / Math.max(z, 0.0001);
-  return {
-    left: rect.left - m,
-    top: rect.top - m,
-    width: rect.width + 2 * m,
-    height: rect.height + 2 * m,
-  };
+  return { left: rect.left - m, top: rect.top - m, width: rect.width + 2 * m, height: rect.height + 2 * m };
 }
 
 // Asymmetrischer Outset (für Selected)
@@ -77,12 +62,7 @@ function withOutsetSides(
   const mt = sides.t / Math.max(z, 0.0001);
   const mr = sides.r / Math.max(z, 0.0001);
   const mb = sides.b / Math.max(z, 0.0001);
-  return {
-    left: rect.left - ml,
-    top: rect.top - mt,
-    width: rect.width + ml + mr,
-    height: rect.height + mt + mb,
-  };
+  return { left: rect.left - ml, top: rect.top - mt, width: rect.width + ml + mr, height: rect.height + mt + mb };
 }
 
 export default function FabricCanvas() {
@@ -95,9 +75,7 @@ export default function FabricCanvas() {
   const lastSelectedTextboxRef = useRef<any>(null);
   const hoverHideTimer = useRef<any>(null);
 
-  useEffect(() => {
-    activeEditRef.current = activeEdit;
-  }, [activeEdit]);
+  useEffect(() => { activeEditRef.current = activeEdit; }, [activeEdit]);
 
   // Store
   const sections = useDesignerStore((s) => s.sections);
@@ -127,50 +105,26 @@ export default function FabricCanvas() {
       canvas.perPixelTargetFind = false;
       canvas.targetFindTolerance = 14;
 
-      // Hover-Outline (gestrichelt, Root-Objekt)
+      // Hover-Outline
       const hoverOutline = new fabric.Rect({
-        left: 0,
-        top: 0,
-        width: 10,
-        height: 10,
+        left: 0, top: 0, width: 10, height: 10,
         fill: "rgba(0,0,0,0)",
-        stroke: "#60a5fa",
-        strokeWidth: HOVER_STROKE,
-        strokeDashArray: [4, 3],
-        selectable: false,
-        evented: false,
-        visible: false,
-        opacity: 1,
-        objectCaching: false,
-        strokeUniform: true,
-        excludeFromExport: true,
-        originX: "left",
-        originY: "top",
-        rx: 2,
-        ry: 2,
+        stroke: "#60a5fa", strokeWidth: HOVER_STROKE, strokeDashArray: [4, 3],
+        selectable: false, evented: false, visible: false, opacity: 1,
+        objectCaching: false, strokeUniform: true, excludeFromExport: true, originX: "left", originY: "top",
+        rx: 2, ry: 2,
       });
       (canvas as any).__hoverOutline = hoverOutline;
       canvas.add(hoverOutline);
 
-      // Selected-Outline (solide, Root-Objekt)
+      // Selected-Outline
       const selectedOutline = new fabric.Rect({
-        left: 0,
-        top: 0,
-        width: 10,
-        height: 10,
+        left: 0, top: 0, width: 10, height: 10,
         fill: "rgba(0,0,0,0)",
-        stroke: "#2563eb",
-        strokeWidth: SELECT_STROKE,
-        selectable: false,
-        evented: false,
-        visible: false,
-        objectCaching: false,
-        strokeUniform: true,
-        excludeFromExport: true,
-        originX: "left",
-        originY: "top",
-        rx: 2,
-        ry: 2,
+        stroke: "#2563eb", strokeWidth: SELECT_STROKE,
+        selectable: false, evented: false, visible: false,
+        objectCaching: false, strokeUniform: true, excludeFromExport: true, originX: "left", originY: "top",
+        rx: 2, ry: 2,
       });
       (canvas as any).__selectedOutline = selectedOutline;
       canvas.add(selectedOutline);
@@ -179,14 +133,13 @@ export default function FabricCanvas() {
       bringObjectToFront(canvas, selectedOutline);
       canvas.requestRenderAll();
 
-      // Textbox unter Maus (auch wenn Gruppe getroffen)
+      // Textbox unter Maus finden
       const getTextboxUnderPointer = (t: any, ev: MouseEvent) => {
         if (!t) return null;
         if (t.type === "textbox") return t;
         const grp = t.type === "group" ? t : t.group;
         if (!grp) return null;
-
-        const p = canvas.getPointer(ev); // Canvas space
+        const p = canvas.getPointer(ev);
         const hit = (grp._objects || []).find((child: any) => {
           if (child.type !== "textbox") return false;
           const r = child.getBoundingRect(false, true);
@@ -195,52 +148,30 @@ export default function FabricCanvas() {
         return hit || null;
       };
 
-      // --- Selection Helpers ---
+      // Helpers
       const CLEAR_BG = () => {
         const prev = lastSelectedTextboxRef.current;
-        if (prev && !prev._disposed) {
-          prev.set({ backgroundColor: "" });
-          prev.dirty = true;
-        }
+        if (prev && !prev._disposed) { prev.set({ backgroundColor: "" }); prev.dirty = true; }
         lastSelectedTextboxRef.current = null;
       };
-
-      const APPLY_BG = (tb: any) => {
-        if (!tb) return;
-        tb.set({ backgroundColor: "rgba(96,165,250,0.12)" });
-        tb.dirty = true;
-        lastSelectedTextboxRef.current = tb;
-      };
-
+      const APPLY_BG = (tb: any) => { tb.set({ backgroundColor: "rgba(96,165,250,0.12)" }); tb.dirty = true; lastSelectedTextboxRef.current = tb; };
       const UPDATE_SELECTED_MARKER = () => {
         if (!activeEditRef.current || !activeEditRef.current.textbox) return;
         const tb = activeEditRef.current.textbox;
         const rect = withOutsetSides(canvas, getTextboxCanvasRect(tb), SELECT_OUTSET);
-        selectedOutline.set({ ...rect, visible: true });
-        bringObjectToFront(canvas, selectedOutline);
+        selectedOutline.set({ ...rect, visible: true }); bringObjectToFront(canvas, selectedOutline);
       };
-
       const SET_SELECTION = (tb: any) => {
-        if (lastSelectedTextboxRef.current && lastSelectedTextboxRef.current !== tb) {
-          CLEAR_BG();
-        }
+        if (lastSelectedTextboxRef.current && lastSelectedTextboxRef.current !== tb) CLEAR_BG();
         APPLY_BG(tb);
-        setActiveEdit({
-          sectionId: tb.sectionId,
-          sectionType: (tb.group?.sectionType as SectionKind) || "experience",
-          fieldType: tb.fieldType,
-          group: tb.group,
-          textbox: tb,
-        });
-        UPDATE_SELECTED_MARKER();
-        canvas.requestRenderAll();
+        setActiveEdit({ sectionId: tb.sectionId, sectionType: (tb.group?.sectionType as SectionKind) || "experience", fieldType: tb.fieldType, group: tb.group, textbox: tb });
+        UPDATE_SELECTED_MARKER(); canvas.requestRenderAll();
       };
+      const CLEAR_SELECTION = () => { CLEAR_BG(); selectedOutline.set({ visible: false }); setActiveEdit(null); canvas.requestRenderAll(); };
 
-      const CLEAR_SELECTION = () => {
-        CLEAR_BG();
-        selectedOutline.set({ visible: false });
-        setActiveEdit(null);
-        canvas.requestRenderAll();
+      const hideHoverNow = () => {
+        if (hoverHideTimer.current) { clearTimeout(hoverHideTimer.current); hoverHideTimer.current = null; }
+        hoverOutline.set({ visible: false }); canvas.requestRenderAll();
       };
 
       // Hover: auch bei aktiver Selektion zeigen – außer über dem selektierten Feld
@@ -248,71 +179,50 @@ export default function FabricCanvas() {
         const t = canvas.findTarget(e.e, true) as any;
         const tb = getTextboxUnderPointer(t, e.e);
 
-        if (hoverHideTimer.current) {
-          clearTimeout(hoverHideTimer.current);
-          hoverHideTimer.current = null;
-        }
+        if (hoverHideTimer.current) { clearTimeout(hoverHideTimer.current); hoverHideTimer.current = null; }
 
         if (tb) {
-          const isSameAsSelected =
-            !!activeEditRef.current && activeEditRef.current.textbox === tb;
-
+          const isSameAsSelected = !!activeEditRef.current && activeEditRef.current.textbox === tb;
           if (!isSameAsSelected) {
             const rect = withOutsetSym(canvas, getTextboxCanvasRect(tb), 0);
             hoverOutline.set({ ...rect, visible: true, opacity: 1 });
             bringObjectToFront(canvas, hoverOutline);
-            // WICHTIG: Cursor NUR hier explizit setzen
             canvas.setCursor("text");
             canvas.requestRenderAll();
             return;
           }
         }
 
-        // Kein Text-Hover: NICHT cursor setzen -> Fabric zeigt Resize-/Move-Cursor selbst
-        hoverHideTimer.current = setTimeout(() => {
-          hoverOutline.set({ visible: false });
-          canvas.requestRenderAll();
-        }, HOVER_HIDE_MS);
+        // Kein Text-Hover → NICHT explizit Cursor setzen; Fabric zeigt Resize-/Move-Cursor
+        hoverHideTimer.current = setTimeout(hideHoverNow, HOVER_HIDE_MS);
       };
 
-      // Klick: Text → Selection + Overlay; sonst Gruppe selektieren/Abwahl
+      // Klick
       const onMouseUp = (e: any) => {
         const t = canvas.findTarget(e.e, true) as any;
         const tb = getTextboxUnderPointer(t, e.e);
-
-        if (tb && tb.sectionId && tb.fieldType) {
-          SET_SELECTION(tb);
-          return;
-        }
-
+        if (tb && tb.sectionId && tb.fieldType) { SET_SELECTION(tb); return; }
         const grp = t?.type === "group" ? t : t?.group;
         if (grp) {
           canvas.setActiveObject(grp);
-          // besseres Feedback beim Greifen/Verschieben der Sektion
-          grp.hoverCursor = "move";
-          grp.moveCursor = "move";
-          grp.selectable = true;
-          grp.lockMovementX = false;
-          grp.lockMovementY = false;
-          grp.hasControls = true;
-          canvas.requestRenderAll();
-          return;
+          grp.hoverCursor = "move"; grp.moveCursor = "move";
+          grp.selectable = true; grp.lockMovementX = false; grp.lockMovementY = false; grp.hasControls = true;
+          canvas.requestRenderAll(); return;
         }
-
-        // Klick ins Leere → Abwahl
         CLEAR_SELECTION();
       };
 
       // Nach jedem Render: Selected-Marker mitführen
-      const onAfterRender = () => {
-        if (activeEditRef.current) {
-          UPDATE_SELECTED_MARKER();
-        }
-      };
+      const onAfterRender = () => { if (activeEditRef.current) UPDATE_SELECTED_MARKER(); };
+
+      // *** NEU: sofortiges Ausblenden beim Verlassen der Canvas ***
+      const upperEl = canvas.upperCanvasEl as HTMLCanvasElement | undefined;
+      const onDomLeave = () => hideHoverNow();
 
       canvas.on("mouse:move", onMouseMove);
       canvas.on("mouse:up", onMouseUp);
       canvas.on("after:render", onAfterRender);
+      upperEl?.addEventListener("mouseleave", onDomLeave);
 
       installSectionResize(canvas);
       setFabricCanvas(canvas);
@@ -321,15 +231,14 @@ export default function FabricCanvas() {
         canvas.off("mouse:move", onMouseMove);
         canvas.off("mouse:up", onMouseUp);
         canvas.off("after:render", onAfterRender);
+        upperEl?.removeEventListener("mouseleave", onDomLeave);
         if (hoverHideTimer.current) clearTimeout(hoverHideTimer.current);
         CanvasRegistry.dispose(canvasRef.current!);
         setFabricCanvas(null);
       };
     })();
 
-    return () => {
-      disposed = true;
-    };
+    return () => { disposed = true; };
   }, []);
 
   // Renderer (ohne activeEdit als Dep → keine Sprünge)
@@ -357,43 +266,24 @@ export default function FabricCanvas() {
       const SEC_PAD_B = Number(section.props?.paddingBottom ?? 16);
       const BULLET_INDENT = Number(tokens?.bulletIndent ?? 18);
 
-      // große, nicht-evented Hit-Area
       const hitArea = new fabricNamespace.Rect({
-        left: -section.width / 2,
-        top: -section.height / 2,
-        width: section.width,
-        height: section.height,
-        fill: "#000000",
-        opacity: 0.01,
-        selectable: false,
-        evented: false,
-        objectCaching: false,
+        left: -section.width / 2, top: -section.height / 2, width: section.width, height: section.height,
+        fill: "#000000", opacity: 0.01, selectable: false, evented: false, objectCaching: false,
       }) as any;
       hitArea.data = { type: "hitArea", isHitArea: true };
       children.push(hitArea);
 
-      // dezenter Frame
       const frame = new fabricNamespace.Rect({
-        left: -section.width / 2,
-        top: -section.height / 2,
-        width: section.width,
-        height: section.height,
-        fill: "rgba(0,0,0,0.02)",
-        stroke: section.props?.borderColor || "#e5e7eb",
+        left: -section.width / 2, top: -section.height / 2, width: section.width, height: section.height,
+        fill: "rgba(0,0,0,0.02)", stroke: section.props?.borderColor || "#e5e7eb",
         strokeWidth: parseInt(section.props?.borderWidth || "1", 10),
-        selectable: false,
-        evented: false,
-        objectCaching: false,
+        selectable: false, evented: false, objectCaching: false,
       }) as any;
       frame.data = { type: "frame", isFrame: true };
       children.push(frame);
 
-      // Mapping-Textboxen
       for (const part of section.parts) {
-        const padL = SEC_PAD_L;
-        const padR = SEC_PAD_R;
-        const padT = SEC_PAD_T + Number(part.gapBefore ?? 0);
-        const padB = SEC_PAD_B;
+        const padL = SEC_PAD_L; const padR = SEC_PAD_R; const padT = SEC_PAD_T + Number(part.gapBefore ?? 0); const padB = SEC_PAD_B;
         const indentPx = Number(part.indentPx ?? (part.fieldType === "bullet" ? BULLET_INDENT : 0));
 
         const g = (globalFieldStyles as any)?.[section.sectionType || "experience"]?.[part.fieldType] || {};
@@ -410,129 +300,57 @@ export default function FabricCanvas() {
 
         const contentWidth = Math.max(1, section.width - padL - padR - indentPx);
         const tb = new fabricNamespace.Textbox(part.text ?? "", {
-          width: contentWidth,
-          fontFamily: finalStyle.fontFamily,
-          fontSize: finalStyle.fontSize,
-          fill: finalStyle.color,
-          fontWeight: finalStyle.fontWeight,
-          fontStyle: finalStyle.fontStyle,
-          lineHeight: finalStyle.lineHeight,
-          charSpacing: Math.round(finalStyle.letterSpacing * 1000),
-          textAlign: "left",
-          editable: false,
-          selectable: true,
-          evented: true,
-          hasControls: false,
-          hasBorders: false,
-          lockMovementX: true,
-          lockMovementY: true,
-          lockUniScaling: true,
-          originX: "left",
-          originY: "top",
-          scaleX: 1,
-          scaleY: 1,
-          hoverCursor: "text",
-          moveCursor: "default",
-          perPixelTargetFind: false,
-          objectCaching: false,
-          noScaleCache: true,
+          width: contentWidth, fontFamily: finalStyle.fontFamily, fontSize: finalStyle.fontSize,
+          fill: finalStyle.color, fontWeight: finalStyle.fontWeight, fontStyle: finalStyle.fontStyle,
+          lineHeight: finalStyle.lineHeight, charSpacing: Math.round(finalStyle.letterSpacing * 1000),
+          textAlign: "left", editable: false, selectable: true, evented: true, hasControls: false, hasBorders: false,
+          lockMovementX: true, lockMovementY: true, lockUniScaling: true, originX: "left", originY: "top",
+          scaleX: 1, scaleY: 1, hoverCursor: "text", moveCursor: "default",
+          perPixelTargetFind: false, objectCaching: false, noScaleCache: true,
         }) as any;
 
-        tb.partId = part.id;
-        tb.fieldType = part.fieldType;
-        tb.sectionId = section.id;
-        tb.data = {
-          fieldKey: part.id ?? `${section.id}:${part.fieldType}`,
-          padL,
-          padT,
-          padR,
-          padB,
-          indentPx,
-          flow: true,
-          order: Number.isFinite(part.order) ? part.order : 0,
-          gapBefore: Number(part.gapBefore ?? 0),
-          type: "textbox",
-          lineHeight: finalStyle.lineHeight,
-          isMappingField: true,
-        };
+        tb.partId = part.id; tb.fieldType = part.fieldType; tb.sectionId = section.id;
+        tb.data = { fieldKey: part.id ?? `${section.id}:${part.fieldType}`, padL, padT, padR, padB, indentPx,
+          flow: true, order: Number.isFinite(part.order) ? part.order : 0, gapBefore: Number(part.gapBefore ?? 0),
+          type: "textbox", lineHeight: finalStyle.lineHeight, isMappingField: true };
 
         const halfW = section.width / 2;
-        const tlX = padL + (indentPx || 0);
-        const tlY = padT;
-        tb.set({ left: tlX - halfW, top: tlY - section.height / 2 });
-        tb.setCoords();
+        const tlX = padL + (indentPx || 0); const tlY = padT;
+        tb.set({ left: tlX - halfW, top: tlY - section.height / 2 }); tb.setCoords();
 
         children.push(tb);
       }
 
-      // Gruppe
       const sectionGroup = new fabricNamespace.Group(children, {
-        left: section.x,
-        top: section.y,
-        selectable: true,
-        evented: true,
-        hasControls: true,
-        hasBorders: true,
-        backgroundColor: "transparent",
-        fill: "transparent",
-        lockUniScaling: false,
-        lockScalingFlip: true,
-        cornerStyle: "circle",
-        cornerSize: 14,
-        transparentCorners: false,
-        borderColor: "#3b82f6",
-        cornerColor: "#3b82f6",
-        padding: 8,
-        borderScaleFactor: 2,
-        subTargetCheck: true,
-        // neu: klares Move-Feedback
-        hoverCursor: "move",
-        moveCursor: "move",
+        left: section.x, top: section.y, selectable: true, evented: true, hasControls: true, hasBorders: true,
+        backgroundColor: "transparent", fill: "transparent", lockUniScaling: false, lockScalingFlip: true,
+        cornerStyle: "circle", cornerSize: 14, transparentCorners: false, borderColor: "#3b82f6", cornerColor: "#3b82f6",
+        padding: 8, borderScaleFactor: 2, subTargetCheck: true, hoverCursor: "move", moveCursor: "move",
       }) as any;
 
-      sectionGroup.data = {
-        sectionId: section.id,
-        type: "section",
-        minHeight: Number(section.props?.minHeight ?? 32),
-        padL: SEC_PAD_L,
-        padR: SEC_PAD_R,
-        secPadT: SEC_PAD_T,
-        secPadB: SEC_PAD_B,
-      };
+      sectionGroup.data = { sectionId: section.id, type: "section", minHeight: Number(section.props?.minHeight ?? 32),
+        padL: SEC_PAD_L, padR: SEC_PAD_R, secPadT: SEC_PAD_T, secPadB: SEC_PAD_B };
       sectionGroup.sectionId = section.id;
       sectionGroup.sectionType = section.sectionType as SectionKind;
 
       fabricCanvas.add(sectionGroup);
 
-      // Initialer Reflow
       try {
-        (sectionGroup as any).scaleX = 1;
-        (sectionGroup as any).scaleY = 1;
+        (sectionGroup as any).scaleX = 1; (sectionGroup as any).scaleY = 1;
         fabricCanvas.fire("object:scaling", { target: sectionGroup } as any);
         fabricCanvas.fire("object:modified", { target: sectionGroup } as any);
       } catch {}
 
-      // Rebind: selektiertes Mapping an neue Instanz koppeln
       const ae = activeEditRef.current;
       if (ae && ae.sectionId === section.id) {
-        const newTb = (sectionGroup._objects || []).find(
-          (o: any) => o?.type === "textbox" && o.fieldType === ae.fieldType
-        );
+        const newTb = (sectionGroup._objects || []).find((o: any) => o?.type === "textbox" && o.fieldType === ae.fieldType);
         if (newTb && (ae.textbox !== newTb || ae.group !== sectionGroup)) {
           if (lastSelectedTextboxRef.current && lastSelectedTextboxRef.current !== newTb) {
             lastSelectedTextboxRef.current.set({ backgroundColor: "" });
           }
           newTb.set({ backgroundColor: "rgba(96,165,250,0.12)" });
           lastSelectedTextboxRef.current = newTb;
-
-          setActiveEdit({
-            sectionId: ae.sectionId,
-            sectionType: sectionGroup.sectionType,
-            fieldType: ae.fieldType,
-            group: sectionGroup,
-            textbox: newTb,
-          });
-
+          setActiveEdit({ sectionId: ae.sectionId, sectionType: sectionGroup.sectionType, fieldType: ae.fieldType, group: sectionGroup, textbox: newTb });
           const rect = withOutsetSides(fabricCanvas, getTextboxCanvasRect(newTb), SELECT_OUTSET);
           const selectedOutline = (fabricCanvas as any).__selectedOutline;
           if (selectedOutline) selectedOutline.set({ ...rect, visible: true });
@@ -540,15 +358,12 @@ export default function FabricCanvas() {
       }
     }
 
-    // Outlines ganz nach oben
     bringObjectToFront(fabricCanvas, (fabricCanvas as any).__hoverOutline);
     bringObjectToFront(fabricCanvas, (fabricCanvas as any).__selectedOutline);
     fabricCanvas.requestRenderAll();
   }, [fabricCanvas, fabricNamespace, sections, tokens, margins, globalFieldStyles, partStyles]);
 
-  useEffect(() => {
-    if (fabricCanvas && sections) renderSections();
-  }, [fabricCanvas, sections, renderSections]);
+  useEffect(() => { if (fabricCanvas && sections) renderSections(); }, [fabricCanvas, sections, renderSections]);
 
   // Zoom
   useEffect(() => {
@@ -564,10 +379,7 @@ export default function FabricCanvas() {
       if (e.key === "Escape") {
         const selectedOutline = (fabricCanvas as any)?.__selectedOutline;
         if (selectedOutline) selectedOutline.set({ visible: false });
-        if (lastSelectedTextboxRef.current) {
-          lastSelectedTextboxRef.current.set({ backgroundColor: "" });
-          lastSelectedTextboxRef.current = null;
-        }
+        if (lastSelectedTextboxRef.current) { lastSelectedTextboxRef.current.set({ backgroundColor: "" }); lastSelectedTextboxRef.current = null; }
         setActiveEdit(null);
         fabricCanvas?.requestRenderAll();
       }
@@ -591,10 +403,7 @@ export default function FabricCanvas() {
           onClose={() => {
             const selectedOutline = (fabricCanvas as any)?.__selectedOutline;
             if (selectedOutline) selectedOutline.set({ visible: false });
-            if (lastSelectedTextboxRef.current) {
-              lastSelectedTextboxRef.current.set({ backgroundColor: "" });
-              lastSelectedTextboxRef.current = null;
-            }
+            if (lastSelectedTextboxRef.current) { lastSelectedTextboxRef.current.set({ backgroundColor: "" }); lastSelectedTextboxRef.current = null; }
             setActiveEdit(null);
             fabricCanvas?.requestRenderAll();
           }}
