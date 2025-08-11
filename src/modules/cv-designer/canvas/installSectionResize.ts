@@ -1,3 +1,4 @@
+// File: src/modules/cv-designer/canvas/installSectionResize.ts
 import { fabric } from "fabric";
 import { useDesignerStore } from "../store/designerStore";
 
@@ -52,38 +53,38 @@ export function installSectionResize(canvas: fabric.Canvas) {
         (tb as any)._clearCache?.();
         (tb as any).initDimensions?.();
 
-        const br = (tb as any).getBoundingRect(true, true);
-        measuredHeights[idx] = br.height;
+        const h = (tb as any).getScaledHeight?.() ?? (tb as any).height ?? 0;
+        measuredHeights[idx] = Math.max(0, h);
         gaps[idx] = num(tb.data?.gapBefore, 0);
       });
 
-    // Endhöhe bestimmen
-    const contentHeight =
-      secPadT + gaps.reduce((a, g) => a + g, 0) + measuredHeights.reduce((a, h) => a + h, 0) + secPadB + FUDGE_Y;
-    const minH = num(g.data?.minHeight, 32);
-    const finalH = Math.max(minH, contentHeight);
-
-    // Pass 2: Positionen setzen
-    const halfW = newW / 2;
-    const halfH = finalH / 2;
-    let cursorY = -halfH + secPadT;
-
+    // Pass 2: Y-Stacken (lokal, ohne Rotationseinfluss)
+    let y = -newH / 2 + secPadT;
     textChildren.forEach((tb, idx) => {
       const indentPx = num(tb.data?.indentPx, 0);
-      const left = -halfW + padL + indentPx;
-      cursorY += gaps[idx];
-      (tb as any).set({ left, top: cursorY, scaleX: 1, scaleY: 1 });
-      (tb as any).setCoords();
-      cursorY += measuredHeights[idx];
-    });
+      const gap = gaps[idx] ?? 0;
+      y += gap;
+      const x = -newW / 2 + padL + indentPx;
 
-    g.set({ height: finalH });
+      (tb as any).set({ left: x, top: y, scaleX: 1, scaleY: 1 });
+      (tb as any).setCoords?.();
+
+      y += measuredHeights[idx] ?? 0;
+    });
+    y += secPadB;
+
+    const minH = Math.max(num(g.data?.minHeight, 32), y - (-newH / 2));
+    const finalH = Math.max(minH + FUDGE_Y, newH);
 
     if (frame) {
+      const halfW = newW / 2;
+      const halfH = finalH / 2;
       frame.set({ left: -halfW, top: -halfH, width: newW, height: finalH, scaleX: 1, scaleY: 1 });
       frame.setCoords();
     }
     if (hitArea) {
+      const halfW = newW / 2;
+      const halfH = finalH / 2;
       hitArea.set({ left: -halfW, top: -halfH, width: newW, height: finalH, scaleX: 1, scaleY: 1 });
       hitArea.setCoords();
     }
