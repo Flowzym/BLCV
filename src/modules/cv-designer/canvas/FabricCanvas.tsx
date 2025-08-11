@@ -114,6 +114,9 @@ export default function FabricCanvas() {
     usedAlt: false,
   });
   const nudgeTimerRef = useRef<any>(null);
+  const roRef = useRef<ResizeObserver|null>(null);
+  const lastSizeRef = useRef<{cw:number; ch:number}>({cw: PAGE_W, ch: PAGE_H});
+  const lastSavedViewRef = useRef<{zoom:number; tx:number; ty:number; t:number}>({ zoom: 1, tx: 0, ty: 0, t: 0 });
   const viewRef = useRef<{ zoom: number; tx: number; ty: number }>({ zoom: 1, tx: 0, ty: 0 });
   const panRef = useRef<{ isPanning: boolean; startX: number; startY: number; startTx: number; startTy: number }>({ isPanning: false, startX: 0, startY: 0, startTx: 0, startTy: 0 });
   const spaceDownRef = useRef<boolean>(false);
@@ -129,13 +132,24 @@ export default function FabricCanvas() {
   const setViewport = (canvas: any, zoom: number, tx: number, ty: number) => {
     const vt = (canvas.viewportTransform || [1,0,0,1,0,0]) as any;
     vt[0] = zoom; vt[3] = zoom; vt[4] = tx; vt[5] = ty;
-    canvas.setViewportTransform(vt);
-    viewRef.current = { zoom, tx, ty };
-    try {
-      const st = (useDesignerStore as any).getState?.();
-      if (st?.rememberView) st.setLastView({ zoom, tx, ty });
-    } catch {}
-  };
+      canvas.setViewportTransform(vt);
+  viewRef.current = { zoom, tx, ty };
+  try {
+    const st = (useDesignerStore as any).getState?.();
+    if (st?.rememberView && typeof st.setLastView === 'function') {
+      const now = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+      const prev = lastSavedViewRef.current || { zoom: 0, tx: 0, ty: 0, t: 0 };
+      const dz = Math.abs((prev.zoom ?? 0) - zoom);
+      const dtx = Math.abs((prev.tx ?? 0) - tx);
+      const dty = Math.abs((prev.ty ?? 0) - ty);
+      const dt = now - (prev.t || 0);
+      if (dz > 0.001 || dtx > 0.5 || dty > 0.5 || dt > 120) {
+        st.setLastView({ zoom, tx, ty });
+        lastSavedViewRef.current = { zoom, tx, ty, t: now };
+      }
+    }
+  } catch {}
+};
 
   const clampViewport = (canvas: any, zoom: number, tx: number, ty: number) => {
     const { cw, ch } = getContainerSize();
@@ -700,33 +714,37 @@ export default function FabricCanvas() {
       
       // Make canvas match container size and center page via viewport transform
       const applyViewport = () => {
-        const el = containerRef.current;
-        if (!el) return;
-        const cw = el.clientWidth || PAGE_W;
-        const ch = el.clientHeight || PAGE_H;
-        canvas.setDimensions({ width: cw, height: ch });
-        const st = (useDesignerStore as any).getState?.();
-        const stZoom = Number(st?.zoom ?? 1);
-        const zoom = Math.max(0.1, Math.min(4, stZoom));
-        let tx = (cw - PAGE_W * zoom) / 2;
-        let ty = (ch - PAGE_H * zoom) / 2;
-        if (st?.rememberView && st?.lastView && typeof st.lastView.zoom === 'number') {
-          const lv = st.lastView;
-          const c0 = clampViewport(canvas, lv.zoom, lv.tx, lv.ty);
-          setViewport(canvas, lv.zoom, c0.clampedTx, c0.clampedTy);
-        } else {
-          const vt = canvas.viewportTransform || [1,0,0,1,0,0];
-          vt[0] = zoom; vt[3] = zoom; vt[4] = tx; vt[5] = ty;
-          const c = clampViewport(canvas, zoom, vt[4], vt[5]);
-          setViewport(canvas, zoom, c.clampedTx, c.clampedTy);
-        }
-        canvas.requestRenderAll();
-      };
+  const el = containerRef.current;
+  if (!el) return;
+  const cw = el.clientWidth || PAGE_W;
+  const ch = el.clientHeight || PAGE_H;
+  // store last seen container size to avoid redundant work
+  const last = lastSizeRef.current;
+  if (last.cw !== cw || last.ch !== ch) {
+    lastSizeRef.current = { cw, ch };
+  }
+  // set canvas size to container size
+  canvas.setDimensions({ width: cw, height: ch });
+  const st = (useDesignerStore as any).getState?.();
+  const stZoom = Number(st?.zoom ?? 1);
+  const zoom = Math.max(0.1, Math.min(4, stZoom));
+  if (st?.rememberView && st?.lastView && typeof st.lastView.zoom === 'number') {
+    const lv = st.lastView;
+    const c0 = clampViewport(canvas, lv.zoom, lv.tx, lv.ty);
+    setViewport(canvas, lv.zoom, c0.clampedTx, c0.clampedTy);
+  } else {
+    const tx = (cw - PAGE_W * zoom) / 2;
+    const ty = (ch - PAGE_H * zoom) / 2;
+    const c = clampViewport(canvas, zoom, tx, ty);
+    setViewport(canvas, zoom, c.clampedTx, c.clampedTy);
+  }
+  canvas.requestRenderAll();
+};
       applyViewport();
 
       // ResizeObserver to keep canvas fitted
-      const ro = new ResizeObserver(() => applyViewport());
-      if (containerRef.current) ro.observe(containerRef.current);
+      roRef.current = new ResizeObserver(() => { requestAnimationFrame(() => applyViewport()); });
+      if (containerRef.current) roRef.current.observe(containerRef.current);
 
       // --- Zoom & Pan handlers ---
       // --- External commands from toolbar ---
@@ -883,7 +901,7 @@ installSectionResize(canvas);
           window.removeEventListener('bl:zoom-100' as any, onZoom100 as any);
           window.removeEventListener('bl:reset-view' as any, onResetView as any);
         } catch {}
-                try { ro.disconnect(); } catch {}
+                try { roRef.current?.disconnect(); roRef.current = null; } catch {}
 CanvasRegistry.dispose(canvasRef.current!);
         setFabricCanvas(null);
       };
