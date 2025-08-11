@@ -97,7 +97,7 @@ export default function FabricCanvas() {
   const [activeEdit, setActiveEdit] = useState<ActiveEdit>(null);
   const activeEditRef = useRef<ActiveEdit>(null);
   const lastSelectedTextboxRef = useRef<any>(null);
-  const rotateControlRef = useRef<any>(null); // <<< custom rotate control
+  const rotateControlRef = useRef<any>(null); // custom rotate control
 
   useEffect(() => {
     activeEditRef.current = activeEdit;
@@ -131,49 +131,63 @@ export default function FabricCanvas() {
       canvas.perPixelTargetFind = false;
       canvas.targetFindTolerance = 14;
 
-      // === Custom ROTATE Control: kreisförmiger Pfeil (NUR erzeugen, NICHT global setzen) ===
+      // === Custom ROTATE Control: sauberes Refresh-Icon (pro Gruppe) ===
       rotateControlRef.current = new fabric.Control({
         x: 0,
         y: -0.5,
-        offsetY: -30, // Abstand oberhalb
-        withConnection: true,
+        offsetY: -30,           // Abstand oberhalb der Top-Kante
+        withConnection: true,   // Verbindungslinie beibehalten
         actionName: "rotate",
         cursorStyleHandler: fabric.controlsUtils.rotationStyleHandler,
         actionHandler: fabric.controlsUtils.rotationWithSnapping,
-        cornerSize: 26,
+        cornerSize: 28,
         render: (ctx: CanvasRenderingContext2D, left: number, top: number, _style: any, o: any) => {
           const z = o?.canvas?.getZoom?.() || 1;
-          const size = 26 / z;
+
+          // Größen & Strichstärken zoom-sicher
+          const size = 28 / z;
           const rOuter = size / 2;
-          const line = Math.max(2 / z, 1 / z);
+          const ringW = Math.max(2 / z, 1 / z);
+          const arrowW = Math.max(2 / z, 1.5 / z);
+          const shadowBlur = 2 / z;
 
           ctx.save();
           ctx.translate(left, top);
 
-          // runder Button (weiß gefüllt, oranger Rand)
+          // subtile Schattenkante
+          ctx.shadowColor = "rgba(0,0,0,0.08)";
+          ctx.shadowBlur = shadowBlur;
+          ctx.shadowOffsetX = 0;
+          ctx.shadowOffsetY = 0;
+
+          // runder Button
           ctx.beginPath();
           ctx.arc(0, 0, rOuter, 0, Math.PI * 2);
           ctx.fillStyle = "#ffffff";
           ctx.fill();
-          ctx.lineWidth = line;
+
+          // orangener Ring
+          ctx.lineWidth = ringW;
           ctx.strokeStyle = SELECT_COLOR;
           ctx.stroke();
 
-          // kreisförmiger Pfeil
-          const r = rOuter - 4 / z;
-          const start = -Math.PI * 0.25;
-          const end = start + Math.PI * 1.3;
+          // innerer Refresh-Bogen
+          ctx.shadowColor = "transparent";
+          const r = rOuter - 6 / z;
+          const start = -Math.PI * 0.35;     // ~ -63°
+          const end = start + Math.PI * 1.6; // ~ 288°
           ctx.beginPath();
           ctx.arc(0, 0, r, start, end);
-          ctx.lineWidth = line;
+          ctx.lineWidth = arrowW;
+          ctx.lineCap = "round";
           ctx.strokeStyle = SELECT_COLOR;
           ctx.stroke();
 
-          // Pfeilspitze
+          // Pfeilspitze am Ende (kleine Keilform)
           const ax = r * Math.cos(end);
           const ay = r * Math.sin(end);
-          const ah = 6 / z;
-          const aw = 4 / z;
+          const ah = 6 / z; // länge
+          const aw = 4 / z; // breite
           ctx.beginPath();
           ctx.moveTo(ax, ay);
           ctx.lineTo(ax - ah, ay - aw);
@@ -304,7 +318,7 @@ export default function FabricCanvas() {
 
       // Sofortiges Verstecken der Hover-Outline (ohne Delay)
       const hideHoverNow = () => {
-        hoverOutline.set({ visible: false });
+        (canvas as any).__hoverOutline?.set({ visible: false });
         canvas.requestRenderAll();
       };
 
@@ -319,10 +333,9 @@ export default function FabricCanvas() {
 
           if (!isSameAsSelected) {
             const rect = withOutsetSym(canvas, getTextboxCanvasRect(tb), 0);
-            hoverOutline.set({ ...rect, visible: true, opacity: 1 });
-            bringObjectToFront(canvas, hoverOutline);
-            // Cursor NUR bei Text setzen
-            canvas.setCursor("text");
+            (canvas as any).__hoverOutline.set({ ...rect, visible: true, opacity: 1 });
+            bringObjectToFront(canvas, (canvas as any).__hoverOutline);
+            canvas.setCursor("text"); // Cursor NUR bei Text
             canvas.requestRenderAll();
             return;
           }
@@ -351,9 +364,15 @@ export default function FabricCanvas() {
           grp.lockMovementX = false;
           grp.lockMovementY = false;
           grp.hasControls = true;
-          // Orange Akzente für den Gruppenrahmen
           grp.borderColor = SELECT_COLOR;
           grp.cornerColor = SELECT_COLOR;
+          // >>> custom rotate-control pro Gruppe
+          const rc = rotateControlRef.current;
+          if (rc) {
+            const baseControls = (fabricNamespace.Object as any)?.prototype?.controls;
+            if (!(grp as any).controls) (grp as any).controls = baseControls ? { ...baseControls } : {};
+            (grp as any).controls.mtr = rc;
+          }
           canvas.requestRenderAll();
           return;
         }
@@ -561,14 +580,11 @@ export default function FabricCanvas() {
         moveCursor: "move",
       }) as any;
 
-      // <<< Custom rotate control pro Gruppe zuweisen (keine globale Mutation)
+      // custom rotate control pro Gruppe setzen
       const rc = rotateControlRef.current;
       if (rc) {
-        // Controls-Objekt sicherstellen
         const baseControls = (fabricNamespace.Object as any)?.prototype?.controls;
-        if (!(sectionGroup as any).controls) {
-          (sectionGroup as any).controls = baseControls ? { ...baseControls } : {};
-        }
+        if (!(sectionGroup as any).controls) (sectionGroup as any).controls = baseControls ? { ...baseControls } : {};
         (sectionGroup as any).controls.mtr = rc;
       }
 
