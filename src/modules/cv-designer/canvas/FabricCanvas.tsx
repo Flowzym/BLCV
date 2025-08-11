@@ -9,10 +9,14 @@ const PAGE_W = 595;
 const PAGE_H = 842;
 
 // optische Abstände der Outlines – bleiben visuell konstant über Zoom
-const OUTSET_PX = 2;         // zusätzlicher Außenrand um die Outline
-const SELECT_STROKE = 2;     // px
-const HOVER_STROKE = 1.5;    // px
-const HOVER_HIDE_MS = 120;   // weiches Ausblenden
+const OUTSET_PX = 2;           // Basis-Außenrand für Hover
+const SELECT_STROKE = 2;       // px
+const HOVER_STROKE = 1.5;      // px
+const HOVER_HIDE_MS = 120;     // weiches Ausblenden
+
+// Asymmetrischer Outset nur für die SELECTED-Outline (Option 2)
+// Links etwas mehr Luft als oben/rechts/unten
+const SELECT_OUTSET = { l: 4, t: 2, r: 2, b: 2 } as const;
 
 type SectionKind = "experience" | "education" | "profile" | "skills" | "softskills" | "contact";
 
@@ -47,8 +51,12 @@ function getTextboxCanvasRect(tb: any) {
   };
 }
 
-// Outset für Outlines – m skaliert gegen den Zoom, damit der optische Abstand konstant bleibt
-function withOutset(canvas: any, rect: { left: number; top: number; width: number; height: number }, extra = 0) {
+// Symmetrischer Outset (für Hover)
+function withOutsetSym(
+  canvas: any,
+  rect: { left: number; top: number; width: number; height: number },
+  extra = 0
+) {
   const z = typeof canvas?.getZoom === "function" ? canvas.getZoom() : 1;
   const m = (OUTSET_PX + extra) / Math.max(z, 0.0001);
   return {
@@ -56,6 +64,25 @@ function withOutset(canvas: any, rect: { left: number; top: number; width: numbe
     top: rect.top - m,
     width: rect.width + 2 * m,
     height: rect.height + 2 * m,
+  };
+}
+
+// Asymmetrischer Outset (für Selected)
+function withOutsetSides(
+  canvas: any,
+  rect: { left: number; top: number; width: number; height: number },
+  sides: { l: number; t: number; r: number; b: number }
+) {
+  const z = typeof canvas?.getZoom === "function" ? canvas.getZoom() : 1;
+  const ml = sides.l / Math.max(z, 0.0001);
+  const mt = sides.t / Math.max(z, 0.0001);
+  const mr = sides.r / Math.max(z, 0.0001);
+  const mb = sides.b / Math.max(z, 0.0001);
+  return {
+    left: rect.left - ml,
+    top: rect.top - mt,
+    width: rect.width + ml + mr,
+    height: rect.height + mt + mb,
   };
 }
 
@@ -190,7 +217,7 @@ export default function FabricCanvas() {
       const UPDATE_SELECTED_MARKER = () => {
         if (!activeEditRef.current || !activeEditRef.current.textbox) return;
         const tb = activeEditRef.current.textbox;
-        const rect = withOutset(canvas, getTextboxCanvasRect(tb), 0);
+        const rect = withOutsetSides(canvas, getTextboxCanvasRect(tb), SELECT_OUTSET);
         selectedOutline.set({ ...rect, visible: true });
         bringObjectToFront(canvas, selectedOutline);
       };
@@ -235,7 +262,7 @@ export default function FabricCanvas() {
             !!activeEditRef.current && activeEditRef.current.textbox === tb;
 
           if (!isSameAsSelected) {
-            const rect = withOutset(canvas, getTextboxCanvasRect(tb), 0);
+            const rect = withOutsetSym(canvas, getTextboxCanvasRect(tb), 0);
             hoverOutline.set({ ...rect, visible: true, opacity: 1 });
             bringObjectToFront(canvas, hoverOutline);
             canvas.setCursor("text");
@@ -505,7 +532,7 @@ export default function FabricCanvas() {
             textbox: newTb,
           });
 
-          const rect = withOutset(fabricCanvas, getTextboxCanvasRect(newTb), 0);
+          const rect = withOutsetSides(fabricCanvas, getTextboxCanvasRect(newTb), SELECT_OUTSET);
           const selectedOutline = (fabricCanvas as any).__selectedOutline;
           if (selectedOutline) selectedOutline.set({ ...rect, visible: true });
         }
