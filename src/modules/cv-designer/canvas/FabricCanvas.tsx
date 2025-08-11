@@ -735,7 +735,7 @@ export default function FabricCanvas() {
       };
 
       let mouseDown = false;
-      const onMouseDown = (ev: MouseEvent) => {
+      const onPanMouseDown = (ev: MouseEvent) => {
         if (!spaceDownRef.current) return;
         mouseDown = true;
         const vt = (canvas.viewportTransform || [1,0,0,1,0,0]) as any;
@@ -754,7 +754,7 @@ export default function FabricCanvas() {
         setViewport(canvas, z, c.clampedTx, c.clampedTy);
         canvas.requestRenderAll();
       };
-      const onMouseUp = () => {
+      const onPanMouseUp = () => {
         panRef.current.isPanning = false;
         (canvas as any).defaultCursor = "default";
       };
@@ -814,9 +814,9 @@ export default function FabricCanvas() {
 
       const upper = canvas.upperCanvasEl as HTMLCanvasElement | undefined;
       upper?.addEventListener("wheel", wheelHandler, { passive: false });
-      upper?.addEventListener("mousedown", onMouseDown);
+      upper?.addEventListener("mousedown", onPanMouseDown);
       window.addEventListener("mousemove", onPanMouseMove);
-      window.addEventListener("mouseup", onMouseUp);
+      window.addEventListener("mouseup", onPanMouseUp);
       window.addEventListener("keydown", onKeyDown);
       window.addEventListener("keyup", onKeyUp);
 installSectionResize(canvas);
@@ -835,9 +835,9 @@ installSectionResize(canvas);
         try {
           const upper = (canvas as any).upperCanvasEl as HTMLCanvasElement | undefined;
           upper?.removeEventListener("wheel", wheelHandler as any);
-          upper?.removeEventListener("mousedown", onMouseDown as any);
+          upper?.removeEventListener("mousedown", onPanMouseDown as any);
           window.removeEventListener("mousemove", onPanMouseMove as any);
-          window.removeEventListener("mouseup", onMouseUp as any);
+          window.removeEventListener("mouseup", onPanMouseUp as any);
           window.removeEventListener("keydown", onKeyDown as any);
           window.removeEventListener("keyup", onKeyUp as any);
         } catch {}
