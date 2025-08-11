@@ -1,4 +1,3 @@
-// File: src/modules/cv-designer/canvas/installSectionResize.ts
 import { fabric } from "fabric";
 import { useDesignerStore } from "../store/designerStore";
 
@@ -9,24 +8,25 @@ const num = (v: any, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
 const FUDGE_Y = 2;
 
 function persistSectionRect(sectionId: string, rect: { x: number; y: number; width: number; height: number }) {
-  // tolerant gegen unterschiedliche Store-APIs
   const st: any = (useDesignerStore as any)?.getState?.() || null;
   if (!st) return;
+  // prefer a single updater if present
   if (typeof st.updateSectionRect === "function") {
     st.updateSectionRect(sectionId, rect);
-  } else {
-    if (typeof st.setSectionPosition === "function") st.setSectionPosition(sectionId, rect.x, rect.y);
-    if (typeof st.setSectionSize === "function") st.setSectionSize(sectionId, rect.width, rect.height);
-    if (typeof st.updateSectionById === "function") st.updateSectionById(sectionId, { x: rect.x, y: rect.y, width: rect.width, height: rect.height });
+    return;
   }
-  if (typeof st.bump === "function") st.bump(); // optionaler Render-Trigger
+  // otherwise fall back to split updaters
+  if (typeof st.setSectionPosition === "function") st.setSectionPosition(sectionId, rect.x, rect.y);
+  if (typeof st.setSectionSize === "function") st.setSectionSize(sectionId, rect.width, rect.height);
+  if (typeof st.updateSectionById === "function") st.updateSectionById(sectionId, { x: rect.x, y: rect.y, width: rect.width, height: rect.height });
+  if (typeof st.bump === "function") st.bump();
 }
 
 export function installSectionResize(canvas: fabric.Canvas) {
   const layoutPass = (g: G) => {
     const newW = num(g.width) * num(g.scaleX, 1);
-    const newH = num(g.height) * num(g.scaleY, 1);
-    g.set({ width: newW, height: newH, scaleX: 1, scaleY: 1 });
+    const newH0 = num(g.height) * num(g.scaleY, 1);
+    g.set({ width: newW, height: newH0, scaleX: 1, scaleY: 1 });
 
     const padL = num(g.data?.padL, 0);
     const padR = num(g.data?.padR, 0);
@@ -38,9 +38,9 @@ export function installSectionResize(canvas: fabric.Canvas) {
     const hitArea = children.find((c) => c?.data?.isHitArea) as fabric.Rect | undefined;
     const textChildren = children.filter((c) => (c as any).type === "textbox") as (fabric.Textbox & { data?: any })[];
 
-    // Pass 1: Breite setzen + Höhe messen
+    // Pass 1: width set + height measure
     const contentWidthBase = Math.max(1, newW - padL - padR);
-    const measuredHeights: number[] = [];
+    const heights: number[] = [];
     const gaps: number[] = [];
 
     textChildren
@@ -48,33 +48,29 @@ export function installSectionResize(canvas: fabric.Canvas) {
       .forEach((tb, idx) => {
         const indentPx = num(tb.data?.indentPx, 0);
         const cw = Math.max(1, contentWidthBase - indentPx);
-
         (tb as any).set({ width: cw, scaleX: 1, scaleY: 1 });
         (tb as any)._clearCache?.();
         (tb as any).initDimensions?.();
-
         const h = (tb as any).getScaledHeight?.() ?? (tb as any).height ?? 0;
-        measuredHeights[idx] = Math.max(0, h);
+        heights[idx] = Math.max(0, h);
         gaps[idx] = num(tb.data?.gapBefore, 0);
       });
 
-    // Pass 2: Y-Stacken (lokal, ohne Rotationseinfluss)
-    let y = -newH / 2 + secPadT;
+    // Pass 2: local stacking
+    let y = -newH0 / 2 + secPadT;
     textChildren.forEach((tb, idx) => {
       const indentPx = num(tb.data?.indentPx, 0);
       const gap = gaps[idx] ?? 0;
       y += gap;
       const x = -newW / 2 + padL + indentPx;
-
       (tb as any).set({ left: x, top: y, scaleX: 1, scaleY: 1 });
       (tb as any).setCoords?.();
-
-      y += measuredHeights[idx] ?? 0;
+      y += heights[idx] ?? 0;
     });
     y += secPadB;
 
-    const minH = Math.max(num(g.data?.minHeight, 32), y - (-newH / 2));
-    const finalH = Math.max(minH + FUDGE_Y, newH);
+    const minH = Math.max(num(g.data?.minHeight, 32), y - (-newH0 / 2));
+    const finalH = Math.max(minH + FUDGE_Y, newH0);
 
     if (frame) {
       const halfW = newW / 2;
@@ -89,12 +85,17 @@ export function installSectionResize(canvas: fabric.Canvas) {
       hitArea.setCoords();
     }
 
+    g.set({ width: newW, height: finalH });
     g.setCoords();
     canvas.requestRenderAll();
 
-    // Persistieren (Größe)
+    // Persist as TOP-LEFT (store format) even though group is centered
     const sid = (g as any).sectionId || g.data?.sectionId;
-    if (sid) persistSectionRect(String(sid), { x: g.left ?? 0, y: g.top ?? 0, width: newW, height: finalH });
+    if (sid) {
+      const tlx = num(g.left, 0) - newW / 2;
+      const tly = num(g.top, 0) - finalH / 2;
+      persistSectionRect(String(sid), { x: tlx, y: tly, width: newW, height: finalH });
+    }
   };
 
   const onScaling = (e: fabric.IEvent<Event>) => {
@@ -102,9 +103,7 @@ export function installSectionResize(canvas: fabric.Canvas) {
     if (!g || g.type !== "group") return;
     const prevCache = g.objectCaching;
     g.objectCaching = false;
-
     layoutPass(g);
-
     g.objectCaching = prevCache;
   };
 
@@ -112,18 +111,18 @@ export function installSectionResize(canvas: fabric.Canvas) {
     const g = e.target as G;
     if (!g || g.type !== "group") return;
 
-    // Persistieren (Position) + Koordinaten
-    const sid = (g as any).sectionId || g.data?.sectionId;
-    if (sid) {
-      // width/height stammen bereits aus letztem layoutPass()
-      const w = num(g.width, 0);
-      const h = num(g.height, 0);
-      persistSectionRect(String(sid), { x: num(g.left, 0), y: num(g.top, 0), width: w, height: h });
-    }
-
     g.setCoords();
     (g._objects || []).forEach((ch: any) => ch?.setCoords?.());
     canvas.requestRenderAll();
+
+    const sid = (g as any).sectionId || g.data?.sectionId;
+    if (sid) {
+      const w = num(g.width, 0);
+      const h = num(g.height, 0);
+      const tlx = num(g.left, 0) - w / 2;
+      const tly = num(g.top, 0) - h / 2;
+      persistSectionRect(String(sid), { x: tlx, y: tly, width: w, height: h });
+    }
   };
 
   canvas.on("object:scaling", onScaling);
