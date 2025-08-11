@@ -298,6 +298,43 @@ export default function FabricCanvas() {
       canvas.add(badge);
 
       bringObjectToFront(canvas, hoverOutline);
+
+      // --- Content area (A4 margins) as system guide ---
+      const ensureContentRect = () => {
+        const leftM = Number((margins as any)?.left ?? 0);
+        const topM = Number((margins as any)?.top ?? 0);
+        const rightM = Number((margins as any)?.right ?? 0);
+        const bottomM = Number((margins as any)?.bottom ?? 0);
+        const w = Math.max(0, PAGE_W - leftM - rightM);
+        const h = Math.max(0, PAGE_H - topM - bottomM);
+
+        let contentRect = (canvas.getObjects() as any[]).find(o => o?.data?.__systemContentRect);
+        if (!contentRect) {
+          contentRect = new fabric.Rect({
+            left: leftM,
+            top: topM,
+            width: w,
+            height: h,
+            fill: "rgba(0,0,0,0.02)",
+            stroke: "rgba(0,0,0,0.15)",
+            strokeWidth: 1,
+            strokeDashArray: [6, 4],
+            originX: "left",
+            originY: "top",
+            selectable: false,
+            evented: false,
+            objectCaching: false,
+            strokeUniform: true,
+          }) as any;
+          (contentRect as any).data = { __system: true, __systemContentRect: true };
+          canvas.add(contentRect);
+          canvas.sendToBack?.(contentRect);
+        } else {
+          contentRect.set({ left: leftM, top: topM, width: w, height: h });
+          contentRect.setCoords();
+        }
+      };
+      ensureContentRect();
       bringObjectToFront(canvas, selectedOutline);
       bringObjectToFront(canvas, badge);
       canvas.requestRenderAll();
@@ -750,9 +787,15 @@ export default function FabricCanvas() {
       }
 
       // Gruppe
+        const secW = section.width;
+        const secH = section.height;
+        const leftM = Number((margins as any)?.left ?? 0);
+        const topM = Number((margins as any)?.top ?? 0);
+        const groupLeft = Number(section.x) + leftM + secW / 2;
+        const groupTop = Number(section.y) + topM + secH / 2;
       const sectionGroup = new fabricNamespace.Group(children, { originX: "center", originY: "center", centeredRotation: true,
-        left: section.x,
-        top: section.y,
+        left: groupLeft,
+        top: groupTop,
         selectable: true,
         evented: true,
         hasControls: true,
