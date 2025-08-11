@@ -1,9 +1,11 @@
+// src/modules/cv-designer/canvas/installSectionResize.ts
 import { fabric } from "fabric";
 
 type FObj = fabric.Object & { data?: Record<string, any> };
 type G = fabric.Group & { data?: Record<string, any>; _objects?: FObj[] };
 
 const num = (v: any, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
+const FUDGE_Y = 2; // minimaler Zuschlag gegen Clip-Artefakte
 
 export function installSectionResize(canvas: fabric.Canvas) {
   const onScaling = (e: fabric.IEvent<Event>) => {
@@ -61,7 +63,7 @@ export function installSectionResize(canvas: fabric.Canvas) {
         contentHeight += br.height;
       });
 
-    contentHeight += secPadB;
+    contentHeight += secPadB + FUDGE_Y;
 
     const minH = num(g.data?.minHeight, 32);
     const finalH = Math.max(minH, contentHeight);
