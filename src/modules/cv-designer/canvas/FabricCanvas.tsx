@@ -8,11 +8,13 @@ import TextEditorOverlay from "../ui/TextEditorOverlay";
 const PAGE_W = 595;
 const PAGE_H = 842;
 
+type SectionKind = "experience" | "education" | "profile" | "skills" | "softskills" | "contact";
+
 type ActiveEdit =
   | null
   | {
       sectionId: string;
-      sectionType: "experience" | "education" | "profile" | "skills" | "softskills" | "contact";
+      sectionType: SectionKind;
       fieldType: string;
       group: any;
       textbox: any;
@@ -34,6 +36,11 @@ export default function FabricCanvas() {
   const [fabricCanvas, setFabricCanvas] = useState<any>(null);
   const [fabricNamespace, setFabricNamespace] = useState<any>(null);
   const [activeEdit, setActiveEdit] = useState<ActiveEdit>(null);
+  const activeEditRef = useRef<ActiveEdit>(null);
+
+  useEffect(() => {
+    activeEditRef.current = activeEdit;
+  }, [activeEdit]);
 
   // Store
   const sections = useDesignerStore((s) => s.sections);
@@ -83,13 +90,13 @@ export default function FabricCanvas() {
       bringObjectToFront(canvas, hoverOutline);
       canvas.requestRenderAll();
 
-      // Hilfsfunktion: Textbox unter dem Mauszeiger finden (auch wenn Gruppe getroffen wurde)
-      const getTextboxUnderPointer = (t: any, e: any) => {
+      // Hilfsfunktion: Textbox unter Pointer finden
+      const getTextboxUnderPointer = (t: any, ev: MouseEvent) => {
         if (!t) return null;
         if (t.type === "textbox") return t;
         const grp = t.type === "group" ? t : t.group;
         if (!grp) return null;
-        const p = canvas.getPointer(e);
+        const p = canvas.getPointer(ev);
         const hit = (grp._objects || []).find((child: any) => {
           if (child.type !== "textbox") return false;
           const r = child.getBoundingRect(true, true);
@@ -98,16 +105,14 @@ export default function FabricCanvas() {
         return hit || null;
       };
 
-      // Hover (nur Text bekommt Cursor/Outline – Controls-Cursor bleibt ungestört)
+      // Hover (nur Text setzt Cursor – Fabric zeigt Resize-Cursor an den Controls)
       const onMouseMove = (e: any) => {
         const t = canvas.findTarget(e.e, true) as any;
         const tb = getTextboxUnderPointer(t, e.e);
 
-        // Outline standardmäßig verstecken
         hoverOutline.set({ visible: false });
 
         if (tb) {
-          // Outline um Textbox legen
           const c = tb.aCoords || (tb.calcACoords && tb.calcACoords());
           if (c) {
             const left = Math.min(c.tl.x, c.bl.x);
@@ -122,8 +127,6 @@ export default function FabricCanvas() {
           }
         }
 
-        // WICHTIG: keinen Cursor „move“ mehr setzen → Fabric zeigt die
-        // passenden Resize-Cursor an den Handles selbst.
         canvas.setCursor("default");
         canvas.requestRenderAll();
       };
@@ -146,7 +149,6 @@ export default function FabricCanvas() {
           return;
         }
 
-        // sonst: Gruppe selektieren (zum Verschieben/Resizen)
         const grp = t?.type === "group" ? t : t?.group;
         if (grp) {
           canvas.setActiveObject(grp);
@@ -163,7 +165,9 @@ export default function FabricCanvas() {
       canvas.on("mouse:move", onMouseMove);
       canvas.on("mouse:up", onMouseUp);
 
+      // Resize/Moves installieren (persistiert auch ins Store)
       installSectionResize(canvas);
+
       setFabricCanvas(canvas);
 
       return () => {
@@ -177,7 +181,7 @@ export default function FabricCanvas() {
     return () => { disposed = true; };
   }, []);
 
-  // Renderer: Sektionen + (nicht-blockierende) Hit-Flächen
+  // Renderer (WICHTIG: unabhängig von activeEdit, damit Auswahl kein Reset triggert)
   const renderSections = useCallback(() => {
     if (!fabricCanvas || !fabricNamespace || !sections) return;
 
@@ -185,7 +189,7 @@ export default function FabricCanvas() {
     fabricCanvas.clear();
     if (hoverOutline) { fabricCanvas.add(hoverOutline); bringObjectToFront(fabricCanvas, hoverOutline); }
 
-    let nextActive: ActiveEdit = activeEdit;
+    let nextActive: ActiveEdit = activeEditRef.current;
 
     for (const section of sections) {
       if (!section.isVisible) continue;
@@ -200,7 +204,7 @@ export default function FabricCanvas() {
       const SEC_PAD_B = Number(section.props?.paddingBottom?? 16);
       const BULLET_INDENT = Number(tokens?.bulletIndent ?? 18);
 
-      // 1) Große (nicht-evented) Hit-Area – erleichtert Greifen, blockiert keine Controls
+      // große, nicht-evented Hit-Area (blockiert keine Controls)
       const hitArea = new fabricNamespace.Rect({
         left: -section.width / 2,
         top: -section.height / 2,
@@ -209,13 +213,13 @@ export default function FabricCanvas() {
         fill: "#000000",
         opacity: 0.01,
         selectable: false,
-        evented: false,         // <— wichtig: blockiert nichts
+        evented: false,
         objectCaching: false,
       }) as any;
       hitArea.data = { type: "hitArea", isHitArea: true };
       children.push(hitArea);
 
-      // 2) Rahmen (dezent)
+      // dezenter Rahmen
       const frame = new fabricNamespace.Rect({
         left: -section.width / 2,
         top: -section.height / 2,
@@ -231,7 +235,7 @@ export default function FabricCanvas() {
       frame.data = { type: "frame", isFrame: true };
       children.push(frame);
 
-      // 3) Mapping-Textboxen
+      // Mapping-Textboxen
       for (const part of section.parts) {
         const padL = SEC_PAD_L;
         const padR = SEC_PAD_R;
@@ -304,7 +308,7 @@ export default function FabricCanvas() {
         children.push(tb);
       }
 
-      // 4) Gruppe
+      // Gruppe
       const sectionGroup = new fabricNamespace.Group(children, {
         left: section.x,
         top: section.y,
@@ -326,7 +330,6 @@ export default function FabricCanvas() {
         subTargetCheck: true,
       }) as any;
 
-      // Fixe Paddings in group.data
       sectionGroup.data = {
         sectionId: section.id,
         type: "section",
@@ -337,7 +340,7 @@ export default function FabricCanvas() {
         secPadB: SEC_PAD_B,
       };
       sectionGroup.sectionId = section.id;
-      sectionGroup.sectionType = section.sectionType;
+      sectionGroup.sectionType = section.sectionType as SectionKind;
 
       fabricCanvas.add(sectionGroup);
 
@@ -349,16 +352,17 @@ export default function FabricCanvas() {
         fabricCanvas.fire("object:modified", { target: sectionGroup } as any);
       } catch {}
 
-      // aktiven Edit auf neue Instanzen rebinden
-      if (activeEdit && activeEdit.sectionId === section.id) {
+      // Aktiven Edit auf neue Instanzen rebinden (ohne render triggern)
+      const ae = nextActive;
+      if (ae && ae.sectionId === section.id) {
         const hit = (sectionGroup._objects || []).find(
-          (o: any) => o?.type === "textbox" && o.fieldType === activeEdit.fieldType
+          (o: any) => o?.type === "textbox" && o.fieldType === ae.fieldType
         );
-        if (hit && (activeEdit.textbox !== hit || activeEdit.group !== sectionGroup)) {
+        if (hit && (ae.textbox !== hit || ae.group !== sectionGroup)) {
           nextActive = {
-            sectionId: activeEdit.sectionId,
-            sectionType: (sectionGroup as any).sectionType || "experience",
-            fieldType: activeEdit.fieldType,
+            sectionId: ae.sectionId,
+            sectionType: sectionGroup.sectionType,
+            fieldType: ae.fieldType,
             group: sectionGroup,
             textbox: hit,
           };
@@ -366,13 +370,10 @@ export default function FabricCanvas() {
       }
     }
 
-    if (nextActive && activeEdit && (nextActive.textbox !== activeEdit.textbox || nextActive.group !== activeEdit.group)) {
-      setActiveEdit(nextActive);
-    }
-
+    // kein State-Update hier → kein Re-Render
     if (hoverOutline) bringObjectToFront(fabricCanvas, hoverOutline);
     fabricCanvas.requestRenderAll();
-  }, [fabricCanvas, fabricNamespace, sections, tokens, margins, globalFieldStyles, partStyles, activeEdit]);
+  }, [fabricCanvas, fabricNamespace, sections, tokens, margins, globalFieldStyles, partStyles]);
 
   useEffect(() => {
     if (fabricCanvas && sections) renderSections();
