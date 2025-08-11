@@ -142,7 +142,7 @@ export default function FabricCanvas() {
       canvas.selection = true;
       canvas.subTargetCheck = true;
       canvas.perPixelTargetFind = false;
-      canvas.targetFindTolerance = 18; // etwas großzügiger
+      canvas.targetFindTolerance = 14;
 
       // ---- Rotate-Control (poliertes Icon) ----
       rotateControlRef.current = new fabric.Control({
@@ -300,48 +300,20 @@ export default function FabricCanvas() {
       bringObjectToFront(canvas, badge);
       canvas.requestRenderAll();
 
-      // ---------- ROTATE-AWARE HIT-TEST ----------
-      // Transformiere Pointer in Textbox-Lokalkoords und prüfe 0..w / 0..h (mit Toleranz)
-      const hitTestTextbox = (tb: any, pointer: { x: number; y: number }) => {
-        try {
-          const z = canvas.getZoom() || 1;
-          const tol = (canvas.targetFindTolerance || 0) / z;
-
-          const m = tb.calcTransformMatrix();
-          const inv = fabric.util.invertTransform(m);
-          const p = fabric.util.transformPoint(new fabric.Point(pointer.x, pointer.y), inv);
-
-          // Textbox ist mit origin left/top angelegt
-          const w = tb.width ?? (tb.getScaledWidth ? tb.getScaledWidth() / (tb.scaleX || 1) : 0);
-          const h = tb.height ?? (tb.getScaledHeight ? tb.getScaledHeight() / (tb.scaleY || 1) : 0);
-
-          return p.x >= -tol && p.y >= -tol && p.x <= (w + tol) && p.y <= (h + tol);
-        } catch {
-          // Fallback: containsPoint (falls Signatur in der Fabric-Version passt)
-          return !!tb.containsPoint?.(new fabric.Point(pointer.x, pointer.y));
-        }
-      };
-
-      // Textbox unter Maus (auch wenn Gruppe getroffen) – rotate-aware
+      // Textbox unter Maus (auch wenn Gruppe getroffen)
       const getTextboxUnderPointer = (t: any, ev: MouseEvent) => {
         if (!t) return null;
         if (t.type === "textbox") return t;
         const grp = t.type === "group" ? t : t.group;
         if (!grp) return null;
 
-        const pointer = canvas.getPointer(ev);
-
-        // WICHTIG: frische Kollision-Infos
-        grp.setCoords();
-        (grp._objects || []).forEach((o: any) => o.setCoords?.());
-
-        // von oben nach unten prüfen (zuletzt gezeichnet zuerst)
-        const arr = (grp._objects || []).slice().reverse();
-        for (const child of arr) {
-          if (child.type !== "textbox") continue;
-          if (hitTestTextbox(child, pointer)) return child;
-        }
-        return null;
+        const p = canvas.getPointer(ev);
+        const hit = (grp._objects || []).find((child: any) => {
+          if (child.type !== "textbox") return false;
+          const r = child.getBoundingRect(false, true);
+          return p.x >= r.left && p.x <= r.left + r.width && p.y >= r.top && p.y <= r.top + r.height;
+        });
+        return hit || null;
       };
 
       // --- Selection Helpers ---
@@ -364,8 +336,8 @@ export default function FabricCanvas() {
         const ae = activeEditRef.current;
         if (!ae || !ae.textbox) return;
         const { cx, cy, w, h, angle } = getOutlineFrame(canvas, ae.textbox, SELECT_OUTSET);
-        (canvas as any).__selectedOutline.set({ left: cx, top: cy, width: w, height: h, angle, visible: true });
-        bringObjectToFront(canvas, (canvas as any).__selectedOutline);
+        selectedOutline.set({ left: cx, top: cy, width: w, height: h, angle, visible: true });
+        bringObjectToFront(canvas, selectedOutline);
       };
 
       const SET_SELECTION = (tb: any) => {
@@ -386,14 +358,14 @@ export default function FabricCanvas() {
 
       const CLEAR_SELECTION = () => {
         CLEAR_BG();
-        (canvas as any).__selectedOutline.set({ visible: false });
+        selectedOutline.set({ visible: false });
         setActiveEdit(null);
         canvas.requestRenderAll();
       };
 
-      // Hover – nun rotate-aware
+      // Hover – nun ebenfalls mit Winkel
       const hideHover = () => {
-        (canvas as any).__hoverOutline.set({ visible: false });
+        hoverOutline.set({ visible: false });
         canvas.requestRenderAll();
       };
 
@@ -406,7 +378,7 @@ export default function FabricCanvas() {
             !!activeEditRef.current && activeEditRef.current.textbox === tb;
           if (!isSame) {
             const { cx, cy, w, h, angle } = getOutlineFrame(canvas, tb, OUTSET_PX);
-            (canvas as any).__hoverOutline.set({
+            hoverOutline.set({
               left: cx,
               top: cy,
               width: w,
@@ -415,7 +387,7 @@ export default function FabricCanvas() {
               visible: true,
               opacity: 1,
             });
-            bringObjectToFront(canvas, (canvas as any).__hoverOutline);
+            bringObjectToFront(canvas, hoverOutline);
             canvas.setCursor("text");
             canvas.requestRenderAll();
             return;
@@ -456,10 +428,6 @@ export default function FabricCanvas() {
           (grp as any).snapAngle = 0;
           (grp as any).snapThreshold = 0;
 
-          // Coords nach Aktivierung sicherstellen
-          grp.setCoords();
-          (grp._objects || []).forEach((o: any) => o.setCoords?.());
-
           canvas.requestRenderAll();
           return;
         }
@@ -471,7 +439,7 @@ export default function FabricCanvas() {
         if (activeEditRef.current) UPDATE_SELECTED_MARKER();
       };
 
-      // Rotation: Badge + Selected-Outline live & Coords frisch
+      // Rotation: Badge + Selected-Outline live aktualisieren
       const positionBadgeAboveHandle = (target: any) => {
         const z = canvas.getZoom() || 1;
         const br = target.getBoundingRect(false, true);
@@ -521,10 +489,6 @@ export default function FabricCanvas() {
         rotationDragRef.current.usedAlt =
           rotationDragRef.current.usedAlt || !!e.e?.altKey;
 
-        // Coords frisch halten, damit der Hit-Test stimmt
-        target.setCoords();
-        (target._objects || []).forEach((o: any) => o.setCoords?.());
-
         const altNow = !!e.e?.altKey;
         showRotationBadge(target, altNow);
 
@@ -533,17 +497,9 @@ export default function FabricCanvas() {
           const tb = activeEditRef.current.textbox;
           if (tb && tb.group === target) {
             const { cx, cy, w, h, angle } = getOutlineFrame(canvas, tb, SELECT_OUTSET);
-            (canvas as any).__selectedOutline.set({ left: cx, top: cy, width: w, height: h, angle, visible: true });
+            selectedOutline.set({ left: cx, top: cy, width: w, height: h, angle, visible: true });
           }
         }
-      };
-
-      // Beim Skalieren ebenfalls Coords aktualisieren (reliabler Hit-Test)
-      const onObjectScaling = (e: any) => {
-        const target = e?.target as any;
-        if (!target || target.type !== "group") return;
-        target.setCoords();
-        (target._objects || []).forEach((o: any) => o.setCoords?.());
       };
 
       const onObjectModified = (e: any) => {
@@ -561,7 +517,6 @@ export default function FabricCanvas() {
             if (diff <= SNAP_THRESHOLD) {
               target.angle = nearest === 360 ? 0 : nearest;
               target.setCoords();
-              (target._objects || []).forEach((o: any) => o.setCoords?.());
               canvas.requestRenderAll();
             }
           }
@@ -574,7 +529,7 @@ export default function FabricCanvas() {
       // Canvas verlassen → aufräumen
       const upperEl = canvas.upperCanvasEl as HTMLCanvasElement | undefined;
       const onDomLeave = () => {
-        (canvas as any).__hoverOutline.set({ visible: false });
+        hoverOutline.set({ visible: false });
         hideRotationBadge();
         rotationDragRef.current.isRotating = false;
         rotationDragRef.current.usedAlt = false;
@@ -583,7 +538,7 @@ export default function FabricCanvas() {
       const onMouseOut = (e: any) => {
         const t = e?.target as any;
         if (t && t.type === "textbox") {
-          (canvas as any).__hoverOutline.set({ visible: false });
+          hoverOutline.set({ visible: false });
           canvas.requestRenderAll();
         }
       };
@@ -593,7 +548,6 @@ export default function FabricCanvas() {
       canvas.on("after:render", onAfterRender);
       canvas.on("mouse:out", onMouseOut);
       canvas.on("object:rotating", onObjectRotating);
-      canvas.on("object:scaling", onObjectScaling);
       canvas.on("object:modified", onObjectModified);
       canvas.on("selection:cleared", hideRotationBadge);
       upperEl?.addEventListener("mouseleave", onDomLeave);
@@ -607,7 +561,6 @@ export default function FabricCanvas() {
         canvas.off("after:render", onAfterRender);
         canvas.off("mouse:out", onMouseOut);
         canvas.off("object:rotating", onObjectRotating);
-        canvas.off("object:scaling", onObjectScaling);
         canvas.off("object:modified", onObjectModified);
         canvas.off("selection:cleared", hideRotationBadge);
         upperEl?.removeEventListener("mouseleave", onDomLeave);
@@ -880,7 +833,6 @@ export default function FabricCanvas() {
 
       obj.angle = (obj.angle || 0) + step;
       obj.setCoords();
-      (obj._objects || []).forEach((o: any) => o.setCoords?.());
       fabricCanvas.requestRenderAll();
 
       // Badge kurz zeigen
