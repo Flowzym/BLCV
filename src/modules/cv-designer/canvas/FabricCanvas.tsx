@@ -1,4 +1,3 @@
-// File: src/modules/cv-designer/canvas/FabricCanvas.tsx
 import React, { useRef, useEffect, useState, useCallback } from "react";
 import { getFabric } from "@/lib/fabric-shim";
 import { useDesignerStore } from "../store/designerStore";
@@ -104,7 +103,7 @@ function FabricCanvas() {
           stopContextMenu: true,
           backgroundColor: "#ffffff",
         }) as any;
-        registry.canvas = canvas;
+        CanvasRegistry.setCanvas("cv-designer", canvas);
       }
 
       canvas.selection = true;
@@ -179,7 +178,7 @@ function FabricCanvas() {
         offsetY: -ROTATE_OFFSET_Y,
         withConnection: true,
         actionName: "rotate",
-        render: (ctx: CanvasRenderingContext2D, left: number, top: number, styleOverride: any, fabricObject: any) => {
+        render: (ctx: CanvasRenderingContext2D, left: number, top: number) => {
           const size = ROTATE_CORNER_SIZE;
           ctx.save();
           ctx.translate(left, top);
@@ -210,7 +209,7 @@ function FabricCanvas() {
     return () => {
       disposed = true;
     };
-  }, []);
+  }, [margins]);
 
   useEffect(() => {
     activeEditRef.current = activeEdit;
@@ -314,7 +313,7 @@ function FabricCanvas() {
     (canvas as any).__hoverOutline = hoverOutline;
     (canvas as any).__selectedOutline = selectedOutline;
 
-    const showRotationBadge = (grp: any, showAlt: boolean) => {
+    const showRotationBadge = (grp: any, _showAlt: boolean) => {
       const badge = rotationBadgeRef.current?.badge;
       const text = rotationBadgeRef.current?.text;
       const circle = rotationBadgeRef.current?.circle;
@@ -338,15 +337,43 @@ function FabricCanvas() {
     };
 
     const onObjectRotating = (e: any) => {
-        const target = e?.target as any;
-        if (!target || target.type !== "group" || target.data?.type !== "section") return;
-        rotationDragRef.current.isRotating = true;
-        rotationDragRef.current.usedAlt =
-          rotationDragRef.current.usedAlt || !!e.e?.altKey;
+      const target = e?.target as any;
+      if (!target || target.type !== "group" || target.data?.type !== "section") return;
+      rotationDragRef.current.isRotating = true;
+      rotationDragRef.current.usedAlt =
+        rotationDragRef.current.usedAlt || !!e.e?.altKey;
 
-        const altNow = !!e.e?.altKey;
-        // Live snapping while rotating (ALT disables snap)
-        if (!altNow) {
+      const altNow = !!e.e?.altKey;
+      // Live snapping while rotating (ALT disables snap)
+      if (!altNow) {
+        const a = normAngle(target.angle || 0);
+        const nearest = snapAngleToStep(a, SNAP_STEP);
+        const rawDiff = Math.abs(nearest - a);
+        const diff = Math.min(rawDiff, 360 - rawDiff);
+        if (diff <= SNAP_THRESHOLD) {
+          target.angle = nearest;
+        }
+      }
+      showRotationBadge(target, altNow);
+
+      // während der Rotation Marker mitführen
+      if (activeEditRef.current) {
+        const tb = activeEditRef.current.textbox;
+        if (tb && tb.group === target) {
+          const { cx, cy, w, h, angle } = getOutlineFrame(canvas, tb, SELECT_OUTSET);
+          selectedOutline.set({ left: cx, top: cy, width: w, height: h, angle, visible: true });
+        }
+      }
+    };
+
+    const onObjectModified = (e: any) => {
+      const target = e?.target as any;
+      if (rotationDragRef.current.isRotating && target && target.type === "group") {
+        const usedAlt = rotationDragRef.current.usedAlt;
+        rotationDragRef.current.isRotating = false;
+        rotationDragRef.current.usedAlt = false;
+
+        if (!usedAlt) {
           const a = normAngle(target.angle || 0);
           const nearest = snapAngleToStep(a, SNAP_STEP);
           const rawDiff = Math.abs(nearest - a);
@@ -355,124 +382,86 @@ function FabricCanvas() {
             target.angle = nearest;
           }
         }
-        showRotationBadge(target, altNow);
+        hideRotationBadge();
+      }
+    };
 
-        // während der Rotation Marker mitführen
-        if (activeEditRef.current) {
-          const tb = activeEditRef.current.textbox;
-          if (tb && tb.group === target) {
-            const { cx, cy, w, h, angle } = getOutlineFrame(canvas, tb, SELECT_OUTSET);
-            selectedOutline.set({ left: cx, top: cy, width: w, height: h, angle, visible: true });
-          }
-        }
-      };
+    const hideHover = () => {
+      hoverOutline.set({ visible: false });
+      canvas.requestRenderAll();
+    };
 
-      const onObjectModified = (e: any) => {
-        const target = e?.target as any;
-        if (rotationDragRef.current.isRotating && target && target.type === "group") {
-          const usedAlt = rotationDragRef.current.usedAlt;
-          rotationDragRef.current.isRotating = false;
-          rotationDragRef.current.usedAlt = false;
+    const getTextboxUnderPointer = (t: any, ev: MouseEvent) => {
+      if (!t) return null;
+      const grp = t.type === "group" ? t : t.group;
+      if (t.type === "textbox") return t;
+      if (!grp) return null;
 
-          if (!usedAlt) {
-            const a = normAngle(target.angle || 0);
-            const nearest = snapAngleToStep(a, SNAP_STEP);
-            const rawDiff = Math.abs(nearest - a);
-            const diff = Math.min(rawDiff, 360 - rawDiff);
-            if (diff <= SNAP_THRESHOLD) {
-              target.angle = nearest;
-            }
-          }
-          hideRotationBadge();
-        }
-      };
+      const p = canvas.getPointer(ev);
+      const pt = new fabricNamespace.Point(p.x, p.y);
 
-      const hideHover = () => {
-        hoverOutline.set({ visible: false });
-        canvas.requestRenderAll();
-      };
+      for (const child of grp._objects || []) {
+        if (!child || child.type !== "textbox") continue;
 
-      const onMouseMove = (e: any) => {
-        const t = canvas.findTarget(e.e, true) as any;
-        if (!t) {
-          hideHover();
-          return;
-        }
-
-        // Textbox-unter-Zeiger bestimmen (rotation-aware)
-        const getTextboxUnderPointer = (t: any, ev: MouseEvent) => {
-        if (!t) return null;
-        const grp = t.type === "group" ? t : t.group;
-        // If direct textbox clicked
-        if (t.type === "textbox") return t;
-        if (!grp) return null;
-
-        const p = canvas.getPointer(ev);
-        const pt = new fabricNamespace.Point(p.x, p.y);
-
-        // Prefer precise rotation-aware hit-test:
-        // 1) Use containsPoint if available (respects transforms)
-        // 2) Fallback to inverse-matrix local hit test
-        for (const child of (grp._objects || [])) {
-          if (!child || child.type !== "textbox") continue;
-
-          // Try Fabric's containsPoint (rotation-aware)
-          try {
-            if (typeof (child as any).containsPoint === "function") {
-              if ((child as any).containsPoint(pt)) return child;
-            }
-          } catch {}
-
-          // Fallback: manual local-space test via inverted transform
-          try {
-            const m = (child as any).calcTransformMatrix?.() || (child as any).transformMatrix;
-            if (m) {
-              const inv = fabricNamespace.util.invertTransform(m);
-              const lp = fabricNamespace.util.transformPoint(pt, inv);
-              const oW = (child as any).width ?? 0;
-              const oH = (child as any).height ?? 0;
-              if (lp.x >= 0 && lp.y >= 0 && lp.x <= oW && lp.y <= oH) {
-                return child;
-              }
-            }
-          } catch {}
-        }
-        return null;
-      };
-
-      // --- Selection Helpers ---
-      const CLEAR_BG = () => {
-        if (lastSelectedTextboxRef.current) {
-          try {
-            (lastSelectedTextboxRef.current as any).set({ backgroundColor: "transparent" });
-          } catch {}
-          lastSelectedTextboxRef.current = null;
-        }
-      };
-
-      const SET_BG = (tb: any) => {
-        CLEAR_BG();
         try {
-          (tb as any).set({ backgroundColor: SELECT_BG_RGBA });
-          lastSelectedTextboxRef.current = tb;
+          if (typeof (child as any).containsPoint === "function") {
+            if ((child as any).containsPoint(pt)) return child;
+          }
         } catch {}
-      };
 
-      const UPDATE_HOVER_MARKER = (tb: any) => {
-        const { cx, cy, w, h, angle } = getOutlineFrame(canvas, tb);
-        hoverOutline.set({ left: cx, top: cy, width: w, height: h, angle, visible: true });
-        bringObjectToFront(canvas, hoverOutline);
-      };
+        try {
+          const m = (child as any).calcTransformMatrix?.() || (child as any).transformMatrix;
+          if (m) {
+            const inv = fabricNamespace.util.invertTransform(m);
+            const lp = fabricNamespace.util.transformPoint(pt, inv);
+            const oW = (child as any).width ?? 0;
+            const oH = (child as any).height ?? 0;
+            if (lp.x >= 0 && lp.y >= 0 && lp.x <= oW && lp.y <= oH) {
+              return child;
+            }
+          }
+        } catch {}
+      }
+      return null;
+    };
 
-      const UPDATE_SELECTED_MARKER = (tb: any) => {
-        const { cx, cy, w, h, angle } = getOutlineFrame(canvas, tb, SELECT_OUTSET);
-        selectedOutline.set({ left: cx, top: cy, width: w, height: h, angle, visible: true });
-        bringObjectToFront(canvas, selectedOutline);
-        bringObjectToFront(canvas, badge);
-        canvas.requestRenderAll();
-      };
+    const CLEAR_BG = () => {
+      if (lastSelectedTextboxRef.current) {
+        try {
+          (lastSelectedTextboxRef.current as any).set({ backgroundColor: "transparent" });
+        } catch {}
+        lastSelectedTextboxRef.current = null;
+      }
+    };
 
-      // Hover: so lange Maus im Canvas ist
+    const SET_BG = (tb: any) => {
+      CLEAR_BG();
+      try {
+        (tb as any).set({ backgroundColor: SELECT_BG_RGBA });
+        lastSelectedTextboxRef.current = tb;
+      } catch {}
+    };
+
+    const UPDATE_HOVER_MARKER = (tb: any) => {
+      const { cx, cy, w, h, angle } = getOutlineFrame(canvas, tb);
+      hoverOutline.set({ left: cx, top: cy, width: w, height: h, angle, visible: true });
+      bringObjectToFront(canvas, hoverOutline);
+    };
+
+    const UPDATE_SELECTED_MARKER = (tb: any) => {
+      const { cx, cy, w, h, angle } = getOutlineFrame(canvas, tb, SELECT_OUTSET);
+      selectedOutline.set({ left: cx, top: cy, width: w, height: h, angle, visible: true });
+      bringObjectToFront(canvas, selectedOutline);
+      bringObjectToFront(canvas, rotationBadgeRef.current?.badge);
+      canvas.requestRenderAll();
+    };
+
+    const onMouseMove = (e: any) => {
+      const t = canvas.findTarget(e.e, true) as any;
+      if (!t) {
+        hideHover();
+        return;
+      }
       const tb = getTextboxUnderPointer(t, e.e);
       if (tb) {
         UPDATE_HOVER_MARKER(tb);
@@ -485,7 +474,29 @@ function FabricCanvas() {
       hideHover();
     };
 
-    // Klick: Text → Selection; Gruppe → aktivieren + Controls
+    const SET_SELECTION = (tb: any) => {
+      if (!tb || !tb.group) return;
+
+      SET_BG(tb);
+      UPDATE_SELECTED_MARKER(tb);
+
+      bringObjectToFront(canvas, selectedOutline);
+      bringObjectToFront(canvas, rotationBadgeRef.current?.badge);
+      canvas.requestRenderAll();
+
+      const grp = tb.group;
+      canvas.setActiveObject(grp);
+      canvas.requestRenderAll();
+
+      setActiveEdit({
+        sectionId: tb.sectionId,
+        sectionType: grp.sectionType as SectionKind,
+        fieldType: tb.fieldType,
+        group: grp,
+        textbox: tb,
+      });
+    };
+
     const onMouseUp = (e: any) => {
       const t = canvas.findTarget(e.e, true) as any;
       const tb = getTextboxUnderPointer(t, e.e);
@@ -500,30 +511,6 @@ function FabricCanvas() {
         canvas.setActiveObject(grp);
         canvas.requestRenderAll();
       }
-    };
-
-    const SET_SELECTION = (tb: any) => {
-      if (!tb || !tb.group) return;
-
-      SET_BG(tb);
-      UPDATE_SELECTED_MARKER(tb);
-
-      bringObjectToFront(canvas, selectedOutline);
-      bringObjectToFront(canvas, badge);
-      canvas.requestRenderAll();
-
-      // Textbox unter Maus aktivieren
-      const grp = tb.group;
-      canvas.setActiveObject(grp);
-      canvas.requestRenderAll();
-
-      setActiveEdit({
-        sectionId: tb.sectionId,
-        sectionType: grp.sectionType as SectionKind,
-        fieldType: tb.fieldType,
-        group: grp,
-        textbox: tb,
-      });
     };
 
     canvas.on("mouse:move", onMouseMove);
@@ -542,11 +529,6 @@ function FabricCanvas() {
       } catch {}
     });
 
-    // Seite (A4) – optional; hier nicht neu gezeichnet (Assume background white)
-
-    // Hilfsobjekte hinzufügen (bereits geschehen)
-
-    // Sektionen rendern
     if (Array.isArray(sections)) {
       sections.forEach((section: any) => {
         const SEC_PAD_L = Number(section.props?.paddingLeft ?? 24);
@@ -556,7 +538,7 @@ function FabricCanvas() {
 
         const children: any[] = [];
 
-        // HitArea (für einfaches Treffen)
+        // HitArea
         const hitArea = new fabricNamespace.Rect({
           left: -section.width / 2,
           top: -section.height / 2,
@@ -573,7 +555,7 @@ function FabricCanvas() {
         }) as any;
         (hitArea as any).data = { isHitArea: true, sectionId: section.id };
 
-        // Frame (dezenter Rand)
+        // Frame
         const frame = new fabricNamespace.Rect({
           left: -section.width / 2,
           top: -section.height / 2,
@@ -610,7 +592,7 @@ function FabricCanvas() {
 
           const indentPx = Number(loc.indentPx ?? g.indentPx ?? 0);
 
-          const contentWidth = Math.max(1, section.width - padL - padR - indentPx);
+          const contentWidth = Math.max(1, section.width - SEC_PAD_L - SEC_PAD_R - indentPx);
           const tb = new fabricNamespace.Textbox(part.text ?? "", {
             width: contentWidth,
             fontFamily: finalStyle.fontFamily,
@@ -645,9 +627,9 @@ function FabricCanvas() {
           tb.sectionId = section.id;
           tb.data = {
             fieldKey: part.id ?? `${section.id}:${part.fieldType}`,
-            padL,
-            padT,
-            padR,
+            padL: SEC_PAD_L,
+            padT: SEC_PAD_T,
+            padR: SEC_PAD_R,
             padB: SEC_PAD_B,
             indentPx,
             order: Number(part.order ?? 0),
@@ -657,7 +639,7 @@ function FabricCanvas() {
           };
 
           const halfW = section.width / 2;
-          const tlX = padL + (indentPx || 0);
+          const tlX = SEC_PAD_L + indentPx;
           const tlY = SEC_PAD_T;
           tb.set({ left: tlX - halfW, top: tlY - section.height / 2 });
           tb.setCoords();
@@ -667,32 +649,31 @@ function FabricCanvas() {
 
         // Gruppe
         const sectionGroup = new fabricNamespace.Group(children, {
-        left: section.x,
-        originX: 'center',
-        originY: 'center',
-        centeredRotation: true,
-        top: section.y,
-        selectable: true,
-        evented: true,
-        hasControls: true,
-        hasBorders: true,
-        backgroundColor: "transparent",
-        fill: "transparent",
-        lockUniScaling: false,
-        lockScalingFlip: true,
-        cornerStyle: "circle",
-        cornerSize: 14,
-        transparentCorners: false,
-        borderColor: SELECT_COLOR,
-        cornerColor: SELECT_COLOR,
-        padding: 8,
-        borderScaleFactor: 2,
-        subTargetCheck: true,
-        hoverCursor: "move",
-        moveCursor: "move",
-      }) as any;
+          left: section.x,
+          top: section.y,
+          originX: "center",
+          originY: "center",
+          centeredRotation: true,
+          selectable: true,
+          evented: true,
+          hasControls: true,
+          hasBorders: true,
+          backgroundColor: "transparent",
+          fill: "transparent",
+          lockUniScaling: false,
+          lockScalingFlip: true,
+          cornerStyle: "circle",
+          cornerSize: 14,
+          transparentCorners: false,
+          borderColor: SELECT_COLOR,
+          cornerColor: SELECT_COLOR,
+          padding: 8,
+          borderScaleFactor: 2,
+          subTargetCheck: true,
+          hoverCursor: "move",
+          moveCursor: "move",
+        }) as any;
 
-        // rotate control pro Gruppe; Snap während Drag aktiv (ALT deaktiviert via Live-Handler)
         const rc = (canvas as any).__rotateControl;
         if (rc) {
           const baseControls =
