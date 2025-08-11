@@ -60,13 +60,16 @@ function normAngle(a: number) {
   if (n < 0) n += 360;
   return n;
 }
-function snapAngleToStep(a: number, step = 45) {
-  const n = normAngle(a);
-  const k = Math.round(n / step);
-  return k * step;
+
+function snapAngleToStep(a: number, step: number) {
+  const nearest = Math.round(a / step) * step;
+  let snapped = nearest % 360;
+  if (snapped < 0) snapped += 360;
+  return snapped;
 }
 
-// width/height (ohne Rotation) plus Outset in px/zoom
+// ---- Outline-Geometrie (Variante 1: center + angle) ----
+// Liefert center (canvas-space), width/height (ohne Rotation) plus Outset in px/zoom
 function getOutlineFrame(
   canvas: any,
   tb: any,
@@ -132,20 +135,13 @@ export default function FabricCanvas() {
       if (!canvasRef.current) return;
       if (CanvasRegistry.has(canvasRef.current)) CanvasRegistry.dispose(canvasRef.current);
 
-      const canvas = new fabric.Canvas(canvasRef.current, {
-        width: PAGE_W,
-        height: PAGE_H,
-        selection: false,
-        renderOnAddRemove: false,
-        preserveObjectStacking: true,
-      });
-      CanvasRegistry.set(canvasRef.current, canvas);
+      const canvas = CanvasRegistry.getOrCreate(canvasRef.current, fabric);
+      canvas.setDimensions({ width: PAGE_W, height: PAGE_H });
+      canvas.backgroundColor = "#ffffff";
 
-      // Interaction Baseline
-      canvas.uniformScaling = false;
-      canvas.altSelectionKey = "altKey";
-      canvas.selection = false;
-      canvas.fireRightClick = false;
+      canvas.selection = true;
+      canvas.subTargetCheck = true;
+      canvas.perPixelTargetFind = false;
       canvas.targetFindTolerance = 14;
 
       // ---- Rotate-Control (poliertes Icon) ----
@@ -159,7 +155,6 @@ export default function FabricCanvas() {
         actionHandler: fabric.controlsUtils.rotationWithSnapping, // wir snappen erst beim mouseup
         cornerSize: ROTATE_CORNER_SIZE,
         render: (ctx: CanvasRenderingContext2D, left: number, top: number, _s: any, o: any) => {
-
           const z = o?.canvas?.getZoom?.() || 1;
           const size = ROTATE_CORNER_SIZE / z;
           const rOuter = size / 2;
@@ -175,16 +170,15 @@ export default function FabricCanvas() {
 
           ctx.beginPath();
           ctx.arc(0, 0, rOuter, 0, Math.PI * 2);
-          ctx.fillStyle = "white";
+          ctx.fillStyle = "#ffffff";
           ctx.fill();
 
-          ctx.beginPath();
-          ctx.arc(0, 0, rOuter, 0, Math.PI * 2);
           ctx.lineWidth = ringW;
-          ctx.strokeStyle = "rgba(0,0,0,0.2)";
+          ctx.strokeStyle = SELECT_COLOR;
           ctx.stroke();
 
-          const r = rOuter - 4 / z;
+          ctx.shadowColor = "transparent";
+          const r = rOuter - 6 / z;
           const start = -Math.PI * 0.35;
           const end = start + Math.PI * 1.6;
           ctx.beginPath();
@@ -252,9 +246,91 @@ export default function FabricCanvas() {
         evented: false,
         visible: false,
         objectCaching: false,
+        excludeFromExport: true,
+        rx: 2,
+        ry: 2,
       });
       (canvas as any).__selectedOutline = selectedOutline;
       canvas.add(selectedOutline);
+
+      // ---- Rotation-Badge ----
+      const badgeText = new fabric.Text("0°", {
+        fontFamily: "Arial",
+        fontSize: 12,
+        fill: "#ffffff",
+        originX: "center",
+        originY: "center",
+        selectable: false,
+        evented: false,
+        objectCaching: false,
+        strokeUniform: true,
+      });
+      const badgeRect = new fabric.Rect({
+        width: 28,
+        height: 18,
+        rx: 8,
+        ry: 8,
+        fill: "rgba(0,0,0,0.75)",
+        stroke: "rgba(0,0,0,0.85)",
+        strokeWidth: 0.5,
+        originX: "center",
+        originY: "center",
+        selectable: false,
+        evented: false,
+        objectCaching: false,
+        strokeUniform: true,
+      });
+      const badge = new fabric.Group([badgeRect, badgeText], {
+        left: 0,
+        top: 0,
+        visible: false,
+        selectable: false,
+        evented: false,
+        excludeFromExport: true,
+        objectCaching: false,
+        originX: "center",
+        originY: "center",
+      });
+      (canvas as any).__rotationBadge = badge;
+      rotationBadgeRef.current = { badge, badgeRect, badgeText };
+      canvas.add(badge);
+
+      bringObjectToFront(canvas, hoverOutline);
+      bringObjectToFront(canvas, selectedOutline);
+      bringObjectToFront(canvas, badge);
+      canvas.requestRenderAll();
+
+      // Textbox unter Maus (auch wenn Gruppe getroffen)
+      const getTextboxUnderPointer = (t: any, ev: MouseEvent) => {
+        if (!t) return null;
+        if (t.type === "textbox") return t;
+        const grp = t.type === "group" ? t : t.group;
+        if (!grp) return null;
+
+        const p = canvas.getPointer(ev);
+        const hit = (grp._objects || []).find((child: any) => {
+          if (child.type !== "textbox") return false;
+          const r = child.getBoundingRect(false, true);
+          return p.x >= r.left && p.x <= r.left + r.width && p.y >= r.top && p.y <= r.top + r.height;
+        });
+        return hit || null;
+      };
+
+      // --- Selection Helpers ---
+      const CLEAR_BG = () => {
+        const prev = lastSelectedTextboxRef.current;
+        if (prev && !prev._disposed) {
+          prev.set({ backgroundColor: "" });
+          prev.dirty = true;
+        }
+        lastSelectedTextboxRef.current = null;
+      };
+
+      const APPLY_BG = (tb: any) => {
+        tb.set({ backgroundColor: SELECT_BG_RGBA });
+        tb.dirty = true;
+        lastSelectedTextboxRef.current = tb;
+      };
 
       const UPDATE_SELECTED_MARKER = () => {
         const ae = activeEditRef.current;
@@ -285,135 +361,6 @@ export default function FabricCanvas() {
         selectedOutline.set({ visible: false });
         setActiveEdit(null);
         canvas.requestRenderAll();
-      };
-
-      // ---- Rotation Badge (° + Free) ----
-      const badge = new fabric.Group([], {
-        visible: false,
-        selectable: false,
-        evented: false,
-        objectCaching: false,
-        strokeUniform: true,
-      });
-      const badgeRect = new fabric.Rect({
-        width: 28,
-        height: 18,
-        rx: 8,
-        ry: 8,
-        fill: "rgba(0,0,0,0.75)",
-        stroke: "rgba(0,0,0,0.85)",
-        strokeWidth: 0.5,
-        originX: "center",
-        originY: "center",
-        selectable: false,
-        evented: false,
-      });
-      const badgeText = new fabric.Textbox("0°", {
-        originX: "center",
-        originY: "center",
-        fontFamily: "Inter, Arial, sans-serif",
-        fontSize: 12,
-        fill: "white",
-        editable: false,
-        selectable: false,
-        evented: false,
-        objectCaching: false,
-      });
-      badge.addWithUpdate(badgeRect);
-      badge.addWithUpdate(badgeText);
-      (badge as any).subTargetCheck = false;
-      (badge as any).hoverCursor = "default";
-      canvas.add(badge);
-      const ref = { badge, badgeRect, badgeText };
-      rotationBadgeRef.current = ref;
-
-      const positionBadgeAboveHandle = (obj: any) => {
-        const z = canvas.getZoom() || 1;
-        const br = obj.getBoundingRect(false, true);
-        const x = br.left + br.width / 2;
-        const y =
-          br.top -
-          (ROTATE_OFFSET_Y / z + (ROTATE_CORNER_SIZE / z) / 2 + BADGE_MARGIN / z);
-        return { x, y };
-      };
-
-      const showRotationBadge = (target: any, altFree: boolean) => {
-        const ref = rotationBadgeRef.current;
-        if (!ref) return;
-        const { badge, badgeRect, badgeText } = ref;
-
-        const z = canvas.getZoom() || 1;
-        const font = 12 / z;
-        const padX = 8 / z;
-        const padY = 4 / z;
-
-        const angle = normAngle(target.angle || 0);
-        const text = `${Math.round(angle * 10) / 10}°${altFree ? " • Free" : ""}`;
-
-        badgeText.set({ text, fontSize: font });
-        (badgeText as any).initDimensions?.();
-        badgeRect.set({
-          width: (badgeText.width || 18) + padX * 2,
-          height: (badgeText.height || font) + padY * 2,
-          rx: 8 / z,
-          ry: 8 / z,
-        });
-
-        const { x, y } = positionBadgeAboveHandle(target);
-        badge.set({ left: x, top: y, visible: true });
-        bringObjectToFront(canvas, badge);
-      };
-
-      // Textbox unter Maus (rotate-aware; präzise Hit-Erkennung auch bei Winkel)
-      const getTextboxUnderPointer = (t: any, ev: MouseEvent) => {
-        if (!t) return null;
-        if (t.type === "textbox") return t;
-        const grp = t.type === "group" ? t : t.group;
-        if (!grp) return null;
-
-        const p = canvas.getPointer(ev);
-
-        // Punkt-in-Polygon-Test für jede Textbox anhand ihrer aCoords (tl,tr,br,bl)
-        const pointInQuad = (pt: {x:number;y:number}, quad: Array<{x:number;y:number}>) => {
-          // Winding-Algorithmus (konvex & konkav)
-          let inside = false;
-          for (let i = 0, j = quad.length - 1; i < quad.length; j = i++) {
-            const xi = quad[i].x, yi = quad[i].y;
-            const xj = quad[j].x, yj = quad[j].y;
-            const intersect = ((yi > pt.y) !== (yj > pt.y)) &&
-              (pt.x < (xj - xi) * (pt.y - yi) / ((yj - yi) || 1e-6) + xi);
-            if (intersect) inside = !inside;
-          }
-          return inside;
-        };
-
-        const hit = (grp._objects || []).find((child: any) => {
-          if (child.type !== "textbox") return false;
-          const ac = child.aCoords as any;
-          if (ac && ac.tl && ac.tr && ac.br && ac.bl) {
-            const quad = [ac.tl, ac.tr, ac.br, ac.bl];
-            return pointInQuad(p as any, quad as any);
-          }
-          // Fallback: axis-aligned BoundingBox
-          const r = child.getBoundingRect(true, true);
-          return p.x >= r.left && p.x <= r.left + r.width && p.y >= r.top && p.y <= r.top + r.height;
-        });
-        return hit || null;
-      };
-
-      const CLEAR_BG = () => {
-        const prev = lastSelectedTextboxRef.current;
-        if (prev && !prev._disposed) {
-          prev.set({ backgroundColor: "" });
-          prev.dirty = true;
-        }
-        lastSelectedTextboxRef.current = null;
-      };
-
-      const APPLY_BG = (tb: any) => {
-        tb.set({ backgroundColor: SELECT_BG_RGBA });
-        tb.dirty = true;
-        lastSelectedTextboxRef.current = tb;
       };
 
       // Hover – nun ebenfalls mit Winkel
@@ -460,7 +407,7 @@ export default function FabricCanvas() {
         }
 
         const grp = t?.type === "group" ? t : t?.group;
-        if (grp && grp.data?.type === "section") {
+        if (grp) {
           canvas.setActiveObject(grp);
           grp.hoverCursor = "move";
           grp.moveCursor = "move";
@@ -492,15 +439,49 @@ export default function FabricCanvas() {
         if (activeEditRef.current) UPDATE_SELECTED_MARKER();
       };
 
-      const onMouseOut = (e: any) => {
-        const t = e?.target as any;
-        if (t && t.type === "textbox") {
-          hoverOutline.set({ visible: false });
-          canvas.requestRenderAll();
-        }
+      // Rotation: Badge + Selected-Outline live aktualisieren
+      const positionBadgeAboveHandle = (target: any) => {
+        const z = canvas.getZoom() || 1;
+        const br = target.getBoundingRect(false, true);
+        const x = br.left + br.width / 2;
+        const y =
+          br.top -
+          (ROTATE_OFFSET_Y / z + (ROTATE_CORNER_SIZE / z) / 2 + BADGE_MARGIN / z);
+        return { x, y };
       };
 
-      // Rotation: Badge live + Snap am Ende (ALT = Free)
+      const showRotationBadge = (target: any, altFree: boolean) => {
+        const ref = rotationBadgeRef.current;
+        if (!ref) return;
+        const { badge, badgeRect, badgeText } = ref;
+
+        const z = canvas.getZoom() || 1;
+        const font = 12 / z;
+        const padX = 8 / z;
+        const padY = 4 / z;
+
+        const angle = normAngle(target.angle || 0);
+        const text = `${Math.round(angle * 10) / 10}°${altFree ? " • Free" : ""}`;
+
+        badgeText.set({ text, fontSize: font });
+        (badgeText as any).initDimensions?.();
+        badgeRect.set({
+          width: (badgeText.width || 18) + padX * 2,
+          height: (badgeText.height || font) + padY * 2,
+          rx: 8 / z,
+          ry: 8 / z,
+        });
+
+        const { x, y } = positionBadgeAboveHandle(target);
+        badge.set({ left: x, top: y, visible: true });
+        bringObjectToFront(canvas, badge);
+      };
+
+      const hideRotationBadge = () => {
+        rotationBadgeRef.current?.badge?.set({ visible: false });
+        canvas.requestRenderAll();
+      };
+
       const onObjectRotating = (e: any) => {
         const target = e?.target as any;
         if (!target || target.type !== "group" || target.data?.type !== "section") return;
@@ -517,8 +498,6 @@ export default function FabricCanvas() {
           if (tb && tb.group === target) {
             const { cx, cy, w, h, angle } = getOutlineFrame(canvas, tb, SELECT_OUTSET);
             selectedOutline.set({ left: cx, top: cy, width: w, height: h, angle, visible: true });
-            bringObjectToFront(canvas, selectedOutline);
-            canvas.requestRenderAll();
           }
         }
       };
@@ -556,11 +535,12 @@ export default function FabricCanvas() {
         rotationDragRef.current.usedAlt = false;
       };
 
-      const hideRotationBadge = () => {
-        const ref = rotationBadgeRef.current;
-        if (!ref) return;
-        ref.badge.set({ visible: false });
-        canvas.requestRenderAll();
+      const onMouseOut = (e: any) => {
+        const t = e?.target as any;
+        if (t && t.type === "textbox") {
+          hoverOutline.set({ visible: false });
+          canvas.requestRenderAll();
+        }
       };
 
       canvas.on("mouse:move", onMouseMove);
@@ -605,49 +585,60 @@ export default function FabricCanvas() {
     if (hoverOutline) fabricCanvas.add(hoverOutline);
     if (selectedOutline) fabricCanvas.add(selectedOutline);
     bringObjectToFront(fabricCanvas, hoverOutline);
-
-    const SEC_PAD_L = 8;
-    const SEC_PAD_R = 8;
-    const SEC_PAD_T = 6;
-    const SEC_PAD_B = 6;
+    bringObjectToFront(fabricCanvas, selectedOutline);
+    bringObjectToFront(fabricCanvas, (fabricCanvas as any).__rotationBadge);
 
     for (const section of sections) {
+      if (!section.isVisible) continue;
+      if (!Array.isArray(section.parts) || section.parts.length === 0) continue;
+
       const children: any[] = [];
 
-      // Frame + HitArea
-      const frame = new fabricNamespace.Rect({
-        left: 0, top: 0,
-        originX: "center", originY: "center",
-        width: section.width, height: section.height,
-        fill: "rgba(0,0,0,0)",
-        stroke: "rgba(0,0,0,0)",
-        selectable: false, evented: false,
-        objectCaching: false,
-      });
-      (frame as any).data = { isFrame: true };
+      const SEC_PAD_L = Number(section.props?.paddingLeft ?? 24);
+      const SEC_PAD_R = Number(section.props?.paddingRight ?? 24);
+      const SEC_PAD_T = Number(section.props?.paddingTop ?? 16);
+      const SEC_PAD_B = Number(section.props?.paddingBottom ?? 16);
+      const BULLET_INDENT = Number(tokens?.bulletIndent ?? 18);
 
+      // große unauffällige Hit-Area
       const hitArea = new fabricNamespace.Rect({
-        left: 0, top: 0,
-        originX: "center", originY: "center",
-        width: section.width, height: section.height,
-        fill: "rgba(0,0,0,0)",
-        stroke: "rgba(0,0,0,0)",
-        selectable: false, evented: false,
+        left: -section.width / 2,
+        top: -section.height / 2,
+        width: section.width,
+        height: section.height,
+        fill: "#000000",
+        opacity: 0.01,
+        selectable: false,
+        evented: false,
         objectCaching: false,
-      });
-      (hitArea as any).data = { isHitArea: true };
-
-      children.push(frame);
+      }) as any;
+      hitArea.data = { type: "hitArea", isHitArea: true };
       children.push(hitArea);
 
-      // Textparts
-      for (const part of section.parts || []) {
+      // dezenter Frame
+      const frame = new fabricNamespace.Rect({
+        left: -section.width / 2,
+        top: -section.height / 2,
+        width: section.width,
+        height: section.height,
+        fill: "rgba(0,0,0,0.02)",
+        stroke: section.props?.borderColor || "#e5e7eb",
+        strokeWidth: parseInt(section.props?.borderWidth || "1", 10),
+        selectable: false,
+        evented: false,
+        objectCaching: false,
+      }) as any;
+      frame.data = { type: "frame", isFrame: true };
+      children.push(frame);
+
+      // Mapping-Textboxen
+      for (const part of section.parts) {
         const padL = SEC_PAD_L;
         const padR = SEC_PAD_R;
-        const padT = SEC_PAD_T;
-
+        const padT = SEC_PAD_T + Number(part.gapBefore ?? 0);
+        const padB = SEC_PAD_B;
         const indentPx =
-          Number(part.indentPx ?? (part.fieldType === "bullet" ? 16 : 0));
+          Number(part.indentPx ?? (part.fieldType === "bullet" ? BULLET_INDENT : 0));
 
         const g =
           (globalFieldStyles as any)?.[section.sectionType || "experience"]?.[
@@ -658,7 +649,7 @@ export default function FabricCanvas() {
           fontFamily: loc.fontFamily ?? g.fontFamily ?? "Arial",
           fontSize: Number(loc.fontSize ?? g.fontSize ?? 12),
           color: loc.color ?? g.color ?? "#111827",
-          fontWeight: (loc.bold ?? g.bold) ? ("bold" as any) : ("normal" as any),
+          fontWeight: (loc.fontWeight ?? (g.bold ? "bold" : "normal")) as any,
           fontStyle: (loc.italic ?? g.italic) ? ("italic" as any) : ("" as any),
           lineHeight: Number(loc.lineHeight ?? g.lineHeight ?? 1.2),
           letterSpacing: Number(loc.letterSpacing ?? g.letterSpacing ?? 0),
@@ -690,25 +681,27 @@ export default function FabricCanvas() {
           hoverCursor: "text",
           moveCursor: "default",
           perPixelTargetFind: false,
+          objectCaching: false,
+          noScaleCache: true,
         }) as any;
 
+        tb.partId = part.id;
         tb.fieldType = part.fieldType;
         tb.sectionId = section.id;
         tb.data = {
-          order: Number(part.order ?? 0),
-          indentPx: indentPx,
+          fieldKey: part.id ?? `${section.id}:${part.fieldType}`,
+          padL,
+          padT,
+          padR,
+          padB,
+          indentPx,
+          flow: true,
+          order: Number.isFinite(part.order) ? part.order : 0,
           gapBefore: Number(part.gapBefore ?? 0),
+          type: "textbox",
+          lineHeight: finalStyle.lineHeight,
+          isMappingField: true,
         };
-
-        const padB = SEC_PAD_B;
-        const padL2 = SEC_PAD_L;
-        const padR2 = SEC_PAD_R;
-        const padT2 = SEC_PAD_T;
-
-        const padLFinal = padL2;
-        const padRFinal = padR2;
-        const padTFinal = padT2;
-        const padBFinal = padB;
 
         const halfW = section.width / 2;
         const tlX = padL + (indentPx || 0);
@@ -789,47 +782,136 @@ export default function FabricCanvas() {
           }
           newTb.set({ backgroundColor: SELECT_BG_RGBA });
           lastSelectedTextboxRef.current = newTb;
-          setActiveEdit({ ...ae, group: sectionGroup, textbox: newTb });
+
+          setActiveEdit({
+            sectionId: ae.sectionId,
+            sectionType: sectionGroup.sectionType,
+            fieldType: ae.fieldType,
+            group: sectionGroup,
+            textbox: newTb,
+          });
+
           const { cx, cy, w, h, angle } = getOutlineFrame(fabricCanvas, newTb, SELECT_OUTSET);
-          selectedOutline.set({ left: cx, top: cy, width: w, height: h, angle, visible: true });
-          bringObjectToFront(fabricCanvas, selectedOutline);
+          (fabricCanvas as any).__selectedOutline?.set({ left: cx, top: cy, width: w, height: h, angle, visible: true });
         }
       }
     }
 
-    // Badge oben halten
-    const ref = rotationBadgeRef.current;
-    if (ref) bringObjectToFront(fabricCanvas, ref.badge);
-
+    bringObjectToFront(fabricCanvas, (fabricCanvas as any).__hoverOutline);
+    bringObjectToFront(fabricCanvas, (fabricCanvas as any).__selectedOutline);
+    bringObjectToFront(fabricCanvas, (fabricCanvas as any).__rotationBadge);
     fabricCanvas.requestRenderAll();
-  }, [fabricCanvas, fabricNamespace, sections, globalFieldStyles, partStyles]);
+  }, [fabricCanvas, fabricNamespace, sections, tokens, margins, globalFieldStyles, partStyles]);
 
   useEffect(() => {
-    renderSections();
-  }, [renderSections, zoom, tokens, margins, sections, partStyles, globalFieldStyles]);
+    if (fabricCanvas && sections) renderSections();
+  }, [fabricCanvas, sections, renderSections]);
 
-  // Editor Overlay
-  const [overlayState, setOverlayState] = useState<ActiveEdit>(null);
-
+  // Zoom
   useEffect(() => {
-    setOverlayState(activeEdit);
-  }, [activeEdit]);
+    if (!fabricCanvas) return;
+    const safeZoom = Math.max(0.1, Math.min(4, Number(zoom || 1)));
+    fabricCanvas.setZoom(safeZoom);
+    fabricCanvas.requestRenderAll();
+  }, [fabricCanvas, zoom]);
+
+  // Keyboard-Nudging
+  useEffect(() => {
+    if (!fabricCanvas) return;
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+      const obj = fabricCanvas.getActiveObject() as any;
+      if (!obj || obj.type !== "group" || obj.data?.type !== "section") return;
+
+      e.preventDefault();
+
+      let step = 0.5;
+      if (e.shiftKey) step = 5;
+      if (e.altKey) step = 0.1;
+      if (e.key === "ArrowLeft") step = -step;
+
+      obj.angle = (obj.angle || 0) + step;
+      obj.setCoords();
+      fabricCanvas.requestRenderAll();
+
+      // Badge kurz zeigen
+      const ref = rotationBadgeRef.current;
+      if (ref) {
+        const z = fabricCanvas.getZoom() || 1;
+        const a = normAngle(obj.angle || 0);
+        const text = `${Math.round(a * 10) / 10}°`;
+        ref.badgeText.set({ text, fontSize: 12 / z });
+        (ref.badgeText as any).initDimensions?.();
+        ref.badgeRect.set({
+          width: (ref.badgeText.width || 18) + (8 / z) * 2,
+          height: (ref.badgeText.height || 12 / z) + (4 / z) * 2,
+          rx: 8 / z,
+          ry: 8 / z,
+        });
+        const br = obj.getBoundingRect(false, true);
+        const x = br.left + br.width / 2;
+        const y =
+          br.top -
+          (ROTATE_OFFSET_Y / z + (ROTATE_CORNER_SIZE / z) / 2 + BADGE_MARGIN / z);
+        ref.badge.set({ left: x, top: y, visible: true });
+        bringObjectToFront(fabricCanvas, ref.badge);
+        fabricCanvas.requestRenderAll();
+      }
+
+      clearTimeout(nudgeTimerRef.current);
+      nudgeTimerRef.current = setTimeout(() => {
+        rotationBadgeRef.current?.badge?.set({ visible: false });
+        fabricCanvas.requestRenderAll();
+      }, 800);
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [fabricCanvas]);
+
+  // ESC → Overlay schließen
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        const selectedOutline = (fabricCanvas as any)?.__selectedOutline;
+        if (selectedOutline) selectedOutline.set({ visible: false });
+        if (lastSelectedTextboxRef.current) {
+          lastSelectedTextboxRef.current.set({ backgroundColor: "" });
+          lastSelectedTextboxRef.current = null;
+        }
+        (fabricCanvas as any)?.__rotationBadge?.set({ visible: false });
+        setActiveEdit(null);
+        fabricCanvas?.requestRenderAll();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [fabricCanvas]);
 
   return (
-    <div ref={containerRef} className="relative w-full h-full overflow-auto bg-neutral-50">
-      <div className="mx-auto my-6 shadow-xl border rounded bg-white" style={{ width: PAGE_W, height: PAGE_H }}>
-        <canvas ref={canvasRef} />
-      </div>
-
-      {overlayState && containerRef.current && (
+    <div ref={containerRef} style={{ width: PAGE_W, height: PAGE_H, position: "relative" }}>
+      <canvas ref={canvasRef} />
+      {fabricCanvas && activeEdit && containerRef.current && (
         <TextEditorOverlay
           canvas={fabricCanvas}
           containerEl={containerRef.current}
-          group={overlayState.group}
-          textbox={overlayState.textbox}
-          sectionId={overlayState.sectionId}
-          sectionType={overlayState.sectionType}
-          fieldType={overlayState.fieldType}
+          group={activeEdit.group}
+          textbox={activeEdit.textbox}
+          sectionId={activeEdit.sectionId}
+          sectionType={activeEdit.sectionType}
+          fieldType={activeEdit.fieldType}
+          onClose={() => {
+            const selectedOutline = (fabricCanvas as any)?.__selectedOutline;
+            if (selectedOutline) selectedOutline.set({ visible: false });
+            if (lastSelectedTextboxRef.current) {
+              lastSelectedTextboxRef.current.set({ backgroundColor: "" });
+              lastSelectedTextboxRef.current = null;
+            }
+            (fabricCanvas as any)?.__rotationBadge?.set({ visible: false });
+            setActiveEdit(null);
+            fabricCanvas?.requestRenderAll();
+          }}
         />
       )}
     </div>
