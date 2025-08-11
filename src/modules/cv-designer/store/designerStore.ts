@@ -85,6 +85,9 @@ export interface Tokens {
 }
 
 export interface DesignerState {
+  /** persist view transform between sessions */
+  rememberView: boolean;
+  lastView: { zoom: number; tx: number; ty: number } | null;
   sections: CVSectionWithParts[];
   version: number;
   selectedIds: string[];
@@ -102,6 +105,8 @@ export interface DesignerState {
   setSections(s: CVSectionWithParts[]): void;
   bump(): void;
   setZoom(v:number): void;
+  setRememberView(v:boolean): void;
+  setLastView(v:{ zoom:number; tx:number; ty:number }|null): void;
   setSnapSize(v:number): void;
   setMargins(p: Partial<DesignerState["margins"]>): void;
   setTokens(p: Partial<Tokens>): void;
@@ -151,6 +156,8 @@ export const useDesignerStore = create<DesignerState>()(
       margins: { top:36, right:36, bottom:36, left:36 },
       snapSize: 20,
       zoom: 1,
+      rememberView: true,
+      lastView: null,
       tokens: DEFAULT_TOKENS,
       partStyles: {},
       globalFieldStyles: {
@@ -181,6 +188,8 @@ export const useDesignerStore = create<DesignerState>()(
         return { version: newVersion };
       }),
       setZoom:(v)=>set({ zoom: Math.max(0.25, Math.min(4, v)) }),
+      setRememberView:(v:boolean)=>set({ rememberView: !!v }),
+      setLastView:(v)=>set({ lastView: v }),
       setSnapSize:(v)=>set({ snapSize: Math.max(1, Math.min(200, v)) }),
       setMargins:(p)=>set((s)=>({ margins: { ...s.margins, ...p }})),
       setTokens:(p)=>set((s)=>({ tokens: { ...s.tokens, ...p }})),
