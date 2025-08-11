@@ -5,7 +5,7 @@ import CanvasRegistry from "./canvasRegistry";
 import { installSectionResize } from "./installSectionResize";
 import TextEditorOverlay from "../ui/TextEditorOverlay";
 
-const PAGE_W = 595;
+const PAGE_W = 595; // A4 @ 72dpi
 const PAGE_H = 842;
 
 // optische Abstände – konstant über Zoom
@@ -62,7 +62,7 @@ function FabricCanvas() {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [fabricCanvas, setFabricCanvas] = useState<any>(null);
-  const [fabricNamespace, setFabricNamespace] = useState<any>(null);
+  const [fabricNS, setFabricNS] = useState<any>(null);
   const [activeEdit, setActiveEdit] = useState<ActiveEdit>(null);
   const activeEditRef = useRef<ActiveEdit>(null);
   const lastSelectedTextboxRef = useRef<any>(null);
@@ -88,10 +88,12 @@ function FabricCanvas() {
       const fabric = await getFabric();
       if (disposed) return;
 
-      setFabricNamespace(fabric);
+      setFabricNS(fabric);
 
       const registry = CanvasRegistry.getOrCreate("cv-designer");
       let canvas = registry.canvas as any;
+
+      // Canvas erzeugen (einmalig)
       if (!canvas) {
         canvas = new fabric.Canvas(canvasRef.current, {
           width: PAGE_W + (margins?.left ?? 0) + (margins?.right ?? 0),
@@ -114,9 +116,11 @@ function FabricCanvas() {
       canvas.targetFindTolerance = 14;
       canvas.subTargetCheck = true;
 
-      // --- Rotate Control (custom MTR with badge space) ---
-      const { fabric: fabricNS } = { fabric };
-      const circle = new fabricNS.Circle({
+      // Resize/Layout Installer aktivieren (fehlte)
+      installSectionResize(canvas);
+
+      // --- Rotate Control + Badge ---
+      const circle = new fabric.Circle({
         radius: ROTATE_CORNER_SIZE / 2,
         fill: SELECT_COLOR,
         stroke: SELECT_COLOR,
@@ -128,7 +132,7 @@ function FabricCanvas() {
         objectCaching: false,
         strokeUniform: true,
       });
-      const badgeText = new fabricNS.Text("0°", {
+      const badgeText = new fabric.Text("0°", {
         fontSize: 12,
         fill: "#000",
         originX: "center",
@@ -138,7 +142,7 @@ function FabricCanvas() {
         objectCaching: false,
         strokeUniform: true,
       });
-      const badgeRect = new fabricNS.Rect({
+      const badgeRect = new fabric.Rect({
         rx: 8,
         ry: 8,
         width: 32,
@@ -153,7 +157,7 @@ function FabricCanvas() {
         objectCaching: false,
         strokeUniform: true,
       });
-      const badge = new fabricNS.Group([badgeRect, badgeText], {
+      const badge = new fabric.Group([badgeRect, badgeText], {
         left: 0,
         top: 0,
         visible: false,
@@ -162,19 +166,17 @@ function FabricCanvas() {
         excludeFromExport: true,
         objectCaching: false,
       });
-
       (canvas as any).__rotationBadge = badge;
       (canvas as any).__badgeRect = badgeRect;
       (canvas as any).__badgeText = badgeText;
       (canvas as any).__badgeCircle = circle;
-
       canvas.add(badge);
 
-      const rotateControl = new fabricNS.Control({
+      const rotateControl = new fabric.Control({
         x: 0,
         y: -0.5,
         cursorStyle: "crosshair",
-        actionHandler: fabricNS.controlsUtils.rotationWithSnapping,
+        actionHandler: fabric.controlsUtils.rotationWithSnapping,
         offsetY: -ROTATE_OFFSET_Y,
         withConnection: true,
         actionName: "rotate",
@@ -192,9 +194,30 @@ function FabricCanvas() {
       (rotateControl as any).sizeX = ROTATE_CORNER_SIZE;
       (rotateControl as any).sizeY = ROTATE_CORNER_SIZE;
       (rotateControl as any).offsetY = -ROTATE_OFFSET_Y;
-
       (canvas as any).__rotateControl = rotateControl;
-      rotationBadgeRef.current = { badge, circle, text: badgeText };
+
+      // --- A4-Seite als Systemobjekt (bleibt immer sichtbar) ---
+      const hasPage = canvas.getObjects().some((o: any) => o?.data?.__systemPage === true);
+      if (!hasPage) {
+        const page = new fabric.Rect({
+          left: 0,
+          top: 0,
+          width: PAGE_W,
+          height: PAGE_H,
+          fill: "#ffffff",
+          stroke: "rgba(0,0,0,0.08)",
+          strokeWidth: 1,
+          originX: "left",
+          originY: "top",
+          selectable: false,
+          evented: false,
+          objectCaching: false,
+          strokeUniform: true,
+        }) as any;
+        (page as any).data = { __system: true, __systemPage: true };
+        canvas.add(page);
+        canvas.sendToBack(page);
+      }
 
       setFabricCanvas(canvas);
 
@@ -254,11 +277,12 @@ function FabricCanvas() {
   };
 
   const renderSections = useCallback(() => {
-    if (!fabricCanvas || !fabricNamespace) return;
+    if (!fabricCanvas || !fabricNS) return;
 
     const canvas: any = fabricCanvas;
-    const fabric: any = fabricNamespace;
+    const fabric: any = fabricNS;
 
+    // Event-Reset
     canvas.off("mouse:move");
     canvas.off("mouse:up");
     canvas.off("after:render");
@@ -391,6 +415,7 @@ function FabricCanvas() {
       canvas.requestRenderAll();
     };
 
+    // Rotation-aware Hit-Test
     const getTextboxUnderPointer = (t: any, ev: MouseEvent) => {
       if (!t) return null;
       const grp = t.type === "group" ? t : t.group;
@@ -398,7 +423,7 @@ function FabricCanvas() {
       if (!grp) return null;
 
       const p = canvas.getPointer(ev);
-      const pt = new fabricNamespace.Point(p.x, p.y);
+      const pt = new fabric.Point(p.x, p.y);
 
       for (const child of grp._objects || []) {
         if (!child || child.type !== "textbox") continue;
@@ -412,8 +437,8 @@ function FabricCanvas() {
         try {
           const m = (child as any).calcTransformMatrix?.() || (child as any).transformMatrix;
           if (m) {
-            const inv = fabricNamespace.util.invertTransform(m);
-            const lp = fabricNamespace.util.transformPoint(pt, inv);
+            const inv = fabric.util.invertTransform(m);
+            const lp = fabric.util.transformPoint(pt, inv);
             const oW = (child as any).width ?? 0;
             const oH = (child as any).height ?? 0;
             if (lp.x >= 0 && lp.y >= 0 && lp.x <= oW && lp.y <= oH) {
@@ -522,28 +547,38 @@ function FabricCanvas() {
     canvas.on("selection:cleared", hideRotationBadge);
     upperEl?.addEventListener("mouseleave", onMouseOut);
 
-    // --- Render actual Sections ---
+    // --- Bestehende Objekte (nicht System) räumen ---
     canvas.getObjects().forEach((o: any) => {
       try {
-        if (o && !o.excludeFromExport && !o.data?.__system) canvas.remove(o);
+        if (o && !o.data?.__system) canvas.remove(o);
       } catch {}
     });
 
-    if (Array.isArray(sections)) {
+    // --- Sektionen rendern ---
+    const SEC_FALLBACK_W = 460;
+    const SEC_FALLBACK_H = 180;
+
+    if (!Array.isArray(sections) || sections.length === 0) {
+      // Nichts zu rendern → A4 bleibt sichtbar; kein Fehler
+      DBG("sections empty → showing page only");
+    } else {
       sections.forEach((section: any) => {
         const SEC_PAD_L = Number(section.props?.paddingLeft ?? 24);
         const SEC_PAD_R = Number(section.props?.paddingRight ?? 24);
         const SEC_PAD_T = Number(section.props?.paddingTop ?? 16);
         const SEC_PAD_B = Number(section.props?.paddingBottom ?? 16);
 
+        const secW = Number.isFinite(section.width) ? Number(section.width) : SEC_FALLBACK_W;
+        const secH = Number.isFinite(section.height) ? Number(section.height) : SEC_FALLBACK_H;
+
         const children: any[] = [];
 
         // HitArea
-        const hitArea = new fabricNamespace.Rect({
-          left: -section.width / 2,
-          top: -section.height / 2,
-          width: section.width,
-          height: section.height,
+        const hitArea = new fabric.Rect({
+          left: -secW / 2,
+          top: -secH / 2,
+          width: secW,
+          height: secH,
           fill: "rgba(0,0,0,0.001)",
           stroke: "transparent",
           strokeWidth: 0,
@@ -556,11 +591,11 @@ function FabricCanvas() {
         (hitArea as any).data = { isHitArea: true, sectionId: section.id };
 
         // Frame
-        const frame = new fabricNamespace.Rect({
-          left: -section.width / 2,
-          top: -section.height / 2,
-          width: section.width,
-          height: section.height,
+        const frame = new fabric.Rect({
+          left: -secW / 2,
+          top: -secH / 2,
+          width: secW,
+          height: secH,
           fill: "transparent",
           stroke: "rgba(0,0,0,0.08)",
           strokeWidth: 1,
@@ -591,9 +626,9 @@ function FabricCanvas() {
           };
 
           const indentPx = Number(loc.indentPx ?? g.indentPx ?? 0);
+          const contentWidth = Math.max(1, secW - SEC_PAD_L - SEC_PAD_R - indentPx);
 
-          const contentWidth = Math.max(1, section.width - SEC_PAD_L - SEC_PAD_R - indentPx);
-          const tb = new fabricNamespace.Textbox(part.text ?? "", {
+          const tb = new fabric.Textbox(part.text ?? "", {
             width: contentWidth,
             fontFamily: finalStyle.fontFamily,
             fontSize: finalStyle.fontSize,
@@ -638,19 +673,18 @@ function FabricCanvas() {
             isMappingField: true,
           };
 
-          const halfW = section.width / 2;
           const tlX = SEC_PAD_L + indentPx;
           const tlY = SEC_PAD_T;
-          tb.set({ left: tlX - halfW, top: tlY - section.height / 2 });
+          tb.set({ left: tlX - secW / 2, top: tlY - secH / 2 });
           tb.setCoords();
 
           children.push(tb);
         }
 
         // Gruppe
-        const sectionGroup = new fabricNamespace.Group(children, {
-          left: section.x,
-          top: section.y,
+        const sectionGroup = new fabric.Group(children, {
+          left: Number.isFinite(section.x) ? Number(section.x) : 60 + secW / 2,
+          top: Number.isFinite(section.y) ? Number(section.y) : 60 + secH / 2,
           originX: "center",
           originY: "center",
           centeredRotation: true,
@@ -677,7 +711,7 @@ function FabricCanvas() {
         const rc = (canvas as any).__rotateControl;
         if (rc) {
           const baseControls =
-            (fabricNamespace.Object as any)?.prototype?.controls || {};
+            (fabric.Object as any)?.prototype?.controls || {};
           if (!(sectionGroup as any).controls)
             (sectionGroup as any).controls = { ...baseControls };
           (sectionGroup as any).controls.mtr = rc;
@@ -699,7 +733,7 @@ function FabricCanvas() {
 
         canvas.add(sectionGroup);
 
-        // Initialer Reflow
+        // Initialer Reflow triggert Layout-Pass
         try {
           (sectionGroup as any).scaleX = 1;
           (sectionGroup as any).scaleY = 1;
@@ -709,15 +743,28 @@ function FabricCanvas() {
       });
     }
 
+    // Hilfsobjekte nach vorn
     bringObjectToFront(canvas, hoverOutline);
     bringObjectToFront(canvas, selectedOutline);
     bringObjectToFront(canvas, (canvas as any).__rotationBadge);
     canvas.requestRenderAll();
-  }, [fabricCanvas, fabricNamespace, sections, tokens, margins, globalFieldStyles, partStyles]);
+  }, [fabricCanvas, fabricNS, sections, tokens, margins, globalFieldStyles, partStyles]);
 
   useEffect(() => {
-    if (fabricCanvas && sections) renderSections();
+    if (fabricCanvas) {
+      // A4-Seite sicher nach hinten
+      const page = fabricCanvas.getObjects().find((o: any) => o?.data?.__systemPage);
+      if (page) fabricCanvas.sendToBack(page);
+    }
+  }, [fabricCanvas]);
+
+  useEffect(() => {
+    if (fabricCanvas) renderSections();
   }, [fabricCanvas, sections, renderSections]);
+
+  useEffect(() => {
+    activeEditRef.current = activeEdit;
+  }, [activeEdit]);
 
   return (
     <div ref={containerRef} className="relative w-full h-full">
