@@ -22,6 +22,7 @@ const SELECT_BG_RGBA = "rgba(242,148,0,0.12)";
 const SELECT_OUTSET = { l: 4, t: 2, r: 2, b: 2 } as const;
 
 // Rotation/Snap/Badge
+const GUTTER_PX = 24;
 const SNAP_STEP = 45;
 const SNAP_THRESHOLD = 6;
 const ROTATE_CORNER_SIZE = 28;
@@ -113,6 +114,61 @@ export default function FabricCanvas() {
     usedAlt: false,
   });
   const nudgeTimerRef = useRef<any>(null);
+  const viewRef = useRef<{ zoom: number; tx: number; ty: number }>({ zoom: 1, tx: 0, ty: 0 });
+  const panRef = useRef<{ isPanning: boolean; startX: number; startY: number; startTx: number; startTy: number }>({ isPanning: false, startX: 0, startY: 0, startTx: 0, startTy: 0 });
+  const spaceDownRef = useRef<boolean>(false);
+
+  const getContainerSize = () => {
+    const el = containerRef.current;
+    return {
+      cw: el?.clientWidth || PAGE_W,
+      ch: el?.clientHeight || PAGE_H,
+    };
+  };
+
+  const setViewport = (canvas: any, zoom: number, tx: number, ty: number) => {
+    const vt = (canvas.viewportTransform || [1,0,0,1,0,0]) as any;
+    vt[0] = zoom; vt[3] = zoom; vt[4] = tx; vt[5] = ty;
+    canvas.setViewportTransform(vt);
+    viewRef.current = { zoom, tx, ty };
+  };
+
+  const clampViewport = (canvas: any, zoom: number, tx: number, ty: number) => {
+    const { cw, ch } = getContainerSize();
+    const pageW = PAGE_W * zoom;
+    const pageH = PAGE_H * zoom;
+
+    // allowed range so that page stays within gutters
+    const minTx = cw - pageW - GUTTER_PX;
+    const maxTx = GUTTER_PX;
+    const minTy = ch - pageH - GUTTER_PX;
+    const maxTy = GUTTER_PX;
+
+    const clampedTx = Math.min(Math.max(tx, minTx), maxTx);
+    const clampedTy = Math.min(Math.max(ty, minTy), maxTy);
+    return { clampedTx, clampedTy };
+  };
+
+  const fitPage = (canvas: any) => {
+    const { cw, ch } = getContainerSize();
+    const zoomX = (cw - 2 * GUTTER_PX) / PAGE_W;
+    const zoomY = (ch - 2 * GUTTER_PX) / PAGE_H;
+    const zoom = Math.max(0.1, Math.min(zoomX, zoomY));
+    const tx = (cw - PAGE_W * zoom) / 2;
+    const ty = (ch - PAGE_H * zoom) / 2;
+    setViewport(canvas, zoom, tx, ty);
+    canvas.requestRenderAll();
+  };
+
+  const fitWidth = (canvas: any) => {
+    const { cw, ch } = getContainerSize();
+    const zoom = Math.max(0.1, (cw - 2 * GUTTER_PX) / PAGE_W);
+    const tx = (cw - PAGE_W * zoom) / 2;
+    const ty = (ch - PAGE_H * zoom) / 2;
+    setViewport(canvas, zoom, tx, ty);
+    canvas.requestRenderAll();
+  };
+
 
   useEffect(() => {
     activeEditRef.current = activeEdit;
@@ -641,7 +697,8 @@ export default function FabricCanvas() {
         const ty = (ch - PAGE_H * zoom) / 2;
         const vt = canvas.viewportTransform || [1,0,0,1,0,0];
         vt[0] = zoom; vt[3] = zoom; vt[4] = tx; vt[5] = ty;
-        canvas.setViewportTransform(vt as any);
+        const c = clampViewport(canvas, zoom, vt[4], vt[5]);
+        setViewport(canvas, zoom, c.clampedTx, c.clampedTy);
         canvas.requestRenderAll();
       };
       applyViewport();
@@ -649,6 +706,119 @@ export default function FabricCanvas() {
       // ResizeObserver to keep canvas fitted
       const ro = new ResizeObserver(() => applyViewport());
       if (containerRef.current) ro.observe(containerRef.current);
+
+      // --- Zoom & Pan handlers ---
+      const wheelHandler = (e: WheelEvent) => {
+        if (!(e.ctrlKey || e.metaKey)) return; // zoom only with ctrl/cmd
+        e.preventDefault();
+        const factor = 0.0015;
+        const current = (canvas.viewportTransform || [1,0,0,1,0,0]) as any;
+        const z = current[0] || 1;
+        const next = Math.max(0.1, Math.min(4, z * (1 - e.deltaY * factor)));
+
+        // Try fabric's zoomToPoint if available
+        const pt = new (fabric as any).Point(e.offsetX, e.offsetY);
+        if (typeof (canvas as any).zoomToPoint === "function") {
+          (canvas as any).zoomToPoint(pt, next);
+        } else {
+          // manual: keep mouse position stable
+          const cx = e.offsetX;
+          const cy = e.offsetY;
+          const tx = cx - (cx - current[4]) * (next / z);
+          const ty = cy - (cy - current[5]) * (next / z);
+          setViewport(canvas, next, tx, ty);
+        }
+        const vt = (canvas.viewportTransform || [1,0,0,1,0,0]) as any;
+        const c = clampViewport(canvas, next, vt[4], vt[5]);
+        setViewport(canvas, next, c.clampedTx, c.clampedTy);
+        canvas.requestRenderAll();
+      };
+
+      let mouseDown = false;
+      const onMouseDown = (ev: MouseEvent) => {
+        if (!spaceDownRef.current) return;
+        mouseDown = true;
+        const vt = (canvas.viewportTransform || [1,0,0,1,0,0]) as any;
+        panRef.current = { isPanning: true, startX: ev.clientX, startY: ev.clientY, startTx: vt[4] || 0, startTy: vt[5] || 0 };
+        (canvas as any).defaultCursor = "grabbing";
+      };
+      const onMouseMove = (ev: MouseEvent) => {
+        if (!panRef.current.isPanning) return;
+        const dx = ev.clientX - panRef.current.startX;
+        const dy = ev.clientY - panRef.current.startY;
+        const vt = (canvas.viewportTransform || [1,0,0,1,0,0]) as any;
+        const z = vt[0] || 1;
+        let tx = panRef.current.startTx + dx;
+        let ty = panRef.current.startTy + dy;
+        const c = clampViewport(canvas, z, tx, ty);
+        setViewport(canvas, z, c.clampedTx, c.clampedTy);
+        canvas.requestRenderAll();
+      };
+      const onMouseUp = () => {
+        panRef.current.isPanning = false;
+        (canvas as any).defaultCursor = "default";
+      };
+
+      const onKeyDown = (ev: KeyboardEvent) => {
+        const tag = (document.activeElement as HTMLElement | null)?.tagName?.toLowerCase() || "";
+        const editing = ["input","textarea","select"].includes(tag);
+        if (!editing && ev.code === "Space") {
+          spaceDownRef.current = true;
+          (canvas as any).defaultCursor = "grab";
+        }
+
+        // Presets
+        if (!editing && (ev.ctrlKey || ev.metaKey)) {
+          if (ev.key === "0") { ev.preventDefault(); fitPage(canvas); }
+          if (ev.key === "1") { ev.preventDefault();
+            const { cw, ch } = getContainerSize();
+            const z = 1;
+            const tx = (cw - PAGE_W * z) / 2;
+            const ty = (ch - PAGE_H * z) / 2;
+            setViewport(canvas, z, tx, ty); canvas.requestRenderAll();
+          }
+          if (ev.key === "2") { ev.preventDefault(); fitWidth(canvas); }
+          if (ev.key === "+" || ev.key === "=") {
+            ev.preventDefault();
+            const vt = (canvas.viewportTransform || [1,0,0,1,0,0]) as any;
+            const z = vt[0] || 1;
+            const next = Math.min(4, z * 1.1);
+            const { cw, ch } = getContainerSize();
+            const center = new (fabric as any).Point(cw/2, ch/2);
+            if (typeof (canvas as any).zoomToPoint === "function") (canvas as any).zoomToPoint(center, next);
+            const v2 = (canvas.viewportTransform || [1,0,0,1,0,0]) as any;
+            const c = clampViewport(canvas, next, v2[4], v2[5]); setViewport(canvas, next, c.clampedTx, c.clampedTy);
+            canvas.requestRenderAll();
+          }
+          if (ev.key === "-" || ev.key === "_") {
+            ev.preventDefault();
+            const vt = (canvas.viewportTransform || [1,0,0,1,0,0]) as any;
+            const z = vt[0] || 1;
+            const next = Math.max(0.1, z / 1.1);
+            const { cw, ch } = getContainerSize();
+            const center = new (fabric as any).Point(cw/2, ch/2);
+            if (typeof (canvas as any).zoomToPoint === "function") (canvas as any).zoomToPoint(center, next);
+            const v2 = (canvas.viewportTransform || [1,0,0,1,0,0]) as any;
+            const c = clampViewport(canvas, next, v2[4], v2[5]); setViewport(canvas, next, c.clampedTx, c.clampedTy);
+            canvas.requestRenderAll();
+          }
+        }
+      };
+      const onKeyUp = (ev: KeyboardEvent) => {
+        if (ev.code === "Space") {
+          spaceDownRef.current = false;
+          panRef.current.isPanning = false;
+          (canvas as any).defaultCursor = "default";
+        }
+      };
+
+      const upper = canvas.upperCanvasEl as HTMLCanvasElement | undefined;
+      upper?.addEventListener("wheel", wheelHandler, { passive: false });
+      upper?.addEventListener("mousedown", onMouseDown);
+      window.addEventListener("mousemove", onMouseMove);
+      window.addEventListener("mouseup", onMouseUp);
+      window.addEventListener("keydown", onKeyDown);
+      window.addEventListener("keyup", onKeyUp);
 installSectionResize(canvas);
       setFabricCanvas(canvas);
 
@@ -661,6 +831,16 @@ installSectionResize(canvas);
         canvas.off("object:modified", onObjectModified);
         canvas.off("selection:cleared", hideRotationBadge);
         upperEl?.removeEventListener("mouseleave", onDomLeave);
+
+        try {
+          const upper = (canvas as any).upperCanvasEl as HTMLCanvasElement | undefined;
+          upper?.removeEventListener("wheel", wheelHandler as any);
+          upper?.removeEventListener("mousedown", onMouseDown as any);
+          window.removeEventListener("mousemove", onMouseMove as any);
+          window.removeEventListener("mouseup", onMouseUp as any);
+          window.removeEventListener("keydown", onKeyDown as any);
+          window.removeEventListener("keyup", onKeyUp as any);
+        } catch {}
                 try { ro.disconnect(); } catch {}
 CanvasRegistry.dispose(canvasRef.current!);
         setFabricCanvas(null);
@@ -951,6 +1131,7 @@ CanvasRegistry.dispose(canvasRef.current!);
     vt[0] = safeZoom; vt[3] = safeZoom;
     vt[4] = (cw - PAGE_W * safeZoom) / 2;
     vt[5] = (ch - PAGE_H * safeZoom) / 2;
+    const c = { clampedTx: vt[4], clampedTy: vt[5] };
     (fabricCanvas as any).setViewportTransform(vt);
     fabricCanvas.requestRenderAll();
   }, [fabricCanvas, zoom]);
