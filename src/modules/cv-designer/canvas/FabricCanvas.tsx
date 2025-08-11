@@ -20,7 +20,7 @@ type ActiveEdit =
       textbox: any;
     };
 
-// bringToFront-ersatz für Fabric v6
+// bringToFront-Ersatz für Fabric v6
 function bringObjectToFront(canvas: any, obj: any) {
   if (!canvas || !obj) return;
   const arr = canvas.getObjects?.() ?? canvas._objects;
@@ -28,14 +28,23 @@ function bringObjectToFront(canvas: any, obj: any) {
   canvas.add(obj);
 }
 
-// Screen (nach viewportTransform) → Canvas-Koordinaten
+// Screen → Canvas (inverse viewportTransform)
 function screenToCanvas(canvas: any, x: number, y: number) {
   const vpt = canvas.viewportTransform || [1, 0, 0, 1, 0, 0];
-  const sx = vpt[0] || 1;
-  const sy = vpt[3] || 1;
-  const tx = vpt[4] || 0;
-  const ty = vpt[5] || 0;
-  return { x: (x - tx) / sx, y: (y - ty) / sy };
+  const a = vpt[0] || 1;
+  const d = vpt[3] || 1;
+  const e = vpt[4] || 0;
+  const f = vpt[5] || 0;
+  return { x: (x - e) / a, y: (y - f) / d };
+}
+
+// BoundingRect der Textbox in **Canvas-Koordinaten** (robust für Zoom)
+function getTextboxCanvasRect(canvas: any, tb: any) {
+  // absolute=true → berücksichtigt viewportTransform (Screen-Space)
+  const br = tb.getBoundingRect(true, true); // { left, top, width, height } in Screen
+  const p1 = screenToCanvas(canvas, br.left, br.top);
+  const p2 = screenToCanvas(canvas, br.left + br.width, br.top + br.height);
+  return { left: p1.x, top: p1.y, width: Math.max(1, p2.x - p1.x), height: Math.max(1, p2.y - p1.y) };
 }
 
 export default function FabricCanvas() {
@@ -76,7 +85,7 @@ export default function FabricCanvas() {
       canvas.perPixelTargetFind = false;
       canvas.targetFindTolerance = 14;
 
-      // Hover-Outline (gestrichelt, eigener Root-Layer)
+      // Hover-Outline (Root-Objekt)
       const hoverOutline = new fabric.Rect({
         left: 0, top: 0, width: 10, height: 10,
         fill: "rgba(0,0,0,0)",
@@ -87,14 +96,17 @@ export default function FabricCanvas() {
         evented: false,
         visible: false,
         objectCaching: false,
+        strokeUniform: true,          // Strichbreite bleibt bei Zoom konstant
         excludeFromExport: true,
+        originX: "left",
+        originY: "top",
       });
       (canvas as any).__hoverOutline = hoverOutline;
       canvas.add(hoverOutline);
       bringObjectToFront(canvas, hoverOutline);
       canvas.requestRenderAll();
 
-      // Textbox-unter-Pointer (auch wenn Gruppe getroffen wurde)
+      // Textbox unter Maus (auch wenn Gruppe getroffen wurde)
       const getTextboxUnderPointer = (t: any, ev: MouseEvent) => {
         if (!t) return null;
         if (t.type === "textbox") return t;
@@ -109,7 +121,7 @@ export default function FabricCanvas() {
         return hit || null;
       };
 
-      // Hover: nur Text setzt Cursor/Outline (Resize-Cursor bleibt Fabric überlassen)
+      // Hover: nur Text bekommt Cursor + Outline
       const onMouseMove = (e: any) => {
         const t = canvas.findTarget(e.e, true) as any;
         const tb = getTextboxUnderPointer(t, e.e);
@@ -117,28 +129,13 @@ export default function FabricCanvas() {
         hoverOutline.set({ visible: false });
 
         if (tb) {
-          // aCoords sind Screen-Koordinaten (nach viewportTransform).
-          // Für das Root-Rect brauchen wir Canvas-Koordinaten.
-          const c = tb.aCoords || (tb.calcACoords && tb.calcACoords());
-          if (c) {
-            const minX = Math.min(c.tl.x, c.bl.x);
-            const minY = Math.min(c.tl.y, c.tr.y);
-            const maxX = Math.max(c.tr.x, c.br.x);
-            const maxY = Math.max(c.bl.y, c.br.y);
-            const p1 = screenToCanvas(canvas, minX, minY);
-            const p2 = screenToCanvas(canvas, maxX, maxY);
-            hoverOutline.set({
-              left: p1.x,
-              top: p1.y,
-              width: Math.max(1, p2.x - p1.x),
-              height: Math.max(1, p2.y - p1.y),
-              visible: true,
-            });
-            canvas.setCursor("text");
-            bringObjectToFront(canvas, hoverOutline);
-            canvas.requestRenderAll();
-            return;
-          }
+          const rect = getTextboxCanvasRect(canvas, tb);
+          hoverOutline.set(rect);
+          hoverOutline.set({ visible: true });
+          bringObjectToFront(canvas, hoverOutline);
+          canvas.setCursor("text");
+          canvas.requestRenderAll();
+          return;
         }
 
         canvas.setCursor("default");
@@ -193,7 +190,7 @@ export default function FabricCanvas() {
     return () => { disposed = true; };
   }, []);
 
-  // Renderer (ohne activeEdit als Dep → keine „Sprünge“ beim Auswählen)
+  // Renderer (ohne activeEdit als Dep → keine Sprünge)
   const renderSections = useCallback(() => {
     if (!fabricCanvas || !fabricNamespace || !sections) return;
 
@@ -215,7 +212,7 @@ export default function FabricCanvas() {
       const SEC_PAD_B = Number(section.props?.paddingBottom?? 16);
       const BULLET_INDENT = Number(tokens?.bulletIndent ?? 18);
 
-      // große, nicht-evented Hit-Area (blockiert keine Controls)
+      // große, nicht-evented Hit-Area
       const hitArea = new fabricNamespace.Rect({
         left: -section.width / 2,
         top: -section.height / 2,
