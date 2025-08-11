@@ -21,7 +21,17 @@ const SELECT_BG_RGBA = "rgba(242,148,0,0.12)"; // zarter Hintergrund fürs selek
 // Asymmetrischer Outset nur für die SELECTED-Outline (links mehr Luft)
 const SELECT_OUTSET = { l: 4, t: 2, r: 2, b: 2 } as const;
 
-type SectionKind = "experience" | "education" | "profile" | "skills" | "softskills" | "contact";
+// Snap-Konfiguration (nur auf MouseUp angewandt)
+const SNAP_ANGLE = 90;
+const SNAP_THRESHOLD = 4; // Grad
+
+type SectionKind =
+  | "experience"
+  | "education"
+  | "profile"
+  | "skills"
+  | "softskills"
+  | "contact";
 
 type ActiveEdit =
   | null
@@ -89,6 +99,13 @@ function withOutsetSides(
   };
 }
 
+// Grad normieren auf 0..360
+function normAngle(a: number) {
+  let n = a % 360;
+  if (n < 0) n += 360;
+  return n;
+}
+
 export default function FabricCanvas() {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -99,6 +116,11 @@ export default function FabricCanvas() {
   const lastSelectedTextboxRef = useRef<any>(null);
   const rotateControlRef = useRef<any>(null); // custom rotate control
   const rotationBadgeRef = useRef<any>(null); // fabric group (rect + text) für Grad-Anzeige
+  const rotationDragRef = useRef<{ isRotating: boolean; usedAlt: boolean }>({
+    isRotating: false,
+    usedAlt: false,
+  });
+  const nudgeTimerRef = useRef<any>(null);
 
   useEffect(() => {
     activeEditRef.current = activeEdit;
@@ -140,6 +162,7 @@ export default function FabricCanvas() {
         withConnection: true,
         actionName: "rotate",
         cursorStyleHandler: fabric.controlsUtils.rotationStyleHandler,
+        // wichtig: Handler mit Snapping-Funktion beibehalten; SnapAngle setzen wir auf 0
         actionHandler: fabric.controlsUtils.rotationWithSnapping,
         cornerSize: 28,
         render: (ctx: CanvasRenderingContext2D, left: number, top: number, _style: any, o: any) => {
@@ -243,7 +266,7 @@ export default function FabricCanvas() {
       (canvas as any).__selectedOutline = selectedOutline;
       canvas.add(selectedOutline);
 
-      // Rotation-Tooltip (Badge: Rect + Text, zoom-sicher)
+      // Rotation-Tooltip (Badge)
       const badgeText = new fabric.Text("0°", {
         fontFamily: "Arial",
         fontSize: 12,
@@ -361,7 +384,7 @@ export default function FabricCanvas() {
       };
 
       // Badge Helper
-      const showRotationBadge = (target: any) => {
+      const showRotationBadge = (target: any, altFree: boolean) => {
         const ref = rotationBadgeRef.current;
         if (!ref) return;
         const { badge, badgeRect, badgeText } = ref;
@@ -371,8 +394,8 @@ export default function FabricCanvas() {
         const padX = 8 / z;
         const padY = 4 / z;
 
-        const angle = (((target.angle || 0) % 360) + 360) % 360;
-        const text = `${Math.round(angle)}°`;
+        const angle = normAngle(target.angle || 0);
+        const text = `${Math.round(angle * 10) / 10}°${altFree ? " • Free" : ""}`;
 
         badgeText.set({ text, fontSize: font });
         (badgeText as any).initDimensions?.();
@@ -406,7 +429,9 @@ export default function FabricCanvas() {
           const isSameAsSelected =
             !!activeEditRef.current && activeEditRef.current.textbox === tb;
 
-          if (!isSameAsSelected) {
+        if (isSameAsSelected) {
+          // nichts
+        } else {
             const rect = withOutsetSym(canvas, getTextboxCanvasRect(tb), 0);
             (canvas as any).__hoverOutline.set({ ...rect, visible: true, opacity: 1 });
             bringObjectToFront(canvas, (canvas as any).__hoverOutline);
@@ -442,17 +467,15 @@ export default function FabricCanvas() {
           grp.borderColor = SELECT_COLOR;
           grp.cornerColor = SELECT_COLOR;
 
-          // >>> custom rotate-control + SNAP aktivieren
+          // >>> custom rotate-control pro Gruppe; Snap während Drag AUS
           const rc = rotateControlRef.current;
           if (rc) {
-            const baseControls =
-              (fabric.Object as any)?.prototype?.controls || {};
+            const baseControls = (fabric.Object as any)?.prototype?.controls || {};
             if (!(grp as any).controls) (grp as any).controls = { ...baseControls };
             (grp as any).controls.mtr = rc;
           }
-          // Snap auf 90°, Schwelle 4°
-          (grp as any).snapAngle = 90;
-          (grp as any).snapThreshold = 4;
+          (grp as any).snapAngle = 0; // wichtig: freies Drehen beim Drag
+          (grp as any).snapThreshold = 0;
 
           canvas.requestRenderAll();
           return;
@@ -469,13 +492,41 @@ export default function FabricCanvas() {
         }
       };
 
-      // Rotation: Grad-Badge live aktualisieren
+      // Rotation: Grad-Badge live aktualisieren + merken ob Alt genutzt wurde
       const onObjectRotating = (e: any) => {
         const target = e?.target as any;
         if (!target || target.type !== "group" || target.data?.type !== "section") return;
-        showRotationBadge(target);
+
+        // Track Drag-Session
+        rotationDragRef.current.isRotating = true;
+        rotationDragRef.current.usedAlt = rotationDragRef.current.usedAlt || !!e.e?.altKey;
+
+        const altNow = !!e.e?.altKey;
+        showRotationBadge(target, altNow);
       };
-      const onObjectModified = () => {
+
+      // Am Ende der Rotation ggf. snappen (wenn Alt NICHT genutzt)
+      const onObjectModified = (e: any) => {
+        const target = e?.target as any;
+        if (rotationDragRef.current.isRotating && target && target.type === "group") {
+          const usedAlt = rotationDragRef.current.usedAlt;
+          // Reset Drag-Flags
+          rotationDragRef.current.isRotating = false;
+          rotationDragRef.current.usedAlt = false;
+
+          if (!usedAlt) {
+            const a = normAngle(target.angle || 0);
+            const nearest = Math.round(a / SNAP_ANGLE) * SNAP_ANGLE;
+            const diff = Math.abs(nearest - a);
+            if (diff <= SNAP_THRESHOLD || Math.abs(diff - 360) <= SNAP_THRESHOLD) {
+              // auf nächstes 90° snappen
+              const newAngle = nearest % 360;
+              target.angle = newAngle;
+              target.setCoords();
+              canvas.requestRenderAll();
+            }
+          }
+        }
         hideRotationBadge();
       };
 
@@ -484,6 +535,8 @@ export default function FabricCanvas() {
       const onDomLeave = () => {
         hideHoverNow();
         hideRotationBadge();
+        rotationDragRef.current.isRotating = false;
+        rotationDragRef.current.usedAlt = false;
       };
 
       // Zusätzlich: wenn der Pointer ein Textfeld verlässt → sofort verstecken
@@ -586,9 +639,13 @@ export default function FabricCanvas() {
         const padR = SEC_PAD_R;
         const padT = SEC_PAD_T + Number(part.gapBefore ?? 0);
         const padB = SEC_PAD_B;
-        const indentPx = Number(part.indentPx ?? (part.fieldType === "bullet" ? BULLET_INDENT : 0));
+        const indentPx =
+          Number(part.indentPx ?? (part.fieldType === "bullet" ? BULLET_INDENT : 0));
 
-        const g = (globalFieldStyles as any)?.[section.sectionType || "experience"]?.[part.fieldType] || {};
+        const g =
+          (globalFieldStyles as any)?.[section.sectionType || "experience"]?.[
+            part.fieldType
+          ] || {};
         const loc = (partStyles as any)?.[section.id]?.[part.fieldType] || {};
         const finalStyle = {
           fontFamily: loc.fontFamily ?? g.fontFamily ?? "Arial",
@@ -681,7 +738,7 @@ export default function FabricCanvas() {
         moveCursor: "move",
       }) as any;
 
-      // custom rotate control pro Gruppe setzen + SNAP konfigurieren
+      // custom rotate control pro Gruppe setzen; Snap AUS beim Drag
       const rc = rotateControlRef.current;
       if (rc) {
         const baseControls =
@@ -690,8 +747,8 @@ export default function FabricCanvas() {
           (sectionGroup as any).controls = { ...baseControls };
         (sectionGroup as any).controls.mtr = rc;
       }
-      (sectionGroup as any).snapAngle = 90;
-      (sectionGroup as any).snapThreshold = 4;
+      (sectionGroup as any).snapAngle = 0;
+      (sectionGroup as any).snapThreshold = 0;
 
       sectionGroup.data = {
         sectionId: section.id,
@@ -761,6 +818,61 @@ export default function FabricCanvas() {
     fabricCanvas.setZoom(safeZoom);
     fabricCanvas.requestRenderAll();
   }, [fabricCanvas, zoom]);
+
+  // Keyboard-Nudging für Rotation
+  useEffect(() => {
+    if (!fabricCanvas) return;
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+      const obj = fabricCanvas.getActiveObject() as any;
+      if (!obj || obj.type !== "group" || obj.data?.type !== "section") return;
+
+      e.preventDefault();
+
+      let step = 0.5;
+      if (e.shiftKey) step = 5;
+      if (e.altKey) step = 0.1;
+      if (e.key === "ArrowLeft") step = -step;
+
+      obj.angle = (obj.angle || 0) + step;
+      obj.setCoords();
+      fabricCanvas.requestRenderAll();
+
+      // Badge kurz einblenden/aktualisieren
+      const show = (target: any) => {
+        const z = fabricCanvas.getZoom() || 1;
+        const br = target.getBoundingRect(false, true);
+        const x = br.left + br.width / 2;
+        const y = br.top - (28 / z);
+        const ref = rotationBadgeRef.current;
+        if (!ref) return;
+        const a = normAngle(target.angle || 0);
+        const text = `${Math.round(a * 10) / 10}°`;
+        ref.badgeText.set({ text, fontSize: 12 / z });
+        (ref.badgeText as any).initDimensions?.();
+        ref.badgeRect.set({
+          width: (ref.badgeText.width || 18) + (8 / z) * 2,
+          height: (ref.badgeText.height || 12 / z) + (4 / z) * 2,
+          rx: 8 / z,
+          ry: 8 / z,
+        });
+        ref.badge.set({ left: x, top: y, visible: true });
+        bringObjectToFront(fabricCanvas, ref.badge);
+        fabricCanvas.requestRenderAll();
+      };
+      show(obj);
+
+      clearTimeout(nudgeTimerRef.current);
+      nudgeTimerRef.current = setTimeout(() => {
+        rotationBadgeRef.current?.badge?.set({ visible: false });
+        fabricCanvas.requestRenderAll();
+      }, 800);
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [fabricCanvas]);
 
   // ESC → Overlay schließen (inkl. Selected reset)
   useEffect(() => {
