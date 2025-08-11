@@ -137,16 +137,27 @@ export default function FabricCanvas() {
     const { cw, ch } = getContainerSize();
     const pageW = PAGE_W * zoom;
     const pageH = PAGE_H * zoom;
-
-    // allowed range so that page stays within gutters
-    const minTx = cw - pageW - GUTTER_PX;
-    const maxTx = GUTTER_PX;
-    const minTy = ch - pageH - GUTTER_PX;
-    const maxTy = GUTTER_PX;
-
-    const clampedTx = Math.min(Math.max(tx, minTx), maxTx);
-    const clampedTy = Math.min(Math.max(ty, minTy), maxTy);
-    return { clampedTx, clampedTy };
+    const availW = cw - 2 * GUTTER_PX;
+    const availH = ch - 2 * GUTTER_PX;
+    let outTx = tx;
+    let outTy = ty;
+    // X-axis: center if page narrower than available; else clamp with gutters
+    if (pageW <= availW) {
+      outTx = (cw - pageW) / 2;
+    } else {
+      const minTx = cw - pageW - GUTTER_PX;
+      const maxTx = GUTTER_PX;
+      outTx = Math.min(Math.max(tx, minTx), maxTx);
+    }
+    // Y-axis: center if page shorter than available; else clamp with gutters
+    if (pageH <= availH) {
+      outTy = (ch - pageH) / 2;
+    } else {
+      const minTy = ch - pageH - GUTTER_PX;
+      const maxTy = GUTTER_PX;
+      outTy = Math.min(Math.max(ty, minTy), maxTy);
+    }
+    return { clampedTx: outTx, clampedTy: outTy };
   };
 
   const fitPage = (canvas: any) => {
@@ -1123,16 +1134,14 @@ CanvasRegistry.dispose(canvasRef.current!);
   // Zoom
   useEffect(() => {
     if (!fabricCanvas) return;
-    const el = (containerRef.current as HTMLDivElement | null);
-    const cw = el?.clientWidth || PAGE_W;
-    const ch = el?.clientHeight || PAGE_H;
     const safeZoom = Math.max(0.1, Math.min(4, Number(zoom || 1)));
     const vt = (fabricCanvas as any).viewportTransform || [1,0,0,1,0,0];
     vt[0] = safeZoom; vt[3] = safeZoom;
-    vt[4] = (cw - PAGE_W * safeZoom) / 2;
-    vt[5] = (ch - PAGE_H * safeZoom) / 2;
-    const c = { clampedTx: vt[4], clampedTy: vt[5] };
-    (fabricCanvas as any).setViewportTransform(vt);
+    // Keep current tx/ty if present, then clamp/center axis-aware
+    const curTx = vt[4] || 0;
+    const curTy = vt[5] || 0;
+    const c = clampViewport(fabricCanvas, safeZoom, curTx, curTy);
+    setViewport(fabricCanvas, safeZoom, c.clampedTx, c.clampedTy);
     fabricCanvas.requestRenderAll();
   }, [fabricCanvas, zoom]);
 
