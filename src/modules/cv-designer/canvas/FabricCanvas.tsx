@@ -20,7 +20,7 @@ type ActiveEdit =
       textbox: any;
     };
 
-// bringToFront-Ersatz für Fabric v6
+// Robust „bring to front“ ohne bringToFront-API
 function bringObjectToFront(canvas: any, obj: any) {
   if (!canvas || !obj) return;
   const arr = canvas.getObjects?.() ?? canvas._objects;
@@ -66,7 +66,7 @@ export default function FabricCanvas() {
       canvas.perPixelTargetFind = false;
       canvas.targetFindTolerance = 14;
 
-      // Hover-Outline (Root-Objekt, immer oben)
+      // Hover-Outline (Root-Objekt)
       const hoverOutline = new fabric.Rect({
         left: 0, top: 0, width: 10, height: 10,
         fill: "rgba(0,0,0,0)",
@@ -87,43 +87,25 @@ export default function FabricCanvas() {
       bringObjectToFront(canvas, hoverOutline);
       canvas.requestRenderAll();
 
-      // Hilfsfunktion: Textbox unter Maus (auch wenn die Gruppe getroffen wurde)
+      // Textbox unter Maus (auch wenn die Gruppe getroffen wurde)
       const getTextboxUnderPointer = (t: any, ev: MouseEvent) => {
         if (!t) return null;
         if (t.type === "textbox") return t;
         const grp = t.type === "group" ? t : t.group;
         if (!grp) return null;
-        const p = canvas.getPointer(ev);
+
+        // Pointer in Canvas-Koordinaten
+        const p = canvas.getPointer(ev); // Canvas space
+        // Wir vergleichen mit BoundingRects in Canvas-Space
         const hit = (grp._objects || []).find((child: any) => {
           if (child.type !== "textbox") return false;
-          const r = child.getBoundingRect(true, true);
+          const r = child.getBoundingRect(false, true); // Canvas space (kein viewport)
           return p.x >= r.left && p.x <= r.left + r.width && p.y >= r.top && p.y <= r.top + r.height;
         });
         return hit || null;
       };
 
-      // >>> Robuste Rect-Berechnung in CANVAS-Koordinaten via Transform-Matrix
-      const getTextboxCanvasRect = (tb: any) => {
-        // Sicherstellen, dass Maße aktuell sind
-        (tb as any)._clearCache?.();
-        (tb as any).initDimensions?.();
-
-        const f = fabric; // Namespace aus getFabric()
-        const m = tb.calcTransformMatrix(); // Objekt->Canvas (ohne viewport)
-        const tl = f.util.transformPoint(new f.Point(-tb.width * (tb.originX || 0), -tb.height * (tb.originY || 0)), m);
-        const br = f.util.transformPoint(
-          new f.Point(tb.width - tb.width * (tb.originX || 0), tb.height - tb.height * (tb.originY || 0)),
-          m
-        );
-
-        const left = Math.min(tl.x, br.x);
-        const top = Math.min(tl.y, br.y);
-        const width = Math.max(1, Math.abs(br.x - tl.x));
-        const height = Math.max(1, Math.abs(br.y - tl.y));
-        return { left, top, width, height };
-      };
-
-      // Hover: nur Text setzt Cursor + Outline
+      // Hover: nur Text bekommt Cursor + Outline (Canvas-Space!)
       const onMouseMove = (e: any) => {
         const t = canvas.findTarget(e.e, true) as any;
         const tb = getTextboxUnderPointer(t, e.e);
@@ -131,9 +113,18 @@ export default function FabricCanvas() {
         hoverOutline.set({ visible: false });
 
         if (tb) {
-          const rect = getTextboxCanvasRect(tb);
-          hoverOutline.set(rect);
-          hoverOutline.set({ visible: true });
+          // BoundingRect in Canvas-Space – keine eigene Transform nötig
+          (tb as any)._clearCache?.();
+          (tb as any).initDimensions?.();
+
+          const br = tb.getBoundingRect(false, true); // {left, top, width, height} in Canvas space
+          hoverOutline.set({
+            left: br.left,
+            top: br.top,
+            width: Math.max(1, br.width),
+            height: Math.max(1, br.height),
+            visible: true,
+          });
           bringObjectToFront(canvas, hoverOutline);
           canvas.setCursor("text");
           canvas.requestRenderAll();
@@ -214,7 +205,7 @@ export default function FabricCanvas() {
       const SEC_PAD_B = Number(section.props?.paddingBottom?? 16);
       const BULLET_INDENT = Number(tokens?.bulletIndent ?? 18);
 
-      // große, nicht-evented Hit-Area
+      // große, nicht-evented Hit-Area (blockiert Controls nicht)
       const hitArea = new fabricNamespace.Rect({
         left: -section.width / 2,
         top: -section.height / 2,
