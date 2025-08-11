@@ -20,14 +20,22 @@ type ActiveEdit =
       textbox: any;
     };
 
-// Robust „bring to front“ für Fabric v6 (ohne bringToFront-API)
+// bringToFront-ersatz für Fabric v6
 function bringObjectToFront(canvas: any, obj: any) {
   if (!canvas || !obj) return;
   const arr = canvas.getObjects?.() ?? canvas._objects;
-  if (arr?.includes?.(obj)) {
-    canvas.remove(obj);
-  }
+  if (arr?.includes?.(obj)) canvas.remove(obj);
   canvas.add(obj);
+}
+
+// Screen (nach viewportTransform) → Canvas-Koordinaten
+function screenToCanvas(canvas: any, x: number, y: number) {
+  const vpt = canvas.viewportTransform || [1, 0, 0, 1, 0, 0];
+  const sx = vpt[0] || 1;
+  const sy = vpt[3] || 1;
+  const tx = vpt[4] || 0;
+  const ty = vpt[5] || 0;
+  return { x: (x - tx) / sx, y: (y - ty) / sy };
 }
 
 export default function FabricCanvas() {
@@ -38,9 +46,7 @@ export default function FabricCanvas() {
   const [activeEdit, setActiveEdit] = useState<ActiveEdit>(null);
   const activeEditRef = useRef<ActiveEdit>(null);
 
-  useEffect(() => {
-    activeEditRef.current = activeEdit;
-  }, [activeEdit]);
+  useEffect(() => { activeEditRef.current = activeEdit; }, [activeEdit]);
 
   // Store
   const sections = useDesignerStore((s) => s.sections);
@@ -59,21 +65,18 @@ export default function FabricCanvas() {
       setFabricNamespace(fabric);
 
       if (!canvasRef.current) return;
-      if (CanvasRegistry.has(canvasRef.current)) {
-        CanvasRegistry.dispose(canvasRef.current);
-      }
+      if (CanvasRegistry.has(canvasRef.current)) CanvasRegistry.dispose(canvasRef.current);
 
       const canvas = CanvasRegistry.getOrCreate(canvasRef.current, fabric);
       canvas.setDimensions({ width: PAGE_W, height: PAGE_H });
       canvas.backgroundColor = "#ffffff";
 
-      // Interaktion – toleranteres Hit-Testing
       canvas.selection = true;
       canvas.subTargetCheck = true;
       canvas.perPixelTargetFind = false;
       canvas.targetFindTolerance = 14;
 
-      // Einmalige Hover-Outline (gestrichelt)
+      // Hover-Outline (gestrichelt, eigener Root-Layer)
       const hoverOutline = new fabric.Rect({
         left: 0, top: 0, width: 10, height: 10,
         fill: "rgba(0,0,0,0)",
@@ -84,13 +87,14 @@ export default function FabricCanvas() {
         evented: false,
         visible: false,
         objectCaching: false,
+        excludeFromExport: true,
       });
       (canvas as any).__hoverOutline = hoverOutline;
       canvas.add(hoverOutline);
       bringObjectToFront(canvas, hoverOutline);
       canvas.requestRenderAll();
 
-      // Hilfsfunktion: Textbox unter Pointer finden
+      // Textbox-unter-Pointer (auch wenn Gruppe getroffen wurde)
       const getTextboxUnderPointer = (t: any, ev: MouseEvent) => {
         if (!t) return null;
         if (t.type === "textbox") return t;
@@ -105,7 +109,7 @@ export default function FabricCanvas() {
         return hit || null;
       };
 
-      // Hover (nur Text setzt Cursor – Fabric zeigt Resize-Cursor an den Controls)
+      // Hover: nur Text setzt Cursor/Outline (Resize-Cursor bleibt Fabric überlassen)
       const onMouseMove = (e: any) => {
         const t = canvas.findTarget(e.e, true) as any;
         const tb = getTextboxUnderPointer(t, e.e);
@@ -113,13 +117,23 @@ export default function FabricCanvas() {
         hoverOutline.set({ visible: false });
 
         if (tb) {
+          // aCoords sind Screen-Koordinaten (nach viewportTransform).
+          // Für das Root-Rect brauchen wir Canvas-Koordinaten.
           const c = tb.aCoords || (tb.calcACoords && tb.calcACoords());
           if (c) {
-            const left = Math.min(c.tl.x, c.bl.x);
-            const top = Math.min(c.tl.y, c.tr.y);
-            const width = Math.max(c.tr.x, c.br.x) - left;
-            const height = Math.max(c.bl.y, c.br.y) - top;
-            hoverOutline.set({ left, top, width, height, visible: true });
+            const minX = Math.min(c.tl.x, c.bl.x);
+            const minY = Math.min(c.tl.y, c.tr.y);
+            const maxX = Math.max(c.tr.x, c.br.x);
+            const maxY = Math.max(c.bl.y, c.br.y);
+            const p1 = screenToCanvas(canvas, minX, minY);
+            const p2 = screenToCanvas(canvas, maxX, maxY);
+            hoverOutline.set({
+              left: p1.x,
+              top: p1.y,
+              width: Math.max(1, p2.x - p1.x),
+              height: Math.max(1, p2.y - p1.y),
+              visible: true,
+            });
             canvas.setCursor("text");
             bringObjectToFront(canvas, hoverOutline);
             canvas.requestRenderAll();
@@ -165,9 +179,7 @@ export default function FabricCanvas() {
       canvas.on("mouse:move", onMouseMove);
       canvas.on("mouse:up", onMouseUp);
 
-      // Resize/Moves installieren (persistiert auch ins Store)
       installSectionResize(canvas);
-
       setFabricCanvas(canvas);
 
       return () => {
@@ -181,7 +193,7 @@ export default function FabricCanvas() {
     return () => { disposed = true; };
   }, []);
 
-  // Renderer (WICHTIG: unabhängig von activeEdit, damit Auswahl kein Reset triggert)
+  // Renderer (ohne activeEdit als Dep → keine „Sprünge“ beim Auswählen)
   const renderSections = useCallback(() => {
     if (!fabricCanvas || !fabricNamespace || !sections) return;
 
@@ -197,7 +209,6 @@ export default function FabricCanvas() {
 
       const children: any[] = [];
 
-      // Section-Padding (fix in group.data)
       const SEC_PAD_L = Number(section.props?.paddingLeft  ?? 24);
       const SEC_PAD_R = Number(section.props?.paddingRight ?? 24);
       const SEC_PAD_T = Number(section.props?.paddingTop   ?? 16);
@@ -219,7 +230,7 @@ export default function FabricCanvas() {
       hitArea.data = { type: "hitArea", isHitArea: true };
       children.push(hitArea);
 
-      // dezenter Rahmen
+      // dezenter Frame
       const frame = new fabricNamespace.Rect({
         left: -section.width / 2,
         top: -section.height / 2,
@@ -352,7 +363,7 @@ export default function FabricCanvas() {
         fabricCanvas.fire("object:modified", { target: sectionGroup } as any);
       } catch {}
 
-      // Aktiven Edit auf neue Instanzen rebinden (ohne render triggern)
+      // aktiven Edit auf neue Instanzen rebinden (ohne Render)
       const ae = nextActive;
       if (ae && ae.sectionId === section.id) {
         const hit = (sectionGroup._objects || []).find(
@@ -370,7 +381,6 @@ export default function FabricCanvas() {
       }
     }
 
-    // kein State-Update hier → kein Re-Render
     if (hoverOutline) bringObjectToFront(fabricCanvas, hoverOutline);
     fabricCanvas.requestRenderAll();
   }, [fabricCanvas, fabricNamespace, sections, tokens, margins, globalFieldStyles, partStyles]);
@@ -389,9 +399,7 @@ export default function FabricCanvas() {
 
   // ESC → Overlay schließen
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setActiveEdit(null);
-    };
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setActiveEdit(null); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
