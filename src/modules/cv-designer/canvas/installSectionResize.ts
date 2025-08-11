@@ -1,139 +1,118 @@
-import { fabric } from "fabric";
-import { useDesignerStore } from "../store/designerStore";
+/**
+ * Canvas Registry - Singleton für Fabric.js Canvas-Instanzen
+ * Verhindert Mehrfach-Initialisierung und verwaltet Canvas-Lifecycle
+ */
 
-type FObj = fabric.Object & { data?: Record<string, any> };
-type G = fabric.Group & { data?: Record<string, any>; _objects?: FObj[] };
+const canvasMap = new Map<HTMLCanvasElement, any>();
 
-const num = (v: any, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
-const FUDGE_Y = 2;
-
-function persistSectionRect(sectionId: string, rect: { x: number; y: number; width: number; height: number }) {
-  // tolerant gegen unterschiedliche Store-APIs
-  const st: any = (useDesignerStore as any)?.getState?.() || null;
-  if (!st) return;
-  if (typeof st.updateSectionRect === "function") {
-    st.updateSectionRect(sectionId, rect);
-  } else {
-    if (typeof st.setSectionPosition === "function") st.setSectionPosition(sectionId, rect.x, rect.y);
-    if (typeof st.setSectionSize === "function") st.setSectionSize(sectionId, rect.width, rect.height);
-    if (typeof st.updateSectionById === "function") st.updateSectionById(sectionId, { x: rect.x, y: rect.y, width: rect.width, height: rect.height });
+const DBG = (msg: string, ...args: any[]) => {
+  if (import.meta.env.VITE_DEBUG_DESIGNER_SYNC === 'true') {
+    console.log('[CANVAS_REGISTRY]', msg, ...args);
   }
-  if (typeof st.bump === "function") st.bump(); // optionaler Render-Trigger
-}
+};
 
-export function installSectionResize(canvas: fabric.Canvas) {
-  const layoutPass = (g: G) => {
-    const newW = num(g.width) * num(g.scaleX, 1);
-    const newH = num(g.height) * num(g.scaleY, 1);
-    g.set({ width: newW, height: newH, scaleX: 1, scaleY: 1 });
+export const CanvasRegistry = {
+  /**
+   * Holt oder erstellt eine Canvas-Instanz für das gegebene Element
+   */
+  getOrCreate(el: HTMLCanvasElement, fabricNs: any): any {
+    // Prüfe ob bereits eine Canvas für dieses Element existiert
+    if (canvasMap.has(el)) {
+      const existing = canvasMap.get(el);
+      DBG('Returning existing canvas for element:', el);
+      return existing;
+    }
 
-    const padL = num(g.data?.padL, 0);
-    const padR = num(g.data?.padR, 0);
-    const secPadT = num(g.data?.secPadT, 0);
-    const secPadB = num(g.data?.secPadB, 0);
+    // Prüfe ob Fabric.js das Element bereits als initialisiert betrachtet
+    if ((el as any).__fabricCanvas) {
+      DBG('Element has __fabricCanvas marker, disposing first');
+      try {
+        (el as any).__fabricCanvas.dispose();
+      } catch (e) {
+        DBG('Error disposing existing fabric canvas:', e);
+      }
+      delete (el as any).__fabricCanvas;
+    }
 
-    const children = (g._objects || []) as FObj[];
-    const frame = children.find((c) => c?.data?.isFrame) as fabric.Rect | undefined;
-    const hitArea = children.find((c) => c?.data?.isHitArea) as fabric.Rect | undefined;
-    const textChildren = children.filter((c) => (c as any).type === "textbox") as (fabric.Textbox & { data?: any })[];
-
-    // Pass 1: Breite setzen + Höhe messen
-    const contentWidthBase = Math.max(1, newW - padL - padR);
-    const measuredHeights: number[] = [];
-    const gaps: number[] = [];
-
-    textChildren
-      .sort((a, b) => num(a.data?.order, 0) - num(b.data?.order, 0))
-      .forEach((tb, idx) => {
-        const indentPx = num(tb.data?.indentPx, 0);
-        const cw = Math.max(1, contentWidthBase - indentPx);
-
-        (tb as any).set({ width: cw, scaleX: 1, scaleY: 1 });
-        (tb as any)._clearCache?.();
-        (tb as any).initDimensions?.();
-
-        // Wichtig: Höhe in lokalen Koordinaten messen – unabhängig von Gruppenrotation/Zoom
-        const localH = (tb as any).height ?? (tb as any).getScaledHeight?.() ?? 0;
-        measuredHeights[idx] = localH;
-        gaps[idx] = num(tb.data?.gapBefore, 0);
-      });
-
-    // Endhöhe bestimmen
-    const contentHeight =
-      secPadT + gaps.reduce((a, g) => a + g, 0) + measuredHeights.reduce((a, h) => a + h, 0) + secPadB + FUDGE_Y;
-    const minH = num(g.data?.minHeight, 32);
-    const finalH = Math.max(contentHeight, minH);
-
-    // Pass 2: vertikal stapeln
-    const halfW = newW / 2;
-    const halfH = finalH / 2;
-
-    let cursorY = -halfH + secPadT;
-
-    textChildren.forEach((tb, idx) => {
-      const indentPx = num(tb.data?.indentPx, 0);
-      const left = -halfW + padL + indentPx;
-      cursorY += gaps[idx];
-      (tb as any).set({ left, top: cursorY, scaleX: 1, scaleY: 1 });
-      (tb as any).setCoords();
-      cursorY += measuredHeights[idx];
+    // Neue Canvas erstellen
+    DBG('Creating new canvas for element:', el);
+    const canvas = new fabricNs.Canvas(el, {
+      preserveObjectStacking: true,
+      selection: true,
+      backgroundColor: '#ffffff'
     });
 
-    g.set({ height: finalH });
+    // In Registry speichern
+    canvasMap.set(el, canvas);
+    DBG('Canvas registered in map, total canvases:', canvasMap.size);
 
-    if (frame) {
-      frame.set({ left: -halfW, top: -halfH, width: newW, height: finalH, scaleX: 1, scaleY: 1 });
-      frame.setCoords();
+    return canvas;
+  },
+
+  /**
+   * Entsorgt eine Canvas und ersetzt das DOM-Element
+   */
+  dispose(el: HTMLCanvasElement): void {
+    DBG('Disposing canvas for element:', el);
+    
+    const canvas = canvasMap.get(el);
+    if (canvas) {
+      try {
+        canvas.dispose();
+        DBG('Canvas disposed successfully');
+      } catch (e) {
+        DBG('Error disposing canvas:', e);
+      }
+      canvasMap.delete(el);
     }
-    if (hitArea) {
-      hitArea.set({ left: -halfW, top: -halfH, width: newW, height: finalH, scaleX: 1, scaleY: 1 });
-      hitArea.setCoords();
-    }
 
-    g.setCoords();
-    canvas.requestRenderAll();
-
-    // Persistieren (Größe)
-    const sid = (g as any).sectionId || g.data?.sectionId;
-    if (sid) persistSectionRect(String(sid), { x: g.left ?? 0, y: g.top ?? 0, width: newW, height: finalH });
-  };
-
-  const onScaling = (e: fabric.IEvent<Event>) => {
-    const g = e.target as G;
-    if (!g || g.type !== "group") return;
-    const prevCache = g.objectCaching;
+    // DOM-Element ersetzen, damit Fabric keine internen Marker mehr findet
     try {
-      g.objectCaching = false;
-      layoutPass(g);
-    } finally {
-      g.objectCaching = prevCache;
-    }
-  };
-
-  const onModified = (e: fabric.IEvent<Event>) => {
-    const g = e.target as G;
-    if (!g || g.type !== "group") return;
-
-    // normalize scale → width/height anwenden
-    const newW = num(g.width) * num(g.scaleX, 1);
-    const newH = num(g.height) * num(g.scaleY, 1);
-    g.set({ width: newW, height: newH, scaleX: 1, scaleY: 1 });
-
-    layoutPass(g);
-
-    const sid = (g as any).sectionId || g.data?.sectionId;
-    if (sid) {
-      // width/height stammen bereits aus letztem layoutPass()
-      const w = num(g.width, 0);
-      const h = num(g.height, 0);
-      persistSectionRect(String(sid), { x: num(g.left, 0), y: num(g.top, 0), width: w, height: h });
+      const parent = el.parentNode;
+      if (parent) {
+        const fresh = el.cloneNode(false) as HTMLCanvasElement;
+        parent.replaceChild(fresh, el);
+        DBG('DOM element replaced with fresh clone');
+      }
+    } catch (e) {
+      DBG('Error replacing DOM element:', e);
     }
 
-    g.setCoords();
-    (g._objects || []).forEach((ch: any) => ch?.setCoords?.());
-    canvas.requestRenderAll();
-  };
+    // Fabric-Marker explizit löschen
+    delete (el as any).__fabricCanvas;
+    DBG('Fabric markers cleared');
+  },
 
-  canvas.on("object:scaling", onScaling);
-  canvas.on("object:modified", onModified);
-}
+  /**
+   * Prüft ob eine Canvas für das Element existiert
+   */
+  has(el: HTMLCanvasElement): boolean {
+    return canvasMap.has(el);
+  },
+
+  /**
+   * Holt eine existierende Canvas (ohne zu erstellen)
+   */
+  get(el: HTMLCanvasElement): any | null {
+    return canvasMap.get(el) || null;
+  },
+
+  /**
+   * Entsorgt alle Canvases (für Cleanup)
+   */
+  disposeAll(): void {
+    DBG('Disposing all canvases, count:', canvasMap.size);
+    for (const [el, canvas] of canvasMap.entries()) {
+      try {
+        canvas.dispose();
+        delete (el as any).__fabricCanvas;
+      } catch (e) {
+        DBG('Error disposing canvas in disposeAll:', e);
+      }
+    }
+    canvasMap.clear();
+    DBG('All canvases disposed');
+  }
+};
+
+export default CanvasRegistry;
