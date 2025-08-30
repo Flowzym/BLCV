@@ -1079,7 +1079,8 @@ CanvasRegistry.dispose(canvasRef.current!);
       }
 
       // Gruppe
-        const secW = section.width;
+        const usableW = PAGE_W - Number((margins as any)?.left ?? 0) - Number((margins as any)?.right ?? 0);
+        const secW = Math.min(section.width, Math.max(50, usableW));
         const secH = section.height;
         const leftM = Number((margins as any)?.left ?? 0);
         const topM = Number((margins as any)?.top ?? 0);
