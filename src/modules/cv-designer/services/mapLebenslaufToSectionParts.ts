@@ -1,6 +1,10 @@
 import type { CVSection, CVTextPart, CVSectionWithParts } from "../types/section";
 import type { SectionType } from "../store/designerStore";
 
+// Layout baseline (keep in sync with FabricCanvas)
+const PAGE_W = 595; // A4 width in px
+const DEFAULT_MARGINS = { left: 36, right: 36 } as const;
+
 const DBG = (msg: string, ...args: any[]) => {
   if (import.meta.env.VITE_DEBUG_DESIGNER_SYNC === 'true') {
     console.log('[DESIGNER]', msg, ...args);
@@ -39,7 +43,7 @@ function formatPeriod(
 export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
   const sections: CVSectionWithParts[] = [];
   let currentY = 120;               // Startposition auf der Seite
-  const sectionWidth = 500;
+  const sectionWidth = Math.min(500, PAGE_W - DEFAULT_MARGINS.left - DEFAULT_MARGINS.right);
   const sectionSpacing = 30;
 
   // ---- Berufserfahrung ----
@@ -257,7 +261,7 @@ export function mapLebenslaufToSectionParts(ctx: any): CVSectionWithParts[] {
   const pushSimple = (id: string, title: string, fieldType: string, text: string, height: number) => {
     const s: CVSectionWithParts = {
       id, type: fieldType, title, content: "",
-      x: 50, y: currentY, width: sectionWidth, height,
+      x: Math.round(DEFAULT_MARGINS.left + ((PAGE_W - DEFAULT_MARGINS.left - DEFAULT_MARGINS.right - sectionWidth) / 2)), y: currentY, width: sectionWidth, height,
       sectionType: fieldType, isVisible: true,
       parts: [{
         type: "text",
