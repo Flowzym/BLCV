@@ -75,7 +75,8 @@ export function installSectionResize(canvas: fabric.Canvas) {
     y += secPadB;
 
     const minH = Math.max(num(g.data?.minHeight, 32), y - (-newH0 / 2));
-    const finalH = Math.max(minH + FUDGE_Y, newH0);
+    const contentH = y - (-newH0 / 2);
+    const finalH = Math.max(minH + FUDGE_Y, contentH);
 
     if (frame) {
       const halfW = newW / 2;
