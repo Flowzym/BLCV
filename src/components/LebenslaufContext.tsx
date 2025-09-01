@@ -544,7 +544,23 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
   const [autosaveEnabled, setAutosaveEnabled] = useState<boolean>(false);
   const saveSnapshot = useCallback(() => {
     try {
-      const payload = { personalData, berufserfahrung, ausbildung, version: 1, savedAt: new Date().toISOString() };
+      const payload = {
+        version: 2,
+        savedAt: new Date().toISOString(),
+        personalData,
+        berufserfahrung,
+        ausbildung,
+        selectedExperienceId,
+        selectedEducationId,
+        favoriteTasks,
+        favoriteCompanies,
+        favoritePositions,
+        favoriteInstitutions,
+        favoriteAusbildungsarten,
+        favoriteAbschluesse,
+        activeTab,
+        previewTab,
+      };
       if (typeof window !== 'undefined' && window.localStorage) {
         window.localStorage.setItem('CV_SNAPSHOT_V1', JSON.stringify(payload));
       }
