@@ -577,9 +577,37 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
       if (parsed && (parsed.version === 1 || parsed.version === 2)) {
         const { ok, issues, normalized } = validateAndNormalizeCV(parsed);
         if (!ok && issues && issues.length) { console.warn('CV snapshot issues:', issues); }
+        // Set core lists first
         setPersonalData(normalized.personalData || {});
         setBerufserfahrung(Array.isArray(normalized.berufserfahrung) ? normalized.berufserfahrung : []);
         setAusbildung(Array.isArray(normalized.ausbildung) ? normalized.ausbildung : []);
+        // Handle selected IDs robustly against the just-loaded lists
+        const firstExpId = normalized.berufserfahrung && normalized.berufserfahrung[0]?.id;
+        const firstEduId = normalized.ausbildung && normalized.ausbildung[0]?.id;
+        if (parsed.version === 2) {
+          const expList = Array.isArray(normalized.berufserfahrung) ? normalized.berufserfahrung : [];
+          const eduList = Array.isArray(normalized.ausbildung) ? normalized.ausbildung : [];
+          const selExp = (typeof parsed.selectedExperienceId === 'string' && expList.some(e => e.id === parsed.selectedExperienceId))
+            ? parsed.selectedExperienceId
+            : (expList[0]?.id || '');
+          const selEdu = (typeof parsed.selectedEducationId === 'string' && eduList.some(e => e.id === parsed.selectedEducationId))
+            ? parsed.selectedEducationId
+            : (eduList[0]?.id || '');
+          setSelectedExperienceId(selExp);
+          setSelectedEducationId(selEdu);
+          if (Array.isArray(parsed.favoriteTasks)) setFavoriteTasks(parsed.favoriteTasks);
+          if (Array.isArray(parsed.favoriteCompanies)) setFavoriteCompanies(parsed.favoriteCompanies);
+          if (Array.isArray(parsed.favoritePositions)) setFavoritePositions(parsed.favoritePositions);
+          if (Array.isArray(parsed.favoriteInstitutions)) setFavoriteInstitutions(parsed.favoriteInstitutions);
+          if (Array.isArray(parsed.favoriteAusbildungsarten)) setFavoriteAusbildungsarten(parsed.favoriteAusbildungsarten);
+          if (Array.isArray(parsed.favoriteAbschluesse)) setFavoriteAbschluesse(parsed.favoriteAbschluesse);
+          if (typeof parsed.activeTab === 'string') setActiveTab(parsed.activeTab as any);
+          if (typeof parsed.previewTab === 'string') setPreviewTab(parsed.previewTab as any);
+        } else {
+          // v1: no selected IDs stored → pick first entry if available
+          if (firstExpId) setSelectedExperienceId(firstExpId);
+          if (firstEduId) setSelectedEducationId(firstEduId);
+        }
         return true;
       }
       return false;
