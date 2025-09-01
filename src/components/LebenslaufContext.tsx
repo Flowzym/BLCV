@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
+import { genId } from '@/lib/id';
 import { loadCVSuggestions, CVSuggestionConfig, ProfileSourceMapping, isSupabaseConfigured } from '../services/supabaseService';
 
 // Types
@@ -214,7 +215,7 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
   // Factory functions for robust object creation
   const createExperience = useCallback((partial: Partial<Experience>): Experience => {
     return {
-      id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+      id: genId('exp'),
       companies: partial.companies || [],
       position: partial.position || [],
       startMonth: partial.startMonth || null,
@@ -231,7 +232,7 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
 
   const createEducation = useCallback((partial: Partial<Education>): Education => {
     return {
-      id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
+      id: genId('edu'),
       institution: partial.institution || [],
       ausbildungsart: partial.ausbildungsart || [],
       abschluss: partial.abschluss || [],
@@ -529,6 +530,41 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
         : [...prev, task]
     );
   };
+
+
+  // --- Snapshot (optional) ---
+  const [autosaveEnabled, setAutosaveEnabled] = useState<boolean>(false);
+  const saveSnapshot = useCallback(() => {
+    try {
+      const payload = { personalData, berufserfahrung, ausbildung, version: 1, savedAt: new Date().toISOString() };
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem('CV_SNAPSHOT_V1', JSON.stringify(payload));
+      }
+      return true;
+    } catch (e) { console.warn('Snapshot save failed', e); return false; }
+  }, [personalData, berufserfahrung, ausbildung]);
+
+  const loadSnapshot = useCallback(() => {
+    try {
+      if (typeof window === 'undefined' || !window.localStorage) return false;
+      const raw = window.localStorage.getItem('CV_SNAPSHOT_V1');
+      if (!raw) return false;
+      const parsed = JSON.parse(raw);
+      if (parsed && parsed.version === 1) {
+        setPersonalData(parsed.personalData || {});
+        setBerufserfahrung(Array.isArray(parsed.berufserfahrung) ? parsed.berufserfahrung : []);
+        setAusbildung(Array.isArray(parsed.ausbildung) ? parsed.ausbildung : []);
+        return true;
+      }
+      return false;
+    } catch (e) { console.warn('Snapshot load failed', e); return false; }
+  }, []);
+
+  useEffect(() => {
+    if (!autosaveEnabled) return;
+    const h = setTimeout(() => { saveSnapshot(); }, 1500);
+    return () => clearTimeout(h);
+  }, [autosaveEnabled, personalData, berufserfahrung, ausbildung, saveSnapshot]);
 
   // Helper functions to ensure a valid entry exists for editing
   const ensureSelectedExperienceExists = useCallback(() => {
