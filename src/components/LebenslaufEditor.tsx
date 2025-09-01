@@ -19,12 +19,21 @@ function LebenslaufEditorContent({
   profileSourceMappings = [],
 }: { profileSourceMappings?: ProfileSourceMapping[]; }) {
   const inputRef = useRef<HTMLDivElement>(null);
-  const { activeTab, setActiveTabWithSync } = useLebenslauf();
+  const { activeTab, setActiveTabWithSync, autosaveEnabled, setAutosaveEnabled, saveSnapshot, loadSnapshot } = useLebenslauf();
 
   return (
     <div className="w-full flex flex-col gap-6 relative overflow-hidden">
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         <div className="flex items-center gap-2 p-4 border-b border-gray-200">
+          <div className="ml-auto flex items-center gap-2 p-2">
+            <button className="px-2 py-1 text-sm border rounded" onClick={() => loadSnapshot()}>Entwurf laden</button>
+            <button className="px-2 py-1 text-sm border rounded" onClick={() => saveSnapshot()}>Entwurf speichern</button>
+            <label className="ml-2 flex items-center gap-1 text-sm">
+              <input type="checkbox" checked={autosaveEnabled} onChange={e => setAutosaveEnabled(e.target.checked)} />
+              Autosave
+            </label>
+          </div>
+        
           <User className="h-6 w-6 mr-2" style={{ color: '#F29400' }} stroke="#F29400" fill="none" />
           <h2 className="text-lg font-semibold text-gray-900">Lebenslauf</h2>
         </div>
