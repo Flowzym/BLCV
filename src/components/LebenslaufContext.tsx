@@ -136,7 +136,14 @@ interface LebenslaufContextType {
   ensureSelectedEducationExists: () => string;
   isEmptyExperience: (exp: Experience) => boolean;
   isEmptyEducation: (edu: Education) => boolean;
+
+  // Snapshot (optional)
+  autosaveEnabled: boolean;
+  setAutosaveEnabled: (enabled: boolean) => void;
+  saveSnapshot: () => boolean;
+  loadSnapshot: () => boolean;
 }
+
 
 const LebenslaufContext = createContext<LebenslaufContextType | undefined>(undefined);
 
@@ -686,7 +693,11 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
     ensureSelectedEducationExists,
     isEmptyExperience,
     isEmptyEducation,
-  };
+  ,
+    autosaveEnabled,
+    setAutosaveEnabled,
+    saveSnapshot,
+    loadSnapshot};
 
   return (
     <LebenslaufContext.Provider value={contextValue}>
