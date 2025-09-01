@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { useRef } from "react";
 import { ProfileSourceMapping } from "../services/supabaseService";
 import LebenslaufInput from "./LebenslaufInput";
@@ -21,14 +21,16 @@ function LebenslaufEditorContent({
 }: { profileSourceMappings?: ProfileSourceMapping[]; }) {
   const inputRef = useRef<HTMLDivElement>(null);
   const { activeTab, setActiveTabWithSync, autosaveEnabled, setAutosaveEnabled, saveSnapshot, loadSnapshot, personalData, berufserfahrung, ausbildung } = useLebenslauf();
+  const [snapMsg, setSnapMsg] = useState<string | null>(null);
 
   return (
     <div className="w-full flex flex-col gap-6 relative overflow-hidden">
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         <div className="flex items-center gap-2 p-4 border-b border-gray-200">
           <div className="ml-auto flex items-center gap-2 p-2">
-            <button className="px-2 py-1 text-sm border rounded" onClick={() => loadSnapshot()}>Entwurf laden</button>
-            <button className="px-2 py-1 text-sm border rounded" onClick={() => saveSnapshot()}>Entwurf speichern</button>
+            {snapMsg && <span data-cv-snapshot-msg className="text-xs text-gray-600">{snapMsg}</span>}
+            <button className="px-2 py-1 text-sm border rounded" onClick={() => { const ok = loadSnapshot(); setSnapMsg(ok ? "Entwurf geladen" : "Kein Entwurf gefunden"); setTimeout(() => setSnapMsg(null), 2000); }}>Entwurf laden</button>
+            <button className="px-2 py-1 text-sm border rounded" onClick={() => { const ok = saveSnapshot(); setSnapMsg(ok ? "Entwurf gespeichert" : "Fehler beim Speichern"); setTimeout(() => setSnapMsg(null), 2000); }}>Entwurf speichern</button>
             <label className="ml-2 flex items-center gap-1 text-sm">
               <input type="checkbox" checked={autosaveEnabled} onChange={e => setAutosaveEnabled(e.target.checked)} />
               Autosave
