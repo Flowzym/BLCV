@@ -51,18 +51,6 @@ export default function ExperienceForm({
   // Get current form data
   const form = berufserfahrung.find(exp => exp.id === experienceId);
   
-  // If no valid experience found, show error state
-  if (!form) {
-    return (
-      <div className="text-center py-8 bg-red-50 rounded-lg border border-red-200">
-        <p className="text-red-600 mb-2">Fehler: Berufserfahrung nicht gefunden</p>
-        <p className="text-sm text-red-500">
-          Der ausgewählte Eintrag existiert nicht mehr. Bitte wählen Sie einen anderen Eintrag aus.
-        </p>
-      </div>
-    );
-  }
-  
   // Default form structure for safety
   const safeForm = {
     companies: [],
@@ -90,6 +78,25 @@ export default function ExperienceForm({
   const hasTaskData = safeForm.aufgabenbereiche.length > 0;
   const hasAdditionalInfo = safeForm.zusatzangaben && safeForm.zusatzangaben.trim().length > 0;
   const hasLeasingData = showLeasing && ((Array.isArray(safeForm.leasingCompaniesList) && safeForm.leasingCompaniesList.length > 0) || leasingCompanyInput.trim() !== '');
+
+  // KI-Vorschläge für Tätigkeiten basierend auf den ausgewählten Positionen
+  const aiTaskSuggestions = useMemo(() => {
+    if (!selectedPositions || selectedPositions.length === 0) return [];
+    const suggestions = getTasksForPositions(selectedPositions);
+    return suggestions;
+  }, [selectedPositions]);
+
+  // If no valid experience found, show error state
+  if (!form) {
+    return (
+      <div className="text-center py-8 bg-red-50 rounded-lg border border-red-200">
+        <p className="text-red-600 mb-2">Fehler: Berufserfahrung nicht gefunden</p>
+        <p className="text-sm text-red-500">
+          Der ausgewählte Eintrag existiert nicht mehr. Bitte wählen Sie einen anderen Eintrag aus.
+        </p>
+      </div>
+    );
+  }
 
   // Leasing-Daten löschen wenn Toggle deaktiviert wird
   const handleLeasingToggle = (enabled: boolean) => {
@@ -214,13 +221,6 @@ export default function ExperienceForm({
       setCompanyCityInput(favorite);
     }
   };
-  
-  // KI-Vorschläge für Tätigkeiten basierend auf den ausgewählten Positionen
-  const aiTaskSuggestions = useMemo(() => {
-    if (!selectedPositions || selectedPositions.length === 0) return [];
-    const suggestions = getTasksForPositions(selectedPositions);
-    return suggestions;
-  }, [selectedPositions]);
   
   return (
     <div className="space-y-4">
