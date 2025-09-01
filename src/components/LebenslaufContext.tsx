@@ -693,11 +693,12 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
     ensureSelectedEducationExists,
     isEmptyExperience,
     isEmptyEducation,
-  ,
     autosaveEnabled,
     setAutosaveEnabled,
     saveSnapshot,
-    loadSnapshot};
+    loadSnapshot,
+    loadSnapshot
+  };
 
   return (
     <LebenslaufContext.Provider value={contextValue}>
