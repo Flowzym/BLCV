@@ -574,7 +574,7 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
       const raw = window.localStorage.getItem('CV_SNAPSHOT_V1');
       if (!raw) return false;
       const parsed = JSON.parse(raw);
-      if (parsed && parsed.version === 1) {
+      if (parsed && (parsed.version === 1 || parsed.version === 2)) {
         const { ok, issues, normalized } = validateAndNormalizeCV(parsed);
         if (!ok && issues && issues.length) { console.warn('CV snapshot issues:', issues); }
         setPersonalData(normalized.personalData || {});
