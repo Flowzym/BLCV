@@ -473,8 +473,7 @@ export default function ExperienceForm({
           )}
           
           {/* Überlassungsunternehmen Input - nur anzeigen wenn Leasing ausgewählt */}
-          {showLeasing && (
-            <div className="mt-4 space-y-3">
+          <div className="mt-4 space-y-3" style={{ display: showLeasing ? 'block' : 'none' }}>
               {/* Bestehende Leasingfirmen als Tags anzeigen */}
               {Array.isArray(safeForm.leasingCompaniesList) && safeForm.leasingCompaniesList.length > 0 && (
                 <div className="flex flex-wrap gap-2 mb-4">
@@ -533,18 +532,15 @@ export default function ExperienceForm({
                 </div>
               )}
             </div>
-          )}
           
           {/* Land Dropdown - nur anzeigen wenn Ausland ausgewählt */}
-          {showForeignCountry && (
-            <div className="mt-4">
+          <div className="mt-4" style={{ display: showForeignCountry ? 'block' : 'none' }}>
               <CountryDropdown
                 label=""
                 value={selectedCountryInput}
                 onChange={setSelectedCountryInput}
               />
             </div>
-          )}
           
           {/* Ausland Toggle - unten rechts in der Card */}
           <div className="flex items-center justify-end space-x-2 mt-4">
