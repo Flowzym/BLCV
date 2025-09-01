@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import { genId } from '@/lib/id';
+import { validateAndNormalizeCV } from '@/lib/cvValidation';
 import { loadCVSuggestions, CVSuggestionConfig, ProfileSourceMapping, isSupabaseConfigured } from '../services/supabaseService';
 
 // Types
@@ -551,9 +552,11 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
       if (!raw) return false;
       const parsed = JSON.parse(raw);
       if (parsed && parsed.version === 1) {
-        setPersonalData(parsed.personalData || {});
-        setBerufserfahrung(Array.isArray(parsed.berufserfahrung) ? parsed.berufserfahrung : []);
-        setAusbildung(Array.isArray(parsed.ausbildung) ? parsed.ausbildung : []);
+        const { ok, issues, normalized } = validateAndNormalizeCV(parsed);
+        if (!ok && issues && issues.length) { console.warn('CV snapshot issues:', issues); }
+        setPersonalData(normalized.personalData || {});
+        setBerufserfahrung(Array.isArray(normalized.berufserfahrung) ? normalized.berufserfahrung : []);
+        setAusbildung(Array.isArray(normalized.ausbildung) ? normalized.ausbildung : []);
         return true;
       }
       return false;
