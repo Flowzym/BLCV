@@ -55,7 +55,7 @@ export default function AusbildungForm({
   const hasInstitutionData = safeForm.institution.length > 0;
   const hasAusbildungsartData = safeForm.ausbildungsart.length > 0;
   const hasAbschlussData = safeForm.abschluss.length > 0;
-  const hasZusatzangabenData = safeForm.zusatzangaben.trim().length > 0;
+  const hasZusatzangabenData = (safeForm.zusatzangaben ?? "").trim().length > 0;
 
   return (
     <div className="space-y-4">
