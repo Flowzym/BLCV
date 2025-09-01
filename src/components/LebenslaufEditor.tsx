@@ -6,6 +6,7 @@ import LebenslaufPreview from "./LebenslaufPreview";
 import AiHelpPanel from "./AiHelpPanel";
 import { User, Briefcase, GraduationCap, LayoutGrid, Lightbulb } from 'lucide-react';
 import { useLebenslauf } from "@/components/LebenslaufContext"; // ✅ Alias
+import { cvToMarkdown, downloadText } from '@/lib/cvExport';
 
 const mainTabs = [
   { id: 'personal', label: 'Persönliche Daten', icon: User },
@@ -19,7 +20,7 @@ function LebenslaufEditorContent({
   profileSourceMappings = [],
 }: { profileSourceMappings?: ProfileSourceMapping[]; }) {
   const inputRef = useRef<HTMLDivElement>(null);
-  const { activeTab, setActiveTabWithSync, autosaveEnabled, setAutosaveEnabled, saveSnapshot, loadSnapshot } = useLebenslauf();
+  const { activeTab, setActiveTabWithSync, autosaveEnabled, setAutosaveEnabled, saveSnapshot, loadSnapshot, personalData, berufserfahrung, ausbildung } = useLebenslauf();
 
   return (
     <div className="w-full flex flex-col gap-6 relative overflow-hidden">
@@ -32,7 +33,13 @@ function LebenslaufEditorContent({
               <input type="checkbox" checked={autosaveEnabled} onChange={e => setAutosaveEnabled(e.target.checked)} />
               Autosave
             </label>
-          </div>
+          
+            <button className="ml-2 px-2 py-1 text-sm border rounded" onClick={() => {
+              const text = cvToMarkdown({ personalData, berufserfahrung, ausbildung });
+              const name = [personalData?.vorname, personalData?.nachname].filter(Boolean).join(' ') || 'Lebenslauf';
+              downloadText(`${name}.md`, text);
+            }}>Export .md</button>
+        </div>
         
           <User className="h-6 w-6 mr-2" style={{ color: '#F29400' }} stroke="#F29400" fill="none" />
           <h2 className="text-lg font-semibold text-gray-900">Lebenslauf</h2>
