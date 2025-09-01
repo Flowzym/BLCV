@@ -455,8 +455,9 @@ export default function LebenslaufPreview({ inputRef }: LebenslaufPreviewProps) 
                         {Array.isArray(exp.aufgabenbereiche) && exp.aufgabenbereiche.length > 0 && (
                           <div className="mt-1">
                             <ReactSortable
-                              list={(() => { const ids = ensureTaskIds(exp.id, exp.aufgabenbereiche); return exp.aufgabenbereiche.map((task, index) => ({ id: ids[index], content: task || '' })); })()}-${index}`, content: task || '' }))}
-                              setList={(newList) => { const newTasks = newList.map(item => item.content || ''); taskIdMapRef.current[exp.id] = newList.map(item => item.id); updateExperienceTasksOrder(exp.id, newTasks);
+                              list={(() => { const ids = ensureTaskIds(exp.id, exp.aufgabenbereiche); return exp.aufgabenbereiche.map((task, index) => ({ id: ids[index], content: task || '' })); })()}
+                              setList={(newList) => { const newTasks = newList.map(item => item.content || ''); taskIdMapRef.current[exp.id] = newList.map(item => item.id);
+          taskIdMapRef.current[exp.id] = newList.map(item => item.id); updateExperienceTasksOrder(exp.id, newTasks);
                               }}
                               tag="div"
                             >
