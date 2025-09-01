@@ -46,6 +46,12 @@ export default function AusbildungForm({
     ...form
   };
 
+  // Ensure zusatzangaben is always a string
+  const finalForm = {
+    ...safeForm,
+    zusatzangaben: safeForm.zusatzangaben || ""
+  };
+
   const hasZeitraumData =
     safeForm.startMonth !== null ||
     safeForm.startYear.trim() !== '' ||
@@ -55,7 +61,7 @@ export default function AusbildungForm({
   const hasInstitutionData = safeForm.institution.length > 0;
   const hasAusbildungsartData = safeForm.ausbildungsart.length > 0;
   const hasAbschlussData = safeForm.abschluss.length > 0;
-  const hasZusatzangabenData = String(safeForm.zusatzangaben || '').trim().length > 0;
+  const hasZusatzangabenData = finalForm.zusatzangaben.trim().length > 0;
 
   return (
     <div className="space-y-4">
@@ -193,7 +199,7 @@ export default function AusbildungForm({
           )}
         </div>
         <TextInput
-          value={safeForm.zusatzangaben}
+          value={finalForm.zusatzangaben}
           onChange={(val) => {
             updateEducationField(educationId, 'zusatzangaben', val);
           }}
