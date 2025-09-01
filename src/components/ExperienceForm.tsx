@@ -25,6 +25,29 @@ export default function ExperienceForm({
 }: ExperienceFormProps) {
   const { berufserfahrung, updateExperienceField, updateExperienceZeitraum } = useLebenslauf();
   
+  const { 
+    favoriteTasks, 
+    favoriteCities, 
+    favoriteCompanies: favorites,
+    favoriteLeasingCompanies,
+    toggleFavoriteCompany,
+    toggleFavoriteLeasingCompany,
+    toggleFavoriteCity,
+    favoritePositions, 
+    toggleFavoritePosition 
+  } = useLebenslauf();
+  
+  // Lokale Zustände für die Eingabefelder
+  const [isCompanyInputFocused, setIsCompanyInputFocused] = useState(false);
+  const [isCityInputFocused, setIsCityInputFocused] = useState(false);
+  const [companyNameInput, setCompanyNameInput] = useState('');
+  const [companyCityInput, setCompanyCityInput] = useState('');
+  const [selectedCountryInput, setSelectedCountryInput] = useState('Österreich');
+  const [showForeignCountry, setShowForeignCountry] = useState(false);
+  const [showLeasing, setShowLeasing] = useState(false);
+  const [leasingCompanyInput, setLeasingCompanyInput] = useState('');
+  const [isPositionInputFocused, setIsPositionInputFocused] = useState(false);
+
   // Get current form data
   const form = berufserfahrung.find(exp => exp.id === experienceId);
   
@@ -55,29 +78,6 @@ export default function ExperienceForm({
   };
   
   const selectedPositions = safeForm.position || [];
-  
-  const { 
-    favoriteTasks, 
-    favoriteCities, 
-    favoriteCompanies: favorites,
-    favoriteLeasingCompanies,
-    toggleFavoriteCompany,
-    toggleFavoriteLeasingCompany,
-    toggleFavoriteCity,
-    favoritePositions, 
-    toggleFavoritePosition 
-  } = useLebenslauf();
-  
-  // Lokale Zustände für die Eingabefelder
-  const [isCompanyInputFocused, setIsCompanyInputFocused] = useState(false);
-  const [isCityInputFocused, setIsCityInputFocused] = useState(false);
-  const [companyNameInput, setCompanyNameInput] = useState('');
-  const [companyCityInput, setCompanyCityInput] = useState('');
-  const [selectedCountryInput, setSelectedCountryInput] = useState('Österreich');
-  const [showForeignCountry, setShowForeignCountry] = useState(false);
-  const [showLeasing, setShowLeasing] = useState(false);
-  const [leasingCompanyInput, setLeasingCompanyInput] = useState('');
-  const [isPositionInputFocused, setIsPositionInputFocused] = useState(false);
 
   const hasZeitraumData =
     safeForm.startMonth !== null ||
