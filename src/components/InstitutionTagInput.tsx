@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import CompanyTag from './CompanyTag';
+import InstitutionTag from './InstitutionTag';
 import TagButtonFavorite from './ui/TagButtonFavorite';
 import { useLebenslauf } from './LebenslaufContext';
 import AutocompleteInput from './AutocompleteInput';
@@ -42,7 +42,7 @@ export default function InstitutionTagInput({ value, onChange, suggestions = [] 
       {value.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-4">
           {value.map((c) => (
-            <CompanyTag
+            <InstitutionTag
               key={c}
               label={c}
               onRemove={() => removeInstitution(c)}

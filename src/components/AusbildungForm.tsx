@@ -1,8 +1,9 @@
-import { Eraser } from 'lucide-react';
+import React from 'react';
 import ZeitraumPicker from './ZeitraumPicker';
-import TextInput from './TextInput';
 import InstitutionTagInput from './InstitutionTagInput';
 import TagSelectorWithFavorites from './TagSelectorWithFavorites';
+import TextInput from './TextInput';
+import { Eraser } from 'lucide-react';
 import { useLebenslauf } from './LebenslaufContext';
 import { CVSuggestionConfig } from '../services/supabaseService';
 
@@ -46,25 +47,29 @@ export default function AusbildungForm({
     ...form
   };
 
-  // Ensure zusatzangaben is always a string
+  // Ensure all fields are properly typed and safe
   const finalForm = {
     ...safeForm,
-    zusatzangaben: safeForm.zusatzangaben || ""
+    institution: Array.isArray(safeForm.institution) ? safeForm.institution : [],
+    ausbildungsart: Array.isArray(safeForm.ausbildungsart) ? safeForm.ausbildungsart : [],
+    abschluss: Array.isArray(safeForm.abschluss) ? safeForm.abschluss : [],
+    zusatzangaben: String(safeForm.zusatzangaben || "")
   };
 
   const hasZeitraumData =
-    safeForm.startMonth !== null ||
-    safeForm.startYear.trim() !== '' ||
-    safeForm.endMonth !== null ||
-    safeForm.endYear !== null ||
-    safeForm.isCurrent === true;
-  const hasInstitutionData = safeForm.institution.length > 0;
-  const hasAusbildungsartData = safeForm.ausbildungsart.length > 0;
-  const hasAbschlussData = safeForm.abschluss.length > 0;
+    finalForm.startMonth !== null ||
+    String(finalForm.startYear).trim() !== '' ||
+    finalForm.endMonth !== null ||
+    finalForm.endYear !== null ||
+    finalForm.isCurrent === true;
+  const hasInstitutionData = finalForm.institution.length > 0;
+  const hasAusbildungsartData = finalForm.ausbildungsart.length > 0;
+  const hasAbschlussData = finalForm.abschluss.length > 0;
   const hasZusatzangabenData = finalForm.zusatzangaben.trim().length > 0;
 
   return (
     <div className="space-y-4">
+      {/* Zeitraum */}
       <div className="bg-white border border-gray-200 rounded shadow-sm p-4">
         <div className="flex justify-between mb-2">
           <h3 className="text-sm font-bold text-gray-700">Zeitraum</h3>
@@ -89,11 +94,11 @@ export default function AusbildungForm({
         </div>
         <ZeitraumPicker
           value={{
-            startMonth: safeForm.startMonth ?? undefined,
-            startYear: safeForm.startYear ?? undefined,
-            endMonth: safeForm.endMonth ?? undefined,
-            endYear: safeForm.endYear ?? undefined,
-            isCurrent: safeForm.isCurrent,
+            startMonth: finalForm.startMonth ?? undefined,
+            startYear: finalForm.startYear ?? undefined,
+            endMonth: finalForm.endMonth ?? undefined,
+            endYear: finalForm.endYear ?? undefined,
+            isCurrent: finalForm.isCurrent,
           }}
           onChange={(data) => {
             updateEducationZeitraum(educationId, {
@@ -111,6 +116,7 @@ export default function AusbildungForm({
         />
       </div>
 
+      {/* Institution & Ort */}
       <div className="bg-white border border-gray-200 rounded shadow-sm p-4">
         <div className="flex justify-between mb-2">
           <h3 className="text-sm font-bold text-gray-700">Institution & Ort</h3>
@@ -126,7 +132,7 @@ export default function AusbildungForm({
           )}
         </div>
         <InstitutionTagInput
-          value={safeForm.institution}
+          value={finalForm.institution}
           onChange={(val) => {
             updateEducationField(educationId, 'institution', val);
           }}
@@ -134,6 +140,7 @@ export default function AusbildungForm({
         />
       </div>
 
+      {/* Ausbildungsart */}
       <div className="bg-white border border-gray-200 rounded shadow-sm p-4">
         <div className="flex justify-between mb-2">
           <h3 className="text-sm font-bold text-gray-700">Ausbildungsart</h3>
@@ -150,15 +157,31 @@ export default function AusbildungForm({
         </div>
         <TagSelectorWithFavorites
           label=""
-          value={safeForm.ausbildungsart}
+          value={finalForm.ausbildungsart}
           onChange={(val) => {
             updateEducationField(educationId, 'ausbildungsart', val);
           }}
           allowCustom={true}
-          suggestions={['Studium', 'Lehre', 'Weiterbildung', 'Kurs', 'Zertifizierung']}
+          suggestions={[
+            'Studium',
+            'Lehre',
+            'Weiterbildung',
+            'Kurs',
+            'Zertifizierung',
+            'Seminar',
+            'Workshop',
+            'Fernstudium',
+            'Abendschule',
+            'Berufsschule',
+            'Fachhochschule',
+            'Universität',
+            'Akademie',
+            'Institut'
+          ]}
         />
       </div>
 
+      {/* Abschluss */}
       <div className="bg-white border border-gray-200 rounded shadow-sm p-4">
         <div className="flex justify-between mb-2">
           <h3 className="text-sm font-bold text-gray-700">Abschluss</h3>
@@ -175,15 +198,36 @@ export default function AusbildungForm({
         </div>
         <TagSelectorWithFavorites
           label=""
-          value={safeForm.abschluss}
+          value={finalForm.abschluss}
           onChange={(val) => {
             updateEducationField(educationId, 'abschluss', val);
           }}
           allowCustom={true}
-          suggestions={['Bachelor', 'Master', 'Diplom', 'Lehrabschluss', 'Zertifikat', 'Matura']}
+          suggestions={[
+            'Bachelor',
+            'Master',
+            'Diplom',
+            'Lehrabschluss',
+            'Zertifikat',
+            'Matura',
+            'Abitur',
+            'Doktor',
+            'PhD',
+            'MBA',
+            'MSc',
+            'BSc',
+            'Mag.',
+            'DI',
+            'Dr.',
+            'Prof.',
+            'Facharbeiter',
+            'Geselle',
+            'Meister'
+          ]}
         />
       </div>
 
+      {/* Zusatzangaben */}
       <div className="bg-white border border-gray-200 rounded shadow-sm p-4">
         <div className="flex justify-between mb-2">
           <h3 className="text-sm font-bold text-gray-700">Zusatzangaben</h3>
@@ -203,9 +247,11 @@ export default function AusbildungForm({
           onChange={(val) => {
             updateEducationField(educationId, 'zusatzangaben', val);
           }}
-          label="" 
+          label=""
           placeholder="Zusätzliche Informationen zur Ausbildung..."
           rows={4}
+          id="education-additional-info"
+          name="education-additional-info"
         />
       </div>
     </div>
