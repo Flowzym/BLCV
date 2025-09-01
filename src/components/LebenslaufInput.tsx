@@ -94,40 +94,72 @@ const LebenslaufInput: React.FC = () => {
       case 'experience':
         return (
           <div className="space-y-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">
-              Berufserfahrung {berufserfahrung.length > 0 && (
-                <span className="ml-2 px-3 py-1.5 text-white text-sm font-bold rounded-full" style={{ backgroundColor: '#b5b7bb' }}>
-                  {berufserfahrung.length}
-                </span>
-              )}
-            </h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-medium text-gray-900">
+                Berufserfahrung {berufserfahrung.length > 0 && (
+                  <span className="ml-2 px-3 py-1.5 text-white text-sm font-bold rounded-full" style={{ backgroundColor: '#b5b7bb' }}>
+                    {berufserfahrung.length}
+                  </span>
+                )}
+              </h3>
+              <button
+                onClick={createEmptyExperience}
+                disabled={isAddingEntry}
+                className="flex items-center space-x-2 px-4 py-2 text-white rounded-md transition-colors duration-200 disabled:opacity-50"
+                style={{ backgroundColor: '#F29400' }}
+                title="Neue Berufserfahrung hinzufügen"
+              >
+                <Plus className="h-4 w-4" />
+                <span>Weitere</span>
+              </button>
+            </div>
             {selectedExperienceId ? (
               <ExperienceForm experienceId={selectedExperienceId} cvSuggestions={cvSuggestions} />
             ) : (
-              <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-                <p className="text-gray-600 mb-4">Keine Berufserfahrung ausgewählt</p>
-                <p className="text-sm text-gray-500">Wähle aus der Vorschau oder erstelle mit ⊕ unten rechts.</p>
-              </div>
+              berufserfahrung.length === 0 ? (
+                <ExperienceForm experienceId={ensureSelectedExperienceExists()} cvSuggestions={cvSuggestions} />
+              ) : (
+                <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                  <p className="text-gray-600 mb-4">Keine Berufserfahrung ausgewählt</p>
+                  <p className="text-sm text-gray-500">Wähle aus der Vorschau oder erstelle mit "Weitere" oben rechts.</p>
+                </div>
+              )
             )}
           </div>
         );
       case 'education':
         return (
           <div className="space-y-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4">
-              Ausbildung {ausbildung.length > 0 && (
-                <span className="ml-2 px-3 py-1.5 text-white text-sm font-bold rounded-full" style={{ backgroundColor: '#b5b7bb' }}>
-                  {ausbildung.length}
-                </span>
-              )}
-            </h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-medium text-gray-900">
+                Ausbildung {ausbildung.length > 0 && (
+                  <span className="ml-2 px-3 py-1.5 text-white text-sm font-bold rounded-full" style={{ backgroundColor: '#b5b7bb' }}>
+                    {ausbildung.length}
+                  </span>
+                )}
+              </h3>
+              <button
+                onClick={createEmptyEducation}
+                disabled={isAddingEntry}
+                className="flex items-center space-x-2 px-4 py-2 text-white rounded-md transition-colors duration-200 disabled:opacity-50"
+                style={{ backgroundColor: '#F29400' }}
+                title="Neue Ausbildung hinzufügen"
+              >
+                <Plus className="h-4 w-4" />
+                <span>Weitere</span>
+              </button>
+            </div>
             {selectedEducationId ? (
               <AusbildungForm educationId={selectedEducationId} cvSuggestions={cvSuggestions} />
             ) : (
-              <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-                <p className="text-gray-600 mb-4">Keine Ausbildung ausgewählt</p>
-                <p className="text-sm text-gray-500">Wähle aus der Vorschau oder erstelle mit ⊕ unten rechts.</p>
-              </div>
+              ausbildung.length === 0 ? (
+                <AusbildungForm educationId={ensureSelectedEducationExists()} cvSuggestions={cvSuggestions} />
+              ) : (
+                <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                  <p className="text-gray-600 mb-4">Keine Ausbildung ausgewählt</p>
+                  <p className="text-sm text-gray-500">Wähle aus der Vorschau oder erstelle mit "Weitere" oben rechts.</p>
+                </div>
+              )
             )}
           </div>
         );
