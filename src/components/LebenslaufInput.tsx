@@ -28,6 +28,8 @@ const LebenslaufInput: React.FC = () => {
     activeTab,
     setActiveTabWithSync,
     selectEducation,
+    ensureSelectedExperienceExists,
+    ensureSelectedEducationExists,
   } = useLebenslauf();
 
   const createEmptyExperience = () => {
