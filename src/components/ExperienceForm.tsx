@@ -273,11 +273,6 @@ export default function ExperienceForm({
             });
           }}
         />
-        {warningZeitraum && (
-          <div data-zeitraum-warning className="mt-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
-            {warningZeitraum}
-          </div>
-        )}
       </div>
 
       {/* Unternehmen & Ort */}
@@ -585,11 +580,6 @@ export default function ExperienceForm({
           allowCustom={true}
           suggestions={cvSuggestions.positions}
         />
-        {warningZeitraum && (
-          <div data-zeitraum-warning className="mt-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
-            {warningZeitraum}
-          </div>
-        )}
       </div>
 
       {/* Tätigkeiten */}
@@ -616,11 +606,6 @@ export default function ExperienceForm({
           suggestions={cvSuggestions.aufgabenbereiche}
           positionen={selectedPositions}
         />
-        {warningZeitraum && (
-          <div data-zeitraum-warning className="mt-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
-            {warningZeitraum}
-          </div>
-        )}
       </div>
       
       {/* Weitere Angaben */}
@@ -650,11 +635,6 @@ export default function ExperienceForm({
           id="experience-additional-info"
           name="experience-additional-info"
         />
-        {warningZeitraum && (
-          <div data-zeitraum-warning className="mt-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1">
-            {warningZeitraum}
-          </div>
-        )}
       </div>
     </div>
   );
