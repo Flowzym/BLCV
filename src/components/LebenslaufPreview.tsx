@@ -224,16 +224,7 @@ export default function LebenslaufPreview({ inputRef }: LebenslaufPreviewProps) 
   };
 
   return (
-    <div ref={previewRef} className="h-full flex flex-col" style={containerStyle}>
-      <div className="hidden print:block border-b border-gray-300 pb-2 mb-3">
-        <div className="text-xl font-semibold">
-          {[personalData?.vorname, personalData?.nachname].filter(Boolean).join(' ') || personalData?.name || 'Lebenslauf'}
-        </div>
-        <div className="text-sm text-gray-700">
-          {[personalData?.adresse, [personalData?.plz, personalData?.ort].filter(Boolean).join(' '), personalData?.telefon, personalData?.email].filter(Boolean).join(' • ')}
-        </div>
-      </div>
-
+    <div ref={previewRef} className="h-full flex flex-col cv-print-root preview-area" style={containerStyle}>
       {/* Header mit Toggle-Button */}
       <div className="flex items-center justify-between mb-4 flex-shrink-0 p-4 border-b border-gray-200">
         <h2 className="text-lg font-semibold text-gray-900 flex items-center">📄 <span className="ml-2">Vorschau</span></h2>
