@@ -41,6 +41,7 @@ function LebenslaufEditorContent({
               const name = [personalData?.vorname, personalData?.nachname].filter(Boolean).join(' ') || 'Lebenslauf';
               downloadText(`${name}.md`, text);
             }}>Export .md</button>
+            <button className="px-2 py-1 text-sm border rounded" onClick={() => window.print()}>Export PDF</button>
         </div>
         
           <User className="h-6 w-6 mr-2" style={{ color: '#F29400' }} stroke="#F29400" fill="none" />
