@@ -137,6 +137,8 @@ interface LebenslaufContextType {
   isEmptyExperience: (exp: Experience) => boolean;
   isEmptyEducation: (edu: Education) => boolean;
 
+  toggleFavorite: (kind: 'company'|'position'|'aufgabenbereich'|'institution'|'ausbildungsart'|'abschluss', value: string) => void;
+
   // Snapshot (optional)
   autosaveEnabled: boolean;
   setAutosaveEnabled: (enabled: boolean) => void;
@@ -480,6 +482,18 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
         : [...prev, abschluss]
     );
   };
+  // Generic favorite wrapper (keeps old APIs intact)
+  const toggleFavorite = (kind: 'company'|'position'|'aufgabenbereich'|'institution'|'ausbildungsart'|'abschluss', value: string) => {
+    switch (kind) {
+      case 'company': return toggleFavoriteCompany(value);
+      case 'position': return toggleFavoritePosition(value);
+      case 'aufgabenbereich': return toggleFavoriteAufgabenbereich(value);
+      case 'institution': return toggleFavoriteInstitution(value);
+      case 'ausbildungsart': return toggleFavoriteAusbildungsart(value);
+      case 'abschluss': return toggleFavoriteAbschluss(value);
+    }
+  };
+
 
   // ProfileInput integration methods - non-destructive operations
   const addExperienceFromProfile = useCallback((position: string) => {
@@ -737,6 +751,7 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
     ensureSelectedEducationExists,
     isEmptyExperience,
     isEmptyEducation,
+    toggleFavorite,
     autosaveEnabled,
     setAutosaveEnabled,
     saveSnapshot,
