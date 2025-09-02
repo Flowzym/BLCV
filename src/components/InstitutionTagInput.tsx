@@ -12,7 +12,7 @@ interface InstitutionTagInputProps {
 
 export default function InstitutionTagInput({ value, onChange, suggestions = [] }: InstitutionTagInputProps) {
   const [inputValue, setInputValue] = useState('');
-  const { favoriteInstitutions: favorites, toggleFavoriteInstitution } =
+  const { favoriteInstitutions: favorites, toggleFavoriteInstitution, sortByFavorite } =
     useLebenslauf();
 
   const addInstitution = (val?: string) => {
@@ -57,7 +57,7 @@ export default function InstitutionTagInput({ value, onChange, suggestions = [] 
         onChange={setInputValue}
         onAdd={addInstitution}
         onFavoriteClick={handleAddFavoriteInput}
-        suggestions={suggestions}
+        suggestions={sortByFavorite('institution', (suggestions || []).filter(s => !value.includes(s)))}
         placeholder="Hinzufügen..."
         showFavoritesButton
         className="w-full"
