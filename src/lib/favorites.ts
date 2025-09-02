@@ -32,6 +32,6 @@ export function sortByFavorite(items: string[], favorites: string[]): string[] {
     const af = favSet.has(canonicalize(a)) ? 0 : 1;
     const bf = favSet.has(canonicalize(b)) ? 0 : 1;
     if (af !== bf) return af - bf;
-    return a.localeCompare(b, undefined, { sensitivity: 'base' });
+    return String(a).localeCompare(String(b), undefined, { sensitivity: 'base' });
   });
 }
