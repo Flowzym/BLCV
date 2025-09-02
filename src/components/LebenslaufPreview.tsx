@@ -3,7 +3,6 @@ import { Trash2, Plus, FileText, Star, X, ToggleLeft, ToggleRight, Edit, Check, 
 import { ReactSortable } from 'react-sortablejs';
 import { useLebenslauf } from '@/components/LebenslaufContext';
 import EditablePreviewText from './EditablePreviewText';
-import { genId } from '@/lib/id';
 
 type PreviewTab = 'gesamt' | 'berufserfahrung' | 'ausbildung' | 'fachkompetenzen' | 'softskills';
 
@@ -12,18 +11,6 @@ interface LebenslaufPreviewProps {
 }
 
 export default function LebenslaufPreview({ inputRef }: LebenslaufPreviewProps) {
-  const taskIdMapRef = useRef<Record<string, string[]>>({});
-  const ensureTaskIds = (expId: string, tasks: string[]) => {
-    const current = taskIdMapRef.current[expId] || [];
-    if (current.length < tasks.length) {
-      const next = current.slice();
-      for (let i = current.length; i < tasks.length; i++) next.push(genId('task'));
-      taskIdMapRef.current[expId] = next;
-    } else if (current.length > tasks.length) {
-      taskIdMapRef.current[expId] = current.slice(0, tasks.length);
-    }
-    return taskIdMapRef.current[expId] || [];
-  };
   const containerStyle = {
     backgroundColor: 'white',
     padding: '0',
@@ -238,6 +225,15 @@ export default function LebenslaufPreview({ inputRef }: LebenslaufPreviewProps) 
 
   return (
     <div ref={previewRef} className="h-full flex flex-col" style={containerStyle}>
+      <div className="hidden print:block border-b border-gray-300 pb-2 mb-3">
+        <div className="text-xl font-semibold">
+          {[personalData?.vorname, personalData?.nachname].filter(Boolean).join(' ') || personalData?.name || 'Lebenslauf'}
+        </div>
+        <div className="text-sm text-gray-700">
+          {[personalData?.adresse, [personalData?.plz, personalData?.ort].filter(Boolean).join(' '), personalData?.telefon, personalData?.email].filter(Boolean).join(' • ')}
+        </div>
+      </div>
+
       {/* Header mit Toggle-Button */}
       <div className="flex items-center justify-between mb-4 flex-shrink-0 p-4 border-b border-gray-200">
         <h2 className="text-lg font-semibold text-gray-900 flex items-center">📄 <span className="ml-2">Vorschau</span></h2>
@@ -455,9 +451,10 @@ export default function LebenslaufPreview({ inputRef }: LebenslaufPreviewProps) 
                         {Array.isArray(exp.aufgabenbereiche) && exp.aufgabenbereiche.length > 0 && (
                           <div className="mt-1">
                             <ReactSortable
-                              list={(() => { const ids = ensureTaskIds(exp.id, exp.aufgabenbereiche); return exp.aufgabenbereiche.map((task, index) => ({ id: ids[index], content: task || '' })); })()}
-                              setList={(newList) => { const newTasks = newList.map(item => item.content || ''); taskIdMapRef.current[exp.id] = newList.map(item => item.id);
-          taskIdMapRef.current[exp.id] = newList.map(item => item.id); updateExperienceTasksOrder(exp.id, newTasks);
+                              list={exp.aufgabenbereiche.map((task, index) => ({ id: `${exp.id}-${index}`, content: task || '' }))}
+                              setList={(newList) => {
+                                const newTasks = newList.map(item => item.content || '');
+                                updateExperienceTasksOrder(exp.id, newTasks);
                               }}
                               tag="div"
                             >
