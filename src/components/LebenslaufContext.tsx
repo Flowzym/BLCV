@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import { loadCVSuggestions, CVSuggestionConfig, ProfileSourceMapping, isSupabaseConfigured } from '../services/supabaseService';
+import { canonicalize, toggleFavoriteIn, hasFavorite as favHas, sortByFavorite as sortByFavoriteUtil } from '@/lib/favorites';
 
 // Types
 interface PersonalData {
