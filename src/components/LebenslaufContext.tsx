@@ -1,6 +1,4 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
-import { genId } from '@/lib/id';
-import { validateAndNormalizeCV } from '@/lib/cvValidation';
 import { loadCVSuggestions, CVSuggestionConfig, ProfileSourceMapping, isSupabaseConfigured } from '../services/supabaseService';
 
 // Types
@@ -110,7 +108,13 @@ interface LebenslaufContextType {
   toggleFavoriteAusbildungsart: (ausbildungsart: string) => void;
   toggleFavoriteAbschluss: (abschluss: string) => void;
   
-  // ProfileInput integration methods
+  
+  // Unified favorites API
+  toggleFavorite: (kind: 'company'|'position'|'aufgabenbereich'|'institution'|'ausbildungsart'|'abschluss', value: string) => void;
+  isFavorite: (kind: 'company'|'position'|'aufgabenbereich'|'institution'|'ausbildungsart'|'abschluss', value: string) => boolean;
+  getFavorites: (kind: 'company'|'position'|'aufgabenbereich'|'institution'|'ausbildungsart'|'abschluss') => string[];
+  sortByFavorite: (kind: 'company'|'position'|'aufgabenbereich'|'institution'|'ausbildungsart'|'abschluss', items: string[]) => string[];
+// ProfileInput integration methods
   addExperienceFromProfile: (position: string) => void;
   removeExperienceFromProfile: (position: string) => void;
   addEducationFromProfile: (abschluss: string) => void;
@@ -136,16 +140,7 @@ interface LebenslaufContextType {
   ensureSelectedEducationExists: () => string;
   isEmptyExperience: (exp: Experience) => boolean;
   isEmptyEducation: (edu: Education) => boolean;
-
-  toggleFavorite: (kind: 'company'|'position'|'aufgabenbereich'|'institution'|'ausbildungsart'|'abschluss', value: string) => void;
-
-  // Snapshot (optional)
-  autosaveEnabled: boolean;
-  setAutosaveEnabled: (enabled: boolean) => void;
-  saveSnapshot: () => boolean;
-  loadSnapshot: () => boolean;
 }
-
 
 const LebenslaufContext = createContext<LebenslaufContextType | undefined>(undefined);
 
@@ -225,7 +220,7 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
   // Factory functions for robust object creation
   const createExperience = useCallback((partial: Partial<Experience>): Experience => {
     return {
-      id: genId('exp'),
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
       companies: partial.companies || [],
       position: partial.position || [],
       startMonth: partial.startMonth || null,
@@ -242,7 +237,7 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
 
   const createEducation = useCallback((partial: Partial<Education>): Education => {
     return {
-      id: genId('edu'),
+      id: Date.now().toString() + Math.random().toString(36).substr(2, 5),
       institution: partial.institution || [],
       ausbildungsart: partial.ausbildungsart || [],
       abschluss: partial.abschluss || [],
@@ -482,16 +477,36 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
         : [...prev, abschluss]
     );
   };
-  // Generic favorite wrapper (keeps old APIs intact)
-  const toggleFavorite = (kind: 'company'|'position'|'aufgabenbereich'|'institution'|'ausbildungsart'|'abschluss', value: string) => {
+  // Unified favorites implementation
+  const getFavorites = (kind: 'company'|'position'|'aufgabenbereich'|'institution'|'ausbildungsart'|'abschluss'): string[] => {
     switch (kind) {
-      case 'company': return toggleFavoriteCompany(value);
-      case 'position': return toggleFavoritePosition(value);
-      case 'aufgabenbereich': return toggleFavoriteAufgabenbereich(value);
-      case 'institution': return toggleFavoriteInstitution(value);
-      case 'ausbildungsart': return toggleFavoriteAusbildungsart(value);
-      case 'abschluss': return toggleFavoriteAbschluss(value);
+      case 'company': return favoriteCompanies;
+      case 'position': return favoritePositions;
+      case 'aufgabenbereich': return favoriteTasks;
+      case 'institution': return favoriteInstitutions;
+      case 'ausbildungsart': return favoriteAusbildungsarten;
+      case 'abschluss': return favoriteAbschluesse;
     }
+  };
+
+  const isFavorite = (kind: 'company'|'position'|'aufgabenbereich'|'institution'|'ausbildungsart'|'abschluss', value: string): boolean => {
+    return favHas(getFavorites(kind), value);
+  };
+
+  const toggleFavorite = (kind: 'company'|'position'|'aufgabenbereich'|'institution'|'ausbildungsart'|'abschluss', value: string) => {
+    const apply = (setter: (v: string[]) => void, list: string[]) => setter(toggleFavoriteIn(list, value));
+    switch (kind) {
+      case 'company': return apply(setFavoriteCompanies, favoriteCompanies);
+      case 'position': return apply(setFavoritePositions, favoritePositions);
+      case 'aufgabenbereich': return apply(setFavoriteTasks, favoriteTasks);
+      case 'institution': return apply(setFavoriteInstitutions, favoriteInstitutions);
+      case 'ausbildungsart': return apply(setFavoriteAusbildungsarten, favoriteAusbildungsarten);
+      case 'abschluss': return apply(setFavoriteAbschluesse, favoriteAbschluesse);
+    }
+  };
+
+  const sortByFavorite = (kind: 'company'|'position'|'aufgabenbereich'|'institution'|'ausbildungsart'|'abschluss', items: string[]): string[] => {
+    return sortByFavoriteUtil(items, getFavorites(kind));
   };
 
 
@@ -552,87 +567,6 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
         : [...prev, task]
     );
   };
-
-
-  // --- Snapshot (optional) ---
-  const [autosaveEnabled, setAutosaveEnabled] = useState<boolean>(false);
-  const saveSnapshot = useCallback(() => {
-    try {
-      const payload = {
-        version: 2,
-        savedAt: new Date().toISOString(),
-        personalData,
-        berufserfahrung,
-        ausbildung,
-        selectedExperienceId,
-        selectedEducationId,
-        favoriteTasks,
-        favoriteCompanies,
-        favoritePositions,
-        favoriteInstitutions,
-        favoriteAusbildungsarten,
-        favoriteAbschluesse,
-        activeTab,
-        previewTab,
-      };
-      if (typeof window !== 'undefined' && window.localStorage) {
-        window.localStorage.setItem('CV_SNAPSHOT_V1', JSON.stringify(payload));
-      }
-      return true;
-    } catch (e) { console.warn('Snapshot save failed', e); return false; }
-  }, [personalData, berufserfahrung, ausbildung]);
-
-  const loadSnapshot = useCallback(() => {
-    try {
-      if (typeof window === 'undefined' || !window.localStorage) return false;
-      const raw = window.localStorage.getItem('CV_SNAPSHOT_V1');
-      if (!raw) return false;
-      const parsed = JSON.parse(raw);
-      if (parsed && (parsed.version === 1 || parsed.version === 2)) {
-        const { ok, issues, normalized } = validateAndNormalizeCV(parsed);
-        if (!ok && issues && issues.length) { console.warn('CV snapshot issues:', issues); }
-        // Set core lists first
-        setPersonalData(normalized.personalData || {});
-        setBerufserfahrung(Array.isArray(normalized.berufserfahrung) ? normalized.berufserfahrung : []);
-        setAusbildung(Array.isArray(normalized.ausbildung) ? normalized.ausbildung : []);
-        // Handle selected IDs robustly against the just-loaded lists
-        const firstExpId = normalized.berufserfahrung && normalized.berufserfahrung[0]?.id;
-        const firstEduId = normalized.ausbildung && normalized.ausbildung[0]?.id;
-        if (parsed.version === 2) {
-          const expList = Array.isArray(normalized.berufserfahrung) ? normalized.berufserfahrung : [];
-          const eduList = Array.isArray(normalized.ausbildung) ? normalized.ausbildung : [];
-          const selExp = (typeof parsed.selectedExperienceId === 'string' && expList.some(e => e.id === parsed.selectedExperienceId))
-            ? parsed.selectedExperienceId
-            : (expList[0]?.id || '');
-          const selEdu = (typeof parsed.selectedEducationId === 'string' && eduList.some(e => e.id === parsed.selectedEducationId))
-            ? parsed.selectedEducationId
-            : (eduList[0]?.id || '');
-          setSelectedExperienceId(selExp);
-          setSelectedEducationId(selEdu);
-          if (Array.isArray(parsed.favoriteTasks)) setFavoriteTasks(parsed.favoriteTasks);
-          if (Array.isArray(parsed.favoriteCompanies)) setFavoriteCompanies(parsed.favoriteCompanies);
-          if (Array.isArray(parsed.favoritePositions)) setFavoritePositions(parsed.favoritePositions);
-          if (Array.isArray(parsed.favoriteInstitutions)) setFavoriteInstitutions(parsed.favoriteInstitutions);
-          if (Array.isArray(parsed.favoriteAusbildungsarten)) setFavoriteAusbildungsarten(parsed.favoriteAusbildungsarten);
-          if (Array.isArray(parsed.favoriteAbschluesse)) setFavoriteAbschluesse(parsed.favoriteAbschluesse);
-          if (typeof parsed.activeTab === 'string') setActiveTab(parsed.activeTab as any);
-          if (typeof parsed.previewTab === 'string') setPreviewTab(parsed.previewTab as any);
-        } else {
-          // v1: no selected IDs stored → pick first entry if available
-          if (firstExpId) setSelectedExperienceId(firstExpId);
-          if (firstEduId) setSelectedEducationId(firstEduId);
-        }
-        return true;
-      }
-      return false;
-    } catch (e) { console.warn('Snapshot load failed', e); return false; }
-  }, []);
-
-  useEffect(() => {
-    if (!autosaveEnabled) return;
-    const h = setTimeout(() => { saveSnapshot(); }, 1500);
-    return () => clearTimeout(h);
-  }, [autosaveEnabled, personalData, berufserfahrung, ausbildung, saveSnapshot]);
 
   // Helper functions to ensure a valid entry exists for editing
   const ensureSelectedExperienceExists = useCallback(() => {
@@ -731,6 +665,11 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
     toggleFavoriteInstitution,
     toggleFavoriteAusbildungsart,
     toggleFavoriteAbschluss,
+    // unified favorites
+    toggleFavorite,
+    isFavorite,
+    getFavorites,
+    sortByFavorite,
     
     addExperienceFromProfile,
     removeExperienceFromProfile,
@@ -751,12 +690,6 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
     ensureSelectedEducationExists,
     isEmptyExperience,
     isEmptyEducation,
-    toggleFavorite,
-    autosaveEnabled,
-    setAutosaveEnabled,
-    saveSnapshot,
-    loadSnapshot,
-    loadSnapshot
   };
 
   return (
