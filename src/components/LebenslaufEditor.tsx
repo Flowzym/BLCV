@@ -1,11 +1,11 @@
-import React from "react";
-import { useRef } from "react";
+import React, { useRef, useState } from "react";
 import { ProfileSourceMapping } from "../services/supabaseService";
 import LebenslaufInput from "./LebenslaufInput";
 import LebenslaufPreview from "./LebenslaufPreview";
 import AiHelpPanel from "./AiHelpPanel";
 import { User, Briefcase, GraduationCap, LayoutGrid, Lightbulb } from 'lucide-react';
 import { useLebenslauf } from "@/components/LebenslaufContext"; // ✅ Alias
+import { cvToMarkdown, downloadText } from "@/lib/cvExport";
 
 const mainTabs = [
   { id: 'personal', label: 'Persönliche Daten', icon: User },
@@ -19,7 +19,8 @@ function LebenslaufEditorContent({
   profileSourceMappings = [],
 }: { profileSourceMappings?: ProfileSourceMapping[]; }) {
   const inputRef = useRef<HTMLDivElement>(null);
-  const { activeTab, setActiveTabWithSync } = useLebenslauf();
+  const { activeTab, setActiveTabWithSync, autosaveEnabled, setAutosaveEnabled, saveSnapshot, loadSnapshot, personalData, berufserfahrung, ausbildung } = useLebenslauf();
+  const [snapMsg, setSnapMsg] = useState<string | null>(null);
 
   return (
     <div className="w-full flex flex-col gap-6 relative overflow-hidden">
@@ -51,6 +52,27 @@ function LebenslaufEditorContent({
             })}
           </nav>
         </div>
+        <div className="flex items-center justify-end gap-2 p-3">
+          {snapMsg && <span className="text-xs text-gray-600">{snapMsg}</span>}
+          <button className="px-2 py-1 text-sm border rounded" onClick={() => { const ok = loadSnapshot(); setSnapMsg(ok ? "Entwurf geladen" : "Kein Entwurf gefunden"); setTimeout(() => setSnapMsg(null), 2000); }}>Entwurf laden</button>
+          <button className="px-2 py-1 text-sm border rounded" onClick={() => { const ok = saveSnapshot(); setSnapMsg(ok ? "Entwurf gespeichert" : "Fehler beim Speichern"); setTimeout(() => setSnapMsg(null), 2000); }}>Entwurf speichern</button>
+          <label className="ml-2 flex items-center gap-1 text-sm">
+            <input type="checkbox" checked={autosaveEnabled} onChange={e => setAutosaveEnabled(e.target.checked)} />
+            Autosave
+          </label>
+          <button className="px-2 py-1 text-sm border rounded" onClick={() => {
+            const text = cvToMarkdown({ personalData, berufserfahrung, ausbildung });
+            const name = [personalData?.vorname, personalData?.nachname].filter(Boolean).join(' ') || 'Lebenslauf';
+            downloadText(`${name}.md`, text);
+          }}>Export .md</button>
+          <button className="px-2 py-1 text-sm border rounded" onClick={() => window.print()}>Export PDF</button>
+          <button className="px-2 py-1 text-sm border rounded" onClick={() => {
+            const snapshot = { version: 2, savedAt: new Date().toISOString(), personalData, berufserfahrung, ausbildung };
+            const name = [personalData?.vorname, personalData?.nachname].filter(Boolean).join(' ') || 'Lebenslauf';
+            downloadText(`${name}.json`, JSON.stringify(snapshot, null, 2));
+          }}>Export .json</button>
+        </div>
+
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[2fr_2fr_1fr] gap-6 relative overflow-hidden">
