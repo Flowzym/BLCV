@@ -1,23 +1,38 @@
-/* Print-friendly view: show only the center preview column and expand it */
+
+/* Base print cleanup */
 @media print {
-  /* Hide navigation, toolbars, and side panels */
-  header, nav, .ml-auto, .left-panel, .right-panel, .ki-panel, .ai-panel, .tabs, .tabbar, .toolbar,
-  button, input, select, textarea {
+  header, nav, aside, .tabs, .toolbar, .left-panel, .right-panel, .ai-panel {
     display: none !important;
   }
-  /* Expand preview container */
-  .print-area, .preview-area {
+  .preview-area, .cv-print-root {
     display: block !important;
     width: 100% !important;
   }
-  /* Remove shadows/borders for clean PDF */
-  .shadow, .shadow-sm, .shadow-md, .border, .border-gray-200, .rounded-lg {
-    box-shadow: none !important;
-    border: none !important;
-  }
-  body {
+}
+
+
+/* === Print: Only show Preview === */
+@media print {
+  body * { visibility: hidden !important; }
+  .cv-print-root, .cv-print-root * { visibility: visible !important; }
+  .cv-print-root {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
     margin: 0 !important;
-    -webkit-print-color-adjust: exact;
-    print-color-adjust: exact;
+    padding: 0 !important;
+  }
+  .cv-print-root .overflow-y-auto,
+  .cv-print-root [class*="overflow-y-"],
+  .cv-print-root [class*="max-h-"] {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+  .cv-print-root button,
+  .cv-print-root input,
+  .cv-print-root select,
+  .cv-print-root textarea {
+    display: none !important;
   }
 }
