@@ -1,4 +1,5 @@
 import type { CVSnapshot, Experience, Education } from '@/lib/cvValidation';
+import { formatZeitraum } from '@/utils/dateUtils';
 
 /** Convert CV snapshot to Markdown text */
 export function cvToMarkdown(data: CVSnapshot): string {
@@ -19,7 +20,7 @@ export function cvToMarkdown(data: CVSnapshot): string {
     data.berufserfahrung.forEach((exp: Experience) => {
       const companies = (exp.companies||[]).join(' · ');
       const positions = (exp.position||[]).join(' · ');
-      const when = formatZeitraum(exp.startMonth, exp.startYear, exp.endMonth, exp.endYear, exp.isCurrent);
+      const when = formatZeitraum($1);
       const header = ['- ', positions || 'Position', companies && `@ ${companies}`, when && `(${when})`].filter(Boolean).join(' ');
       lines.push(header);
       if (Array.isArray(exp.aufgabenbereiche) && exp.aufgabenbereiche.length) {
@@ -35,7 +36,7 @@ export function cvToMarkdown(data: CVSnapshot): string {
       const inst = (edu.institution||[]).join(' · ');
       const kind = (edu.ausbildungsart||[]).join(' · ');
       const degree = (edu.abschluss||[]).join(' · ');
-      const when = formatZeitraum(edu.startMonth, edu.startYear, edu.endMonth, edu.endYear, edu.isCurrent);
+      const when = formatZeitraum($1);
       const header = ['- ', degree || kind || 'Ausbildung', inst && `@ ${inst}`, when && `(${when})`].filter(Boolean).join(' ');
       lines.push(header);
       if (edu.zusatzangaben) lines.push(`  - _${edu.zusatzangaben}_`);
@@ -60,8 +61,3 @@ export function downloadText(filename: string, text: string) {
   }, 0);
 }
 
-function formatZeitraum(sm: string|null, sy: string|null, em: string|null, ey: string|null, cur: boolean): string {
-  const s = [sm, sy].filter(Boolean).join('/');
-  const e = cur ? 'laufend' : [em, ey].filter(Boolean).join('/');
-  return [s, e].filter(Boolean).join(' - ');
-}
