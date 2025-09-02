@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { useRef } from "react";
 import { ProfileSourceMapping } from "../services/supabaseService";
 import LebenslaufInput from "./LebenslaufInput";
@@ -6,7 +6,6 @@ import LebenslaufPreview from "./LebenslaufPreview";
 import AiHelpPanel from "./AiHelpPanel";
 import { User, Briefcase, GraduationCap, LayoutGrid, Lightbulb } from 'lucide-react';
 import { useLebenslauf } from "@/components/LebenslaufContext"; // ✅ Alias
-import { cvToMarkdown, downloadText } from '@/lib/cvExport';
 
 const mainTabs = [
   { id: 'personal', label: 'Persönliche Daten', icon: User },
@@ -20,30 +19,12 @@ function LebenslaufEditorContent({
   profileSourceMappings = [],
 }: { profileSourceMappings?: ProfileSourceMapping[]; }) {
   const inputRef = useRef<HTMLDivElement>(null);
-  const { activeTab, setActiveTabWithSync, autosaveEnabled, setAutosaveEnabled, saveSnapshot, loadSnapshot, personalData, berufserfahrung, ausbildung } = useLebenslauf();
-  const [snapMsg, setSnapMsg] = useState<string | null>(null);
+  const { activeTab, setActiveTabWithSync } = useLebenslauf();
 
   return (
     <div className="w-full flex flex-col gap-6 relative overflow-hidden">
       <div className="bg-white rounded-lg shadow-sm border border-gray-200">
         <div className="flex items-center gap-2 p-4 border-b border-gray-200">
-          <div className="ml-auto flex items-center gap-2 p-2">
-            {snapMsg && <span data-cv-snapshot-msg className="text-xs text-gray-600">{snapMsg}</span>}
-            <button className="px-2 py-1 text-sm border rounded" onClick={() => { const ok = loadSnapshot(); setSnapMsg(ok ? "Entwurf geladen" : "Kein Entwurf gefunden"); setTimeout(() => setSnapMsg(null), 2000); }}>Entwurf laden</button>
-            <button className="px-2 py-1 text-sm border rounded" onClick={() => { const ok = saveSnapshot(); setSnapMsg(ok ? "Entwurf gespeichert" : "Fehler beim Speichern"); setTimeout(() => setSnapMsg(null), 2000); }}>Entwurf speichern</button>
-            <label className="ml-2 flex items-center gap-1 text-sm">
-              <input type="checkbox" checked={autosaveEnabled} onChange={e => setAutosaveEnabled(e.target.checked)} />
-              Autosave
-            </label>
-          
-            <button className="ml-2 px-2 py-1 text-sm border rounded" onClick={() => {
-              const text = cvToMarkdown({ personalData, berufserfahrung, ausbildung });
-              const name = [personalData?.vorname, personalData?.nachname].filter(Boolean).join(' ') || 'Lebenslauf';
-              downloadText(`${name}.md`, text);
-            }}>Export .md</button>
-            <button className="px-2 py-1 text-sm border rounded" onClick={() => window.print()}>Export PDF</button>
-        </div>
-        
           <User className="h-6 w-6 mr-2" style={{ color: '#F29400' }} stroke="#F29400" fill="none" />
           <h2 className="text-lg font-semibold text-gray-900">Lebenslauf</h2>
         </div>
