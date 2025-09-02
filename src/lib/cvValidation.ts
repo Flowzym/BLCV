@@ -1,70 +1,110 @@
 /**
- * Minimal runtime validation & normalization for Lebenslauf data (no external deps).
+ * Validation/Normalization wrapper.
+ * If VITE_CV_ZOD === 'true', uses Zod schemas; otherwise applies a light, dependency-free normalization.
  */
-export type PersonalData = Record<string, any>;
-export interface Experience {
-  id: string; companies: string[]; position: string[];
-  startMonth: string | null; startYear: string | null;
-  endMonth: string | null; endYear: string | null;
-  isCurrent: boolean;
-  aufgabenbereiche: string[];
-  zusatzangaben: string;
-  leasingCompaniesList?: string[];
+export type CVSnapshot = {
+  version?: number;
+  personalData?: Record<string, any>;
+  berufserfahrung?: Experience[];
+  ausbildung?: Education[];
+  savedAt?: string;
+};
+export type Experience = {
+  id?: string;
+  companies?: string[];
+  position?: string[];
+  startMonth?: string | null;
+  startYear?: string | null;
+  endMonth?: string | null;
+  endYear?: string | null;
+  isCurrent?: boolean;
+  aufgabenbereiche?: string[];
+  zusatzangaben?: string;
   source?: 'manual' | 'profile';
-}
-export interface Education {
-  id: string; institution: string[]; ausbildungsart: string[]; abschluss: string[];
-  startMonth: string | null; startYear: string | null;
-  endMonth: string | null; endYear: string | null;
-  isCurrent: boolean; zusatzangaben: string; source?: 'manual' | 'profile';
-}
-export interface CVSnapshot { personalData: PersonalData; berufserfahrung: Experience[]; ausbildung: Education[]; }
+};
+export type Education = {
+  id?: string;
+  institution?: string[];
+  ausbildungsart?: string[];
+  abschluss?: string[];
+  startMonth?: string | null;
+  startYear?: string | null;
+  endMonth?: string | null;
+  endYear?: string | null;
+  isCurrent?: boolean;
+  zusatzangaben?: string;
+  source?: 'manual' | 'profile';
+};
 
-function arrStr(a: any): string[] { return Array.isArray(a) ? a.map(v => String(v)).filter(Boolean) : []; }
-function strOrNull(v: any): string | null { if (v === null) return null; if (v === undefined) return null; const s = String(v); return s.trim() === '' ? null : s; }
-function bool(v: any): boolean { return v === true; }
-
-export function normalizeExperience(e: any): Experience {
-  return {
-    id: String(e?.id ?? ''),
-    companies: arrStr(e?.companies),
-    position: arrStr(e?.position),
-    startMonth: strOrNull(e?.startMonth),
-    startYear: strOrNull(e?.startYear),
-    endMonth: strOrNull(e?.endMonth),
-    endYear: strOrNull(e?.endYear),
-    isCurrent: bool(e?.isCurrent),
-    aufgabenbereiche: arrStr(e?.aufgabenbereiche),
-    zusatzangaben: String(e?.zusatzangaben ?? ''),
-    leasingCompaniesList: arrStr(e?.leasingCompaniesList),
-    source: (e?.source === 'profile') ? 'profile' : 'manual',
-  };
+function strArr(v: any): string[] {
+  if (Array.isArray(v)) return v.map(x => String(x).trim()).filter(Boolean);
+  if (v == null || v === '') return [];
+  return [String(v).trim()];
 }
-
-export function normalizeEducation(e: any): Education {
-  return {
-    id: String(e?.id ?? ''),
-    institution: arrStr(e?.institution),
-    ausbildungsart: arrStr(e?.ausbildungsart),
-    abschluss: arrStr(e?.abschluss),
-    startMonth: strOrNull(e?.startMonth),
-    startYear: strOrNull(e?.startYear),
-    endMonth: strOrNull(e?.endMonth),
-    endYear: strOrNull(e?.endYear),
-    isCurrent: bool(e?.isCurrent),
-    zusatzangaben: String(e?.zusatzangaben ?? ''),
-    source: (e?.source === 'profile') ? 'profile' : 'manual',
-  };
+function month(v: any): string | null {
+  if (v == null || v === '') return null;
+  const s = String(v).padStart(2, '0');
+  return /^(0[1-9]|1[0-2])$/.test(s) ? s : null;
+}
+function year(v: any): string | null {
+  if (v == null || v === '') return null;
+  const s = String(v);
+  return /^\d{4}$/.test(s) ? s : null;
 }
 
-export function validateAndNormalizeCV(data: any): { ok: boolean; issues: string[]; normalized: CVSnapshot } {
+export async function validateAndNormalizeCV(input: any): { ok: boolean; issues: string[]; normalized: CVSnapshot } {
+  const ENABLE_ZOD = (import.meta as any)?.env?.VITE_CV_ZOD === 'true';
+  if (ENABLE_ZOD) {
+    try {
+      const mod: any = await import('./cvZod'); const validateWithZod = mod.validateWithZod;
+      return validateWithZod(input);
+    } catch (e) {
+      console.warn('Zod validation unavailable, falling back:', e);
+    }
+  }
   const issues: string[] = [];
-  const p = (typeof data?.personalData === 'object' && data?.personalData) ? data.personalData : {};
-  const exp = Array.isArray(data?.berufserfahrung) ? data.berufserfahrung : [];
-  const edu = Array.isArray(data?.ausbildung) ? data.ausbildung : [];
-  const normExp = exp.map(normalizeExperience).filter(e => e.id);
-  const normEdu = edu.map(normalizeEducation).filter(e => e.id);
-  if (!Array.isArray(data?.berufserfahrung)) issues.push('berufserfahrung not array');
-  if (!Array.isArray(data?.ausbildung)) issues.push('ausbildung not array');
-  return { ok: issues.length === 0, issues, normalized: { personalData: p, berufserfahrung: normExp, ausbildung: normEdu } };
+  const exps = Array.isArray(input?.berufserfahrung) ? input.berufserfahrung : [];
+  const edus = Array.isArray(input?.ausbildung) ? input.ausbildung : [];
+  const normalized: CVSnapshot = {
+    version: input?.version ?? 1,
+    savedAt: input?.savedAt ?? new Date().toISOString(),
+    personalData: (input?.personalData && typeof input.personalData === 'object') ? input.personalData : {},
+    berufserfahrung: exps.map((e: any, idx: number) => {
+      const n = {
+        id: String(e?.id ?? `exp_${idx+1}`),
+        companies: strArr(e?.companies),
+        position: strArr(e?.position),
+        startMonth: month(e?.startMonth),
+        startYear: year(e?.startYear),
+        endMonth: month(e?.endMonth),
+        endYear: year(e?.endYear),
+        isCurrent: Boolean(e?.isCurrent),
+        aufgabenbereiche: strArr(e?.aufgabenbereiche),
+        zusatzangaben: String(e?.zusatzangaben ?? '')
+      };
+      if (n.endYear && n.startYear && n.endYear < n.startYear) {
+        issues.push(`experience ${n.id}: endYear < startYear`);
+      }
+      return n as Experience;
+    }),
+    ausbildung: edus.map((e: any, idx: number) => {
+      const n = {
+        id: String(e?.id ?? `edu_${idx+1}`),
+        institution: strArr(e?.institution),
+        ausbildungsart: strArr(e?.ausbildungsart),
+        abschluss: strArr(e?.abschluss),
+        startMonth: month(e?.startMonth),
+        startYear: year(e?.startYear),
+        endMonth: month(e?.endMonth),
+        endYear: year(e?.endYear),
+        isCurrent: Boolean(e?.isCurrent),
+        zusatzangaben: String(e?.zusatzangaben ?? '')
+      };
+      if (n.endYear && n.startYear && n.endYear < n.startYear) {
+        issues.push(`education ${n.id}: endYear < startYear`);
+      }
+      return n as Education;
+    })
+  };
+  return { ok: issues.length === 0, issues, normalized };
 }
