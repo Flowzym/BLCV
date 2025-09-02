@@ -1,0 +1,23 @@
+/* Print-friendly view: show only the center preview column and expand it */
+@media print {
+  /* Hide navigation, toolbars, and side panels */
+  header, nav, .ml-auto, .left-panel, .right-panel, .ki-panel, .ai-panel, .tabs, .tabbar, .toolbar,
+  button, input, select, textarea {
+    display: none !important;
+  }
+  /* Expand preview container */
+  .print-area, .preview-area {
+    display: block !important;
+    width: 100% !important;
+  }
+  /* Remove shadows/borders for clean PDF */
+  .shadow, .shadow-sm, .shadow-md, .border, .border-gray-200, .rounded-lg {
+    box-shadow: none !important;
+    border: none !important;
+  }
+  body {
+    margin: 0 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}
