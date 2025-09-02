@@ -12,7 +12,7 @@ interface CompaniesTagInputProps {
 
 export default function CompaniesTagInput({ value, onChange, suggestions = [] }: CompaniesTagInputProps) {
   const [inputValue, setInputValue] = useState('');
-  const { favoriteCompanies: favorites, toggleFavoriteCompany } =
+  const { favoriteCompanies: favorites, toggleFavoriteCompany, sortByFavorite } =
     useLebenslauf();
 
   const addCompany = (val?: string) => {
@@ -57,7 +57,7 @@ export default function CompaniesTagInput({ value, onChange, suggestions = [] }:
         onChange={setInputValue}
         onAdd={addCompany}
         onFavoriteClick={handleAddFavoriteInput}
-        suggestions={suggestions}
+        suggestions={sortByFavorite('company', (suggestions || []).filter(s => !value.includes(s)))}
         placeholder="Hinzufügen..."
         showFavoritesButton={true}
       />
