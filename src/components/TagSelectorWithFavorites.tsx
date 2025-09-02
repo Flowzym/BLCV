@@ -31,7 +31,7 @@ export default function TagSelectorWithFavorites({
   const [editIndex, setEditIndex] = useState<number | null>(null);
   const [editValue, setEditValue] = useState('');
   const [isFocused, setIsFocused] = useState(false);
-  const { favoritePositions: favorites, toggleFavoritePosition } = useLebenslauf();
+  const { favoritePositions: favorites, toggleFavoritePosition, sortByFavorite } = useLebenslauf();
 
 
   const addTag = (val?: string) => {
@@ -99,7 +99,7 @@ export default function TagSelectorWithFavorites({
         onFavoriteClick={toggleFavorite}
         onFocus={handleFocus}
         onBlur={handleBlur}
-        suggestions={suggestions ?? options}
+        suggestions={sortByFavorite('position', (suggestions ?? options) || [])}
         placeholder="Hinzufügen..."
         showFavoritesButton={shouldShowButtons && showFavoritesButton}
         showAddButton={shouldShowButtons}
