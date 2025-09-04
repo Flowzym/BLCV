@@ -20,7 +20,7 @@ export function cvToMarkdown(data: CVSnapshot): string {
     data.berufserfahrung.forEach((exp: Experience) => {
       const companies = (exp.companies||[]).join(' · ');
       const positions = (exp.position||[]).join(' · ');
-      const when = formatZeitraum($1);
+      const when = formatZeitraum(exp.startMonth as any, exp.startYear as any, exp.endMonth as any, exp.endYear as any, Boolean(exp.isCurrent));
       const header = ['- ', positions || 'Position', companies && `@ ${companies}`, when && `(${when})`].filter(Boolean).join(' ');
       lines.push(header);
       if (Array.isArray(exp.aufgabenbereiche) && exp.aufgabenbereiche.length) {
@@ -36,7 +36,7 @@ export function cvToMarkdown(data: CVSnapshot): string {
       const inst = (edu.institution||[]).join(' · ');
       const kind = (edu.ausbildungsart||[]).join(' · ');
       const degree = (edu.abschluss||[]).join(' · ');
-      const when = formatZeitraum($1);
+      const when = formatZeitraum(exp.startMonth as any, exp.startYear as any, exp.endMonth as any, exp.endYear as any, Boolean(exp.isCurrent));
       const header = ['- ', degree || kind || 'Ausbildung', inst && `@ ${inst}`, when && `(${when})`].filter(Boolean).join(' ');
       lines.push(header);
       if (edu.zusatzangaben) lines.push(`  - _${edu.zusatzangaben}_`);
