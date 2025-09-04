@@ -118,7 +118,8 @@ interface LebenslaufContextType {
   
   
   
-  // City & Leasing favorites
+  
+// City & Leasing favorites
   const toggleFavoriteCity = (city: string) => {
     setFavoriteCities(prev => toggleFavoriteIn(prev, city));
   };
@@ -558,7 +559,8 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
         : [...prev, abschluss]
     );
   };
-  // Unified favorites implementation
+  
+// Unified favorites implementation
   const getFavorites = (kind: 'company'|'position'|'aufgabenbereich'|'institution'|'ausbildungsart'|'abschluss'): string[] => {
     switch (kind) {
       case 'company': return favoriteCompanies;
