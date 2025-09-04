@@ -158,6 +158,7 @@ export default function AusbildungForm({
         <TagSelectorWithFavorites
           label=""
           value={finalForm.ausbildungsart}
+          kind=\"ausbildungsart\"
           onChange={(val) => {
             updateEducationField(educationId, 'ausbildungsart', val);
           }}
@@ -199,6 +200,7 @@ export default function AusbildungForm({
         <TagSelectorWithFavorites
           label=""
           value={finalForm.abschluss}
+          kind=\"abschluss\"
           onChange={(val) => {
             updateEducationField(educationId, 'abschluss', val);
           }}
