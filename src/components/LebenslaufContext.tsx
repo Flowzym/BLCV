@@ -1,4 +1,11 @@
-import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
+import React, { cre,
+    favoriteLeasingCompanies,
+    autosaveEnabled,
+    setAutosaveEnabled,
+    toggleFavoriteCity,
+    toggleFavoriteLeasingCompany,
+    saveSnapshot,
+    loadSnapshotateContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import { loadCVSuggestions, CVSuggestionConfig, ProfileSourceMapping, isSupabaseConfigured } from '../services/supabaseService';
 import { canonicalize, toggleFavoriteIn, hasFavorite as favHas, sortByFavorite as sortByFavoriteUtil } from '@/lib/favorites';
 
@@ -110,7 +117,67 @@ interface LebenslaufContextType {
   toggleFavoriteAbschluss: (abschluss: string) => void;
   
   
-  // Unified favorites API
+  
+  // City & Leasing favorites
+  const toggleFavoriteCity = (city: string) => {
+    setFavoriteCities(prev => toggleFavoriteIn(prev, city));
+  };
+  const toggleFavoriteLeasingCompany = (company: string) => {
+    setFavoriteLeasingCompanies(prev => toggleFavoriteIn(prev, company));
+  };
+
+  // Snapshot (LocalStorage) – simple non-destructive save/load
+  const SNAP_KEY = 'cv:snapshot:v2';
+  const saveSnapshot = () => {
+    try {
+      const snapshot = {
+        version: 2,
+        savedAt: new Date().toISOString(),
+        personalData,
+        berufserfahrung,
+        ausbildung
+      };
+      localStorage.setItem(SNAP_KEY, JSON.stringify(snapshot));
+    } catch (e) {
+      console.warn('saveSnapshot failed', e);
+    }
+  };
+
+  const loadSnapshot = () => {
+    try {
+      const raw = localStorage.getItem(SNAP_KEY);
+      if (!raw) return;
+      const obj = JSON.parse(raw);
+      if (obj && typeof obj === 'object') {
+        if (obj.personalData) setPersonalData(obj.personalData);
+        if (Array.isArray(obj.berufserfahrung)) setBerufserfahrung(obj.berufserfahrung);
+        if (Array.isArray(obj.ausbildung)) setAusbildung(obj.ausbildung);
+      }
+    } catch (e) {
+      console.warn('loadSnapshot failed', e);
+    }
+  };
+
+  // Simple autosave: debounce via effect
+  useEffect(() => {
+    if (!autosaveEnabled) return;
+    const t = setTimeout(() => {
+      try { 
+        const snapshot = {
+          version: 2,
+          savedAt: new Date().toISOString(),
+          personalData,
+          berufserfahrung,
+          ausbildung
+        };
+        localStorage.setItem(SNAP_KEY, JSON.stringify(snapshot));
+      } catch (e) {
+        console.warn('autosave failed', e);
+      }
+    }, 600);
+    return () => clearTimeout(t);
+  }, [autosaveEnabled, personalData, berufserfahrung, ausbildung]);
+// Unified favorites API
   toggleFavorite: (kind: 'company'|'position'|'aufgabenbereich'|'institution'|'ausbildungsart'|'abschluss', value: string) => void;
   isFavorite: (kind: 'company'|'position'|'aufgabenbereich'|'institution'|'ausbildungsart'|'abschluss', value: string) => boolean;
   getFavorites: (kind: 'company'|'position'|'aufgabenbereich'|'institution'|'ausbildungsart'|'abschluss') => string[];
@@ -141,6 +208,15 @@ interface LebenslaufContextType {
   ensureSelectedEducationExists: () => string;
   isEmptyExperience: (exp: Experience) => boolean;
   isEmptyEducation: (edu: Education) => boolean;
+
+  favoriteCities: string[];
+  favoriteLeasingCompanies: string[];
+  autosaveEnabled: boolean;
+  setAutosaveEnabled: (v: boolean) => void;
+  toggleFavoriteCity: (city: string) => void;
+  toggleFavoriteLeasingCompany: (company: string) => void;
+  saveSnapshot: () => void;
+  loadSnapshot: () => void;
 }
 
 const LebenslaufContext = createContext<LebenslaufContextType | undefined>(undefined);
@@ -287,6 +363,10 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
   const setActiveTabWithSync = useCallback((tab: ActiveTab) => {
     setActiveTab(tab);
     const correspondingPreviewTab = INPUT_TO_PREVIEW_TAB_MAP[tab];
+  const [favoriteCities, setFavoriteCities] = useState<string[]>([]);
+  const [favoriteLeasingCompanies, setFavoriteLeasingCompanies] = useState<string[]>([]);
+  const [autosaveEnabled, setAutosaveEnabled] = useState<boolean>(false);
+
     setPreviewTab(correspondingPreviewTab);
   }, []);
   
@@ -724,4 +804,5 @@ const isEmptyEducation = (edu: Education): boolean => {
          (!edu.abschluss || edu.abschluss.length === 0) &&
          (!edu.startYear || edu.startYear.trim() === '') &&
          (!edu.zusatzangaben || edu.zusatzangaben.trim() === '');
-};
+},
+    favoriteCities;
