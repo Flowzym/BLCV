@@ -177,6 +177,9 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
   const [favoriteInstitutions, setFavoriteInstitutions] = useState<string[]>([]);
   const [favoriteAusbildungsarten, setFavoriteAusbildungsarten] = useState<string[]>([]);
   const [favoriteAbschluesse, setFavoriteAbschluesse] = useState<string[]>([]);
+  const [favoriteCities, setFavoriteCities] = useState<string[]>([]);
+  const [favoriteLeasingCompanies, setFavoriteLeasingCompanies] = useState<string[]>([]);
+  const [autosaveEnabled, setAutosaveEnabled] = useState<boolean>(false);
   const [isBisTranslatorActive, setIsBisTranslatorActive] = useState<boolean>(false);
   const [selectedBisTasks, setSelectedBisTasks] = useState<string[]>([]);
   const [bisTranslatorResults, setBisTranslatorResults] = useState<Record<string, string[]>>({});
@@ -296,9 +299,6 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
   const setActiveTabWithSync = useCallback((tab: ActiveTab) => {
     setActiveTab(tab);
     const correspondingPreviewTab = INPUT_TO_PREVIEW_TAB_MAP[tab];
-  const [favoriteCities, setFavoriteCities] = useState<string[]>([]);
-  const [favoriteLeasingCompanies, setFavoriteLeasingCompanies] = useState<string[]>([]);
-  const [autosaveEnabled, setAutosaveEnabled] = useState<boolean>(false);
 
     setPreviewTab(correspondingPreviewTab);
   }, []);
