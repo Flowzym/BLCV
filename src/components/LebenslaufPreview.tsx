@@ -2,6 +2,7 @@ import React, { useMemo, useState, useRef, useEffect } from 'react';
 import { Trash2, Plus, FileText, Star, X, ToggleLeft, ToggleRight, Edit, Check, CircleOff } from 'lucide-react';
 import { ReactSortable } from 'react-sortablejs';
 import { useLebenslauf } from '@/components/LebenslaufContext';
+import { compareByPeriod } from '@/lib/dateGuard';
 import EditablePreviewText from './EditablePreviewText';
 
 type PreviewTab = 'gesamt' | 'berufserfahrung' | 'ausbildung' | 'fachkompetenzen' | 'softskills';
