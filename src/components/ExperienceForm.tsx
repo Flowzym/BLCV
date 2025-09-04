@@ -574,7 +574,7 @@ export default function ExperienceForm({
         <TagSelectorWithFavorites
           label=""
           value={selectedPositions}
-          kind=\"position\"
+          kind="position\"
           onChange={(positions) => {
             updateExperienceField(experienceId, 'position', positions);
           }}
