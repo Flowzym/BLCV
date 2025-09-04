@@ -1,11 +1,4 @@
-import React, { cre,
-    favoriteLeasingCompanies,
-    autosaveEnabled,
-    setAutosaveEnabled,
-    toggleFavoriteCity,
-    toggleFavoriteLeasingCompany,
-    saveSnapshot,
-    loadSnapshotateContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import { loadCVSuggestions, CVSuggestionConfig, ProfileSourceMapping, isSupabaseConfigured } from '../services/supabaseService';
 import { canonicalize, toggleFavoriteIn, hasFavorite as favHas, sortByFavorite as sortByFavoriteUtil } from '@/lib/favorites';
 
@@ -117,8 +110,45 @@ interface LebenslaufContextType {
   toggleFavoriteAbschluss: (abschluss: string) => void;
   
   
+  // Unified favorites API
+  toggleFavorite: (kind: 'company'|'position'|'aufgabenbereich'|'institution'|'ausbildungsart'|'abschluss', value: string) => void;
+  isFavorite: (kind: 'company'|'position'|'aufgabenbereich'|'institution'|'ausbildungsart'|'abschluss', value: string) => boolean;
+  getFavorites: (kind: 'company'|'position'|'aufgabenbereich'|'institution'|'ausbildungsart'|'abschluss') => string[];
+  sortByFavorite: (kind: 'company'|'position'|'aufgabenbereich'|'institution'|'ausbildungsart'|'abschluss', items: string[]) => string[];
+// ProfileInput integration methods
+  addExperienceFromProfile: (position: string) => void;
+  removeExperienceFromProfile: (position: string) => void;
+  addEducationFromProfile: (abschluss: string) => void;
+  removeEducationFromProfile: (abschluss: string) => void;
   
+  // BIS methods
+  setIsBisTranslatorActive: (active: boolean) => void;
+  toggleBisTaskSelection: (task: string) => void;
+  setBisTranslatorResults: (results: Record<string, string[]>) => void;
   
+  // Preview tab methods
+  setPreviewTab: (tab: PreviewTab) => void;
+  
+  // Active tab methods
+  setActiveTab: (tab: ActiveTab) => void;
+  
+  // Tab synchronization methods
+  setActiveTabWithSync: (tab: ActiveTab) => void;
+  setPreviewTabWithSync: (tab: PreviewTab) => void;
+  
+  // Helper methods to ensure valid entries exist
+  ensureSelectedExperienceExists: () => string;
+  ensureSelectedEducationExists: () => string;
+  isEmptyExperience: (exp: Experience) => boolean;
+  isEmptyEducation: (edu: Education) => boolean;
+  favoriteCities: string[];
+  favoriteLeasingCompanies: string[];
+  autosaveEnabled: boolean;
+  setAutosaveEnabled: (v: boolean) => void;
+  toggleFavoriteCity: (city: string) => void;
+  toggleFavoriteLeasingCompany: (company: string) => void;
+  saveSnapshot: () => void;
+  loadSnapshot: () => void;
 
 }
 
@@ -461,8 +491,19 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
         : [...prev, abschluss]
     );
   };
-  
-// Unified favorites implementation
+  const toggleFavoriteCity = (city: string) => {
+    setFavoriteCities(prev => 
+      prev.includes(city) ? prev.filter(c => c !== city) : [...prev, city]
+    );
+  };
+
+  const toggleFavoriteLeasingCompany = (company: string) => {
+    setFavoriteLeasingCompanies(prev => 
+      prev.includes(company) ? prev.filter(c => c !== company) : [...prev, company]
+    );
+  };
+
+  // Unified favorites implementation
   const getFavorites = (kind: 'company'|'position'|'aufgabenbereich'|'institution'|'ausbildungsart'|'abschluss'): string[] => {
     switch (kind) {
       case 'company': return favoriteCompanies;
@@ -604,7 +645,59 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
     return newEdu.id;
   }, [selectedEducationId, ausbildung, createEducation]);
 
-  const contextValue: LebenslaufContextType = {
+  
+  // Snapshot (LocalStorage) – non-destructive save/load
+  const SNAP_KEY = 'cv:snapshot:v2';
+  const saveSnapshot = () => {
+    try {
+      const snapshot = {
+        version: 2,
+        savedAt: new Date().toISOString(),
+        personalData,
+        berufserfahrung,
+        ausbildung
+      };
+      localStorage.setItem(SNAP_KEY, JSON.stringify(snapshot));
+    } catch (e) {
+      console.warn('saveSnapshot failed', e);
+    }
+  };
+
+  const loadSnapshot = () => {
+    try {
+      const raw = localStorage.getItem(SNAP_KEY);
+      if (!raw) return;
+      const obj = JSON.parse(raw);
+      if (obj && typeof obj === 'object') {
+        if (obj.personalData) setPersonalData(obj.personalData);
+        if (Array.isArray(obj.berufserfahrung)) setBerufserfahrung(obj.berufserfahrung);
+        if (Array.isArray(obj.ausbildung)) setAusbildung(obj.ausbildung);
+      }
+    } catch (e) {
+      console.warn('loadSnapshot failed', e);
+    }
+  };
+
+  // Autosave effect
+  useEffect(() => {
+    if (!autosaveEnabled) return;
+    const t = setTimeout(() => {
+      try { 
+        const snapshot = {
+          version: 2,
+          savedAt: new Date().toISOString(),
+          personalData,
+          berufserfahrung,
+          ausbildung
+        };
+        localStorage.setItem(SNAP_KEY, JSON.stringify(snapshot));
+      } catch (e) {
+        console.warn('autosave failed', e);
+      }
+    }, 600);
+    return () => clearTimeout(t);
+  }, [autosaveEnabled, personalData, berufserfahrung, ausbildung]);
+const contextValue: LebenslaufContextType = {
     personalData,
     berufserfahrung,
     ausbildung,
@@ -675,6 +768,14 @@ export function LebenslaufProvider({ children }: { children: ReactNode }) {
     ensureSelectedEducationExists,
     isEmptyExperience,
     isEmptyEducation,
+    favoriteCities,
+    favoriteLeasingCompanies,
+    autosaveEnabled,
+    setAutosaveEnabled,
+    toggleFavoriteCity,
+    toggleFavoriteLeasingCompany,
+    saveSnapshot,
+    loadSnapshot,
   };
 
   return (
@@ -708,5 +809,4 @@ const isEmptyEducation = (edu: Education): boolean => {
          (!edu.abschluss || edu.abschluss.length === 0) &&
          (!edu.startYear || edu.startYear.trim() === '') &&
          (!edu.zusatzangaben || edu.zusatzangaben.trim() === '');
-},
-    favoriteCities;
+};
