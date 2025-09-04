@@ -1,10 +1,9 @@
-import React, { useMemo, useRef, useState } from 'react';
+import { useState } from 'react';
 import PositionTag from './PositionTag';
 import TagButtonFavorite from './ui/TagButtonFavorite';
 import { useLebenslauf } from './LebenslaufContext';
+import { sortByFavorite as sortByFavoriteUtil } from '@/lib/favorites';
 import AutocompleteInput from './AutocompleteInput';
-
-type FavoriteKind = 'company'|'position'|'aufgabenbereich'|'institution'|'ausbildungsart'|'abschluss';
 
 interface TagSelectorWithFavoritesProps {
   label: string;
@@ -16,9 +15,6 @@ interface TagSelectorWithFavoritesProps {
   options?: string[];
   allowCustom: boolean;
   suggestions?: string[];
-  kind: FavoriteKind;
-  showAddButton?: boolean;
-  placeholder?: string;
 }
 
 export default function TagSelectorWithFavorites({
@@ -30,83 +26,122 @@ export default function TagSelectorWithFavorites({
   showFavoritesButton = true,
   options = [],
   allowCustom,
-  suggestions = [],
-  kind,
-  showAddButton = true,
-  placeholder = ''
+  suggestions,
 }: TagSelectorWithFavoritesProps) {
-  const {
-    getFavorites,
-    sortByFavorite,
-    toggleFavorite,
-  } = useLebenslauf();
-
   const [inputValue, setInputValue] = useState('');
-  const inputRef = useRef<HTMLInputElement | null>(null);
+  const [editIndex, setEditIndex] = useState<number | null>(null);
+  const [editValue, setEditValue] = useState('');
+  const [isFocused, setIsFocused] = useState(false);
+  const { favoritePositions: favorites, toggleFavoritePosition, sortByFavorite } = useLebenslauf();
 
-  const favs = getFavorites(kind) || [];
 
-  const orderedSuggestions = useMemo(() => {
-    const base = suggestions && suggestions.length ? suggestions : options;
-    if (!base || !base.length) return [];
-    return sortByFavorite(kind, base).filter(s => !value.includes(s));
-  }, [suggestions, options, value, sortByFavorite, kind]);
-
-  const addTag = (tag: string) => {
-    const t = (tag || '').trim();
-    if (!t) return;
-    if (value.includes(t)) return;
-    onChange([...value, t]);
+  const addTag = (val?: string) => {
+    const trimmed = (val ?? inputValue).trim();
+    if (!trimmed || value.includes(trimmed)) return;
+    const opts = suggestions ?? options;
+    if (!allowCustom && !opts.includes(trimmed)) return;
+    onChange([...value, trimmed]);
     setInputValue('');
-    if (inputRef.current) inputRef.current.value = '';
   };
 
   const removeTag = (tag: string) => {
-    onChange(value.filter(t => t !== tag));
+    onChange(value.filter((t) => t !== tag));
+  };
+
+  const toggleFavorite = (val?: string) => {
+    const trimmed = (val ?? inputValue).trim();
+    if (!trimmed) return;
+    toggleFavoritePosition(trimmed);
+    setInputValue('');
+  };
+
+  const handleFocus = () => {
+    setIsFocused(true);
+    onFocus?.();
+  };
+
+  const handleBlur = () => {
+    // Verzögerung hinzufügen, damit Button-Klicks noch registriert werden
+    setTimeout(() => setIsFocused(false), 200);
+    onBlur?.();
+  };
+
+  // Buttons nur bei Fokus anzeigen
+  const shouldShowButtons = isFocused;
+  const hasInputValue = inputValue.trim().length > 0;
+
+  const updateTag = (oldTag: string, newTag: string) => {
+    const trimmed = newTag.trim();
+    if (!trimmed) return;
+    const updatedTags = value.map(tag => tag === oldTag ? trimmed : tag);
+    onChange(updatedTags);
   };
 
   return (
-    <div className="space-y-2">
-      {label ? <label className="block text-sm font-medium text-gray-700">{label}</label> : null}
-
-      <div className="flex flex-wrap gap-2">
-        {value.map((tag) => (
-          <PositionTag key={tag} label={tag} onRemove={() => removeTag(tag)} />
-        ))}
-      </div>
+    <div className="space-y-4">
+      {value.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {value.map((tag) => (
+            <PositionTag
+              key={tag}
+              label={tag}
+              onRemove={() => removeTag(tag)}
+              onEdit={(newTag) => updateTag(tag, newTag)}
+            />
+          ))}
+        </div>
+      )}
 
       <AutocompleteInput
+        label={label}
         value={inputValue}
         onChange={setInputValue}
-        onFocus={onFocus}
-        onBlur={onBlur}
-        onAdd={() => addTag(inputValue)}
-        onFavoriteClick={(val?: string) => {
-          if (!val) return;
-          toggleFavorite(kind, val);
-        }}
-        suggestions={orderedSuggestions}
-        placeholder={placeholder}
-        showAddButton={showAddButton}
+        onAdd={addTag}
+        onFavoriteClick={toggleFavorite}
+        onFocus={handleFocus}
+        onBlur={handleBlur}
+        suggestions={sortByFavorite('position', (suggestions ?? options) || [])}
+        placeholder="Hinzufügen..."
+        showFavoritesButton={shouldShowButtons && showFavoritesButton}
+        showAddButton={shouldShowButtons}
+        className={hasInputValue && !isFocused ? 'border-orange-500' : ''}
       />
 
-      {showFavoritesButton && favs && favs.length > 0 && (
-        <div className="mt-1">
-          <div className="text-xs text-gray-500 mb-1">Favoriten</div>
+      {favorites.filter((f) => !value.includes(f)).length > 0 && (
+        <div>
+          <div className="flex items-center space-x-2 mb-2">
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="#9CA3AF"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <polygon
+                points="12 2 15 8.5 22 9.3 17 14 18.2 21 12 17.8 5.8 21 7 14 2 9.3 9 8.5 12 2"
+                fill="none"
+              />
+            </svg>
+            <h4 className="text-sm font-medium text-gray-700">Favoriten:</h4>
+          </div>
           <div className="flex flex-wrap gap-2">
-            {favs
+            {favorites
               .filter((item) => !value.includes(item))
               .map((item) => (
                 <TagButtonFavorite
                   key={item}
                   label={item}
                   onClick={() => addTag(item)}
-                  onRemove={() => toggleFavorite(kind, item)}
+                  onRemove={() => toggleFavorite(item)}
                 />
               ))}
           </div>
         </div>
       )}
+
     </div>
   );
 }
